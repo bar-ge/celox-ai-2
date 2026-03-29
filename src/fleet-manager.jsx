@@ -27,100 +27,44 @@ const branchColor = idx => BRANCH_COLORS[Math.max(idx, 0) % BRANCH_COLORS.length
 // ── Translations ────────────────────────────────────────────────────────────
 const T = {
   en: {
-    appName:             'Fleet Manager',
-    dashboard:           'Dashboard',
-    fleet:               'Fleet',
-    drivers:             'Drivers',
-    branches:            'Branches',
-    cars:                'Cars',
-    overview:            'Overview',
-    totalFleet:          'Total Vehicles',
-    totalDrivers:        'Total Drivers',
-    totalBranches:       'Total Branches',
-    unassigned:          'Unassigned Vehicles',
-    carsByBranch:        'Vehicles by Branch',
-    driversByBranch:     'Drivers by Branch',
-    topModels:           'Top Vehicle Models',
-    branchOverview:      'Branch Overview',
-    noData:              'No data yet.',
-    search:              'Search…',
-    newItem:             '+ New Item',
-    allVehicles:         'All Vehicles',
-    allDrivers:          'All Drivers',
-    allBranches:         'All Branches',
-    plate:               'Plate Number',
-    model:               'Model',
-    branch:              'Branch',
-    actions:             'Actions',
-    name:                'Name',
-    license:             'License',
-    branchName:          'Branch Name',
-    location:            'Location',
-    edit:                'Edit',
-    delete:              'Delete',
-    save:                'Save',
-    cancel:              'Cancel',
-    add:                 'Add',
-    addItem:             'Add item',
-    noBranch:            'No branch',
-    noCars:              'No vehicles found. Click + New Item to add one.',
-    noDrivers:           'No drivers found. Click + New Item to add one.',
-    noBranches:          'No branches found. Click + New Item to add one.',
-    loading:             'Loading your workspace…',
-    platePlaceholder:    'Plate number',
-    modelPlaceholder:    'Model',
-    driverPlaceholder:   'Driver name',
-    licensePlaceholder:  'License number',
-    branchPlaceholder:   'Branch name',
-    locationPlaceholder: 'Location',
+    appName:'Fleet Manager', dashboard:'Dashboard', fleet:'Fleet', drivers:'Drivers', branches:'Branches', cars:'Cars',
+    totalFleet:'Total Vehicles', totalDrivers:'Total Drivers', totalBranches:'Total Branches', unassigned:'Unassigned Vehicles',
+    carsByBranch:'Vehicles by Branch', driversByBranch:'Drivers by Branch', topModels:'Top Vehicle Models', branchOverview:'Branch Overview', noData:'No data yet.',
+    search:'Search…', newItem:'+ New Item', allVehicles:'All Vehicles', allDrivers:'All Drivers', allBranches:'All Branches',
+    actions:'Actions', edit:'Edit', delete:'Delete', save:'Save', cancel:'Cancel', add:'Add', addItem:'Add item',
+    // cars
+    plate:'Plate', make:'Make', model:'Model', year:'Year', status:'Status', fuel:'Fuel', mileage:'Mileage', branch:'Branch',
+    available:'Available', inUse:'In Use', maintenance:'Maintenance',
+    petrol:'Petrol', diesel:'Diesel', electric:'Electric', hybrid:'Hybrid',
+    // drivers
+    name:'Name', license:'License', phone:'Phone', driverStatus:'Status', active:'Active', inactive:'Inactive',
+    // branches
+    branchName:'Branch Name', city:'City', address:'Address', manager:'Manager',
+    noBranch:'No branch', noDriver:'No driver',
+    noCars:'No vehicles found. Click + New Item to add one.',
+    noDrivers:'No drivers found. Click + New Item to add one.',
+    noBranches:'No branches found. Click + New Item to add one.',
+    loading:'Loading your workspace…',
   },
   he: {
-    appName:             'מנהל הצי',
-    dashboard:           'לוח בקרה',
-    fleet:               'צי רכבים',
-    drivers:             'נהגים',
-    branches:            'סניפים',
-    cars:                'רכבים',
-    overview:            'סקירה',
-    totalFleet:          'סה"כ רכבים',
-    totalDrivers:        'סה"כ נהגים',
-    totalBranches:       'סה"כ סניפים',
-    unassigned:          'רכבים ללא סניף',
-    carsByBranch:        'רכבים לפי סניף',
-    driversByBranch:     'נהגים לפי סניף',
-    topModels:           'דגמי רכב מובילים',
-    branchOverview:      'סקירת סניפים',
-    noData:              'אין נתונים עדיין.',
-    search:              'חיפוש…',
-    newItem:             '+ פריט חדש',
-    allVehicles:         'כל הרכבים',
-    allDrivers:          'כל הנהגים',
-    allBranches:         'כל הסניפים',
-    plate:               'מספר לוחית',
-    model:               'דגם',
-    branch:              'סניף',
-    actions:             'פעולות',
-    name:                'שם',
-    license:             'רישיון',
-    branchName:          'שם סניף',
-    location:            'מיקום',
-    edit:                'עריכה',
-    delete:              'מחיקה',
-    save:                'שמור',
-    cancel:              'ביטול',
-    add:                 'הוסף',
-    addItem:             'הוסף פריט',
-    noBranch:            'ללא סניף',
-    noCars:              'לא נמצאו רכבים. לחץ על + פריט חדש להוספה.',
-    noDrivers:           'לא נמצאו נהגים. לחץ על + פריט חדש להוספה.',
-    noBranches:          'לא נמצאו סניפים. לחץ על + פריט חדש להוספה.',
-    loading:             'טוען את סביבת העבודה…',
-    platePlaceholder:    'מספר לוחית',
-    modelPlaceholder:    'דגם',
-    driverPlaceholder:   'שם נהג',
-    licensePlaceholder:  'מספר רישיון',
-    branchPlaceholder:   'שם סניף',
-    locationPlaceholder: 'מיקום',
+    appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
+    totalFleet:'סה"כ רכבים', totalDrivers:'סה"כ נהגים', totalBranches:'סה"כ סניפים', unassigned:'רכבים ללא סניף',
+    carsByBranch:'רכבים לפי סניף', driversByBranch:'נהגים לפי סניף', topModels:'דגמי רכב מובילים', branchOverview:'סקירת סניפים', noData:'אין נתונים עדיין.',
+    search:'חיפוש…', newItem:'+ פריט חדש', allVehicles:'כל הרכבים', allDrivers:'כל הנהגים', allBranches:'כל הסניפים',
+    actions:'פעולות', edit:'עריכה', delete:'מחיקה', save:'שמור', cancel:'ביטול', add:'הוסף', addItem:'הוסף פריט',
+    // cars
+    plate:'לוחית', make:'יצרן', model:'דגם', year:'שנה', status:'סטטוס', fuel:'דלק', mileage:'ק"מ', branch:'סניף',
+    available:'פנוי', inUse:'בשימוש', maintenance:'תחזוקה',
+    petrol:'בנזין', diesel:'דיזל', electric:'חשמלי', hybrid:'היברידי',
+    // drivers
+    name:'שם', license:'רישיון', phone:'טלפון', driverStatus:'סטטוס', active:'פעיל', inactive:'לא פעיל',
+    // branches
+    branchName:'שם סניף', city:'עיר', address:'כתובת', manager:'מנהל',
+    noBranch:'ללא סניף', noDriver:'ללא נהג',
+    noCars:'לא נמצאו רכבים. לחץ על + פריט חדש להוספה.',
+    noDrivers:'לא נמצאו נהגים. לחץ על + פריט חדש להוספה.',
+    noBranches:'לא נמצאו סניפים. לחץ על + פריט חדש להוספה.',
+    loading:'טוען את סביבת העבודה…',
   },
 }
 
@@ -190,15 +134,23 @@ function ActionBtn({ onClick, variant, children }) {
   )
 }
 
+// ── Status badge helpers ────────────────────────────────────────────────────
+const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintenance: C.warning }
+const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
+
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, branches, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) {
+function CarRow({ car, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
+  const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: hover ? '#f0f6ff' : C.surface, transition: 'background 0.1s' }}>
       <td style={{ ...td, fontWeight: 600 }}>{car.plate}</td>
-      <td style={td}>{car.model}</td>
+      <td style={td}>{car.make} {car.model}</td>
+      <td style={td}>{car.year || '—'}</td>
+      <td style={td}><Badge label={car.status || 'Available'} color={statusColor} /></td>
+      <td style={td}>{car.fuel || '—'}</td>
       <td style={td}>
         {getBranchName(car.branch_id) !== '—'
           ? <Badge label={getBranchName(car.branch_id)} color={branchColor(getBranchIdx(car.branch_id))} />
@@ -220,8 +172,29 @@ function EditableCarRow({ car, branches, onSave, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: '#f0f6ff' }}>
-      <td style={td}><input value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.plate || ''} placeholder={t.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} /></td>
+      <td style={td}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input value={form.make || ''} placeholder={t.make} onChange={e => setForm({ ...form, make: e.target.value })} style={{ ...inp, width: '50%' }} />
+          <input value={form.model || ''} placeholder={t.model} onChange={e => setForm({ ...form, model: e.target.value })} style={{ ...inp, width: '50%' }} />
+        </div>
+      </td>
+      <td style={td}><input type="number" value={form.year || ''} placeholder={t.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
+      <td style={td}>
+        <select value={form.status || 'Available'} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
+          <option value="Available">{t.available}</option>
+          <option value="In Use">{t.inUse}</option>
+          <option value="Maintenance">{t.maintenance}</option>
+        </select>
+      </td>
+      <td style={td}>
+        <select value={form.fuel || 'Petrol'} onChange={e => setForm({ ...form, fuel: e.target.value })} style={inp}>
+          <option value="Petrol">{t.petrol}</option>
+          <option value="Diesel">{t.diesel}</option>
+          <option value="Electric">{t.electric}</option>
+          <option value="Hybrid">{t.hybrid}</option>
+        </select>
+      </td>
       <td style={td}>
         <select value={form.branch_id || ''} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}>
           <option value="">{t.noBranch}</option>
@@ -229,7 +202,7 @@ function EditableCarRow({ car, branches, onSave, onCancel, t, rtl }) {
         </select>
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
-        <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
+        <span style={{ display: 'flex', gap: 6 }}>
           <ActionBtn variant="save" onClick={() => onSave(form)}>{t.save}</ActionBtn>
           <ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn>
         </span>
@@ -238,9 +211,10 @@ function EditableCarRow({ car, branches, onSave, onCancel, t, rtl }) {
   )
 }
 
-function DriverRow({ driver, branches, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) {
+function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
+  const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: hover ? '#f0f6ff' : C.surface, transition: 'background 0.1s' }}>
@@ -253,6 +227,8 @@ function DriverRow({ driver, branches, getBranchName, getBranchIdx, onEdit, onDe
         </span>
       </td>
       <td style={td}><Badge label={driver.license} color={C.warning} /></td>
+      <td style={td}>{driver.phone || '—'}</td>
+      <td style={td}><Badge label={driver.status || 'Active'} color={statusColor} /></td>
       <td style={td}>
         {getBranchName(driver.branch_id) !== '—'
           ? <Badge label={getBranchName(driver.branch_id)} color={branchColor(getBranchIdx(driver.branch_id))} />
@@ -274,8 +250,15 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: '#f0f6ff' }}>
-      <td style={td}><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.name || ''} placeholder={t.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.license || ''} placeholder={t.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
+      <td style={td}>
+        <select value={form.status || 'Active'} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
+          <option value="Active">{t.active}</option>
+          <option value="Inactive">{t.inactive}</option>
+        </select>
+      </td>
       <td style={td}>
         <select value={form.branch_id || ''} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}>
           <option value="">{t.noBranch}</option>
@@ -283,7 +266,7 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl }) {
         </select>
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
-        <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
+        <span style={{ display: 'flex', gap: 6 }}>
           <ActionBtn variant="save" onClick={() => onSave(form)}>{t.save}</ActionBtn>
           <ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn>
         </span>
@@ -304,7 +287,10 @@ function BranchRow({ branch, index, onEdit, onDelete, t, rtl }) {
           {branch.name}
         </span>
       </td>
-      <td style={td}>{branch.location}</td>
+      <td style={td}>{branch.city || '—'}</td>
+      <td style={td}>{branch.address || '—'}</td>
+      <td style={td}>{branch.manager || '—'}</td>
+      <td style={td}>{branch.phone || '—'}</td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
@@ -321,10 +307,13 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: '#f0f6ff' }}>
-      <td style={td}><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.name || ''} placeholder={t.branchName} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.city || ''} placeholder={t.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.address || ''} placeholder={t.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.manager || ''} placeholder={t.manager} onChange={e => setForm({ ...form, manager: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
-        <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
+        <span style={{ display: 'flex', gap: 6 }}>
           <ActionBtn variant="save" onClick={() => onSave(form)}>{t.save}</ActionBtn>
           <ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn>
         </span>
@@ -335,14 +324,35 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl }) {
 
 // ── Add-item inline rows ────────────────────────────────────────────────────
 function AddCarRow({ branches, onAdd, onCancel, t, rtl }) {
-  const [form, setForm] = useState({ plate: '', model: '', branch_id: '' })
+  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '' })
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
-  function submit() { if (form.plate.trim() && form.model.trim()) onAdd(form) }
+  function submit() { if (form.plate.trim() && form.make.trim() && form.model.trim()) onAdd(form) }
   return (
     <tr style={{ background: '#eef4ff' }}>
-      <td style={td}><input autoFocus placeholder={t.platePlaceholder} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
-      <td style={td}><input placeholder={t.modelPlaceholder} value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input autoFocus placeholder={t.plate} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input placeholder={t.make} value={form.make} onChange={e => setForm({ ...form, make: e.target.value })} style={{ ...inp, width: '50%' }} />
+          <input placeholder={t.model} value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} style={{ ...inp, width: '50%' }} />
+        </div>
+      </td>
+      <td style={td}><input type="number" placeholder={t.year} value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
+      <td style={td}>
+        <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
+          <option value="Available">{t.available}</option>
+          <option value="In Use">{t.inUse}</option>
+          <option value="Maintenance">{t.maintenance}</option>
+        </select>
+      </td>
+      <td style={td}>
+        <select value={form.fuel} onChange={e => setForm({ ...form, fuel: e.target.value })} style={inp}>
+          <option value="Petrol">{t.petrol}</option>
+          <option value="Diesel">{t.diesel}</option>
+          <option value="Electric">{t.electric}</option>
+          <option value="Hybrid">{t.hybrid}</option>
+        </select>
+      </td>
       <td style={td}><select value={form.branch_id} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}><option value="">{t.noBranch}</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}><span style={{ display: 'flex', gap: 6 }}><ActionBtn variant="save" onClick={submit}>{t.add}</ActionBtn><ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn></span></td>
     </tr>
@@ -350,14 +360,21 @@ function AddCarRow({ branches, onAdd, onCancel, t, rtl }) {
 }
 
 function AddDriverRow({ branches, onAdd, onCancel, t, rtl }) {
-  const [form, setForm] = useState({ name: '', license: '', branch_id: '' })
+  const [form, setForm] = useState({ name: '', license: '', phone: '', status: 'Active', branch_id: '' })
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   function submit() { if (form.name.trim() && form.license.trim()) onAdd(form) }
   return (
     <tr style={{ background: '#eef4ff' }}>
-      <td style={td}><input autoFocus placeholder={t.driverPlaceholder} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
-      <td style={td}><input placeholder={t.licensePlaceholder} value={form.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input autoFocus placeholder={t.name} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input placeholder={t.license} value={form.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
+      <td style={td}>
+        <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
+          <option value="Active">{t.active}</option>
+          <option value="Inactive">{t.inactive}</option>
+        </select>
+      </td>
       <td style={td}><select value={form.branch_id} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}><option value="">{t.noBranch}</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}><span style={{ display: 'flex', gap: 6 }}><ActionBtn variant="save" onClick={submit}>{t.add}</ActionBtn><ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn></span></td>
     </tr>
@@ -365,14 +382,17 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl }) {
 }
 
 function AddBranchRow({ onAdd, onCancel, t, rtl }) {
-  const [form, setForm] = useState({ name: '', location: '' })
+  const [form, setForm] = useState({ name: '', city: '', address: '', manager: '', phone: '' })
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
-  function submit() { if (form.name.trim() && form.location.trim()) onAdd(form) }
+  function submit() { if (form.name.trim() && form.city.trim()) onAdd(form) }
   return (
     <tr style={{ background: '#eef4ff' }}>
-      <td style={td}><input autoFocus placeholder={t.branchPlaceholder} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
-      <td style={td}><input placeholder={t.locationPlaceholder} value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input autoFocus placeholder={t.branchName} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input placeholder={t.city} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input placeholder={t.address} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
+      <td style={td}><input placeholder={t.manager} value={form.manager} onChange={e => setForm({ ...form, manager: e.target.value })} style={inp} /></td>
+      <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}><span style={{ display: 'flex', gap: 6 }}><ActionBtn variant="save" onClick={submit}>{t.add}</ActionBtn><ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn></span></td>
     </tr>
   )
@@ -543,14 +563,18 @@ function FleetManager() {
     setLoading(false)
   }
 
-  async function addCar(form)       { const clean = { ...form, branch_id: form.branch_id || null }; const { data } = await supabase.from('cars').insert([clean]).select(); if (data) setCars(p => [...p, data[0]]); setShowAdd(false) }
-  async function updateCar(form)    { const clean = { ...form, branch_id: form.branch_id || null }; await supabase.from('cars').update(clean).eq('id', clean.id); setCars(p => p.map(c => c.id === clean.id ? clean : c)); setEditingId(null) }
+  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null } }
+  function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null } }
+  function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null } }
+
+  async function addCar(form)       { const { data } = await supabase.from('cars').insert([cleanCar(form)]).select(); if (data) setCars(p => [...p, data[0]]); setShowAdd(false) }
+  async function updateCar(form)    { const c = { ...cleanCar(form), id: form.id }; await supabase.from('cars').update(c).eq('id', c.id); setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null) }
   async function deleteCar(id)      { await supabase.from('cars').delete().eq('id', id); setCars(p => p.filter(c => c.id !== id)) }
-  async function addDriver(form)    { const clean = { ...form, branch_id: form.branch_id || null }; const { data } = await supabase.from('drivers').insert([clean]).select(); if (data) setDrivers(p => [...p, data[0]]); setShowAdd(false) }
-  async function updateDriver(form) { const clean = { ...form, branch_id: form.branch_id || null }; await supabase.from('drivers').update(clean).eq('id', clean.id); setDrivers(p => p.map(d => d.id === clean.id ? clean : d)); setEditingId(null) }
+  async function addDriver(form)    { const { data } = await supabase.from('drivers').insert([cleanDriver(form)]).select(); if (data) setDrivers(p => [...p, data[0]]); setShowAdd(false) }
+  async function updateDriver(form) { const d = { ...cleanDriver(form), id: form.id }; await supabase.from('drivers').update(d).eq('id', d.id); setDrivers(p => p.map(x => x.id === d.id ? { ...x, ...d } : x)); setEditingId(null) }
   async function deleteDriver(id)   { await supabase.from('drivers').delete().eq('id', id); setDrivers(p => p.filter(d => d.id !== id)) }
-  async function addBranch(form)    { const { data } = await supabase.from('branches').insert([form]).select(); if (data) setBranches(p => [...p, data[0]]); setShowAdd(false) }
-  async function updateBranch(form) { await supabase.from('branches').update(form).eq('id', form.id); setBranches(p => p.map(b => b.id === form.id ? form : b)); setEditingId(null) }
+  async function addBranch(form)    { const { data } = await supabase.from('branches').insert([cleanBranch(form)]).select(); if (data) setBranches(p => [...p, data[0]]); setShowAdd(false) }
+  async function updateBranch(form) { const b = { ...cleanBranch(form), id: form.id }; await supabase.from('branches').update(b).eq('id', b.id); setBranches(p => p.map(x => x.id === b.id ? { ...x, ...b } : x)); setEditingId(null) }
   async function deleteBranch(id)   { await supabase.from('branches').delete().eq('id', id); setBranches(p => p.filter(b => b.id !== id)) }
 
   function getBranchName(id) { return branches.find(b => b.id === id)?.name || '—' }
@@ -558,9 +582,9 @@ function FleetManager() {
   function switchTab(tab)    { setActiveTab(tab); setEditingId(null); setShowAdd(false); setSearch('') }
 
   const q = search.toLowerCase()
-  const filteredCars     = cars.filter(c     => c.plate?.toLowerCase().includes(q) || c.model?.toLowerCase().includes(q) || getBranchName(c.branch_id).toLowerCase().includes(q))
-  const filteredDrivers  = drivers.filter(d  => d.name?.toLowerCase().includes(q)  || d.license?.toLowerCase().includes(q)  || getBranchName(d.branch_id).toLowerCase().includes(q))
-  const filteredBranches = branches.filter(b => b.name?.toLowerCase().includes(q)  || b.location?.toLowerCase().includes(q))
+  const filteredCars     = cars.filter(c     => c.plate?.toLowerCase().includes(q) || c.make?.toLowerCase().includes(q) || c.model?.toLowerCase().includes(q) || getBranchName(c.branch_id).toLowerCase().includes(q))
+  const filteredDrivers  = drivers.filter(d  => d.name?.toLowerCase().includes(q)  || d.license?.toLowerCase().includes(q) || d.phone?.toLowerCase().includes(q) || getBranchName(d.branch_id).toLowerCase().includes(q))
+  const filteredBranches = branches.filter(b => b.name?.toLowerCase().includes(q)  || b.city?.toLowerCase().includes(q) || b.manager?.toLowerCase().includes(q))
 
   const tabs = [
     { id: 'dashboard', label: t.dashboard, icon: '📊', count: null },
@@ -722,19 +746,27 @@ function FleetManager() {
                 <tr>
                   {activeTab === 'cars' && <>
                     <th style={mkTh(rtl)}>{t.plate}</th>
-                    <th style={mkTh(rtl)}>{t.model}</th>
+                    <th style={mkTh(rtl)}>{t.make} / {t.model}</th>
+                    <th style={mkTh(rtl)}>{t.year}</th>
+                    <th style={mkTh(rtl)}>{t.status}</th>
+                    <th style={mkTh(rtl)}>{t.fuel}</th>
                     <th style={mkTh(rtl)}>{t.branch}</th>
                     <th style={{ ...mkTh(rtl), width: 140 }}>{t.actions}</th>
                   </>}
                   {activeTab === 'drivers' && <>
                     <th style={mkTh(rtl)}>{t.name}</th>
                     <th style={mkTh(rtl)}>{t.license}</th>
+                    <th style={mkTh(rtl)}>{t.phone}</th>
+                    <th style={mkTh(rtl)}>{t.driverStatus}</th>
                     <th style={mkTh(rtl)}>{t.branch}</th>
                     <th style={{ ...mkTh(rtl), width: 140 }}>{t.actions}</th>
                   </>}
                   {activeTab === 'branches' && <>
                     <th style={mkTh(rtl)}>{t.branchName}</th>
-                    <th style={mkTh(rtl)}>{t.location}</th>
+                    <th style={mkTh(rtl)}>{t.city}</th>
+                    <th style={mkTh(rtl)}>{t.address}</th>
+                    <th style={mkTh(rtl)}>{t.manager}</th>
+                    <th style={mkTh(rtl)}>{t.phone}</th>
                     <th style={{ ...mkTh(rtl), width: 140 }}>{t.actions}</th>
                   </>}
                 </tr>
@@ -743,17 +775,17 @@ function FleetManager() {
                 {activeTab === 'cars' && filteredCars.map(car =>
                   editingId === car.id
                     ? <EditableCarRow key={car.id} car={car} branches={branches} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <CarRow key={car.id} car={car} branches={branches} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} t={t} rtl={rtl} />
+                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} t={t} rtl={rtl} />
                 )}
-                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
+                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
                 {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
 
                 {activeTab === 'drivers' && filteredDrivers.map(driver =>
                   editingId === driver.id
                     ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <DriverRow key={driver.id} driver={driver} branches={branches} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} t={t} rtl={rtl} />
+                    : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} t={t} rtl={rtl} />
                 )}
-                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
+                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
                 {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
 
                 {activeTab === 'branches' && filteredBranches.map((branch, i) =>
@@ -761,7 +793,7 @@ function FleetManager() {
                     ? <EditableBranchRow key={branch.id} branch={branch} onSave={updateBranch} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
                     : <BranchRow key={branch.id} branch={branch} index={i} onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} />
                 )}
-                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noBranches}</td></tr>}
+                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noBranches}</td></tr>}
                 {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
               </tbody>
             </table>
