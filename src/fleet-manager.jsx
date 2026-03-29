@@ -543,11 +543,11 @@ function FleetManager() {
     setLoading(false)
   }
 
-  async function addCar(form)       { const { data } = await supabase.from('cars').insert([form]).select(); if (data) setCars(p => [...p, data[0]]); setShowAdd(false) }
-  async function updateCar(form)    { await supabase.from('cars').update(form).eq('id', form.id); setCars(p => p.map(c => c.id === form.id ? form : c)); setEditingId(null) }
+  async function addCar(form)       { const clean = { ...form, branch_id: form.branch_id || null }; const { data } = await supabase.from('cars').insert([clean]).select(); if (data) setCars(p => [...p, data[0]]); setShowAdd(false) }
+  async function updateCar(form)    { const clean = { ...form, branch_id: form.branch_id || null }; await supabase.from('cars').update(clean).eq('id', clean.id); setCars(p => p.map(c => c.id === clean.id ? clean : c)); setEditingId(null) }
   async function deleteCar(id)      { await supabase.from('cars').delete().eq('id', id); setCars(p => p.filter(c => c.id !== id)) }
-  async function addDriver(form)    { const { data } = await supabase.from('drivers').insert([form]).select(); if (data) setDrivers(p => [...p, data[0]]); setShowAdd(false) }
-  async function updateDriver(form) { await supabase.from('drivers').update(form).eq('id', form.id); setDrivers(p => p.map(d => d.id === form.id ? form : d)); setEditingId(null) }
+  async function addDriver(form)    { const clean = { ...form, branch_id: form.branch_id || null }; const { data } = await supabase.from('drivers').insert([clean]).select(); if (data) setDrivers(p => [...p, data[0]]); setShowAdd(false) }
+  async function updateDriver(form) { const clean = { ...form, branch_id: form.branch_id || null }; await supabase.from('drivers').update(clean).eq('id', clean.id); setDrivers(p => p.map(d => d.id === clean.id ? clean : d)); setEditingId(null) }
   async function deleteDriver(id)   { await supabase.from('drivers').delete().eq('id', id); setDrivers(p => p.filter(d => d.id !== id)) }
   async function addBranch(form)    { const { data } = await supabase.from('branches').insert([form]).select(); if (data) setBranches(p => [...p, data[0]]); setShowAdd(false) }
   async function updateBranch(form) { await supabase.from('branches').update(form).eq('id', form.id); setBranches(p => p.map(b => b.id === form.id ? form : b)); setEditingId(null) }
