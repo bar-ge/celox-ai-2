@@ -28,11 +28,21 @@ const branchColor = idx => BRANCH_COLORS[Math.max(idx, 0) % BRANCH_COLORS.length
 const T = {
   en: {
     appName:             'Fleet Manager',
+    dashboard:           'Dashboard',
     fleet:               'Fleet',
     drivers:             'Drivers',
     branches:            'Branches',
     cars:                'Cars',
     overview:            'Overview',
+    totalFleet:          'Total Vehicles',
+    totalDrivers:        'Total Drivers',
+    totalBranches:       'Total Branches',
+    unassigned:          'Unassigned Vehicles',
+    carsByBranch:        'Vehicles by Branch',
+    driversByBranch:     'Drivers by Branch',
+    topModels:           'Top Vehicle Models',
+    branchOverview:      'Branch Overview',
+    noData:              'No data yet.',
     search:              'Search…',
     newItem:             '+ New Item',
     allVehicles:         'All Vehicles',
@@ -66,11 +76,21 @@ const T = {
   },
   he: {
     appName:             'מנהל הצי',
+    dashboard:           'לוח בקרה',
     fleet:               'צי רכבים',
     drivers:             'נהגים',
     branches:            'סניפים',
     cars:                'רכבים',
     overview:            'סקירה',
+    totalFleet:          'סה"כ רכבים',
+    totalDrivers:        'סה"כ נהגים',
+    totalBranches:       'סה"כ סניפים',
+    unassigned:          'רכבים ללא סניף',
+    carsByBranch:        'רכבים לפי סניף',
+    driversByBranch:     'נהגים לפי סניף',
+    topModels:           'דגמי רכב מובילים',
+    branchOverview:      'סקירת סניפים',
+    noData:              'אין נתונים עדיין.',
     search:              'חיפוש…',
     newItem:             '+ פריט חדש',
     allVehicles:         'כל הרכבים',
@@ -358,6 +378,141 @@ function AddBranchRow({ onAdd, onCancel, t, rtl }) {
   )
 }
 
+// ── Dashboard component ─────────────────────────────────────────────────────
+function Dashboard({ cars, drivers, branches, t, rtl }) {
+  const unassigned = cars.filter(c => !c.branch_id).length
+
+  const carsPerBranch = branches.map((b, i) => ({
+    name: b.name, color: branchColor(i),
+    count: cars.filter(c => c.branch_id === b.id).length,
+  }))
+  const driversPerBranch = branches.map((b, i) => ({
+    name: b.name, color: branchColor(i),
+    count: drivers.filter(d => d.branch_id === b.id).length,
+  }))
+  const maxCars    = Math.max(...carsPerBranch.map(b => b.count), 1)
+  const maxDrivers = Math.max(...driversPerBranch.map(b => b.count), 1)
+
+  const modelCounts = {}
+  cars.forEach(c => { if (c.model) modelCounts[c.model] = (modelCounts[c.model] || 0) + 1 })
+  const topModels = Object.entries(modelCounts).sort((a, b) => b[1] - a[1]).slice(0, 6)
+  const maxModel  = Math.max(...topModels.map(([, n]) => n), 1)
+
+  const card = (icon, value, label, color) => (
+    <div key={label} style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 24 }}>{icon}</span>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: color }} />
+      </div>
+      <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color, lineHeight: 1 }}>{value}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: C.textSecondary }}>{label}</p>
+    </div>
+  )
+
+  const barChart = (title, data, max) => (
+    <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      <h3 style={{ margin: '0 0 18px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{title}</h3>
+      {data.length === 0
+        ? <p style={{ color: C.textMuted, fontSize: 13 }}>{t.noData}</p>
+        : data.map(b => (
+          <div key={b.name} style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+              <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>{b.name}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: b.color }}>{b.count}</span>
+            </div>
+            <div style={{ height: 10, borderRadius: 5, background: C.border }}>
+              <div style={{ height: 10, borderRadius: 5, background: b.color, width: `${(b.count / max) * 100}%`, transition: 'width 0.6s ease', minWidth: b.count > 0 ? 10 : 0 }} />
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  )
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+        {card('🚗', cars.length,     t.totalFleet,    C.primary)}
+        {card('👤', drivers.length,  t.totalDrivers,  C.success)}
+        {card('🏢', branches.length, t.totalBranches, '#a25ddc')}
+        {card('⚠️', unassigned,      t.unassigned,    C.warning)}
+      </div>
+
+      {/* Bar charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        {barChart(t.carsByBranch,    carsPerBranch,    maxCars)}
+        {barChart(t.driversByBranch, driversPerBranch, maxDrivers)}
+      </div>
+
+      {/* Top models + Branch table */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+        {/* Top models */}
+        <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.topModels}</h3>
+          {topModels.length === 0
+            ? <p style={{ color: C.textMuted, fontSize: 13 }}>{t.noData}</p>
+            : topModels.map(([model, count], i) => (
+              <div key={model} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: branchColor(i), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>{model}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: branchColor(i), background: branchColor(i) + '18', borderRadius: 10, padding: '2px 8px' }}>{count}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: C.border, marginLeft: 32 }}>
+                  <div style={{ height: 6, borderRadius: 3, background: branchColor(i), width: `${(count / maxModel) * 100}%`, transition: 'width 0.6s ease' }} />
+                </div>
+              </div>
+            ))
+          }
+        </div>
+
+        {/* Branch overview table */}
+        <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.branchOverview}</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: rtl ? 'right' : 'left', fontSize: 11, fontWeight: 600, color: C.textMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.branchName}</th>
+                <th style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: C.textMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.cars}</th>
+                <th style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: C.textMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.drivers}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {branches.length === 0
+                ? <tr><td colSpan={3} style={{ padding: '20px 0', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{t.noData}</td></tr>
+                : branches.map((b, i) => (
+                  <tr key={b.id}>
+                    <td style={{ padding: '10px 0', fontSize: 13, color: C.textPrimary, borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row' }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: branchColor(i), flexShrink: 0 }} />
+                        <span style={{ fontWeight: 500 }}>{b.name}</span>
+                        <span style={{ fontSize: 11, color: C.textMuted }}>{b.location}</span>
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.primary, background: C.primary + '12', borderRadius: 6, padding: '2px 10px' }}>
+                        {cars.filter(c => c.branch_id === b.id).length}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.success, background: C.success + '12', borderRadius: 6, padding: '2px 10px' }}>
+                        {drivers.filter(d => d.branch_id === b.id).length}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 function FleetManager() {
   const [branches, setBranches]   = useState([])
@@ -408,9 +563,10 @@ function FleetManager() {
   const filteredBranches = branches.filter(b => b.name?.toLowerCase().includes(q)  || b.location?.toLowerCase().includes(q))
 
   const tabs = [
-    { id: 'cars',     label: t.fleet,    icon: '🚗', count: cars.length },
-    { id: 'drivers',  label: t.drivers,  icon: '👤', count: drivers.length },
-    { id: 'branches', label: t.branches, icon: '🏢', count: branches.length },
+    { id: 'dashboard', label: t.dashboard, icon: '📊', count: null },
+    { id: 'cars',      label: t.fleet,     icon: '🚗', count: cars.length },
+    { id: 'drivers',   label: t.drivers,   icon: '👤', count: drivers.length },
+    { id: 'branches',  label: t.branches,  icon: '🏢', count: branches.length },
   ]
 
   const activeTabData  = tabs.find(tab => tab.id === activeTab)
@@ -473,11 +629,13 @@ function FleetManager() {
             }}>
               <span style={{ fontSize: 15 }}>{item.icon}</span>
               {item.label}
-              <span style={{
-                background: 'rgba(255,255,255,0.15)',
-                color: activeTab === item.id ? '#fff' : C.navText,
-                borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700,
-              }}>{item.count}</span>
+              {item.count !== null && (
+                <span style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  color: activeTab === item.id ? '#fff' : C.navText,
+                  borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700,
+                }}>{item.count}</span>
+              )}
             </button>
           ))}
         </div>
@@ -512,7 +670,7 @@ function FleetManager() {
       {/* ── CONTENT (dir switches here, nav is unaffected above) ────────── */}
       <div dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-        {/* Sub-header: board title + search + new item */}
+        {/* Sub-header */}
         <div style={{
           background: C.surface, borderBottom: `1px solid ${C.border}`,
           padding: '0 24px', height: 56,
@@ -523,29 +681,34 @@ function FleetManager() {
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
-          {/* Search */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', width: 220 }}>
-            <span style={{ fontSize: 13, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
-            <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
-          </div>
-
-          {/* New item */}
-          <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
-            background: C.primary, color: '#fff', border: 'none',
-            borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 700,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-            boxShadow: '0 2px 8px rgba(0,115,234,0.3)', transition: 'background 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-            onMouseEnter={e => e.currentTarget.style.background = C.primaryHover}
-            onMouseLeave={e => e.currentTarget.style.background = C.primary}>
-            {t.newItem}
-          </button>
+          {/* Search + New item — hidden on dashboard */}
+          {activeTab !== 'dashboard' && <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', width: 220 }}>
+              <span style={{ fontSize: 13, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
+              <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
+                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
+            </div>
+            <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
+              background: C.primary, color: '#fff', border: 'none',
+              borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+              boxShadow: '0 2px 8px rgba(0,115,234,0.3)', transition: 'background 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = C.primaryHover}
+              onMouseLeave={e => e.currentTarget.style.background = C.primary}>
+              {t.newItem}
+            </button>
+          </>}
         </div>
 
+        {/* Dashboard view */}
+        {activeTab === 'dashboard' && (
+          <Dashboard cars={cars} drivers={drivers} branches={branches} t={t} rtl={rtl} />
+        )}
+
         {/* Board */}
-        <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        {activeTab !== 'dashboard' && <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
           <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
@@ -615,7 +778,7 @@ function FleetManager() {
               </button>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   )
