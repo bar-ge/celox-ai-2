@@ -664,17 +664,6 @@ function FleetManager() {
           ))}
         </div>
 
-        {/* Stats chips */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 16 }}>
-          {[[t.cars, cars.length, '🚗'], [t.drivers, drivers.length, '👤'], [t.branches, branches.length, '🏢']].map(([label, n, icon]) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ fontSize: 13 }}>{icon}</span>
-              <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{n}</span>
-              <span style={{ color: C.navText, fontSize: 12 }}>{label}</span>
-            </div>
-          ))}
-        </div>
-
         {/* Language toggle — always on the far right, never moves */}
         <div style={{ display: 'flex', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden', flexShrink: 0 }}>
           {['en', 'he'].map(l => (
