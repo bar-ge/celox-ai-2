@@ -45,6 +45,9 @@ const T = {
     noDrivers:'No drivers found. Click + New Item to add one.',
     noBranches:'No branches found. Click + New Item to add one.',
     loading:'Loading your workspace…',
+    settings:'Settings', companyName:'Company Name', inviteCode:'Invite Code',
+    copyCode:'Copy', codeCopied:'Copied!', members:'Team Members', removeMember:'Remove',
+    role:'Role', admin:'Admin', member:'Member', you:'You',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -65,6 +68,9 @@ const T = {
     noDrivers:'לא נמצאו נהגים. לחץ על + פריט חדש להוספה.',
     noBranches:'לא נמצאו סניפים. לחץ על + פריט חדש להוספה.',
     loading:'טוען את סביבת העבודה…',
+    settings:'הגדרות', companyName:'שם חברה', inviteCode:'קוד הזמנה',
+    copyCode:'העתק', codeCopied:'הועתק!', members:'חברי צוות', removeMember:'הסר',
+    role:'תפקיד', admin:'מנהל', member:'חבר', you:'אתה',
   },
 }
 
@@ -533,8 +539,129 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
   )
 }
 
+// ── Settings Tab ────────────────────────────────────────────────────────────
+function SettingsTab({ profile, companyId, session, t }) {
+  const company  = profile?.companies
+  const isAdmin  = profile?.role === 'admin'
+  const [members, setMembers]   = useState([])
+  const [copied, setCopied]     = useState(false)
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    supabase.from('profiles').select('*').eq('company_id', companyId).order('created_at')
+      .then(({ data }) => { if (data) setMembers(data); setLoading(false) })
+  }, [companyId])
+
+  function copyCode() {
+    navigator.clipboard.writeText(company?.invite_code || '')
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function removeMember(memberId) {
+    await supabase.from('profiles').delete().eq('id', memberId)
+    setMembers(p => p.filter(m => m.id !== memberId))
+  }
+
+  const row = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
+  const label = { fontSize: 11, fontWeight: 700, color: C.textSub, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Company info */}
+        <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🏢 Company</h3>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={label}>{t.companyName}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary }}>{company?.name}</div>
+          </div>
+
+          <div>
+            <div style={label}>{t.inviteCode}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                fontFamily: 'monospace', fontSize: 22, fontWeight: 900,
+                letterSpacing: '0.15em', color: C.primary,
+                background: '#f0f5ff', padding: '8px 16px', borderRadius: 8,
+                border: `1px solid ${C.primary}30`,
+              }}>
+                {company?.invite_code}
+              </span>
+              <button onClick={copyCode} style={{
+                background: copied ? C.success : C.primary, color: '#fff',
+                border: 'none', borderRadius: 8, padding: '8px 16px',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s',
+              }}>
+                {copied ? t.codeCopied : t.copyCode}
+              </button>
+            </div>
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSub }}>
+              Share this code with teammates so they can join your company.
+            </p>
+          </div>
+        </div>
+
+        {/* Members */}
+        <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+          <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
+            👥 {t.members}
+            <span style={{ marginLeft: 8, background: C.bg, color: C.textSub, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+              {members.length}
+            </span>
+          </h3>
+
+          {loading ? (
+            <p style={{ color: C.textMuted, fontSize: 14 }}>Loading…</p>
+          ) : members.map(m => (
+            <div key={m.id} style={row}>
+              {/* Avatar */}
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                background: `linear-gradient(135deg, ${C.primary}, #a25ddc)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontWeight: 800, fontSize: 14,
+              }}>
+                {(m.email || '?')[0].toUpperCase()}
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {m.email}
+                  {m.id === session.user.id && (
+                    <span style={{ fontSize: 11, background: '#e8f3ff', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
+                      {t.you}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>
+                  {m.role === 'admin' ? t.admin : t.member}
+                </div>
+              </div>
+
+              {/* Remove button — admin only, can't remove self */}
+              {isAdmin && m.id !== session.user.id && (
+                <button onClick={() => removeMember(m.id)} style={{
+                  background: 'transparent', border: `1px solid ${C.danger}40`,
+                  color: C.danger, borderRadius: 6, padding: '5px 10px',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}>
+                  {t.removeMember}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
-function FleetManager({ session, onSignOut }) {
+function FleetManager({ session, profile, companyId, onSignOut }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
   const [cars, setCars]           = useState([])
@@ -553,9 +680,9 @@ function FleetManager({ session, onSignOut }) {
   async function loadAll() {
     setLoading(true)
     const [{ data: b }, { data: d }, { data: c }] = await Promise.all([
-      supabase.from('branches').select('*').order('created_at'),
-      supabase.from('drivers').select('*').order('created_at'),
-      supabase.from('cars').select('*').order('created_at'),
+      supabase.from('branches').select('*').eq('company_id', companyId).order('created_at'),
+      supabase.from('drivers').select('*').eq('company_id', companyId).order('created_at'),
+      supabase.from('cars').select('*').eq('company_id', companyId).order('created_at'),
     ])
     if (b) setBranches(b)
     if (d) setDrivers(d)
@@ -563,9 +690,9 @@ function FleetManager({ session, onSignOut }) {
     setLoading(false)
   }
 
-  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null } }
-  function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null } }
-  function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null } }
+  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, company_id: companyId } }
+  function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: companyId } }
+  function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: companyId } }
 
   async function addCar(form)       { const { data } = await supabase.from('cars').insert([cleanCar(form)]).select(); if (data) setCars(p => [...p, data[0]]); setShowAdd(false) }
   async function updateCar(form)    { const c = { ...cleanCar(form), id: form.id }; await supabase.from('cars').update(c).eq('id', c.id); setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null) }
@@ -591,6 +718,7 @@ function FleetManager({ session, onSignOut }) {
     { id: 'cars',      label: t.fleet,     icon: '🚗', count: cars.length },
     { id: 'drivers',   label: t.drivers,   icon: '👤', count: drivers.length },
     { id: 'branches',  label: t.branches,  icon: '🏢', count: branches.length },
+    { id: 'settings',  label: t.settings,  icon: '⚙️', count: null },
   ]
 
   const activeTabData  = tabs.find(tab => tab.id === activeTab)
@@ -709,8 +837,8 @@ function FleetManager({ session, onSignOut }) {
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
-          {/* Search + New item — hidden on dashboard */}
-          {activeTab !== 'dashboard' && <>
+          {/* Search + New item — hidden on dashboard and settings */}
+          {activeTab !== 'dashboard' && activeTab !== 'settings' && <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', width: 220 }}>
               <span style={{ fontSize: 13, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
@@ -735,8 +863,13 @@ function FleetManager({ session, onSignOut }) {
           <Dashboard cars={cars} drivers={drivers} branches={branches} t={t} rtl={rtl} />
         )}
 
+        {/* Settings view */}
+        {activeTab === 'settings' && (
+          <SettingsTab profile={profile} companyId={companyId} session={session} t={t} />
+        )}
+
         {/* Board */}
-        {activeTab !== 'dashboard' && <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
           <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
