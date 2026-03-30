@@ -534,7 +534,7 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
-function FleetManager() {
+function FleetManager({ session, onSignOut }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
   const [cars, setCars]           = useState([])
@@ -663,6 +663,21 @@ function FleetManager() {
             </button>
           ))}
         </div>
+
+        {/* User email + sign out */}
+        {session && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 12 }}>
+            <span style={{ color: C.navText, fontSize: 12, whiteSpace: 'nowrap' }}>{session.user.email}</span>
+            <button onClick={onSignOut} style={{
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+              color: C.navText, borderRadius: 6, padding: '4px 10px',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}>
+              Sign Out
+            </button>
+          </div>
+        )}
 
         {/* Language toggle — always on the far right, never moves */}
         <div style={{ display: 'flex', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden', flexShrink: 0 }}>
