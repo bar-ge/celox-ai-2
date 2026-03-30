@@ -35,7 +35,12 @@ function LoginScreen() {
     } else {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) setError(error.message)
-      else setSuccess('Account created! You can now sign in.')
+      else {
+        setEmail('')
+        setPassword('')
+        setMode('login')
+        setSuccess('Account created! Please sign in.')
+      }
     }
 
     setLoading(false)
