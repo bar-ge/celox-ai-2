@@ -71,6 +71,9 @@ const T = {
     selectCompanyPrompt:'Select a company to manage',
     selectCompanyHint:'Go to Settings → click Manage next to a company',
     files:'Files', uploadFile:'Upload File', noFiles:'No files yet.',
+    maxCars:'Max Vehicles', maxUsers:'Max Users',
+    limitReachedCars:'Vehicle limit reached for this company.',
+    limitReachedUsers:'User limit reached for this company.',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -106,6 +109,9 @@ const T = {
     selectCompanyPrompt:'בחר חברה לניהול',
     selectCompanyHint:'עבור להגדרות ← לחץ נהל ליד חברה',
     files:'קבצים', uploadFile:'העלה קובץ', noFiles:'אין קבצים עדיין.',
+    maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים',
+    limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
+    limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
   },
 }
 
@@ -756,6 +762,9 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [creating, setCreating]     = useState(false)
   const [masterMsg, setMasterMsg]   = useState('')
   const [masterErr, setMasterErr]   = useState('')
+  const [editingLimits, setEditingLimits] = useState(null) // company id being edited
+  const [limitCars, setLimitCars]   = useState('')
+  const [limitUsers, setLimitUsers] = useState('')
 
   useEffect(() => {
     if (isMaster) {
@@ -824,6 +833,24 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     if (data) setCompanies(p => p.map(c => c.id === data.id ? data : c))
   }
 
+  function startEditLimits(co) {
+    setEditingLimits(co.id)
+    setLimitCars(co.max_cars ?? '')
+    setLimitUsers(co.max_users ?? '')
+  }
+
+  async function saveLimits(co) {
+    const { data } = await supabase.from('companies')
+      .update({
+        max_cars:  limitCars  === '' ? null : parseInt(limitCars),
+        max_users: limitUsers === '' ? null : parseInt(limitUsers),
+      })
+      .eq('id', co.id)
+      .select().single()
+    if (data) setCompanies(p => p.map(c => c.id === data.id ? data : c))
+    setEditingLimits(null)
+  }
+
   const row   = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
   const lbl   = { fontSize: 11, fontWeight: 700, color: C.textSub, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
   const card  = { background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }
@@ -872,38 +899,63 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
             ) : companies.length === 0 ? (
               <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>{t.noCompanies}</p>
             ) : companies.map(co => (
-              <div key={co.id} style={row}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {co.name}
-                    <span style={{
-                      fontSize: 11, borderRadius: 4, padding: '2px 7px', fontWeight: 700,
-                      background: co.is_active ? '#e6f9f0' : '#fff0f2',
-                      color: co.is_active ? '#00c875' : '#e2445c',
-                    }}>
-                      {co.is_active ? t.activeStatus : t.closedStatus}
-                    </span>
+              <div key={co.id} style={{ ...row, flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+                {/* Row top: name + buttons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {co.name}
+                      <span style={{
+                        fontSize: 11, borderRadius: 4, padding: '2px 7px', fontWeight: 700,
+                        background: co.is_active ? '#e6f9f0' : '#fff0f2',
+                        color: co.is_active ? '#00c875' : '#e2445c',
+                      }}>
+                        {co.is_active ? t.activeStatus : t.closedStatus}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.textSub, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                      {co.invite_code}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: C.textSub, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
-                    {co.invite_code}
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button onClick={() => onSelectCompany(co)} style={{
+                      background: C.primary, color: '#fff', border: 'none',
+                      borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}>{t.manage}</button>
+                    <button onClick={() => startEditLimits(co)} style={{
+                      background: 'transparent', border: `1px solid ${C.border}`,
+                      color: C.textSub, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}>⚙️</button>
+                    <button onClick={() => toggleActive(co)} style={{
+                      background: 'transparent',
+                      border: `1px solid ${co.is_active ? '#e2445c40' : '#00c87540'}`,
+                      color: co.is_active ? '#e2445c' : '#00c875',
+                      borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}>{co.is_active ? t.closeCompany : t.reopenCompany}</button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => onSelectCompany(co)} style={{
-                    background: C.primary, color: '#fff', border: 'none',
-                    borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}>
-                    {t.manage}
-                  </button>
-                  <button onClick={() => toggleActive(co)} style={{
-                    background: 'transparent',
-                    border: `1px solid ${co.is_active ? '#e2445c40' : '#00c87540'}`,
-                    color: co.is_active ? '#e2445c' : '#00c875',
-                    borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}>
-                    {co.is_active ? t.closeCompany : t.reopenCompany}
-                  </button>
+                {/* Limits row — current values always visible */}
+                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSub }}>
+                  <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.text : C.textSub }}>{co.max_cars ?? '∞'}</strong></span>
+                  <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.text : C.textSub }}>{co.max_users ?? '∞'}</strong></span>
                 </div>
+                {/* Inline limits editor */}
+                {editingLimits === co.id && (
+                  <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <label style={{ fontSize: 12, color: C.textSub, whiteSpace: 'nowrap' }}>🚗 {t.maxCars}</label>
+                      <input type="number" min="0" value={limitCars} onChange={e => setLimitCars(e.target.value)}
+                        placeholder="∞" style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <label style={{ fontSize: 12, color: C.textSub, whiteSpace: 'nowrap' }}>👤 {t.maxUsers}</label>
+                      <input type="number" min="0" value={limitUsers} onChange={e => setLimitUsers(e.target.value)}
+                        placeholder="∞" style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                    </div>
+                    <button onClick={() => saveLimits(co)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t.save}</button>
+                    <button onClick={() => setEditingLimits(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSub, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1043,6 +1095,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [lang, setLang]           = useState(initialLang || 'en')
   const isMobile                  = useIsMobile()
   const [filesFor, setFilesFor] = useState(null) // { entity, entityType }
+  const [companyLimits, setCompanyLimits] = useState({ max_cars: null, max_users: null })
   // Master can switch which company they're viewing
   const [viewCompanyId, setViewCompanyId] = useState(isMaster ? null : companyId)
   const [viewCompanyName, setViewCompanyName] = useState(null)
@@ -1057,14 +1110,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   async function loadAll() {
     setLoading(true)
     if (!activeCompanyId) { setBranches([]); setDrivers([]); setCars([]); setLoading(false); return }
-    const [{ data: b }, { data: d }, { data: c }] = await Promise.all([
+    const [{ data: b }, { data: d }, { data: c }, { data: co }] = await Promise.all([
       supabase.from('branches').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('drivers').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('cars').select('*').eq('company_id', activeCompanyId).order('created_at'),
+      supabase.from('companies').select('max_cars, max_users').eq('id', activeCompanyId).maybeSingle(),
     ])
     if (b) setBranches(b)
     if (d) setDrivers(d)
     if (c) setCars(c)
+    if (co) setCompanyLimits(co)
     setLoading(false)
   }
 
@@ -1078,10 +1133,24 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
-  async function addCar(form)       { const { data } = await supabase.from('cars').insert([cleanCar(form)]).select(); if (data) setCars(p => [...p, data[0]]); setShowAdd(false) }
+  async function addCar(form) {
+    if (companyLimits.max_cars != null && cars.length >= companyLimits.max_cars) {
+      alert(t.limitReachedCars); return
+    }
+    const { data } = await supabase.from('cars').insert([cleanCar(form)]).select()
+    if (data) setCars(p => [...p, data[0]])
+    setShowAdd(false)
+  }
   async function updateCar(form)    { const c = { ...cleanCar(form), id: form.id }; await supabase.from('cars').update(c).eq('id', c.id); setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null) }
   async function deleteCar(id)      { await supabase.from('cars').delete().eq('id', id); setCars(p => p.filter(c => c.id !== id)) }
-  async function addDriver(form)    { const { data } = await supabase.from('drivers').insert([cleanDriver(form)]).select(); if (data) setDrivers(p => [...p, data[0]]); setShowAdd(false) }
+  async function addDriver(form) {
+    if (companyLimits.max_users != null && drivers.length >= companyLimits.max_users) {
+      alert(t.limitReachedUsers); return
+    }
+    const { data } = await supabase.from('drivers').insert([cleanDriver(form)]).select()
+    if (data) setDrivers(p => [...p, data[0]])
+    setShowAdd(false)
+  }
   async function updateDriver(form) { const d = { ...cleanDriver(form), id: form.id }; await supabase.from('drivers').update(d).eq('id', d.id); setDrivers(p => p.map(x => x.id === d.id ? { ...x, ...d } : x)); setEditingId(null) }
   async function deleteDriver(id)   { await supabase.from('drivers').delete().eq('id', id); setDrivers(p => p.filter(d => d.id !== id)) }
   async function addBranch(form)    { const { data } = await supabase.from('branches').insert([cleanBranch(form)]).select(); if (data) setBranches(p => [...p, data[0]]); setShowAdd(false) }
