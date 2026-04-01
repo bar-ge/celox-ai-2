@@ -169,7 +169,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, t
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: hover ? '#f0f6ff' : C.surface, transition: 'background 0.1s' }}>
-      <td style={{ ...td, fontWeight: 600 }}>{car.plate}</td>
+      <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>{car.plate}</td>
       <td style={td}>{car.make} {car.model}</td>
       <td style={td}>{car.year || '—'}</td>
       <td style={td}><Badge label={t[CAR_STATUS_KEY[car.status]] || car.status || t.available} color={statusColor} /></td>
