@@ -493,11 +493,11 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
     <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: 16, marginBottom: 20 }}>
         {card('🚗', cars.length,     t.totalFleet,    C.primary)}
         {card('👤', drivers.length,  t.totalDrivers,  C.success)}
         {card('🏢', branches.length, t.totalBranches, '#a25ddc')}
-        {card('⚠️', unassigned,      t.unassigned,    C.warning)}
+        {unassigned > 0 && card('⚠️', unassigned, t.unassigned, C.warning)}
       </div>
 
       {/* Bar charts */}
