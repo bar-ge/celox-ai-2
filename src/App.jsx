@@ -120,14 +120,13 @@ function Logo({ subtitle }) {
 }
 
 // ── Shared card ────────────────────────────────────────────────────────────
-function Card({ children, width = 380, rtl }) {
+function Card({ children, width = 380 }) {
   return (
     <div style={{
       background: C.surface, borderRadius: 16, padding: '36px 32px',
       width, maxWidth: '90vw',
       boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
       border: `1px solid ${C.border}`,
-      direction: rtl ? 'rtl' : 'ltr',
     }}>
       {children}
     </div>
@@ -173,7 +172,6 @@ function Tabs({ options, value, onChange }) {
 // ── Login / Sign-up screen ─────────────────────────────────────────────────
 function LoginScreen({ lang, setLang }) {
   const t = L[lang]
-  const rtl = lang === 'he'
   const [mode, setMode]         = useState('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -206,7 +204,7 @@ function LoginScreen({ lang, setLang }) {
   return (
     <Page>
       <Logo subtitle={mode === 'login' ? t.signInSub : t.signUpSub} />
-      <Card rtl={rtl}>
+      <Card>
         <LangToggle lang={lang} setLang={setLang} />
         <Tabs
           options={[['login', t.signIn], ['signup', t.signUp]]}
@@ -241,7 +239,6 @@ function LoginScreen({ lang, setLang }) {
 // ── Join-company screen (regular users without a company) ──────────────────
 function JoinCompanyScreen({ session, onDone, lang, setLang }) {
   const t = L[lang]
-  const rtl = lang === 'he'
   const [tab, setTab]             = useState('code')
   const [inviteCode, setInviteCode] = useState('')
   const [invites, setInvites]     = useState([])
@@ -296,7 +293,7 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
   return (
     <Page>
       <Logo subtitle={t.joinSub} />
-      <Card rtl={rtl}>
+      <Card>
         <LangToggle lang={lang} setLang={setLang} />
         <Tabs
           options={[['code', t.joinWithCode], ['invites', t.pendingInvites]]}
