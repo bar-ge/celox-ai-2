@@ -70,6 +70,7 @@ const T = {
     shareCodeHint:'Share this code with teammates so they can join your company.',
     selectCompanyPrompt:'Select a company to manage',
     selectCompanyHint:'Go to Settings → click Manage next to a company',
+    files:'Files', uploadFile:'Upload File', noFiles:'No files yet.',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -104,6 +105,7 @@ const T = {
     shareCodeHint:'שתף קוד זה עם עמיתים כדי שיוכלו להצטרף לחברה שלך.',
     selectCompanyPrompt:'בחר חברה לניהול',
     selectCompanyHint:'עבור להגדרות ← לחץ נהל ליד חברה',
+    files:'קבצים', uploadFile:'העלה קובץ', noFiles:'אין קבצים עדיין.',
   },
 }
 
@@ -173,6 +175,141 @@ function ActionBtn({ onClick, variant, children }) {
   )
 }
 
+// ── Files Modal ─────────────────────────────────────────────────────────────
+function FilesModal({ entity, entityType, companyId, onClose, t }) {
+  const [docs, setDocs]       = useState([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError]     = useState('')
+
+  useEffect(() => {
+    loadDocs()
+  }, [entity.id])
+
+  async function loadDocs() {
+    setLoading(true)
+    const { data } = await supabase.from('documents')
+      .select('*').eq('entity_id', entity.id).order('created_at', { ascending: false })
+    setDocs(data || [])
+    setLoading(false)
+  }
+
+  async function uploadFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true); setError('')
+    const path = `${companyId}/${entityType}/${entity.id}/${Date.now()}_${file.name}`
+    const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, file)
+    if (uploadErr) { setError(uploadErr.message); setUploading(false); return }
+    const { error: dbErr } = await supabase.from('documents').insert({
+      company_id: companyId, entity_type: entityType, entity_id: entity.id,
+      name: file.name, storage_path: path, size: file.size,
+    })
+    if (dbErr) { setError(dbErr.message) } else { await loadDocs() }
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  async function downloadFile(doc) {
+    const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(doc.storage_path, 60)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  }
+
+  async function deleteFile(doc) {
+    await supabase.storage.from('fleet-documents').remove([doc.storage_path])
+    await supabase.from('documents').delete().eq('id', doc.id)
+    setDocs(p => p.filter(d => d.id !== doc.id))
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return ''
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  }
+
+  const entityLabel = entityType === 'car'
+    ? (entity.plate || entity.make)
+    : entity.name
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(34,51,59,0.5)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 16,
+    }} onClick={onClose}>
+      <div style={{
+        background: C.surface, borderRadius: 12, width: '100%', maxWidth: 480,
+        boxShadow: '0 8px 40px rgba(0,0,0,0.2)', border: `1px solid ${C.border}`,
+        maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+      }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>
+              📎 {t.files}
+            </div>
+            <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{entityLabel}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: C.textSecondary, lineHeight: 1 }}>×</button>
+        </div>
+
+        {/* File list */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
+          {loading ? (
+            <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>Loading…</p>
+          ) : docs.length === 0 ? (
+            <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.noFiles}</p>
+          ) : docs.map(doc => (
+            <div key={doc.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 0', borderBottom: `1px solid ${C.border}`,
+            }}>
+              <span style={{ fontSize: 22 }}>{getFileIcon(doc.name)}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
+                <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2 }}>
+                  {formatSize(doc.size)} · {new Date(doc.created_at).toLocaleDateString()}
+                </div>
+              </div>
+              <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                ↓
+              </button>
+              <button onClick={() => deleteFile(doc)} style={{ background: C.danger + '18', color: C.danger, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                ✕
+              </button>
+            </div>
+          ))}
+          {error && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{error}</div>}
+        </div>
+
+        {/* Upload */}
+        <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.border}` }}>
+          <label style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            background: C.primary, color: '#fff', borderRadius: 8,
+            padding: '10px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer',
+            opacity: uploading ? 0.7 : 1,
+          }}>
+            {uploading ? '…' : `⬆ ${t.uploadFile}`}
+            <input type="file" style={{ display: 'none' }} onChange={uploadFile} disabled={uploading} />
+          </label>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase()
+  if (['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️'
+  if (['pdf'].includes(ext)) return '📄'
+  if (['doc','docx'].includes(ext)) return '📝'
+  if (['xls','xlsx'].includes(ext)) return '📊'
+  return '📎'
+}
+
 // ── Status badge helpers ────────────────────────────────────────────────────
 const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintenance: C.warning }
 const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
@@ -183,7 +320,7 @@ const CAR_FUEL_KEY   = { Petrol: 'petrol', Diesel: 'diesel', Electric: 'electric
 const DRIVER_STATUS_KEY = { Active: 'active', Inactive: 'inactive' }
 
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, t, rtl }) {
+function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, onFiles, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
   const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
@@ -215,6 +352,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, t
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
+          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
         </span>
       </td>
     </tr>
@@ -272,7 +410,7 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl }) {
   )
 }
 
-function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) {
+function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, onFiles, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
@@ -299,6 +437,7 @@ function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, t, r
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
+          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
         </span>
       </td>
     </tr>
@@ -903,6 +1042,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [search, setSearch]       = useState('')
   const [lang, setLang]           = useState(initialLang || 'en')
   const isMobile                  = useIsMobile()
+  const [filesFor, setFilesFor] = useState(null) // { entity, entityType }
   // Master can switch which company they're viewing
   const [viewCompanyId, setViewCompanyId] = useState(isMaster ? null : companyId)
   const [viewCompanyName, setViewCompanyName] = useState(null)
@@ -1204,7 +1344,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 {activeTab === 'cars' && filteredCars.map(car =>
                   editingId === car.id
                     ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers} onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} t={t} rtl={rtl} />
+                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers} onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })} t={t} rtl={rtl} />
                 )}
                 {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
                 {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
@@ -1212,7 +1352,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 {activeTab === 'drivers' && filteredDrivers.map(driver =>
                   editingId === driver.id
                     ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} t={t} rtl={rtl} />
+                    : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} />
                 )}
                 {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
                 {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
@@ -1242,6 +1382,17 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           </div>
         </div>}
       </div>
+
+      {/* Files modal */}
+      {filesFor && (
+        <FilesModal
+          entity={filesFor.entity}
+          entityType={filesFor.entityType}
+          companyId={activeCompanyId}
+          onClose={() => setFilesFor(null)}
+          t={t}
+        />
+      )}
     </div>
   )
 }
