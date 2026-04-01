@@ -204,7 +204,8 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
     const file = e.target.files[0]
     if (!file) return
     setUploading(true); setError('')
-    const path = `${companyId}/${entityType}/${entity.id}/${Date.now()}_${file.name}`
+    const safeName = file.name.replace(/[^\x00-\x7F]/g, '_').replace(/\s+/g, '_')
+    const path = `${companyId}/${entityType}/${entity.id}/${Date.now()}_${safeName}`
     const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, file)
     if (uploadErr) { setError(uploadErr.message); setUploading(false); return }
     const { error: dbErr } = await supabase.from('documents').insert({
