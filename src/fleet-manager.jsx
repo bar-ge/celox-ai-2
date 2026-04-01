@@ -1,5 +1,16 @@
 import { supabase } from './supabaseClient'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+
+// ── Mobile breakpoint hook ──────────────────────────────────────────────────
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint)
+  const handler = useCallback(() => setIsMobile(window.innerWidth < breakpoint), [breakpoint])
+  useEffect(() => {
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [handler])
+  return isMobile
+}
 
 // ── Design tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -856,6 +867,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [showAdd, setShowAdd]     = useState(false)
   const [search, setSearch]       = useState('')
   const [lang, setLang]           = useState(initialLang || 'en')
+  const isMobile                  = useIsMobile()
 
   const t   = T[lang]
   const rtl = lang === 'he'
@@ -923,21 +935,20 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     // Outer wrapper: always LTR so the nav never flips
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Figtree','Roboto',system-ui,sans-serif", background: C.bg }}>
 
-      {/* ── TOP NAVIGATION BAR (always LTR, never moves) ──────────────── */}
+      {/* ── TOP NAVIGATION BAR ────────────────────────────────────────────── */}
       <nav style={{
         background: C.navBg,
         borderBottom: `1px solid ${C.navBorder}`,
         height: 56,
         display: 'flex',
         alignItems: 'center',
-        padding: '0 24px',
+        padding: isMobile ? '0 14px' : '0 24px',
         gap: 8,
         flexShrink: 0,
-        // direction is always LTR — nav never flips
         direction: 'ltr',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: isMobile ? 0 : 24, flex: isMobile ? 1 : 'none' }}>
           <div style={{
             width: 32, height: 32, borderRadius: 8, flexShrink: 0,
             background: `linear-gradient(135deg, ${C.primary}, #a25ddc)`,
@@ -946,57 +957,59 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           }}>
             <span style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>F</span>
           </div>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{t.appName}</span>
+          {!isMobile && <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{t.appName}</span>}
         </div>
 
-        {/* Nav tabs — each has a fixed min-width so text changes never shift neighbours */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-          {tabs.map(item => (
-            <button key={item.id} onClick={() => switchTab(item.id)} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-              minWidth: 110,           // fixed width → switching language never shifts the nav
-              padding: '7px 14px',
-              borderRadius: 6, border: 'none', cursor: 'pointer',
-              background: activeTab === item.id ? C.navActiveBg : 'transparent',
-              color: activeTab === item.id ? C.navActive : C.navText,
-              fontWeight: activeTab === item.id ? 700 : 400,
-              fontSize: 14,
-              transition: 'background 0.15s, color 0.15s',
-              whiteSpace: 'nowrap',
-            }}>
-              <span style={{ fontSize: 15 }}>{item.icon}</span>
-              {item.label}
-              {item.count !== null && (
-                <span style={{
-                  background: 'rgba(255,255,255,0.15)',
-                  color: activeTab === item.id ? '#fff' : C.navText,
-                  borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700,
-                }}>{item.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        {/* Nav tabs — desktop only, hidden on mobile (tabs move to bottom bar) */}
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+            {tabs.map(item => (
+              <button key={item.id} onClick={() => switchTab(item.id)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                minWidth: 110,
+                padding: '7px 14px',
+                borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: activeTab === item.id ? C.navActiveBg : 'transparent',
+                color: activeTab === item.id ? C.navActive : C.navText,
+                fontWeight: activeTab === item.id ? 700 : 400,
+                fontSize: 14,
+                transition: 'background 0.15s, color 0.15s',
+                whiteSpace: 'nowrap',
+              }}>
+                <span style={{ fontSize: 15 }}>{item.icon}</span>
+                {item.label}
+                {item.count !== null && (
+                  <span style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    color: activeTab === item.id ? '#fff' : C.navText,
+                    borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700,
+                  }}>{item.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* User email + sign out */}
         {session && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 12 }}>
-            <span style={{ color: C.navText, fontSize: 12, whiteSpace: 'nowrap' }}>{session.user.email}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!isMobile && <span style={{ color: C.navText, fontSize: 12, whiteSpace: 'nowrap' }}>{session.user.email}</span>}
             <button onClick={onSignOut} style={{
               background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-              color: C.navText, borderRadius: 6, padding: '4px 10px',
+              color: C.navText, borderRadius: 6, padding: isMobile ? '5px 10px' : '4px 10px',
               fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              transition: 'background 0.15s',
+              transition: 'background 0.15s', whiteSpace: 'nowrap',
             }}>
-              Sign Out
+              {isMobile ? '↩' : 'Sign Out'}
             </button>
           </div>
         )}
 
-        {/* Language toggle — always on the far right, never moves */}
+        {/* Language toggle */}
         <div style={{ display: 'flex', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden', flexShrink: 0 }}>
           {['en', 'he'].map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
-              padding: '5px 14px', border: 'none', cursor: 'pointer',
+              padding: isMobile ? '5px 10px' : '5px 14px', border: 'none', cursor: 'pointer',
               fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
               background: lang === l ? 'rgba(255,255,255,0.2)' : 'transparent',
               color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
@@ -1008,37 +1021,67 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         </div>
       </nav>
 
-      {/* ── CONTENT (dir switches here, nav is unaffected above) ────────── */}
-      <div dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* ── MOBILE BOTTOM TAB BAR ─────────────────────────────────────────── */}
+      {isMobile && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+          background: C.navBg, borderTop: `1px solid ${C.navBorder}`,
+          display: 'flex', direction: 'ltr',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}>
+          {tabs.map(item => (
+            <button key={item.id} onClick={() => switchTab(item.id)} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: 2, padding: '8px 4px',
+              border: 'none', cursor: 'pointer', background: 'transparent',
+              color: activeTab === item.id ? '#fff' : C.navText,
+              borderTop: activeTab === item.id ? `2px solid ${C.primary}` : '2px solid transparent',
+              transition: 'color 0.15s',
+            }}>
+              <span style={{ fontSize: 18 }}>{item.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: activeTab === item.id ? 700 : 400, whiteSpace: 'nowrap' }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── CONTENT ───────────────────────────────────────────────────────── */}
+      <div dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: isMobile ? 60 : 0 }}>
 
         {/* Sub-header */}
         <div style={{
           background: C.surface, borderBottom: `1px solid ${C.border}`,
-          padding: '0 24px', height: 56,
-          display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0,
+          padding: isMobile ? '0 12px' : '0 24px',
+          height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 'auto' : 56,
+          minHeight: 56,
+          display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, flexShrink: 0,
           boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          flexWrap: isMobile ? 'wrap' : 'nowrap',
+          paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 10 : 0,
+          paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 10 : 0,
         }}>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? 15 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
           {/* Search + New item — hidden on dashboard and settings */}
           {activeTab !== 'dashboard' && activeTab !== 'settings' && <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', width: 220 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
               <span style={{ fontSize: 13, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
             <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
               background: C.primary, color: '#fff', border: 'none',
-              borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+              borderRadius: 6, padding: isMobile ? '8px 14px' : '8px 16px',
+              fontSize: isMobile ? 20 : 13, fontWeight: 700,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 8px rgba(0,115,234,0.3)', transition: 'background 0.15s',
-              whiteSpace: 'nowrap',
+              whiteSpace: 'nowrap', minWidth: isMobile ? 40 : 'auto',
             }}
               onMouseEnter={e => e.currentTarget.style.background = C.primaryHover}
               onMouseLeave={e => e.currentTarget.style.background = C.primary}>
-              {t.newItem}
+              {isMobile ? '+' : t.newItem}
             </button>
           </>}
         </div>
@@ -1054,7 +1097,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         )}
 
         {/* Board */}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
           <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
@@ -1063,7 +1106,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               <span style={{ background: 'rgba(255,255,255,0.25)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{currentCount}</span>
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 600 : 'auto' }}>
               <thead>
                 <tr>
                   {activeTab === 'cars' && <>
@@ -1120,6 +1164,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
               </tbody>
             </table>
+            </div>{/* end overflowX scroll wrapper */}
 
             {/* Footer add link */}
             <div style={{ padding: '8px 18px', borderTop: `1px solid ${C.border}`, background: '#fafbfc' }}>
