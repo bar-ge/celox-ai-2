@@ -574,7 +574,7 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
 }
 
 // ── Settings Tab ────────────────────────────────────────────────────────────
-function SettingsTab({ profile, companyId, session, isMaster, t }) {
+function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t }) {
   const company  = profile?.companies
   const isAdmin  = profile?.role === 'admin'
 
@@ -727,14 +727,22 @@ function SettingsTab({ profile, companyId, session, isMaster, t }) {
                     {co.invite_code}
                   </div>
                 </div>
-                <button onClick={() => toggleActive(co)} style={{
-                  background: 'transparent',
-                  border: `1px solid ${co.is_active ? '#e2445c40' : '#00c87540'}`,
-                  color: co.is_active ? '#e2445c' : '#00c875',
-                  borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                }}>
-                  {co.is_active ? 'Close' : 'Reopen'}
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => onSelectCompany(co)} style={{
+                    background: C.primary, color: '#fff', border: 'none',
+                    borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    Manage
+                  </button>
+                  <button onClick={() => toggleActive(co)} style={{
+                    background: 'transparent',
+                    border: `1px solid ${co.is_active ? '#e2445c40' : '#00c87540'}`,
+                    color: co.is_active ? '#e2445c' : '#00c875',
+                    borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    {co.is_active ? 'Close' : 'Reopen'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -873,18 +881,24 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [search, setSearch]       = useState('')
   const [lang, setLang]           = useState(initialLang || 'en')
   const isMobile                  = useIsMobile()
+  // Master can switch which company they're viewing
+  const [viewCompanyId, setViewCompanyId] = useState(isMaster ? null : companyId)
+  const [viewCompanyName, setViewCompanyName] = useState(null)
 
   const t   = T[lang]
   const rtl = lang === 'he'
 
-  useEffect(() => { loadAll() }, [])
+  const activeCompanyId = isMaster ? viewCompanyId : companyId
+
+  useEffect(() => { loadAll() }, [activeCompanyId])
 
   async function loadAll() {
     setLoading(true)
+    if (!activeCompanyId) { setBranches([]); setDrivers([]); setCars([]); setLoading(false); return }
     const [{ data: b }, { data: d }, { data: c }] = await Promise.all([
-      supabase.from('branches').select('*').eq('company_id', companyId).order('created_at'),
-      supabase.from('drivers').select('*').eq('company_id', companyId).order('created_at'),
-      supabase.from('cars').select('*').eq('company_id', companyId).order('created_at'),
+      supabase.from('branches').select('*').eq('company_id', activeCompanyId).order('created_at'),
+      supabase.from('drivers').select('*').eq('company_id', activeCompanyId).order('created_at'),
+      supabase.from('cars').select('*').eq('company_id', activeCompanyId).order('created_at'),
     ])
     if (b) setBranches(b)
     if (d) setDrivers(d)
@@ -892,9 +906,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     setLoading(false)
   }
 
-  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, company_id: companyId } }
-  function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: companyId } }
-  function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: companyId } }
+  function switchToCompany(co) {
+    setViewCompanyId(co.id)
+    setViewCompanyName(co.name)
+    switchTab('cars')
+  }
+
+  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, company_id: activeCompanyId } }
+  function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
+  function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
   async function addCar(form)       { const { data } = await supabase.from('cars').insert([cleanCar(form)]).select(); if (data) setCars(p => [...p, data[0]]); setShowAdd(false) }
   async function updateCar(form)    { const c = { ...cleanCar(form), id: form.id }; await supabase.from('cars').update(c).eq('id', c.id); setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null) }
@@ -927,7 +947,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const boardLabel     = activeTab === 'cars' ? t.allVehicles : activeTab === 'drivers' ? t.allDrivers : t.allBranches
   const currentCount   = activeTab === 'cars' ? filteredCars.length : activeTab === 'drivers' ? filteredDrivers.length : filteredBranches.length
 
-  if (loading) return (
+  if (loading && activeCompanyId) return (
     <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: C.bg, width: '100%' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${C.primary}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
@@ -999,6 +1019,14 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {session && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {!isMobile && <span style={{ color: C.navText, fontSize: 12, whiteSpace: 'nowrap' }}>{session.user.email}</span>}
+            {isMaster && viewCompanyName && (
+              <span style={{
+                background: 'rgba(140,109,81,0.35)', color: C.navActive,
+                borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+              }}>
+                🏢 {viewCompanyName}
+              </span>
+            )}
             <button onClick={onSignOut} style={{
               background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
               color: C.navText, borderRadius: 6, padding: isMobile ? '5px 10px' : '4px 10px',
@@ -1098,11 +1126,18 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Settings view */}
         {activeTab === 'settings' && (
-          <SettingsTab profile={profile} companyId={companyId} session={session} isMaster={isMaster} t={t} />
+          <SettingsTab profile={profile} companyId={activeCompanyId} session={session} isMaster={isMaster} onSelectCompany={switchToCompany} t={t} />
         )}
 
         {/* Board */}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && isMaster && !activeCompanyId && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textSecondary }}>
+            <span style={{ fontSize: 40 }}>🏢</span>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Select a company to manage</p>
+            <p style={{ margin: 0, fontSize: 13 }}>Go to Settings → click <strong>Manage</strong> next to a company</p>
+          </div>
+        )}
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
           <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
