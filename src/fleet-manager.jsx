@@ -59,6 +59,17 @@ const T = {
     settings:'Settings', companyName:'Company Name', inviteCode:'Invite Code',
     copyCode:'Copy', codeCopied:'Copied!', members:'Team Members', removeMember:'Remove',
     role:'Role', admin:'Admin', member:'Member', you:'You',
+    createCompany:'Create Company', companyNamePlaceholder:'Company name', create:'Create',
+    allCompanies:'All Companies', noCompanies:'No companies yet.',
+    activeStatus:'Active', closedStatus:'Closed', manage:'Manage',
+    closeCompany:'Close', reopenCompany:'Reopen',
+    companyCreated:(name, code) => `Company "${name}" created with code ${code}`,
+    alreadyInvited:'This email was already invited.',
+    inviteSent:(email) => `Invite sent to ${email}`,
+    inviteByEmail:'Invite by Email', sendInvite:'Send Invite',
+    shareCodeHint:'Share this code with teammates so they can join your company.',
+    selectCompanyPrompt:'Select a company to manage',
+    selectCompanyHint:'Go to Settings → click Manage next to a company',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -82,6 +93,17 @@ const T = {
     settings:'הגדרות', companyName:'שם חברה', inviteCode:'קוד הזמנה',
     copyCode:'העתק', codeCopied:'הועתק!', members:'חברי צוות', removeMember:'הסר',
     role:'תפקיד', admin:'מנהל', member:'חבר', you:'אתה',
+    createCompany:'צור חברה', companyNamePlaceholder:'שם חברה', create:'צור',
+    allCompanies:'כל החברות', noCompanies:'אין חברות עדיין.',
+    activeStatus:'פעיל', closedStatus:'סגור', manage:'נהל',
+    closeCompany:'סגור', reopenCompany:'פתח מחדש',
+    companyCreated:(name, code) => `חברה "${name}" נוצרה עם קוד ${code}`,
+    alreadyInvited:'האימייל הזה כבר הוזמן.',
+    inviteSent:(email) => `הזמנה נשלחה אל ${email}`,
+    inviteByEmail:'הזמן באימייל', sendInvite:'שלח הזמנה',
+    shareCodeHint:'שתף קוד זה עם עמיתים כדי שיוכלו להצטרף לחברה שלך.',
+    selectCompanyPrompt:'בחר חברה לניהול',
+    selectCompanyHint:'עבור להגדרות ← לחץ נהל ליד חברה',
   },
 }
 
@@ -627,9 +649,9 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
       invited_by: session.user.id,
     })
     if (error) {
-      setInviteErr(error.code === '23505' ? 'This email was already invited.' : error.message)
+      setInviteErr(error.code === '23505' ? t.alreadyInvited : error.message)
     } else {
-      setInviteMsg(`Invite sent to ${email}`)
+      setInviteMsg(t.inviteSent(email))
       setInviteEmail('')
     }
     setInviting(false)
@@ -650,7 +672,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     } else {
       setCompanies(p => [data, ...p])
       setNewName('')
-      setMasterMsg(`Company "${name}" created with code ${code}`)
+      setMasterMsg(t.companyCreated(name, code))
     }
     setCreating(false)
   }
@@ -678,12 +700,12 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* Create company */}
           <div style={card}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.text }}>➕ Create Company</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.text }}>➕ {t.createCompany}</h3>
             <form onSubmit={createCompany} style={{ display: 'flex', gap: 10 }}>
               <input
                 value={newName} required
                 onChange={e => setNewName(e.target.value)}
-                placeholder="Company name"
+                placeholder={t.companyNamePlaceholder}
                 style={{ ...inp, flex: 1 }}
               />
               <button type="submit" disabled={creating} style={{
@@ -691,7 +713,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 700,
                 cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap',
               }}>
-                {creating ? '…' : 'Create'}
+                {creating ? '…' : t.create}
               </button>
             </form>
             {masterMsg && <div style={{ ...msgOk, marginTop: 10 }}>{masterMsg}</div>}
@@ -701,7 +723,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* All companies list */}
           <div style={card}>
             <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.text }}>
-              🏢 All Companies
+              🏢 {t.allCompanies}
               <span style={{ marginLeft: 8, background: C.bg, color: C.textSub, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
                 {companies.length}
               </span>
@@ -709,7 +731,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
             {loading ? (
               <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>Loading…</p>
             ) : companies.length === 0 ? (
-              <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>No companies yet.</p>
+              <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>{t.noCompanies}</p>
             ) : companies.map(co => (
               <div key={co.id} style={row}>
                 <div style={{ flex: 1 }}>
@@ -720,7 +742,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                       background: co.is_active ? '#e6f9f0' : '#fff0f2',
                       color: co.is_active ? '#00c875' : '#e2445c',
                     }}>
-                      {co.is_active ? 'Active' : 'Closed'}
+                      {co.is_active ? t.activeStatus : t.closedStatus}
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: C.textSub, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
@@ -732,7 +754,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                     background: C.primary, color: '#fff', border: 'none',
                     borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   }}>
-                    Manage
+                    {t.manage}
                   </button>
                   <button onClick={() => toggleActive(co)} style={{
                     background: 'transparent',
@@ -740,7 +762,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                     color: co.is_active ? '#e2445c' : '#00c875',
                     borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   }}>
-                    {co.is_active ? 'Close' : 'Reopen'}
+                    {co.is_active ? t.closeCompany : t.reopenCompany}
                   </button>
                 </div>
               </div>
@@ -759,7 +781,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
         {/* Company info */}
         <div style={card}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.text }}>🏢 Company</h3>
+          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.text }}>🏢 {t.companyName}</h3>
 
           <div style={{ marginBottom: 20 }}>
             <div style={lbl}>{t.companyName}</div>
@@ -786,7 +808,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
               </button>
             </div>
             <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSub }}>
-              Share this code with teammates so they can join your company.
+              {t.shareCodeHint}
             </p>
           </div>
         </div>
@@ -794,7 +816,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
         {/* Admin: invite by email */}
         {isAdmin && (
           <div style={card}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.text }}>📨 Invite by Email</h3>
+            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.text }}>📨 {t.inviteByEmail}</h3>
             <form onSubmit={sendInvite} style={{ display: 'flex', gap: 10 }}>
               <input
                 type="email" value={inviteEmail} required
@@ -807,7 +829,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 700,
                 cursor: inviting ? 'not-allowed' : 'pointer', opacity: inviting ? 0.7 : 1, whiteSpace: 'nowrap',
               }}>
-                {inviting ? '…' : 'Send Invite'}
+                {inviting ? '…' : t.sendInvite}
               </button>
             </form>
             {inviteMsg && <div style={{ ...msgOk, marginTop: 10 }}>{inviteMsg}</div>}
@@ -1133,8 +1155,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {activeTab !== 'dashboard' && activeTab !== 'settings' && isMaster && !activeCompanyId && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textSecondary }}>
             <span style={{ fontSize: 40 }}>🏢</span>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Select a company to manage</p>
-            <p style={{ margin: 0, fontSize: 13 }}>Go to Settings → click <strong>Manage</strong> next to a company</p>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.selectCompanyPrompt}</p>
+            <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
         )}
         {activeTab !== 'dashboard' && activeTab !== 'settings' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
