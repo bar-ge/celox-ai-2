@@ -828,7 +828,7 @@ function SettingsTab({ profile, companyId, session, isMaster, t }) {
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
-function FleetManager({ session, profile, isMaster, companyId, onSignOut }) {
+function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
   const [cars, setCars]           = useState([])
@@ -837,7 +837,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut }) {
   const [loading, setLoading]     = useState(true)
   const [showAdd, setShowAdd]     = useState(false)
   const [search, setSearch]       = useState('')
-  const [lang, setLang]           = useState('en')
+  const [lang, setLang]           = useState(initialLang || 'en')
 
   const t   = T[lang]
   const rtl = lang === 'he'

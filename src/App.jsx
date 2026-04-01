@@ -17,6 +17,52 @@ const C = {
   success:  '#00c875',
 }
 
+// ── Translations ───────────────────────────────────────────────────────────
+const L = {
+  en: {
+    signIn: 'Sign In', signUp: 'Sign Up',
+    signInSub: 'Sign in to your workspace',
+    signUpSub: 'Create your account',
+    email: 'Email', password: 'Password',
+    emailPlaceholder: 'you@example.com', passwordPlaceholder: '••••••••',
+    submitSignIn: 'Sign In', submitSignUp: 'Create Account',
+    accountCreated: 'Account created! Please sign in.',
+    securedBy: 'Secured by Supabase Auth',
+    joinSub: 'Join your company workspace',
+    joinWithCode: '🔑  Join with Code', pendingInvites: '📨  Pending Invites',
+    inviteCodeLabel: 'Company Invite Code',
+    inviteCodePlaceholder: 'e.g. AB12CD34',
+    inviteCodeHint: 'Ask your company admin for the 8-character invite code.',
+    joinBtn: 'Join Company',
+    noInvites: 'No pending invites for',
+    inviteFrom: 'Invited',
+    accept: 'Accept',
+    contactAdmin: 'Contact your company admin if you need access.',
+    codeNotFound: 'Code not found or company is inactive.',
+  },
+  he: {
+    signIn: 'כניסה', signUp: 'הרשמה',
+    signInSub: 'התחבר לסביבת העבודה שלך',
+    signUpSub: 'צור את החשבון שלך',
+    email: 'אימייל', password: 'סיסמה',
+    emailPlaceholder: 'you@example.com', passwordPlaceholder: '••••••••',
+    submitSignIn: 'כניסה', submitSignUp: 'צור חשבון',
+    accountCreated: 'החשבון נוצר! אנא התחבר.',
+    securedBy: 'מאובטח על ידי Supabase Auth',
+    joinSub: 'הצטרף לסביבת העבודה של החברה',
+    joinWithCode: '🔑  הצטרף עם קוד', pendingInvites: '📨  הזמנות ממתינות',
+    inviteCodeLabel: 'קוד הזמנה לחברה',
+    inviteCodePlaceholder: 'לדוגמה AB12CD34',
+    inviteCodeHint: 'בקש מהמנהל שלך את קוד ההזמנה בן 8 תווים.',
+    joinBtn: 'הצטרף לחברה',
+    noInvites: 'אין הזמנות ממתינות עבור',
+    inviteFrom: 'הוזמנת',
+    accept: 'אשר',
+    contactAdmin: 'צור קשר עם מנהל החברה אם אתה זקוק לגישה.',
+    codeNotFound: 'הקוד לא נמצא או החברה אינה פעילה.',
+  },
+}
+
 // ── Shared styles ──────────────────────────────────────────────────────────
 const inputStyle = {
   width: '100%', marginTop: 6, padding: '10px 14px',
@@ -35,6 +81,25 @@ const primaryBtn = (loading) => ({
   opacity: loading ? 0.7 : 1, width: '100%',
   transition: 'opacity 0.15s',
 })
+
+// ── Language toggle ────────────────────────────────────────────────────────
+function LangToggle({ lang, setLang }) {
+  return (
+    <div style={{ display: 'flex', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', marginBottom: 24 }}>
+      {['en', 'he'].map(l => (
+        <button key={l} onClick={() => setLang(l)} style={{
+          flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer',
+          fontWeight: 700, fontSize: 13,
+          background: lang === l ? C.primary : 'transparent',
+          color: lang === l ? '#fff' : C.textSub,
+          transition: 'all 0.15s',
+        }}>
+          {l === 'en' ? 'EN' : 'עב'}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // ── Logo ───────────────────────────────────────────────────────────────────
 function Logo({ subtitle }) {
@@ -55,13 +120,14 @@ function Logo({ subtitle }) {
 }
 
 // ── Shared card ────────────────────────────────────────────────────────────
-function Card({ children, width = 380 }) {
+function Card({ children, width = 380, rtl }) {
   return (
     <div style={{
       background: C.surface, borderRadius: 16, padding: '36px 32px',
       width, maxWidth: '90vw',
       boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
       border: `1px solid ${C.border}`,
+      direction: rtl ? 'rtl' : 'ltr',
     }}>
       {children}
     </div>
@@ -105,7 +171,9 @@ function Tabs({ options, value, onChange }) {
 }
 
 // ── Login / Sign-up screen ─────────────────────────────────────────────────
-function LoginScreen() {
+function LoginScreen({ lang, setLang }) {
+  const t = L[lang]
+  const rtl = lang === 'he'
   const [mode, setMode]         = useState('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -127,7 +195,7 @@ function LoginScreen() {
       else {
         setEmail(''); setPassword('')
         setMode('login')
-        setSuccess('Account created! Please sign in.')
+        setSuccess(t.accountCreated)
       }
     }
     setLoading(false)
@@ -137,40 +205,43 @@ function LoginScreen() {
 
   return (
     <Page>
-      <Logo subtitle={mode === 'login' ? 'Sign in to your workspace' : 'Create your account'} />
-      <Card>
+      <Logo subtitle={mode === 'login' ? t.signInSub : t.signUpSub} />
+      <Card rtl={rtl}>
+        <LangToggle lang={lang} setLang={setLang} />
         <Tabs
-          options={[['login', 'Sign In'], ['signup', 'Sign Up']]}
+          options={[['login', t.signIn], ['signup', t.signUp]]}
           value={mode}
           onChange={switchMode}
         />
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
-            <label style={labelStyle}>Email</label>
+            <label style={labelStyle}>{t.email}</label>
             <input type="email" value={email} required autoFocus
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com" style={inputStyle} />
+              placeholder={t.emailPlaceholder} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Password</label>
+            <label style={labelStyle}>{t.password}</label>
             <input type="password" value={password} required
               onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" style={inputStyle} />
+              placeholder={t.passwordPlaceholder} style={inputStyle} />
           </div>
           <Err  msg={error} />
           <Succ msg={success} />
           <button type="submit" disabled={loading} style={primaryBtn(loading)}>
-            {loading ? '…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {loading ? '…' : mode === 'login' ? t.submitSignIn : t.submitSignUp}
           </button>
         </form>
       </Card>
-      <p style={{ marginTop: 20, fontSize: 12, color: C.textSub }}>Secured by Supabase Auth</p>
+      <p style={{ marginTop: 20, fontSize: 12, color: C.textSub }}>{t.securedBy}</p>
     </Page>
   )
 }
 
 // ── Join-company screen (regular users without a company) ──────────────────
-function JoinCompanyScreen({ session, onDone }) {
+function JoinCompanyScreen({ session, onDone, lang, setLang }) {
+  const t = L[lang]
+  const rtl = lang === 'he'
   const [tab, setTab]             = useState('code')
   const [inviteCode, setInviteCode] = useState('')
   const [invites, setInvites]     = useState([])
@@ -201,7 +272,7 @@ function JoinCompanyScreen({ session, onDone }) {
       .eq('invite_code', inviteCode.trim().toUpperCase())
       .eq('is_active', true)
       .maybeSingle()
-    if (!company) { setError(ce?.message || 'Code not found or company is inactive.'); setLoading(false); return }
+    if (!company) { setError(ce?.message || t.codeNotFound); setLoading(false); return }
     await assignToCompany(company.id, 'member')
   }
 
@@ -224,29 +295,30 @@ function JoinCompanyScreen({ session, onDone }) {
 
   return (
     <Page>
-      <Logo subtitle="Join your company workspace" />
-      <Card>
+      <Logo subtitle={t.joinSub} />
+      <Card rtl={rtl}>
+        <LangToggle lang={lang} setLang={setLang} />
         <Tabs
-          options={[['code', '🔑  Join with Code'], ['invites', '📨  Pending Invites']]}
+          options={[['code', t.joinWithCode], ['invites', t.pendingInvites]]}
           value={tab}
-          onChange={t => { setTab(t); setError('') }}
+          onChange={t2 => { setTab(t2); setError('') }}
         />
 
         {tab === 'code' ? (
           <form onSubmit={joinByCode} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <label style={labelStyle}>Company Invite Code</label>
+              <label style={labelStyle}>{t.inviteCodeLabel}</label>
               <input value={inviteCode} required autoFocus
                 onChange={e => setInviteCode(e.target.value)}
-                placeholder="e.g. AB12CD34"
+                placeholder={t.inviteCodePlaceholder}
                 style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }} />
             </div>
             <p style={{ margin: 0, fontSize: 13, color: C.textSub }}>
-              Ask your company admin for the 8-character invite code.
+              {t.inviteCodeHint}
             </p>
             <Err msg={error} />
             <button type="submit" disabled={loading} style={primaryBtn(loading)}>
-              {loading ? '…' : 'Join Company'}
+              {loading ? '…' : t.joinBtn}
             </button>
           </form>
         ) : (
@@ -255,7 +327,7 @@ function JoinCompanyScreen({ session, onDone }) {
               <p style={{ textAlign: 'center', color: C.textSub, fontSize: 14, padding: '20px 0' }}>Loading…</p>
             ) : invites.length === 0 ? (
               <p style={{ textAlign: 'center', color: C.textSub, fontSize: 14, padding: '20px 0' }}>
-                No pending invites for <strong>{session.user.email}</strong>
+                {t.noInvites} <strong>{session.user.email}</strong>
               </p>
             ) : invites.map(inv => (
               <div key={inv.id} style={{
@@ -265,20 +337,20 @@ function JoinCompanyScreen({ session, onDone }) {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{inv.companies?.name}</div>
                   <div style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>
-                    Invited {new Date(inv.created_at).toLocaleDateString()}
+                    {t.inviteFrom} {new Date(inv.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 <button onClick={() => acceptInvite(inv)} disabled={loading} style={{
                   background: C.primary, color: '#fff', border: 'none',
                   borderRadius: 7, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                }}>Accept</button>
+                }}>{t.accept}</button>
               </div>
             ))}
           </div>
         )}
       </Card>
       <p style={{ marginTop: 20, fontSize: 12, color: C.textSub }}>
-        Contact your company admin if you need access.
+        {t.contactAdmin}
       </p>
     </Page>
   )
@@ -288,6 +360,7 @@ function JoinCompanyScreen({ session, onDone }) {
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = still loading
   const [profile, setProfile] = useState(undefined)
+  const [lang, setLang]       = useState('en')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -323,13 +396,13 @@ export default function App() {
   // Still loading
   if (session === undefined || (session && profile === undefined)) return null
 
-  if (!session) return <LoginScreen />
+  if (!session) return <LoginScreen lang={lang} setLang={setLang} />
 
   const isMaster = session.user.email === MASTER_EMAIL
 
   // Regular users with no company → join screen
   if (!isMaster && !profile?.company_id) {
-    return <JoinCompanyScreen session={session} onDone={fetchProfile} />
+    return <JoinCompanyScreen session={session} onDone={fetchProfile} lang={lang} setLang={setLang} />
   }
 
   return (
@@ -339,6 +412,7 @@ export default function App() {
       isMaster={isMaster}
       companyId={profile?.company_id ?? null}
       onSignOut={() => supabase.auth.signOut()}
+      initialLang={lang}
     />
   )
 }
