@@ -1009,7 +1009,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Nav tabs — desktop only, hidden on mobile (tabs move to bottom bar) */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, direction: rtl ? 'rtl' : 'ltr' }}>
             {tabs.map(item => (
               <button key={item.id} onClick={() => switchTab(item.id)} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
