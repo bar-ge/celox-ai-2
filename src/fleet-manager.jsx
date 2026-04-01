@@ -40,7 +40,7 @@ const T = {
     name:'Name', license:'License', phone:'Phone', driverStatus:'Status', active:'Active', inactive:'Inactive',
     // branches
     branchName:'Branch Name', city:'City', address:'Address', manager:'Manager',
-    noBranch:'No branch', noDriver:'No driver',
+    driver:'Driver', noBranch:'No branch', noDriver:'No driver',
     noCars:'No vehicles found. Click + New Item to add one.',
     noDrivers:'No drivers found. Click + New Item to add one.',
     noBranches:'No branches found. Click + New Item to add one.',
@@ -63,7 +63,7 @@ const T = {
     name:'שם', license:'רישיון', phone:'טלפון', driverStatus:'סטטוס', active:'פעיל', inactive:'לא פעיל',
     // branches
     branchName:'שם סניף', city:'עיר', address:'כתובת', manager:'מנהל',
-    noBranch:'ללא סניף', noDriver:'ללא נהג',
+    driver:'נהג', noBranch:'ללא סניף', noDriver:'ללא נהג',
     noCars:'לא נמצאו רכבים. לחץ על + פריט חדש להוספה.',
     noDrivers:'לא נמצאו נהגים. לחץ על + פריט חדש להוספה.',
     noBranches:'לא נמצאו סניפים. לחץ על + פריט חדש להוספה.',
@@ -145,10 +145,11 @@ const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintena
 const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
 
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) {
+function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
   const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
+  const assignedDriver = drivers.find(d => d.id === car.driver_id)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: hover ? '#f0f6ff' : C.surface, transition: 'background 0.1s' }}>
@@ -162,6 +163,16 @@ function CarRow({ car, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) 
           ? <Badge label={getBranchName(car.branch_id)} color={branchColor(getBranchIdx(car.branch_id))} />
           : <span style={{ color: C.textMuted }}>—</span>}
       </td>
+      <td style={td}>
+        {assignedDriver
+          ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 24, height: 24, borderRadius: '50%', background: C.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                {assignedDriver.name?.charAt(0)?.toUpperCase() || '?'}
+              </span>
+              <span style={{ fontSize: 13 }}>{assignedDriver.name}</span>
+            </span>
+          : <span style={{ color: C.textMuted }}>—</span>}
+      </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
@@ -172,7 +183,7 @@ function CarRow({ car, getBranchName, getBranchIdx, onEdit, onDelete, t, rtl }) 
   )
 }
 
-function EditableCarRow({ car, branches, onSave, onCancel, t, rtl }) {
+function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl }) {
   const [form, setForm] = useState({ ...car })
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
@@ -205,6 +216,12 @@ function EditableCarRow({ car, branches, onSave, onCancel, t, rtl }) {
         <select value={form.branch_id || ''} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}>
           <option value="">{t.noBranch}</option>
           {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </td>
+      <td style={td}>
+        <select value={form.driver_id || ''} onChange={e => setForm({ ...form, driver_id: e.target.value })} style={inp}>
+          <option value="">{t.noDriver}</option>
+          {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
@@ -329,8 +346,8 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl }) {
 }
 
 // ── Add-item inline rows ────────────────────────────────────────────────────
-function AddCarRow({ branches, onAdd, onCancel, t, rtl }) {
-  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '' })
+function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl }) {
+  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   function submit() { if (form.plate.trim() && form.make.trim() && form.model.trim()) onAdd(form) }
@@ -360,6 +377,7 @@ function AddCarRow({ branches, onAdd, onCancel, t, rtl }) {
         </select>
       </td>
       <td style={td}><select value={form.branch_id} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}><option value="">{t.noBranch}</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></td>
+      <td style={td}><select value={form.driver_id} onChange={e => setForm({ ...form, driver_id: e.target.value })} style={inp}><option value="">{t.noDriver}</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}><span style={{ display: 'flex', gap: 6 }}><ActionBtn variant="save" onClick={submit}>{t.add}</ActionBtn><ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn></span></td>
     </tr>
   )
@@ -857,7 +875,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     setLoading(false)
   }
 
-  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, company_id: companyId } }
+  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, company_id: companyId } }
   function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: companyId } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: companyId } }
 
@@ -1055,6 +1073,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                     <th style={mkTh(rtl)}>{t.status}</th>
                     <th style={mkTh(rtl)}>{t.fuel}</th>
                     <th style={mkTh(rtl)}>{t.branch}</th>
+                    <th style={mkTh(rtl)}>{t.driver}</th>
                     <th style={{ ...mkTh(rtl), width: 140 }}>{t.actions}</th>
                   </>}
                   {activeTab === 'drivers' && <>
@@ -1078,11 +1097,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               <tbody>
                 {activeTab === 'cars' && filteredCars.map(car =>
                   editingId === car.id
-                    ? <EditableCarRow key={car.id} car={car} branches={branches} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} t={t} rtl={rtl} />
+                    ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
+                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers} onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} t={t} rtl={rtl} />
                 )}
-                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
-                {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
+                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
+                {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
 
                 {activeTab === 'drivers' && filteredDrivers.map(driver =>
                   editingId === driver.id
