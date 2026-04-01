@@ -71,6 +71,7 @@ const T = {
     selectCompanyPrompt:'Select a company to manage',
     selectCompanyHint:'Go to Settings → click Manage next to a company',
     files:'Files', uploadFile:'Upload File', noFiles:'No files yet.',
+    expiryDate:'Expiry Date', expired:'Expired', expiresIn:'Expires in', clearExpiry:'Clear',
     maxCars:'Max Vehicles', maxUsers:'Max Users',
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
@@ -109,6 +110,7 @@ const T = {
     selectCompanyPrompt:'בחר חברה לניהול',
     selectCompanyHint:'עבור להגדרות ← לחץ נהל ליד חברה',
     files:'קבצים', uploadFile:'העלה קובץ', noFiles:'אין קבצים עדיין.',
+    expiryDate:'תאריך תפוגה', expired:'פג תוקף', expiresIn:'פג בעוד', clearExpiry:'נקה',
     maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים',
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
@@ -183,14 +185,16 @@ function ActionBtn({ onClick, variant, children }) {
 
 // ── Files Modal ─────────────────────────────────────────────────────────────
 function FilesModal({ entity, entityType, companyId, onClose, t }) {
-  const [docs, setDocs]       = useState([])
-  const [loading, setLoading] = useState(true)
+  const [docs, setDocs]           = useState([])
+  const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [error, setError]     = useState('')
+  const [error, setError]         = useState('')
+  const [pendingFile, setPendingFile] = useState(null) // file staged for upload
+  const [expiryDate, setExpiryDate]   = useState('')
+  const [editingExpiry, setEditingExpiry] = useState(null) // doc id being edited
+  const [editExpiryVal, setEditExpiryVal] = useState('')
 
-  useEffect(() => {
-    loadDocs()
-  }, [entity.id])
+  useEffect(() => { loadDocs() }, [entity.id])
 
   async function loadDocs() {
     setLoading(true)
@@ -200,21 +204,35 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
     setLoading(false)
   }
 
-  async function uploadFile(e) {
+  function pickFile(e) {
     const file = e.target.files[0]
     if (!file) return
+    setPendingFile(file)
+    setExpiryDate('')
+    setError('')
+    e.target.value = ''
+  }
+
+  async function confirmUpload() {
+    if (!pendingFile) return
     setUploading(true); setError('')
-    const safeName = file.name.replace(/[^\x00-\x7F]/g, '_').replace(/\s+/g, '_')
+    const safeName = pendingFile.name.replace(/[^\x00-\x7F]/g, '_').replace(/\s+/g, '_')
     const path = `${companyId}/${entityType}/${entity.id}/${Date.now()}_${safeName}`
-    const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, file)
+    const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, pendingFile)
     if (uploadErr) { setError(uploadErr.message); setUploading(false); return }
     const { error: dbErr } = await supabase.from('documents').insert({
       company_id: companyId, entity_type: entityType, entity_id: entity.id,
-      name: file.name, storage_path: path, size: file.size,
+      name: pendingFile.name, storage_path: path, size: pendingFile.size,
+      expires_at: expiryDate || null,
     })
-    if (dbErr) { setError(dbErr.message) } else { await loadDocs() }
+    if (dbErr) { setError(dbErr.message) } else { await loadDocs(); setPendingFile(null); setExpiryDate('') }
     setUploading(false)
-    e.target.value = ''
+  }
+
+  async function saveExpiry(doc) {
+    await supabase.from('documents').update({ expires_at: editExpiryVal || null }).eq('id', doc.id)
+    setDocs(p => p.map(d => d.id === doc.id ? { ...d, expires_at: editExpiryVal || null } : d))
+    setEditingExpiry(null)
   }
 
   async function downloadFile(doc) {
@@ -235,9 +253,17 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   }
 
-  const entityLabel = entityType === 'car'
-    ? (entity.plate || entity.make)
-    : entity.name
+  function expiryStatus(doc) {
+    if (!doc.expires_at) return null
+    const today = new Date(); today.setHours(0,0,0,0)
+    const exp = new Date(doc.expires_at)
+    const days = Math.round((exp - today) / 86400000)
+    if (days < 0)  return { label: t.expired,          color: C.danger,  bg: '#fff0f2' }
+    if (days <= 30) return { label: `${t.expiresIn} ${days}d`, color: C.warning, bg: '#fff8ed' }
+    return { label: new Date(doc.expires_at).toLocaleDateString(), color: C.success, bg: '#f0fff8' }
+  }
+
+  const entityLabel = entityType === 'car' ? (entity.plate || entity.make) : entity.name
 
   return (
     <div style={{
@@ -246,17 +272,15 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
       alignItems: 'center', justifyContent: 'center', padding: 16,
     }} onClick={onClose}>
       <div style={{
-        background: C.surface, borderRadius: 12, width: '100%', maxWidth: 480,
+        background: C.surface, borderRadius: 12, width: '100%', maxWidth: 500,
         boxShadow: '0 8px 40px rgba(0,0,0,0.2)', border: `1px solid ${C.border}`,
-        maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+        maxHeight: '85vh', display: 'flex', flexDirection: 'column',
       }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>
-              📎 {t.files}
-            </div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>📎 {t.files}</div>
             <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{entityLabel}</div>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: C.textSecondary, lineHeight: 1 }}>×</button>
@@ -268,40 +292,71 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
             <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>Loading…</p>
           ) : docs.length === 0 ? (
             <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.noFiles}</p>
-          ) : docs.map(doc => (
-            <div key={doc.id} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 0', borderBottom: `1px solid ${C.border}`,
-            }}>
-              <span style={{ fontSize: 22 }}>{getFileIcon(doc.name)}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
-                <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2 }}>
-                  {formatSize(doc.size)} · {new Date(doc.created_at).toLocaleDateString()}
+          ) : docs.map(doc => {
+            const status = expiryStatus(doc)
+            return (
+              <div key={doc.id} style={{ padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>{getFileIcon(doc.name)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
+                    <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span>{formatSize(doc.size)} · {new Date(doc.created_at).toLocaleDateString()}</span>
+                      {status && (
+                        <span style={{ background: status.bg, color: status.color, borderRadius: 4, padding: '1px 6px', fontWeight: 700, fontSize: 11 }}>
+                          {status.label}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '4px 7px', fontSize: 11, cursor: 'pointer' }}>📅</button>
+                  <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↓</button>
+                  <button onClick={() => deleteFile(doc)} style={{ background: C.danger + '18', color: C.danger, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>✕</button>
                 </div>
+                {/* Inline expiry editor */}
+                {editingExpiry === doc.id && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, paddingLeft: 32 }}>
+                    <input type="date" value={editExpiryVal} onChange={e => setEditExpiryVal(e.target.value)}
+                      style={{ padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                    <button onClick={() => saveExpiry(doc)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t.save}</button>
+                    <button onClick={() => { setEditingExpiry(null); setEditExpiryVal('') }} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
+                    {doc.expires_at && <button onClick={() => { setEditExpiryVal(''); saveExpiry({ ...doc, id: doc.id }) }} style={{ background: 'transparent', border: 'none', color: C.danger, fontSize: 12, cursor: 'pointer' }}>{t.clearExpiry}</button>}
+                  </div>
+                )}
               </div>
-              <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                ↓
-              </button>
-              <button onClick={() => deleteFile(doc)} style={{ background: C.danger + '18', color: C.danger, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                ✕
-              </button>
-            </div>
-          ))}
+            )
+          })}
           {error && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{error}</div>}
         </div>
 
-        {/* Upload */}
+        {/* Upload area */}
         <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.border}` }}>
-          <label style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            background: C.primary, color: '#fff', borderRadius: 8,
-            padding: '10px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer',
-            opacity: uploading ? 0.7 : 1,
-          }}>
-            {uploading ? '…' : `⬆ ${t.uploadFile}`}
-            <input type="file" style={{ display: 'none' }} onChange={uploadFile} disabled={uploading} />
-          </label>
+          {pendingFile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 13, color: C.textPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>📅 {t.expiryDate}</label>
+                <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
+                  style={{ flex: 1, padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={confirmUpload} disabled={uploading} style={{
+                  flex: 1, background: C.primary, color: '#fff', border: 'none', borderRadius: 8,
+                  padding: '10px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1,
+                }}>{uploading ? '…' : `⬆ ${t.uploadFile}`}</button>
+                <button onClick={() => setPendingFile(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 8, padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>{t.cancel}</button>
+              </div>
+            </div>
+          ) : (
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              background: C.primary, color: '#fff', borderRadius: 8,
+              padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}>
+              ⬆ {t.uploadFile}
+              <input type="file" style={{ display: 'none' }} onChange={pickFile} />
+            </label>
+          )}
         </div>
       </div>
     </div>
