@@ -14,11 +14,11 @@ function useIsMobile(breakpoint = 640) {
 
 // ── Design tokens ───────────────────────────────────────────────────────────
 const C = {
-  navBg:        '#22333B',
-  navBorder:    'rgba(230,228,216,0.1)',
-  navText:      '#b0bfc4',
+  navBg:        '#5c4433',
+  navBorder:    'rgba(230,228,216,0.12)',
+  navText:      '#d4b896',
   navActive:    '#e6e4d8',
-  navActiveBg:  'rgba(140,109,81,0.35)',
+  navActiveBg:  'rgba(230,228,216,0.18)',
   primary:      '#8c6d51',
   primaryHover: '#7a5e43',
   bg:           '#e6e4d8',
@@ -32,7 +32,7 @@ const C = {
   warning:      '#fdab3d',
 }
 
-const BRANCH_COLORS = ['#0073ea','#00c875','#fdab3d','#a25ddc','#e2445c','#579bfc','#ff7575','#03c4a1']
+const BRANCH_COLORS = ['#8c6d51','#5c4433','#a67c5b','#3d3028','#c49a6c','#6b5240','#d4b896','#4a3828']
 const branchColor = idx => BRANCH_COLORS[Math.max(idx, 0) % BRANCH_COLORS.length]
 
 // ── Translations ────────────────────────────────────────────────────────────

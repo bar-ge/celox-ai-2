@@ -6,7 +6,7 @@ import './App.css'
 const MASTER_EMAIL = 'bar.gershenzon@gmail.com'
 
 const C = {
-  navBg:    '#22333B',
+  navBg:    '#5c4433',
   primary:  '#8c6d51',
   bg:       '#e6e4d8',
   surface:  '#f5f4ef',
