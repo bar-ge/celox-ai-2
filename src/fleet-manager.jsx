@@ -155,6 +155,11 @@ function ActionBtn({ onClick, variant, children }) {
 const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintenance: C.warning }
 const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
 
+// Maps DB value → translation key
+const CAR_STATUS_KEY = { Available: 'available', 'In Use': 'inUse', Maintenance: 'maintenance' }
+const CAR_FUEL_KEY   = { Petrol: 'petrol', Diesel: 'diesel', Electric: 'electric', Hybrid: 'hybrid' }
+const DRIVER_STATUS_KEY = { Active: 'active', Inactive: 'inactive' }
+
 // ── Data rows ───────────────────────────────────────────────────────────────
 function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, t, rtl }) {
   const [hover, setHover] = useState(false)
@@ -167,8 +172,8 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, t
       <td style={{ ...td, fontWeight: 600 }}>{car.plate}</td>
       <td style={td}>{car.make} {car.model}</td>
       <td style={td}>{car.year || '—'}</td>
-      <td style={td}><Badge label={car.status || 'Available'} color={statusColor} /></td>
-      <td style={td}>{car.fuel || '—'}</td>
+      <td style={td}><Badge label={t[CAR_STATUS_KEY[car.status]] || car.status || t.available} color={statusColor} /></td>
+      <td style={td}>{t[CAR_FUEL_KEY[car.fuel]] || car.fuel || '—'}</td>
       <td style={td}>
         {getBranchName(car.branch_id) !== '—'
           ? <Badge label={getBranchName(car.branch_id)} color={branchColor(getBranchIdx(car.branch_id))} />
@@ -262,7 +267,7 @@ function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, t, r
       </td>
       <td style={td}><Badge label={driver.license} color={C.warning} /></td>
       <td style={td}>{driver.phone || '—'}</td>
-      <td style={td}><Badge label={driver.status || 'Active'} color={statusColor} /></td>
+      <td style={td}><Badge label={t[DRIVER_STATUS_KEY[driver.status]] || driver.status || t.active} color={statusColor} /></td>
       <td style={td}>
         {getBranchName(driver.branch_id) !== '—'
           ? <Badge label={getBranchName(driver.branch_id)} color={branchColor(getBranchIdx(driver.branch_id))} />
