@@ -6,13 +6,13 @@ import './App.css'
 const MASTER_EMAIL = 'bar.gershenzon@gmail.com'
 
 const C = {
-  navBg:    '#1f3a5f',
-  primary:  '#0073ea',
-  bg:       '#f6f7fb',
-  surface:  '#ffffff',
-  border:   '#e6e9ef',
-  text:     '#323338',
-  textSub:  '#676879',
+  navBg:    '#22333B',
+  primary:  '#8c6d51',
+  bg:       '#e6e4d8',
+  surface:  '#f5f4ef',
+  border:   '#d0cdc0',
+  text:     '#22333B',
+  textSub:  '#5a6a72',
   danger:   '#e2445c',
   success:  '#00c875',
 }
@@ -107,7 +107,7 @@ function Logo({ subtitle }) {
     <div style={{ textAlign: 'center', marginBottom: 28 }}>
       <div style={{
         width: 52, height: 52, borderRadius: 14, margin: '0 auto 12px',
-        background: 'linear-gradient(135deg, #0073ea, #a25ddc)',
+        background: 'linear-gradient(135deg, #22333B, #8c6d51)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: '0 4px 16px rgba(0,115,234,0.35)',
       }}>

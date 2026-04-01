@@ -14,19 +14,19 @@ function useIsMobile(breakpoint = 640) {
 
 // ── Design tokens ───────────────────────────────────────────────────────────
 const C = {
-  navBg:        '#1f3a5f',
-  navBorder:    'rgba(255,255,255,0.08)',
-  navText:      '#c3d4e8',
-  navActive:    '#ffffff',
-  navActiveBg:  'rgba(255,255,255,0.15)',
-  primary:      '#0073ea',
-  primaryHover: '#0060c0',
-  bg:           '#f6f7fb',
-  surface:      '#ffffff',
-  border:       '#e6e9ef',
-  textPrimary:  '#323338',
-  textSecondary:'#676879',
-  textMuted:    '#9699a6',
+  navBg:        '#22333B',
+  navBorder:    'rgba(230,228,216,0.1)',
+  navText:      '#b0bfc4',
+  navActive:    '#e6e4d8',
+  navActiveBg:  'rgba(140,109,81,0.35)',
+  primary:      '#8c6d51',
+  primaryHover: '#7a5e43',
+  bg:           '#e6e4d8',
+  surface:      '#f5f4ef',
+  border:       '#d0cdc0',
+  textPrimary:  '#22333B',
+  textSecondary:'#5a6a72',
+  textMuted:    '#8a9a9f',
   success:      '#00c875',
   danger:       '#e2445c',
   warning:      '#fdab3d',
@@ -822,7 +822,7 @@ function SettingsTab({ profile, companyId, session, isMaster, t }) {
             <div key={m.id} style={row}>
               <div style={{
                 width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                background: `linear-gradient(135deg, ${C.primary}, #a25ddc)`,
+                background: `linear-gradient(135deg, ${C.navBg}, ${C.primary})`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', fontWeight: 800, fontSize: 14,
               }}>
@@ -956,7 +956,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: isMobile ? 0 : 24, flex: isMobile ? 1 : 'none' }}>
           <div style={{
             width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: `linear-gradient(135deg, ${C.primary}, #a25ddc)`,
+            background: `linear-gradient(135deg, ${C.navBg}, ${C.primary})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,115,234,0.4)',
           }}>
