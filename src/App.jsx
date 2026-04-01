@@ -3,17 +3,18 @@ import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
 import './App.css'
 
+const MASTER_EMAIL = 'bar.gershenzon@gmail.com'
+
 const C = {
-  navBg:     '#1f3a5f',
-  primary:   '#0073ea',
-  primaryHover: '#0060c0',
-  bg:        '#f6f7fb',
-  surface:   '#ffffff',
-  border:    '#e6e9ef',
-  text:      '#323338',
-  textSub:   '#676879',
-  danger:    '#e2445c',
-  success:   '#00c875',
+  navBg:    '#1f3a5f',
+  primary:  '#0073ea',
+  bg:       '#f6f7fb',
+  surface:  '#ffffff',
+  border:   '#e6e9ef',
+  text:     '#323338',
+  textSub:  '#676879',
+  danger:   '#e2445c',
+  success:  '#00c875',
 }
 
 // ── Shared styles ──────────────────────────────────────────────────────────
@@ -53,12 +54,13 @@ function Logo({ subtitle }) {
   )
 }
 
-// ── Card wrapper ───────────────────────────────────────────────────────────
+// ── Shared card ────────────────────────────────────────────────────────────
 function Card({ children, width = 380 }) {
   return (
     <div style={{
       background: C.surface, borderRadius: 16, padding: '36px 32px',
-      width, boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+      width, maxWidth: '90vw',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
       border: `1px solid ${C.border}`,
     }}>
       {children}
@@ -66,20 +68,43 @@ function Card({ children, width = 380 }) {
   )
 }
 
-// ── Page shell ─────────────────────────────────────────────────────────────
+// ── Full-page centered shell ───────────────────────────────────────────────
 function Page({ children }) {
   return (
     <div style={{
-      minHeight: '100vh', background: C.bg,
+      width: '100%', minHeight: '100vh', background: C.bg,
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
+      padding: '24px 16px', boxSizing: 'border-box',
     }}>
       {children}
     </div>
   )
 }
 
-// ── Login / Signup screen ──────────────────────────────────────────────────
+// ── Error / Success banners ────────────────────────────────────────────────
+const Err  = ({ msg }) => msg ? <div style={{ color: C.danger,  fontSize: 13, background: '#fff0f2', padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.danger}40`  }}>{msg}</div> : null
+const Succ = ({ msg }) => msg ? <div style={{ color: C.success, fontSize: 13, background: '#f0fff8', padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.success}40` }}>{msg}</div> : null
+
+// ── Segmented tabs ─────────────────────────────────────────────────────────
+function Tabs({ options, value, onChange }) {
+  return (
+    <div style={{ display: 'flex', background: C.bg, borderRadius: 10, padding: 4, marginBottom: 28 }}>
+      {options.map(([key, label]) => (
+        <button key={key} onClick={() => onChange(key)} style={{
+          flex: 1, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer',
+          fontWeight: 700, fontSize: 13,
+          background: value === key ? C.surface : 'transparent',
+          color: value === key ? C.navBg : C.textSub,
+          boxShadow: value === key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+          transition: 'all 0.15s', whiteSpace: 'nowrap',
+        }}>{label}</button>
+      ))}
+    </div>
+  )
+}
+
+// ── Login / Sign-up screen ─────────────────────────────────────────────────
 function LoginScreen() {
   const [mode, setMode]         = useState('login')
   const [email, setEmail]       = useState('')
@@ -114,22 +139,11 @@ function LoginScreen() {
     <Page>
       <Logo subtitle={mode === 'login' ? 'Sign in to your workspace' : 'Create your account'} />
       <Card>
-        {/* Mode tabs */}
-        <div style={{ display: 'flex', background: C.bg, borderRadius: 10, padding: 4, marginBottom: 28 }}>
-          {['login', 'signup'].map(m => (
-            <button key={m} onClick={() => switchMode(m)} style={{
-              flex: 1, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer',
-              fontWeight: 700, fontSize: 13,
-              background: mode === m ? C.surface : 'transparent',
-              color: mode === m ? C.navBg : C.textSub,
-              boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s',
-            }}>
-              {m === 'login' ? 'Sign In' : 'Sign Up'}
-            </button>
-          ))}
-        </div>
-
+        <Tabs
+          options={[['login', 'Sign In'], ['signup', 'Sign Up']]}
+          value={mode}
+          onChange={switchMode}
+        />
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
             <label style={labelStyle}>Email</label>
@@ -143,10 +157,8 @@ function LoginScreen() {
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••" style={inputStyle} />
           </div>
-
-          {error   && <div style={{ color: C.danger,  fontSize: 13, background: '#fff0f2', padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.danger}40`   }}>{error}</div>}
-          {success && <div style={{ color: C.success, fontSize: 13, background: '#f0fff8', padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.success}40` }}>{success}</div>}
-
+          <Err  msg={error} />
+          <Succ msg={success} />
           <button type="submit" disabled={loading} style={primaryBtn(loading)}>
             {loading ? '…' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
@@ -157,149 +169,175 @@ function LoginScreen() {
   )
 }
 
-// ── Onboarding: create or join a company ──────────────────────────────────
-function OnboardingScreen({ session, onDone }) {
-  const [tab, setTab]               = useState('create')
-  const [companyName, setCompanyName] = useState('')
+// ── Join-company screen (regular users without a company) ──────────────────
+function JoinCompanyScreen({ session, onDone }) {
+  const [tab, setTab]             = useState('code')
   const [inviteCode, setInviteCode] = useState('')
-  const [error, setError]           = useState('')
-  const [loading, setLoading]       = useState(false)
+  const [invites, setInvites]     = useState([])
+  const [error, setError]         = useState('')
+  const [loading, setLoading]     = useState(false)
+  const [loadingInvites, setLoadingInvites] = useState(false)
 
-  async function createCompany(e) {
-    e.preventDefault()
-    setError(''); setLoading(true)
-    // 1. Create company
-    const { data: company, error: ce } = await supabase
-      .from('companies').insert([{ name: companyName.trim() }]).select().single()
-    if (ce) { setError(ce.message); setLoading(false); return }
-    // 2. Create profile as admin
-    const { error: pe } = await supabase.from('profiles').insert([{
-      id: session.user.id,
-      company_id: company.id,
-      role: 'admin',
-      email: session.user.email,
-    }])
-    if (pe) { setError(pe.message); setLoading(false); return }
-    onDone()
+  useEffect(() => {
+    if (tab === 'invites') loadInvites()
+  }, [tab])
+
+  async function loadInvites() {
+    setLoadingInvites(true)
+    const { data } = await supabase
+      .from('invites')
+      .select('*, companies(name)')
+      .ilike('email', session.user.email)
+    setInvites(data || [])
+    setLoadingInvites(false)
   }
 
-  async function joinCompany(e) {
+  async function joinByCode(e) {
     e.preventDefault()
     setError(''); setLoading(true)
-    // Find company by invite code
     const { data: company, error: ce } = await supabase
-      .from('companies').select('id').eq('invite_code', inviteCode.trim().toUpperCase()).single()
-    if (ce || !company) { setError('Invite code not found.'); setLoading(false); return }
-    // Create profile as member
-    const { error: pe } = await supabase.from('profiles').insert([{
+      .from('companies')
+      .select('id')
+      .eq('invite_code', inviteCode.trim().toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!company) { setError(ce?.message || 'Code not found or company is inactive.'); setLoading(false); return }
+    await assignToCompany(company.id, 'member')
+  }
+
+  async function acceptInvite(inv) {
+    setLoading(true)
+    await supabase.from('invites').delete().eq('id', inv.id)
+    await assignToCompany(inv.company_id, 'member')
+  }
+
+  async function assignToCompany(companyId, role) {
+    const { error: pe } = await supabase.from('profiles').upsert({
       id: session.user.id,
-      company_id: company.id,
-      role: 'member',
       email: session.user.email,
-    }])
+      company_id: companyId,
+      role,
+    })
     if (pe) { setError(pe.message); setLoading(false); return }
-    onDone()
+    onDone(session)
   }
 
   return (
     <Page>
-      <Logo subtitle="Set up your workspace" />
+      <Logo subtitle="Join your company workspace" />
       <Card>
-        {/* Tabs */}
-        <div style={{ display: 'flex', background: C.bg, borderRadius: 10, padding: 4, marginBottom: 28 }}>
-          {[['create', '🏢 Create Company'], ['join', '🔑 Join Company']].map(([key, label]) => (
-            <button key={key} onClick={() => { setTab(key); setError('') }} style={{
-              flex: 1, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer',
-              fontWeight: 700, fontSize: 13,
-              background: tab === key ? C.surface : 'transparent',
-              color: tab === key ? C.navBg : C.textSub,
-              boxShadow: tab === key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s',
-            }}>{label}</button>
-          ))}
-        </div>
+        <Tabs
+          options={[['code', '🔑  Join with Code'], ['invites', '📨  Pending Invites']]}
+          value={tab}
+          onChange={t => { setTab(t); setError('') }}
+        />
 
-        {tab === 'create' ? (
-          <form onSubmit={createCompany} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {tab === 'code' ? (
+          <form onSubmit={joinByCode} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <label style={labelStyle}>Company Name</label>
-              <input value={companyName} required autoFocus
-                onChange={e => setCompanyName(e.target.value)}
-                placeholder="Acme Logistics" style={inputStyle} />
-            </div>
-            <p style={{ margin: 0, fontSize: 13, color: C.textSub }}>
-              You'll be the admin and get a unique invite code to share with your team.
-            </p>
-            {error && <div style={{ color: C.danger, fontSize: 13, background: '#fff0f2', padding: '10px 14px', borderRadius: 8 }}>{error}</div>}
-            <button type="submit" disabled={loading} style={primaryBtn(loading)}>
-              {loading ? '…' : 'Create Company'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={joinCompany} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <label style={labelStyle}>Invite Code</label>
+              <label style={labelStyle}>Company Invite Code</label>
               <input value={inviteCode} required autoFocus
                 onChange={e => setInviteCode(e.target.value)}
                 placeholder="e.g. AB12CD34"
                 style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }} />
             </div>
             <p style={{ margin: 0, fontSize: 13, color: C.textSub }}>
-              Ask your company admin for the invite code.
+              Ask your company admin for the 8-character invite code.
             </p>
-            {error && <div style={{ color: C.danger, fontSize: 13, background: '#fff0f2', padding: '10px 14px', borderRadius: 8 }}>{error}</div>}
+            <Err msg={error} />
             <button type="submit" disabled={loading} style={primaryBtn(loading)}>
               {loading ? '…' : 'Join Company'}
             </button>
           </form>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {loadingInvites ? (
+              <p style={{ textAlign: 'center', color: C.textSub, fontSize: 14, padding: '20px 0' }}>Loading…</p>
+            ) : invites.length === 0 ? (
+              <p style={{ textAlign: 'center', color: C.textSub, fontSize: 14, padding: '20px 0' }}>
+                No pending invites for <strong>{session.user.email}</strong>
+              </p>
+            ) : invites.map(inv => (
+              <div key={inv.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 16px', background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`,
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{inv.companies?.name}</div>
+                  <div style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>
+                    Invited {new Date(inv.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <button onClick={() => acceptInvite(inv)} disabled={loading} style={{
+                  background: C.primary, color: '#fff', border: 'none',
+                  borderRadius: 7, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                }}>Accept</button>
+              </div>
+            ))}
+          </div>
         )}
       </Card>
+      <p style={{ marginTop: 20, fontSize: 12, color: C.textSub }}>
+        Contact your company admin if you need access.
+      </p>
     </Page>
   )
 }
 
 // ── Root App ───────────────────────────────────────────────────────────────
 export default function App() {
-  const [session, setSession]   = useState(undefined) // undefined = loading
-  const [profile, setProfile]   = useState(undefined) // undefined = loading
+  const [session, setSession] = useState(undefined) // undefined = still loading
+  const [profile, setProfile] = useState(undefined)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session ?? null))
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session ?? null)
+      if (session) fetchProfile(session)
+    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setSession(session ?? null)
+      if (session) fetchProfile(session)
+      else setProfile(null)
     })
     return () => subscription.unsubscribe()
   }, [])
 
-  useEffect(() => {
-    if (!session) { setProfile(null); return }
-    supabase.from('profiles').select('*, companies(*)').eq('id', session.user.id).single()
-      .then(({ data }) => setProfile(data ?? null))
-  }, [session])
+  async function fetchProfile(s) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*, companies(*)')
+      .eq('id', s.user.id)
+      .maybeSingle()
+
+    if (!data) {
+      // First login — create profile
+      await supabase.from('profiles').insert({
+        id: s.user.id, email: s.user.email, role: 'member',
+      })
+      setProfile({ id: s.user.id, email: s.user.email, company_id: null, role: 'member', companies: null })
+    } else {
+      setProfile(data)
+    }
+  }
 
   // Still loading
   if (session === undefined || (session && profile === undefined)) return null
 
-  // Not logged in
   if (!session) return <LoginScreen />
 
-  // Logged in but no company yet
-  if (!profile?.company_id) return (
-    <OnboardingScreen
-      session={session}
-      onDone={() => {
-        // Reload profile
-        supabase.from('profiles').select('*, companies(*)').eq('id', session.user.id).single()
-          .then(({ data }) => setProfile(data))
-      }}
-    />
-  )
+  const isMaster = session.user.email === MASTER_EMAIL
+
+  // Regular users with no company → join screen
+  if (!isMaster && !profile?.company_id) {
+    return <JoinCompanyScreen session={session} onDone={fetchProfile} />
+  }
 
   return (
     <FleetManager
       session={session}
       profile={profile}
-      companyId={profile.company_id}
+      isMaster={isMaster}
+      companyId={profile?.company_id ?? null}
       onSignOut={() => supabase.auth.signOut()}
     />
   )

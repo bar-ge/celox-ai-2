@@ -540,17 +540,37 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
 }
 
 // ── Settings Tab ────────────────────────────────────────────────────────────
-function SettingsTab({ profile, companyId, session, t }) {
+function SettingsTab({ profile, companyId, session, isMaster, t }) {
   const company  = profile?.companies
   const isAdmin  = profile?.role === 'admin'
+
+  // Shared member list state
   const [members, setMembers]   = useState([])
   const [copied, setCopied]     = useState(false)
   const [loading, setLoading]   = useState(true)
 
+  // Admin: invite by email
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteMsg, setInviteMsg]     = useState('')
+  const [inviteErr, setInviteErr]     = useState('')
+  const [inviting, setInviting]       = useState(false)
+
+  // Master: company list + create
+  const [companies, setCompanies]   = useState([])
+  const [newName, setNewName]       = useState('')
+  const [creating, setCreating]     = useState(false)
+  const [masterMsg, setMasterMsg]   = useState('')
+  const [masterErr, setMasterErr]   = useState('')
+
   useEffect(() => {
-    supabase.from('profiles').select('*').eq('company_id', companyId).order('created_at')
-      .then(({ data }) => { if (data) setMembers(data); setLoading(false) })
-  }, [companyId])
+    if (isMaster) {
+      supabase.from('companies').select('*').order('created_at', { ascending: false })
+        .then(({ data }) => { if (data) setCompanies(data); setLoading(false) })
+    } else {
+      supabase.from('profiles').select('*').eq('company_id', companyId).order('created_at')
+        .then(({ data }) => { if (data) setMembers(data); setLoading(false) })
+    }
+  }, [companyId, isMaster])
 
   function copyCode() {
     navigator.clipboard.writeText(company?.invite_code || '')
@@ -563,24 +583,149 @@ function SettingsTab({ profile, companyId, session, t }) {
     setMembers(p => p.filter(m => m.id !== memberId))
   }
 
-  const row = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
-  const label = { fontSize: 11, fontWeight: 700, color: C.textSub, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
+  async function sendInvite(e) {
+    e.preventDefault()
+    setInviteErr(''); setInviteMsg(''); setInviting(true)
+    const email = inviteEmail.trim().toLowerCase()
+    const { error } = await supabase.from('invites').insert({
+      company_id: companyId,
+      email,
+      invited_by: session.user.id,
+    })
+    if (error) {
+      setInviteErr(error.code === '23505' ? 'This email was already invited.' : error.message)
+    } else {
+      setInviteMsg(`Invite sent to ${email}`)
+      setInviteEmail('')
+    }
+    setInviting(false)
+  }
 
+  async function createCompany(e) {
+    e.preventDefault()
+    setMasterErr(''); setMasterMsg(''); setCreating(true)
+    const name = newName.trim()
+    // Generate random 8-char invite code
+    const code = Math.random().toString(36).substring(2, 6).toUpperCase() +
+                 Math.random().toString(36).substring(2, 6).toUpperCase()
+    const { data, error } = await supabase.from('companies').insert({
+      name, invite_code: code, is_active: true,
+    }).select().single()
+    if (error) {
+      setMasterErr(error.message)
+    } else {
+      setCompanies(p => [data, ...p])
+      setNewName('')
+      setMasterMsg(`Company "${name}" created with code ${code}`)
+    }
+    setCreating(false)
+  }
+
+  async function toggleActive(company) {
+    const { data } = await supabase.from('companies')
+      .update({ is_active: !company.is_active })
+      .eq('id', company.id)
+      .select().single()
+    if (data) setCompanies(p => p.map(c => c.id === data.id ? data : c))
+  }
+
+  const row   = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
+  const lbl   = { fontSize: 11, fontWeight: 700, color: C.textSub, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
+  const card  = { background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }
+  const inp   = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.text, background: C.bg }
+  const msgOk = { color: '#00c875', fontSize: 13, background: '#f0fff8', padding: '8px 12px', borderRadius: 6, border: '1px solid #00c87540' }
+  const msgEr = { color: '#e2445c', fontSize: 13, background: '#fff0f2', padding: '8px 12px', borderRadius: 6, border: '1px solid #e2445c40' }
+
+  // ── MASTER VIEW ──────────────────────────────────────────────────────────
+  if (isMaster) {
+    return (
+      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Create company */}
+          <div style={card}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.text }}>➕ Create Company</h3>
+            <form onSubmit={createCompany} style={{ display: 'flex', gap: 10 }}>
+              <input
+                value={newName} required
+                onChange={e => setNewName(e.target.value)}
+                placeholder="Company name"
+                style={{ ...inp, flex: 1 }}
+              />
+              <button type="submit" disabled={creating} style={{
+                background: C.primary, color: '#fff', border: 'none',
+                borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 700,
+                cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap',
+              }}>
+                {creating ? '…' : 'Create'}
+              </button>
+            </form>
+            {masterMsg && <div style={{ ...msgOk, marginTop: 10 }}>{masterMsg}</div>}
+            {masterErr && <div style={{ ...msgEr, marginTop: 10 }}>{masterErr}</div>}
+          </div>
+
+          {/* All companies list */}
+          <div style={card}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.text }}>
+              🏢 All Companies
+              <span style={{ marginLeft: 8, background: C.bg, color: C.textSub, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                {companies.length}
+              </span>
+            </h3>
+            {loading ? (
+              <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>Loading…</p>
+            ) : companies.length === 0 ? (
+              <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>No companies yet.</p>
+            ) : companies.map(co => (
+              <div key={co.id} style={row}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {co.name}
+                    <span style={{
+                      fontSize: 11, borderRadius: 4, padding: '2px 7px', fontWeight: 700,
+                      background: co.is_active ? '#e6f9f0' : '#fff0f2',
+                      color: co.is_active ? '#00c875' : '#e2445c',
+                    }}>
+                      {co.is_active ? 'Active' : 'Closed'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.textSub, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                    {co.invite_code}
+                  </div>
+                </div>
+                <button onClick={() => toggleActive(co)} style={{
+                  background: 'transparent',
+                  border: `1px solid ${co.is_active ? '#e2445c40' : '#00c87540'}`,
+                  color: co.is_active ? '#e2445c' : '#00c875',
+                  borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}>
+                  {co.is_active ? 'Close' : 'Reopen'}
+                </button>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </div>
+    )
+  }
+
+  // ── REGULAR USER VIEW ────────────────────────────────────────────────────
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
       <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* Company info */}
-        <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🏢 Company</h3>
+        <div style={card}>
+          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.text }}>🏢 Company</h3>
 
           <div style={{ marginBottom: 20 }}>
-            <div style={label}>{t.companyName}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary }}>{company?.name}</div>
+            <div style={lbl}>{t.companyName}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{company?.name}</div>
           </div>
 
           <div>
-            <div style={label}>{t.inviteCode}</div>
+            <div style={lbl}>{t.inviteCode}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{
                 fontFamily: 'monospace', fontSize: 22, fontWeight: 900,
@@ -604,9 +749,33 @@ function SettingsTab({ profile, companyId, session, t }) {
           </div>
         </div>
 
+        {/* Admin: invite by email */}
+        {isAdmin && (
+          <div style={card}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.text }}>📨 Invite by Email</h3>
+            <form onSubmit={sendInvite} style={{ display: 'flex', gap: 10 }}>
+              <input
+                type="email" value={inviteEmail} required
+                onChange={e => setInviteEmail(e.target.value)}
+                placeholder="colleague@example.com"
+                style={{ ...inp, flex: 1 }}
+              />
+              <button type="submit" disabled={inviting} style={{
+                background: C.primary, color: '#fff', border: 'none',
+                borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 700,
+                cursor: inviting ? 'not-allowed' : 'pointer', opacity: inviting ? 0.7 : 1, whiteSpace: 'nowrap',
+              }}>
+                {inviting ? '…' : 'Send Invite'}
+              </button>
+            </form>
+            {inviteMsg && <div style={{ ...msgOk, marginTop: 10 }}>{inviteMsg}</div>}
+            {inviteErr && <div style={{ ...msgEr, marginTop: 10 }}>{inviteErr}</div>}
+          </div>
+        )}
+
         {/* Members */}
-        <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
+        <div style={card}>
+          <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.text }}>
             👥 {t.members}
             <span style={{ marginLeft: 8, background: C.bg, color: C.textSub, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
               {members.length}
@@ -614,10 +783,9 @@ function SettingsTab({ profile, companyId, session, t }) {
           </h3>
 
           {loading ? (
-            <p style={{ color: C.textMuted, fontSize: 14 }}>Loading…</p>
+            <p style={{ color: C.textSub, fontSize: 14 }}>Loading…</p>
           ) : members.map(m => (
             <div key={m.id} style={row}>
-              {/* Avatar */}
               <div style={{
                 width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
                 background: `linear-gradient(135deg, ${C.primary}, #a25ddc)`,
@@ -628,7 +796,7 @@ function SettingsTab({ profile, companyId, session, t }) {
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
                   {m.email}
                   {m.id === session.user.id && (
                     <span style={{ fontSize: 11, background: '#e8f3ff', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
@@ -641,7 +809,6 @@ function SettingsTab({ profile, companyId, session, t }) {
                 </div>
               </div>
 
-              {/* Remove button — admin only, can't remove self */}
               {isAdmin && m.id !== session.user.id && (
                 <button onClick={() => removeMember(m.id)} style={{
                   background: 'transparent', border: `1px solid ${C.danger}40`,
@@ -661,7 +828,7 @@ function SettingsTab({ profile, companyId, session, t }) {
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
-function FleetManager({ session, profile, companyId, onSignOut }) {
+function FleetManager({ session, profile, isMaster, companyId, onSignOut }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
   const [cars, setCars]           = useState([])
@@ -865,7 +1032,7 @@ function FleetManager({ session, profile, companyId, onSignOut }) {
 
         {/* Settings view */}
         {activeTab === 'settings' && (
-          <SettingsTab profile={profile} companyId={companyId} session={session} t={t} />
+          <SettingsTab profile={profile} companyId={companyId} session={session} isMaster={isMaster} t={t} />
         )}
 
         {/* Board */}
