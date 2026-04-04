@@ -14,25 +14,25 @@ function useIsMobile(breakpoint = 640) {
 
 // ── Design tokens ───────────────────────────────────────────────────────────
 const C = {
-  navBg:        '#5c4433',
-  navBorder:    'rgba(230,228,216,0.12)',
-  navText:      '#d4b896',
-  navActive:    '#e6e4d8',
-  navActiveBg:  'rgba(230,228,216,0.18)',
-  primary:      '#8c6d51',
-  primaryHover: '#7a5e43',
-  bg:           '#e6e4d8',
-  surface:      '#f5f4ef',
-  border:       '#d0cdc0',
-  textPrimary:  '#22333B',
-  textSecondary:'#5a6a72',
-  textMuted:    '#8a9a9f',
-  success:      '#00c875',
-  danger:       '#e2445c',
-  warning:      '#fdab3d',
+  navBg:        '#0f172a',
+  navBorder:    'rgba(255,255,255,0.07)',
+  navText:      '#94a3b8',
+  navActive:    '#f8fafc',
+  navActiveBg:  'rgba(255,255,255,0.1)',
+  primary:      '#3b82f6',
+  primaryHover: '#2563eb',
+  bg:           '#f1f5f9',
+  surface:      '#ffffff',
+  border:       '#e2e8f0',
+  textPrimary:  '#0f172a',
+  textSecondary:'#475569',
+  textMuted:    '#94a3b8',
+  success:      '#10b981',
+  danger:       '#ef4444',
+  warning:      '#f59e0b',
 }
 
-const BRANCH_COLORS = ['#8c6d51','#5c4433','#a67c5b','#3d3028','#c49a6c','#6b5240','#d4b896','#4a3828']
+const BRANCH_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
 const branchColor = idx => BRANCH_COLORS[Math.max(idx, 0) % BRANCH_COLORS.length]
 
 // ── Translations ────────────────────────────────────────────────────────────
@@ -75,6 +75,10 @@ const T = {
     maxCars:'Max Vehicles', maxUsers:'Max Users',
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
+    customLists:'Custom Lists', defaults:'Defaults',
+    listCarStatus:'Vehicle Status', listDriverStatus:'Driver Status',
+    listFuelType:'Fuel Types', listFileType:'Document Types', listCarType:'Vehicle Types',
+    addValue:'Add value…', noCustomValues:'No custom values yet.', docType:'Document Type',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -114,19 +118,23 @@ const T = {
     maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים',
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
+    customLists:'רשימות מותאמות', defaults:'ברירות מחדל',
+    listCarStatus:'סטטוס רכב', listDriverStatus:'סטטוס נהג',
+    listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listCarType:'סוגי רכב',
+    addValue:'הוסף ערך…', noCustomValues:'אין ערכים מותאמים עדיין.', docType:'סוג מסמך',
   },
 }
 
 // ── Shared table style atoms ────────────────────────────────────────────────
 const mkTh = (rtl) => ({
-  padding: '10px 16px',
-  fontSize: 12,
-  fontWeight: 600,
-  color: C.textSecondary,
+  padding: '11px 16px',
+  fontSize: 11,
+  fontWeight: 700,
+  color: C.textMuted,
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  borderBottom: `1px solid ${C.border}`,
-  background: '#f8f9fb',
+  letterSpacing: '0.07em',
+  borderBottom: `2px solid ${C.border}`,
+  background: '#f8fafc',
   whiteSpace: 'nowrap',
   textAlign: rtl ? 'right' : 'left',
 })
@@ -158,12 +166,15 @@ const inlineInput = (rtl) => ({
 function Badge({ label, color }) {
   return (
     <span style={{
-      display: 'inline-block',
-      background: color + '22', color,
-      border: `1px solid ${color}44`,
-      borderRadius: 20, padding: '2px 10px',
-      fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
-    }}>{label}</span>
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      background: color + '15', color,
+      border: `1px solid ${color}30`,
+      borderRadius: 6, padding: '3px 10px',
+      fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '0.01em',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      {label}
+    </span>
   )
 }
 
@@ -184,13 +195,14 @@ function ActionBtn({ onClick, variant, children }) {
 }
 
 // ── Files Modal ─────────────────────────────────────────────────────────────
-function FilesModal({ entity, entityType, companyId, onClose, t }) {
+function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [] }) {
   const [docs, setDocs]           = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
   const [error, setError]         = useState('')
   const [pendingFile, setPendingFile] = useState(null) // file staged for upload
   const [expiryDate, setExpiryDate]   = useState('')
+  const [docType, setDocType]         = useState('')
   const [editingExpiry, setEditingExpiry] = useState(null) // doc id being edited
   const [editExpiryVal, setEditExpiryVal] = useState('')
 
@@ -209,6 +221,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
     if (!file) return
     setPendingFile(file)
     setExpiryDate('')
+    setDocType('')
     setError('')
     e.target.value = ''
   }
@@ -381,6 +394,20 @@ const CAR_STATUS_KEY = { Available: 'available', 'In Use': 'inUse', Maintenance:
 const CAR_FUEL_KEY   = { Petrol: 'petrol', Diesel: 'diesel', Electric: 'electric', Hybrid: 'hybrid' }
 const DRIVER_STATUS_KEY = { Active: 'active', Inactive: 'inactive' }
 
+// ── Custom list defaults & helper ────────────────────────────────────────────
+const DEFAULT_LISTS = {
+  car_status:    ['Available', 'In Use', 'Maintenance'],
+  driver_status: ['Active', 'Inactive'],
+  fuel_type:     ['Petrol', 'Diesel', 'Electric', 'Hybrid'],
+  file_type:     ['License', 'Invoice', 'Insurance', 'Registration', 'Inspection', 'ID', 'Other'],
+  car_type:      ['Sedan', 'SUV', 'Truck', 'Van', 'Bus', 'Motorcycle'],
+}
+function getListOptions(type, customLists) {
+  const defaults = DEFAULT_LISTS[type] || []
+  const customs  = (customLists || []).filter(c => c.list_type === type).map(c => c.value)
+  return [...defaults, ...customs.filter(v => !defaults.includes(v))]
+}
+
 // ── Data rows ───────────────────────────────────────────────────────────────
 function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, onFiles, t, rtl }) {
   const [hover, setHover] = useState(false)
@@ -389,7 +416,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, o
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? '#f0f6ff' : C.surface, transition: 'background 0.1s' }}>
+      style={{ background: hover ? '#f0f7ff' : C.surface, transition: 'background 0.12s' }}>
       <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>{car.plate}</td>
       <td style={td}>{car.make} {car.model}</td>
       <td style={td}>{car.year || '—'}</td>
@@ -426,7 +453,7 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl }) {
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   return (
-    <tr style={{ background: '#f0f6ff' }}>
+    <tr style={{ background: '#f0f7ff' }}>
       <td style={td}><input value={form.plate || ''} placeholder={t.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} /></td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -478,7 +505,7 @@ function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, onFi
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? '#f0f6ff' : C.surface, transition: 'background 0.1s' }}>
+      style={{ background: hover ? '#f0f7ff' : C.surface, transition: 'background 0.12s' }}>
       <td style={{ ...td, fontWeight: 600 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <span style={{ width: 28, height: 28, borderRadius: '50%', background: C.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
@@ -511,7 +538,7 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl }) {
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   return (
-    <tr style={{ background: '#f0f6ff' }}>
+    <tr style={{ background: '#f0f7ff' }}>
       <td style={td}><input value={form.name || ''} placeholder={t.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.license || ''} placeholder={t.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
@@ -542,7 +569,7 @@ function BranchRow({ branch, index, onEdit, onDelete, t, rtl }) {
   const td = mkTd(rtl)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? '#f0f6ff' : C.surface, transition: 'background 0.1s' }}>
+      style={{ background: hover ? '#f0f7ff' : C.surface, transition: 'background 0.12s' }}>
       <td style={{ ...td, fontWeight: 600 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <span style={{ width: 10, height: 10, borderRadius: '50%', background: branchColor(index), flexShrink: 0 }} />
@@ -568,7 +595,7 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl }) {
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   return (
-    <tr style={{ background: '#f0f6ff' }}>
+    <tr style={{ background: '#f0f7ff' }}>
       <td style={td}><input value={form.name || ''} placeholder={t.branchName} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.city || ''} placeholder={t.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.address || ''} placeholder={t.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
@@ -591,7 +618,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   function submit() { if (form.plate.trim() && form.make.trim() && form.model.trim()) onAdd(form) }
   return (
-    <tr style={{ background: '#eef4ff' }}>
+    <tr style={{ background: '#eff6ff' }}>
       <td style={td}><input autoFocus placeholder={t.plate} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -628,7 +655,7 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   function submit() { if (form.name.trim() && form.license.trim()) onAdd(form) }
   return (
-    <tr style={{ background: '#eef4ff' }}>
+    <tr style={{ background: '#eff6ff' }}>
       <td style={td}><input autoFocus placeholder={t.name} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.license} value={form.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
@@ -650,7 +677,7 @@ function AddBranchRow({ onAdd, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   function submit() { if (form.name.trim() && form.city.trim()) onAdd(form) }
   return (
-    <tr style={{ background: '#eef4ff' }}>
+    <tr style={{ background: '#eff6ff' }}>
       <td style={td}><input autoFocus placeholder={t.branchName} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.city} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.address} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
@@ -682,13 +709,15 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
   const maxModel  = Math.max(...topModels.map(([, n]) => n), 1)
 
   const card = (icon, value, label, color) => (
-    <div key={label} style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 24 }}>{icon}</span>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: color }} />
+    <div key={label} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${color}, ${color}99)` }} />
+      <div style={{ padding: '18px 20px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 10, background: color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
+          <p style={{ margin: 0, fontSize: 38, fontWeight: 800, color, lineHeight: 1 }}>{value}</p>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{label}</p>
       </div>
-      <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color, lineHeight: 1 }}>{value}</p>
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: C.textSecondary }}>{label}</p>
     </div>
   )
 
@@ -1245,7 +1274,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   return (
     // Outer wrapper: always LTR so the nav never flips
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Figtree','Roboto',system-ui,sans-serif", background: C.bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Inter','Figtree',system-ui,sans-serif", background: C.bg }}>
 
       {/* ── TOP NAVIGATION BAR ────────────────────────────────────────────── */}
       <nav style={{
@@ -1262,14 +1291,14 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: isMobile ? 0 : 24, flex: isMobile ? 1 : 'none' }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: `linear-gradient(135deg, ${C.navBg}, ${C.primary})`,
+            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+            background: `linear-gradient(135deg, ${C.primary}, #6366f1)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,115,234,0.4)',
+            boxShadow: '0 2px 10px rgba(59,130,246,0.45)',
           }}>
-            <span style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>F</span>
+            <span style={{ color: '#fff', fontWeight: 900, fontSize: 15, letterSpacing: '-0.5px' }}>FL</span>
           </div>
-          {!isMobile && <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{t.appName}</span>}
+          {!isMobile && <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', letterSpacing: '-0.2px' }}>{t.appName}</span>}
         </div>
 
         {/* Nav tabs — desktop only, hidden on mobile (tabs move to bottom bar) */}
@@ -1371,6 +1400,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {/* Sub-header */}
         <div style={{
           background: C.surface, borderBottom: `1px solid ${C.border}`,
+          boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
           padding: isMobile ? '0 12px' : '0 24px',
           height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 'auto' : 56,
           minHeight: 56,
@@ -1392,15 +1422,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
             <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
-              background: C.primary, color: '#fff', border: 'none',
-              borderRadius: 6, padding: isMobile ? '8px 14px' : '8px 16px',
+              background: `linear-gradient(135deg, ${C.primary}, #6366f1)`, color: '#fff', border: 'none',
+              borderRadius: 8, padding: isMobile ? '8px 14px' : '8px 18px',
               fontSize: isMobile ? 20 : 13, fontWeight: 700,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,115,234,0.3)', transition: 'background 0.15s',
-              whiteSpace: 'nowrap', minWidth: isMobile ? 40 : 'auto',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              boxShadow: '0 2px 10px rgba(59,130,246,0.35)', transition: 'opacity 0.15s',
+              whiteSpace: 'nowrap', minWidth: isMobile ? 40 : 'auto', letterSpacing: '0.01em',
             }}
-              onMouseEnter={e => e.currentTarget.style.background = C.primaryHover}
-              onMouseLeave={e => e.currentTarget.style.background = C.primary}>
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
               {isMobile ? '+' : t.newItem}
             </button>
           </>}
@@ -1425,12 +1455,12 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           </div>
         )}
         {activeTab !== 'dashboard' && activeTab !== 'settings' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
-          <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
-            <div style={{ background: C.primary, padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>{boardLabel}</span>
-              <span style={{ background: 'rgba(255,255,255,0.25)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{currentCount}</span>
+            <div style={{ background: `linear-gradient(90deg, ${C.primary}, #6366f1)`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
+              <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{currentCount}</span>
             </div>
 
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>

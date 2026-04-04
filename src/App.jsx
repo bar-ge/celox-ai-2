@@ -6,15 +6,15 @@ import './App.css'
 const MASTER_EMAIL = 'bar.gershenzon@gmail.com'
 
 const C = {
-  navBg:    '#5c4433',
-  primary:  '#8c6d51',
-  bg:       '#e6e4d8',
-  surface:  '#f5f4ef',
-  border:   '#d0cdc0',
-  text:     '#22333B',
-  textSub:  '#5a6a72',
-  danger:   '#e2445c',
-  success:  '#00c875',
+  navBg:    '#0f172a',
+  primary:  '#3b82f6',
+  bg:       '#f1f5f9',
+  surface:  '#ffffff',
+  border:   '#e2e8f0',
+  text:     '#0f172a',
+  textSub:  '#475569',
+  danger:   '#ef4444',
+  success:  '#10b981',
 }
 
 // ── Translations ───────────────────────────────────────────────────────────
@@ -68,18 +68,19 @@ const inputStyle = {
   width: '100%', marginTop: 6, padding: '10px 14px',
   border: `1px solid ${C.border}`, borderRadius: 8,
   fontSize: 14, outline: 'none', boxSizing: 'border-box',
-  color: C.text, background: C.bg,
+  color: C.text, background: '#f8fafc',
 }
 const labelStyle = {
   fontSize: 11, fontWeight: 700, color: C.textSub,
   textTransform: 'uppercase', letterSpacing: '0.07em',
 }
 const primaryBtn = (loading) => ({
-  background: C.primary, color: '#fff', border: 'none',
+  background: 'linear-gradient(135deg, #3b82f6, #6366f1)', color: '#fff', border: 'none',
   borderRadius: 8, padding: '11px', fontSize: 14, fontWeight: 700,
   cursor: loading ? 'not-allowed' : 'pointer',
   opacity: loading ? 0.7 : 1, width: '100%',
-  transition: 'opacity 0.15s',
+  transition: 'opacity 0.15s', letterSpacing: '0.01em',
+  boxShadow: '0 2px 10px rgba(59,130,246,0.35)',
 })
 
 // ── Language toggle ────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ function LangToggle({ lang, setLang }) {
         <button key={l} onClick={() => setLang(l)} style={{
           flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer',
           fontWeight: 700, fontSize: 13,
-          background: lang === l ? C.primary : 'transparent',
+          background: lang === l ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'transparent',
           color: lang === l ? '#fff' : C.textSub,
           transition: 'all 0.15s',
         }}>
@@ -107,14 +108,14 @@ function Logo({ subtitle }) {
     <div style={{ textAlign: 'center', marginBottom: 28 }}>
       <div style={{
         width: 52, height: 52, borderRadius: 14, margin: '0 auto 12px',
-        background: 'linear-gradient(135deg, #22333B, #8c6d51)',
+        background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 16px rgba(0,115,234,0.35)',
+        boxShadow: '0 4px 16px rgba(59,130,246,0.4)',
       }}>
-        <span style={{ color: '#fff', fontWeight: 900, fontSize: 24 }}>F</span>
+        <span style={{ color: '#fff', fontWeight: 900, fontSize: 20, letterSpacing: '-0.5px' }}>FL</span>
       </div>
-      <h1 style={{ fontSize: 24, fontWeight: 900, color: C.navBg, margin: 0 }}>Fleet Manager</h1>
-      {subtitle && <p style={{ color: C.textSub, fontSize: 14, marginTop: 4 }}>{subtitle}</p>}
+      <h1 style={{ fontSize: 24, fontWeight: 900, color: '#f8fafc', margin: 0, letterSpacing: '-0.3px' }}>Fleet Manager</h1>
+      {subtitle && <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, marginTop: 4 }}>{subtitle}</p>}
     </div>
   )
 }
@@ -125,8 +126,8 @@ function Card({ children, width = 380 }) {
     <div style={{
       background: C.surface, borderRadius: 16, padding: '36px 32px',
       width, maxWidth: '90vw',
-      boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-      border: `1px solid ${C.border}`,
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.15)',
+      border: `1px solid rgba(255,255,255,0.1)`,
     }}>
       {children}
     </div>
@@ -137,7 +138,8 @@ function Card({ children, width = 380 }) {
 function Page({ children }) {
   return (
     <div style={{
-      width: '100%', minHeight: '100vh', background: C.bg,
+      width: '100%', minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       padding: '24px 16px', boxSizing: 'border-box',
@@ -231,7 +233,7 @@ function LoginScreen({ lang, setLang }) {
           </button>
         </form>
       </Card>
-      <p style={{ marginTop: 20, fontSize: 12, color: C.textSub }}>{t.securedBy}</p>
+      <p style={{ marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t.securedBy}</p>
     </Page>
   )
 }
@@ -346,7 +348,7 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
           </div>
         )}
       </Card>
-      <p style={{ marginTop: 20, fontSize: 12, color: C.textSub }}>
+      <p style={{ marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
         {t.contactAdmin}
       </p>
     </Page>
