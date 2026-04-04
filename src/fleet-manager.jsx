@@ -83,6 +83,7 @@ const T = {
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
     signOut:'Sign Out', loadingShort:'Loading…', emailPlaceholder:'colleague@example.com',
+    confirmDelete:'Are you sure you want to delete this item?',
     customLists:'Custom Lists', defaults:'Defaults',
     listCarStatus:'Vehicle Status', listDriverStatus:'Driver Status',
     listFuelType:'Fuel Types', listFileType:'Document Types', listCarType:'Vehicle Types',
@@ -127,6 +128,7 @@ const T = {
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
     signOut:'התנתק', loadingShort:'טוען…', emailPlaceholder:'עמית@example.com',
+    confirmDelete:'האם אתה בטוח שברצונך למחוק פריט זה?',
     customLists:'רשימות מותאמות', defaults:'ברירות מחדל',
     listCarStatus:'סטטוס רכב', listDriverStatus:'סטטוס נהג',
     listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listCarType:'סוגי רכב',
@@ -260,21 +262,22 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
   async function confirmUpload() {
     if (!pendingFile) return
     setUploading(true); setError('')
-    const safeName = pendingFile.name.replace(/[^\x00-\x7F]/g, '_').replace(/\s+/g, '_')
+    const safeName = pendingFile.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
     const path = `${companyId}/${entityType}/${entity.id}/${Date.now()}_${safeName}`
     const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, pendingFile)
     if (uploadErr) { setError(uploadErr.message); setUploading(false); return }
     const { error: dbErr } = await supabase.from('documents').insert({
       company_id: companyId, entity_type: entityType, entity_id: entity.id,
       name: pendingFile.name, storage_path: path, size: pendingFile.size,
-      expires_at: expiryDate || null,
+      expires_at: expiryDate || null, doc_type: docType || null,
     })
     if (dbErr) { setError(dbErr.message) } else { await loadDocs(); setPendingFile(null); setExpiryDate('') }
     setUploading(false)
   }
 
   async function saveExpiry(doc) {
-    await supabase.from('documents').update({ expires_at: editExpiryVal || null }).eq('id', doc.id)
+    const { error } = await supabase.from('documents').update({ expires_at: editExpiryVal || null }).eq('id', doc.id)
+    if (error) { setError(error.message); return }
     setDocs(p => p.map(d => d.id === doc.id ? { ...d, expires_at: editExpiryVal || null } : d))
     setEditingExpiry(null)
   }
@@ -285,8 +288,9 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
   }
 
   async function deleteFile(doc) {
+    const { error: dbErr } = await supabase.from('documents').delete().eq('id', doc.id)
+    if (dbErr) { setError(dbErr.message); return }
     await supabase.storage.from('fleet-documents').remove([doc.storage_path])
-    await supabase.from('documents').delete().eq('id', doc.id)
     setDocs(p => p.filter(d => d.id !== doc.id))
   }
 
@@ -831,7 +835,7 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row' }}>
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: branchColor(i), flexShrink: 0 }} />
                         <span style={{ fontWeight: 500 }}>{b.name}</span>
-                        <span style={{ fontSize: 11, color: C.textMuted }}>{b.location}</span>
+                        <span style={{ fontSize: 11, color: C.textMuted }}>{b.city}</span>
                       </span>
                     </td>
                     <td style={{ textAlign: 'center', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
@@ -898,8 +902,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   }
 
   async function removeMember(memberId) {
-    await supabase.from('profiles').delete().eq('id', memberId)
-    setMembers(p => p.filter(m => m.id !== memberId))
+    const { error } = await supabase.from('profiles').delete().eq('id', memberId)
+    if (!error) setMembers(p => p.filter(m => m.id !== memberId))
   }
 
   async function sendInvite(e) {
@@ -1248,29 +1252,65 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   function cleanDriver(f) { return { name: f.name, license: f.license, phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
+  const [crudError, setCrudError] = useState('')
+
   async function addCar(form) {
     if (companyLimits.max_cars != null && cars.length >= companyLimits.max_cars) {
-      alert(t.limitReachedCars); return
+      setCrudError(t.limitReachedCars); return
     }
-    const { data } = await supabase.from('cars').insert([cleanCar(form)]).select()
-    if (data) setCars(p => [...p, data[0]])
-    setShowAdd(false)
+    const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
+    if (error) { setCrudError(error.message); return }
+    setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
   }
-  async function updateCar(form)    { const c = { ...cleanCar(form), id: form.id }; await supabase.from('cars').update(c).eq('id', c.id); setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null) }
-  async function deleteCar(id)      { await supabase.from('cars').delete().eq('id', id); setCars(p => p.filter(c => c.id !== id)) }
+  async function updateCar(form) {
+    const c = { ...cleanCar(form), id: form.id }
+    const { error } = await supabase.from('cars').update(c).eq('id', c.id)
+    if (error) { setCrudError(error.message); return }
+    setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null); setCrudError('')
+  }
+  async function deleteCar(id) {
+    if (!window.confirm(t.confirmDelete)) return
+    const { error } = await supabase.from('cars').delete().eq('id', id)
+    if (error) { setCrudError(error.message); return }
+    setCars(p => p.filter(c => c.id !== id))
+  }
   async function addDriver(form) {
     if (companyLimits.max_users != null && drivers.length >= companyLimits.max_users) {
-      alert(t.limitReachedUsers); return
+      setCrudError(t.limitReachedUsers); return
     }
-    const { data } = await supabase.from('drivers').insert([cleanDriver(form)]).select()
-    if (data) setDrivers(p => [...p, data[0]])
-    setShowAdd(false)
+    const { data, error } = await supabase.from('drivers').insert([cleanDriver(form)]).select()
+    if (error) { setCrudError(error.message); return }
+    setDrivers(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
   }
-  async function updateDriver(form) { const d = { ...cleanDriver(form), id: form.id }; await supabase.from('drivers').update(d).eq('id', d.id); setDrivers(p => p.map(x => x.id === d.id ? { ...x, ...d } : x)); setEditingId(null) }
-  async function deleteDriver(id)   { await supabase.from('drivers').delete().eq('id', id); setDrivers(p => p.filter(d => d.id !== id)) }
-  async function addBranch(form)    { const { data } = await supabase.from('branches').insert([cleanBranch(form)]).select(); if (data) setBranches(p => [...p, data[0]]); setShowAdd(false) }
-  async function updateBranch(form) { const b = { ...cleanBranch(form), id: form.id }; await supabase.from('branches').update(b).eq('id', b.id); setBranches(p => p.map(x => x.id === b.id ? { ...x, ...b } : x)); setEditingId(null) }
-  async function deleteBranch(id)   { await supabase.from('branches').delete().eq('id', id); setBranches(p => p.filter(b => b.id !== id)) }
+  async function updateDriver(form) {
+    const d = { ...cleanDriver(form), id: form.id }
+    const { error } = await supabase.from('drivers').update(d).eq('id', d.id)
+    if (error) { setCrudError(error.message); return }
+    setDrivers(p => p.map(x => x.id === d.id ? { ...x, ...d } : x)); setEditingId(null); setCrudError('')
+  }
+  async function deleteDriver(id) {
+    if (!window.confirm(t.confirmDelete)) return
+    const { error } = await supabase.from('drivers').delete().eq('id', id)
+    if (error) { setCrudError(error.message); return }
+    setDrivers(p => p.filter(d => d.id !== id))
+  }
+  async function addBranch(form) {
+    const { data, error } = await supabase.from('branches').insert([cleanBranch(form)]).select()
+    if (error) { setCrudError(error.message); return }
+    setBranches(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
+  }
+  async function updateBranch(form) {
+    const b = { ...cleanBranch(form), id: form.id }
+    const { error } = await supabase.from('branches').update(b).eq('id', b.id)
+    if (error) { setCrudError(error.message); return }
+    setBranches(p => p.map(x => x.id === b.id ? { ...x, ...b } : x)); setEditingId(null); setCrudError('')
+  }
+  async function deleteBranch(id) {
+    if (!window.confirm(t.confirmDelete)) return
+    const { error } = await supabase.from('branches').delete().eq('id', id)
+    if (error) { setCrudError(error.message); return }
+    setBranches(p => p.filter(b => b.id !== id))
+  }
 
   function getBranchName(id) { return branches.find(b => b.id === id)?.name || '—' }
   function getBranchIdx(id)  { return branches.findIndex(b => b.id === id) }
@@ -1553,9 +1593,17 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             </table>
             </div>{/* end overflowX scroll wrapper */}
 
+            {/* Inline error banner */}
+            {crudError && (
+              <div style={{ padding: '10px 18px', background: C.danger + '10', borderTop: `1px solid ${C.danger}30`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: C.danger, fontWeight: 600 }}>⚠ {crudError}</span>
+                <button onClick={() => setCrudError('')} style={{ ...closeBtn, fontSize: 16 }}>×</button>
+              </div>
+            )}
+
             {/* Footer add link */}
             <div style={{ padding: '8px 18px', borderTop: `1px solid ${C.border}`, background: C.footerBg }}>
-              <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
+              <button onClick={() => { setShowAdd(true); setEditingId(null); setCrudError('') }} style={{
                 background: 'transparent', border: 'none', color: C.textSecondary,
                 cursor: 'pointer', fontSize: 13, padding: '4px 0',
                 display: 'flex', alignItems: 'center', gap: 6,

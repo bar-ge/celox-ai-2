@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
 import './App.css'
 
-const MASTER_EMAIL = 'bar.gershenzon@gmail.com'
+const MASTER_EMAIL = import.meta.env.VITE_MASTER_EMAIL || 'bar.gershenzon@gmail.com'
 
 const C = {
   navBg:    '#0f172a',
