@@ -21,15 +21,22 @@ const C = {
   navActiveBg:  'rgba(255,255,255,0.1)',
   primary:      '#3b82f6',
   primaryHover: '#2563eb',
+  indigo:       '#6366f1',
   bg:           '#f1f5f9',
+  bgSubtle:     '#f8fafc',
   surface:      '#ffffff',
   border:       '#e2e8f0',
   textPrimary:  '#0f172a',
   textSecondary:'#475569',
   textMuted:    '#94a3b8',
   success:      '#10b981',
+  successText:  '#007a45',
   danger:       '#ef4444',
   warning:      '#f59e0b',
+  overlay:      'rgba(15,23,42,0.55)',
+  rowHover:     '#f0f7ff',
+  rowAdd:       '#eff6ff',
+  footerBg:     '#f8fafc',
 }
 
 const BRANCH_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
@@ -75,6 +82,7 @@ const T = {
     maxCars:'Max Vehicles', maxUsers:'Max Users',
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
+    signOut:'Sign Out', loadingShort:'Loading…', emailPlaceholder:'colleague@example.com',
     customLists:'Custom Lists', defaults:'Defaults',
     listCarStatus:'Vehicle Status', listDriverStatus:'Driver Status',
     listFuelType:'Fuel Types', listFileType:'Document Types', listCarType:'Vehicle Types',
@@ -118,12 +126,35 @@ const T = {
     maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים',
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
+    signOut:'התנתק', loadingShort:'טוען…', emailPlaceholder:'עמית@example.com',
     customLists:'רשימות מותאמות', defaults:'ברירות מחדל',
     listCarStatus:'סטטוס רכב', listDriverStatus:'סטטוס נהג',
     listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listCarType:'סוגי רכב',
     addValue:'הוסף ערך…', noCustomValues:'אין ערכים מותאמים עדיין.', docType:'סוג מסמך',
   },
 }
+
+// ── Shared style constants ───────────────────────────────────────────────────
+const gradient = `linear-gradient(135deg, ${C.primary}, ${C.indigo})`
+
+const btnPrimary = {
+  background: gradient, color: '#fff', border: 'none',
+  borderRadius: 8, fontWeight: 700, cursor: 'pointer',
+  boxShadow: '0 2px 10px rgba(59,130,246,0.35)', transition: 'opacity 0.15s',
+}
+const btnGhost = {
+  background: 'transparent', border: `1px solid ${C.border}`,
+  color: C.textSecondary, borderRadius: 6, cursor: 'pointer',
+}
+const btnDanger = {
+  background: C.danger + '18', color: C.danger,
+  border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer',
+}
+const closeBtn = {
+  background: 'transparent', border: 'none',
+  fontSize: 20, cursor: 'pointer', color: C.textMuted, lineHeight: 1,
+}
+const rowStyle = { padding: '10px 0', borderBottom: `1px solid ${C.border}` }
 
 // ── Shared table style atoms ────────────────────────────────────────────────
 const mkTh = (rtl) => ({
@@ -134,7 +165,7 @@ const mkTh = (rtl) => ({
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
   borderBottom: `2px solid ${C.border}`,
-  background: '#f8fafc',
+  background: C.bgSubtle,
   whiteSpace: 'nowrap',
   textAlign: rtl ? 'right' : 'left',
 })
@@ -182,7 +213,7 @@ function Badge({ label, color }) {
 function ActionBtn({ onClick, variant, children }) {
   const variants = {
     edit:   { background: C.primary + '18', color: C.primary },
-    save:   { background: C.success + '22', color: '#007a45' },
+    save:   { background: C.success + '22', color: C.successText },
     cancel: { background: C.bg, color: C.textSecondary },
     delete: { background: C.danger + '18', color: C.danger },
   }
@@ -271,9 +302,9 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
     const today = new Date(); today.setHours(0,0,0,0)
     const exp = new Date(doc.expires_at)
     const days = Math.round((exp - today) / 86400000)
-    if (days < 0)  return { label: t.expired,          color: C.danger,  bg: '#fff0f2' }
-    if (days <= 30) return { label: `${t.expiresIn} ${days}d`, color: C.warning, bg: '#fff8ed' }
-    return { label: new Date(doc.expires_at).toLocaleDateString(), color: C.success, bg: '#f0fff8' }
+    if (days < 0)  return { label: t.expired,          color: C.danger,  bg: C.danger  + '10' }
+    if (days <= 30) return { label: `${t.expiresIn} ${days}d`, color: C.warning, bg: C.warning + '10' }
+    return { label: new Date(doc.expires_at).toLocaleDateString(), color: C.success, bg: C.success + '10' }
   }
 
   const entityLabel = entityType === 'car' ? (entity.plate || entity.make) : entity.name
@@ -281,7 +312,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(34,51,59,0.5)', display: 'flex',
+      background: C.overlay, display: 'flex',
       alignItems: 'center', justifyContent: 'center', padding: 16,
     }} onClick={onClose}>
       <div style={{
@@ -296,19 +327,19 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
             <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>📎 {t.files}</div>
             <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{entityLabel}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: C.textSecondary, lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ ...closeBtn, padding: 4 }}>×</button>
         </div>
 
         {/* File list */}
         <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
           {loading ? (
-            <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>Loading…</p>
+            <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.loadingShort}</p>
           ) : docs.length === 0 ? (
             <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.noFiles}</p>
           ) : docs.map(doc => {
             const status = expiryStatus(doc)
             return (
-              <div key={doc.id} style={{ padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+              <div key={doc.id} style={rowStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 22 }}>{getFileIcon(doc.name)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -322,18 +353,18 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
                       )}
                     </div>
                   </div>
-                  <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '4px 7px', fontSize: 11, cursor: 'pointer' }}>📅</button>
+                  <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }} style={{ ...btnGhost, padding: '4px 7px', fontSize: 11 }}>📅</button>
                   <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↓</button>
-                  <button onClick={() => deleteFile(doc)} style={{ background: C.danger + '18', color: C.danger, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>✕</button>
+                  <button onClick={() => deleteFile(doc)} style={{ ...btnDanger, padding: '5px 10px', fontSize: 12 }}>✕</button>
                 </div>
                 {/* Inline expiry editor */}
                 {editingExpiry === doc.id && (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, paddingLeft: 32 }}>
                     <input type="date" value={editExpiryVal} onChange={e => setEditExpiryVal(e.target.value)}
                       style={{ padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
-                    <button onClick={() => saveExpiry(doc)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t.save}</button>
-                    <button onClick={() => { setEditingExpiry(null); setEditExpiryVal('') }} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
-                    {doc.expires_at && <button onClick={() => { setEditExpiryVal(''); saveExpiry({ ...doc, id: doc.id }) }} style={{ background: 'transparent', border: 'none', color: C.danger, fontSize: 12, cursor: 'pointer' }}>{t.clearExpiry}</button>}
+                    <button onClick={() => saveExpiry(doc)} style={{ ...btnPrimary, padding: '5px 10px', fontSize: 12 }}>{t.save}</button>
+                    <button onClick={() => { setEditingExpiry(null); setEditExpiryVal('') }} style={{ ...btnGhost, padding: '5px 8px', fontSize: 12 }}>{t.cancel}</button>
+                    {doc.expires_at && <button onClick={() => { setEditExpiryVal(''); saveExpiry({ ...doc, id: doc.id }) }} style={{ ...closeBtn, color: C.danger, fontSize: 12 }}>{t.clearExpiry}</button>}
                   </div>
                 )}
               </div>
@@ -354,17 +385,16 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={confirmUpload} disabled={uploading} style={{
-                  flex: 1, background: C.primary, color: '#fff', border: 'none', borderRadius: 8,
-                  padding: '10px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1,
+                  ...btnPrimary, flex: 1, padding: '10px', fontSize: 13,
+                  cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1,
                 }}>{uploading ? '…' : `⬆ ${t.uploadFile}`}</button>
-                <button onClick={() => setPendingFile(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 8, padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>{t.cancel}</button>
+                <button onClick={() => setPendingFile(null)} style={{ ...btnGhost, padding: '10px 14px', fontSize: 13 }}>{t.cancel}</button>
               </div>
             </div>
           ) : (
             <label style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              background: C.primary, color: '#fff', borderRadius: 8,
-              padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              ...btnPrimary, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: 8, padding: '10px', fontSize: 13,
             }}>
               ⬆ {t.uploadFile}
               <input type="file" style={{ display: 'none' }} onChange={pickFile} />
@@ -416,7 +446,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, o
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? '#f0f7ff' : C.surface, transition: 'background 0.12s' }}>
+      style={{ background: hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
       <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>{car.plate}</td>
       <td style={td}>{car.make} {car.model}</td>
       <td style={td}>{car.year || '—'}</td>
@@ -453,7 +483,7 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl }) {
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   return (
-    <tr style={{ background: '#f0f7ff' }}>
+    <tr style={{ background: C.rowHover }}>
       <td style={td}><input value={form.plate || ''} placeholder={t.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} /></td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -505,7 +535,7 @@ function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, onFi
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? '#f0f7ff' : C.surface, transition: 'background 0.12s' }}>
+      style={{ background: hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
       <td style={{ ...td, fontWeight: 600 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <span style={{ width: 28, height: 28, borderRadius: '50%', background: C.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
@@ -538,7 +568,7 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl }) {
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   return (
-    <tr style={{ background: '#f0f7ff' }}>
+    <tr style={{ background: C.rowHover }}>
       <td style={td}><input value={form.name || ''} placeholder={t.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.license || ''} placeholder={t.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
@@ -569,7 +599,7 @@ function BranchRow({ branch, index, onEdit, onDelete, t, rtl }) {
   const td = mkTd(rtl)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? '#f0f7ff' : C.surface, transition: 'background 0.12s' }}>
+      style={{ background: hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
       <td style={{ ...td, fontWeight: 600 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <span style={{ width: 10, height: 10, borderRadius: '50%', background: branchColor(index), flexShrink: 0 }} />
@@ -595,7 +625,7 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl }) {
   const td = mkTd(rtl)
   const inp = inlineInput(rtl)
   return (
-    <tr style={{ background: '#f0f7ff' }}>
+    <tr style={{ background: C.rowHover }}>
       <td style={td}><input value={form.name || ''} placeholder={t.branchName} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.city || ''} placeholder={t.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.address || ''} placeholder={t.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
@@ -618,7 +648,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   function submit() { if (form.plate.trim() && form.make.trim() && form.model.trim()) onAdd(form) }
   return (
-    <tr style={{ background: '#eff6ff' }}>
+    <tr style={{ background: C.rowAdd }}>
       <td style={td}><input autoFocus placeholder={t.plate} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -655,7 +685,7 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   function submit() { if (form.name.trim() && form.license.trim()) onAdd(form) }
   return (
-    <tr style={{ background: '#eff6ff' }}>
+    <tr style={{ background: C.rowAdd }}>
       <td style={td}><input autoFocus placeholder={t.name} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.license} value={form.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
@@ -677,7 +707,7 @@ function AddBranchRow({ onAdd, onCancel, t, rtl }) {
   const inp = inlineInput(rtl)
   function submit() { if (form.name.trim() && form.city.trim()) onAdd(form) }
   return (
-    <tr style={{ background: '#eff6ff' }}>
+    <tr style={{ background: C.rowAdd }}>
       <td style={td}><input autoFocus placeholder={t.branchName} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.city} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.address} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
@@ -748,7 +778,7 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: 16, marginBottom: 20 }}>
         {card('🚗', cars.length,     t.totalFleet,    C.primary)}
         {card('👤', drivers.length,  t.totalDrivers,  C.success)}
-        {card('🏢', branches.length, t.totalBranches, '#a25ddc')}
+        {card('🏢', branches.length, t.totalBranches, '#8b5cf6')}
         {unassigned > 0 && card('⚠️', unassigned, t.unassigned, C.warning)}
       </div>
 
@@ -937,11 +967,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   }
 
   const row   = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
-  const lbl   = { fontSize: 11, fontWeight: 700, color: C.textSub, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
+  const lbl   = { fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
   const card  = { background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }
-  const inp   = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.text, background: C.bg }
-  const msgOk = { color: '#00c875', fontSize: 13, background: '#f0fff8', padding: '8px 12px', borderRadius: 6, border: '1px solid #00c87540' }
-  const msgEr = { color: '#e2445c', fontSize: 13, background: '#fff0f2', padding: '8px 12px', borderRadius: 6, border: '1px solid #e2445c40' }
+  const inp   = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+  const msgOk = { color: C.success, fontSize: 13, background: C.success + '10', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.success}40` }
+  const msgEr = { color: C.danger,  fontSize: 13, background: C.danger  + '10', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.danger}40`  }
 
   // ── MASTER VIEW ──────────────────────────────────────────────────────────
   if (isMaster) {
@@ -975,30 +1005,30 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           <div style={card}>
             <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.text }}>
               🏢 {t.allCompanies}
-              <span style={{ marginLeft: 8, background: C.bg, color: C.textSub, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+              <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
                 {companies.length}
               </span>
             </h3>
             {loading ? (
-              <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>Loading…</p>
+              <p style={{ color: C.textSecondary, fontSize: 14, paddingTop: 16 }}>{t.loadingShort}</p>
             ) : companies.length === 0 ? (
-              <p style={{ color: C.textSub, fontSize: 14, paddingTop: 16 }}>{t.noCompanies}</p>
+              <p style={{ color: C.textSecondary, fontSize: 14, paddingTop: 16 }}>{t.noCompanies}</p>
             ) : companies.map(co => (
               <div key={co.id} style={{ ...row, flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
                 {/* Row top: name + buttons */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
                       {co.name}
                       <span style={{
                         fontSize: 11, borderRadius: 4, padding: '2px 7px', fontWeight: 700,
-                        background: co.is_active ? '#e6f9f0' : '#fff0f2',
-                        color: co.is_active ? '#00c875' : '#e2445c',
+                        background: co.is_active ? C.success + '15' : C.danger + '15',
+                        color: co.is_active ? C.success : C.danger,
                       }}>
                         {co.is_active ? t.activeStatus : t.closedStatus}
                       </span>
                     </div>
-                    <div style={{ fontSize: 12, color: C.textSub, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                    <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
                       {co.invite_code}
                     </div>
                   </div>
@@ -1009,36 +1039,36 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                     }}>{t.manage}</button>
                     <button onClick={() => startEditLimits(co)} style={{
                       background: 'transparent', border: `1px solid ${C.border}`,
-                      color: C.textSub, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     }}>⚙️</button>
                     <button onClick={() => toggleActive(co)} style={{
                       background: 'transparent',
-                      border: `1px solid ${co.is_active ? '#e2445c40' : '#00c87540'}`,
-                      color: co.is_active ? '#e2445c' : '#00c875',
+                      border: `1px solid ${co.is_active ? C.danger + '40' : C.success + '40'}`,
+                      color: co.is_active ? C.danger : C.success,
                       borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     }}>{co.is_active ? t.closeCompany : t.reopenCompany}</button>
                   </div>
                 </div>
                 {/* Limits row — current values always visible */}
-                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSub }}>
-                  <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.text : C.textSub }}>{co.max_cars ?? '∞'}</strong></span>
-                  <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.text : C.textSub }}>{co.max_users ?? '∞'}</strong></span>
+                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSecondary }}>
+                  <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.text : C.textSecondary }}>{co.max_cars ?? '∞'}</strong></span>
+                  <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.text : C.textSecondary }}>{co.max_users ?? '∞'}</strong></span>
                 </div>
                 {/* Inline limits editor */}
                 {editingLimits === co.id && (
                   <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSub, whiteSpace: 'nowrap' }}>🚗 {t.maxCars}</label>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>🚗 {t.maxCars}</label>
                       <input type="number" min="0" value={limitCars} onChange={e => setLimitCars(e.target.value)}
                         placeholder="∞" style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSub, whiteSpace: 'nowrap' }}>👤 {t.maxUsers}</label>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>👤 {t.maxUsers}</label>
                       <input type="number" min="0" value={limitUsers} onChange={e => setLimitUsers(e.target.value)}
                         placeholder="∞" style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <button onClick={() => saveLimits(co)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t.save}</button>
-                    <button onClick={() => setEditingLimits(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSub, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
+                    <button onClick={() => setEditingLimits(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
                   </div>
                 )}
               </div>
@@ -1070,7 +1100,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
               <span style={{
                 fontFamily: 'monospace', fontSize: 22, fontWeight: 900,
                 letterSpacing: '0.15em', color: C.primary,
-                background: '#f0f5ff', padding: '8px 16px', borderRadius: 8,
+                background: C.primary + '12', padding: '8px 16px', borderRadius: 8,
                 border: `1px solid ${C.primary}30`,
               }}>
                 {company?.invite_code}
@@ -1083,7 +1113,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 {copied ? t.codeCopied : t.copyCode}
               </button>
             </div>
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSub }}>
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSecondary }}>
               {t.shareCodeHint}
             </p>
           </div>
@@ -1097,7 +1127,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
               <input
                 type="email" value={inviteEmail} required
                 onChange={e => setInviteEmail(e.target.value)}
-                placeholder="colleague@example.com"
+                placeholder={t.emailPlaceholder}
                 style={{ ...inp, flex: 1 }}
               />
               <button type="submit" disabled={inviting} style={{
@@ -1117,13 +1147,13 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
         <div style={card}>
           <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.text }}>
             👥 {t.members}
-            <span style={{ marginLeft: 8, background: C.bg, color: C.textSub, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+            <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
               {members.length}
             </span>
           </h3>
 
           {loading ? (
-            <p style={{ color: C.textSub, fontSize: 14 }}>Loading…</p>
+            <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
           ) : members.map(m => (
             <div key={m.id} style={row}>
               <div style={{
@@ -1136,15 +1166,15 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
                   {m.email}
                   {m.id === session.user.id && (
-                    <span style={{ fontSize: 11, background: '#e8f3ff', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
+                    <span style={{ fontSize: 11, background: C.primary + '15', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
                       {t.you}
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
                   {m.role === 'admin' ? t.admin : t.member}
                 </div>
               </div>
@@ -1292,7 +1322,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: isMobile ? 0 : 24, flex: isMobile ? 1 : 'none' }}>
           <div style={{
             width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-            background: `linear-gradient(135deg, ${C.primary}, #6366f1)`,
+            background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 10px rgba(59,130,246,0.45)',
           }}>
@@ -1337,7 +1367,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             {!isMobile && <span style={{ color: C.navText, fontSize: 12, whiteSpace: 'nowrap' }}>{session.user.email}</span>}
             {isMaster && viewCompanyName && (
               <span style={{
-                background: 'rgba(140,109,81,0.35)', color: C.navActive,
+                background: C.primary + '40', color: C.navActive,
                 borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
               }}>
                 🏢 {viewCompanyName}
@@ -1349,7 +1379,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               fontSize: 12, fontWeight: 600, cursor: 'pointer',
               transition: 'background 0.15s', whiteSpace: 'nowrap',
             }}>
-              {isMobile ? '↩' : 'Sign Out'}
+              {isMobile ? '↩' : t.signOut}
             </button>
           </div>
         )}
@@ -1364,7 +1394,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
               transition: 'all 0.15s',
             }}>
-              {l === 'en' ? 'EN' : 'עב'}
+              {l === 'en' ? 'EN' : 'HE'}
             </button>
           ))}
         </div>
@@ -1422,7 +1452,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
             <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
-              background: `linear-gradient(135deg, ${C.primary}, #6366f1)`, color: '#fff', border: 'none',
+              background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`, color: '#fff', border: 'none',
               borderRadius: 8, padding: isMobile ? '8px 14px' : '8px 18px',
               fontSize: isMobile ? 20 : 13, fontWeight: 700,
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -1458,7 +1488,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
-            <div style={{ background: `linear-gradient(90deg, ${C.primary}, #6366f1)`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
               <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{currentCount}</span>
             </div>
@@ -1524,7 +1554,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             </div>{/* end overflowX scroll wrapper */}
 
             {/* Footer add link */}
-            <div style={{ padding: '8px 18px', borderTop: `1px solid ${C.border}`, background: '#fafbfc' }}>
+            <div style={{ padding: '8px 18px', borderTop: `1px solid ${C.border}`, background: C.footerBg }}>
               <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
                 background: 'transparent', border: 'none', color: C.textSecondary,
                 cursor: 'pointer', fontSize: 13, padding: '4px 0',
