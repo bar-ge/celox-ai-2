@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import * as XLSX from 'xlsx'
 
 // ── Mobile breakpoint hook ──────────────────────────────────────────────────
 function useIsMobile(breakpoint = 640) {
@@ -88,6 +89,32 @@ const T = {
     listCarStatus:'Vehicle Status', listDriverStatus:'Driver Status',
     listFuelType:'Fuel Types', listFileType:'Document Types', listCarType:'Vehicle Types',
     addValue:'Add value…', noCustomValues:'No custom values yet.', docType:'Document Type',
+    // maintenance
+    maintenanceTab:'Maintenance', serviceType:'Service Type', serviceDate:'Date', nextDue:'Next Due',
+    noMaintenance:'No maintenance records yet.',
+    oilChange:'Oil Change', tireRotation:'Tire Rotation', inspection:'Inspection',
+    brakeService:'Brake Service', otherService:'Other',
+    scheduled:'Scheduled', done:'Done', overdue:'Overdue',
+    // costs
+    costsTab:'Costs', category:'Category', amount:'Amount', totalCosts:'Total Costs',
+    noCosts:'No cost records yet.',
+    catFuel:'Fuel', catInsurance:'Insurance', catFine:'Fine', catRepair:'Repair', catOther:'Other',
+    // history
+    history:'Assignment History', assignedAt:'Assigned', unassignedAt:'Unassigned', current:'Current',
+    noHistory:'No assignment history.',
+    // activity
+    activityLog:'Activity Log', activityAction:'Action', activityEntity:'Item', activityUser:'User', activityTime:'Time',
+    actionAdd:'Added', actionUpdate:'Updated', actionDelete:'Deleted',
+    noActivity:'No activity yet.',
+    // bulk & export
+    selectAll:'Select All', bulkDelete:'Delete Selected', bulkAssign:'Assign Branch',
+    exportExcel:'Export Excel', exportPDF:'Export PDF',
+    // dashboard filter
+    filterAll:'All Time', filterMonth:'This Month', filterQuarter:'This Quarter', filterYear:'This Year',
+    // photo
+    photo:'Photo', uploadPhoto:'Upload Photo', changePhoto:'Change Photo',
+    totalCost:'Total Cost', costByCategory:'Cost by Category', recentCosts:'Recent Costs',
+    maintenanceDue:'Maintenance Due', maintenanceHistory:'Service History',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -133,6 +160,32 @@ const T = {
     listCarStatus:'סטטוס רכב', listDriverStatus:'סטטוס נהג',
     listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listCarType:'סוגי רכב',
     addValue:'הוסף ערך…', noCustomValues:'אין ערכים מותאמים עדיין.', docType:'סוג מסמך',
+    // maintenance
+    maintenanceTab:'תחזוקה', serviceType:'סוג שירות', serviceDate:'תאריך', nextDue:'תאריך הבא',
+    noMaintenance:'אין רשומות תחזוקה עדיין.',
+    oilChange:'החלפת שמן', tireRotation:'סיבוב צמיגים', inspection:'בדיקה תקופתית',
+    brakeService:'שירות בלמים', otherService:'אחר',
+    scheduled:'מתוכנן', done:'בוצע', overdue:'באיחור',
+    // costs
+    costsTab:'עלויות', category:'קטגוריה', amount:'סכום', totalCosts:'סה"כ עלויות',
+    noCosts:'אין רשומות עלויות עדיין.',
+    catFuel:'דלק', catInsurance:'ביטוח', catFine:'קנס', catRepair:'תיקון', catOther:'אחר',
+    // history
+    history:'היסטוריית שיבוץ', assignedAt:'שובץ', unassignedAt:'הוסר', current:'נוכחי',
+    noHistory:'אין היסטוריית שיבוץ.',
+    // activity
+    activityLog:'יומן פעילות', activityAction:'פעולה', activityEntity:'פריט', activityUser:'משתמש', activityTime:'זמן',
+    actionAdd:'נוסף', actionUpdate:'עודכן', actionDelete:'נמחק',
+    noActivity:'אין פעילות עדיין.',
+    // bulk & export
+    selectAll:'בחר הכל', bulkDelete:'מחק נבחרים', bulkAssign:'שבץ סניף',
+    exportExcel:'ייצא Excel', exportPDF:'ייצא PDF',
+    // dashboard filter
+    filterAll:'כל הזמן', filterMonth:'חודש זה', filterQuarter:'רבעון זה', filterYear:'שנה זו',
+    // photo
+    photo:'תמונה', uploadPhoto:'העלה תמונה', changePhoto:'החלף תמונה',
+    totalCost:'סה"כ עלות', costByCategory:'עלות לפי קטגוריה', recentCosts:'עלויות אחרונות',
+    maintenanceDue:'תחזוקה קרובה', maintenanceHistory:'היסטוריית שירות',
   },
 }
 
@@ -443,14 +496,15 @@ function getListOptions(type, customLists) {
 }
 
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, getBranchName, getBranchIdx, drivers, onEdit, onDelete, onFiles, t, rtl }) {
+function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
   const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
+      style={{ background: selected ? C.primary + '08' : hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
+      <td style={{ ...td, width: 36, padding: '10px 12px' }}><input type="checkbox" checked={!!selected} onChange={onSelect} style={{ cursor: 'pointer' }} /></td>
       <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>{car.plate}</td>
       <td style={td}>{car.make} {car.model}</td>
       <td style={td}>{car.year || '—'}</td>
@@ -533,13 +587,14 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl }) {
   )
 }
 
-function DriverRow({ driver, getBranchName, getBranchIdx, onEdit, onDelete, onFiles, t, rtl }) {
+function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onFiles, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
+      style={{ background: selected ? C.primary + '08' : hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
+      <td style={{ ...td, width: 36, padding: '10px 12px' }}><input type="checkbox" checked={!!selected} onChange={onSelect} style={{ cursor: 'pointer' }} /></td>
       <td style={{ ...td, fontWeight: 600 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <span style={{ width: 28, height: 28, borderRadius: '50%', background: C.primary, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
@@ -598,12 +653,13 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl }) {
   )
 }
 
-function BranchRow({ branch, index, onEdit, onDelete, t, rtl }) {
+function BranchRow({ branch, index, selected, onSelect, onEdit, onDelete, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
+      style={{ background: selected ? C.primary + '08' : hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
+      <td style={{ ...td, width: 36, padding: '10px 12px' }}><input type="checkbox" checked={!!selected} onChange={onSelect} style={{ cursor: 'pointer' }} /></td>
       <td style={{ ...td, fontWeight: 600 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <span style={{ width: 10, height: 10, borderRadius: '50%', background: branchColor(index), flexShrink: 0 }} />
@@ -722,8 +778,337 @@ function AddBranchRow({ onAdd, onCancel, t, rtl }) {
   )
 }
 
+// ── Maintenance Tab ──────────────────────────────────────────────────────────
+function MaintenanceTab({ cars, companyId, t, rtl }) {
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done' })
+  const inp = inlineInput(rtl)
+
+  useEffect(() => { load() }, [companyId])
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('maintenance').select('*').eq('company_id', companyId).order('date', { ascending: false })
+    setRecords(data || [])
+    setLoading(false)
+  }
+  async function add(e) {
+    e.preventDefault()
+    const { data, error } = await supabase.from('maintenance').insert([{
+      company_id: companyId, car_id: parseInt(form.car_id), type: form.type,
+      description: form.description || null, cost: parseFloat(form.cost) || 0,
+      date: form.date, next_due: form.next_due || null, status: form.status,
+    }]).select()
+    if (!error && data) { setRecords(p => [data[0], ...p]); setShowAdd(false); setForm({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done' }) }
+  }
+  async function del(id) {
+    if (!window.confirm(t.confirmDelete)) return
+    await supabase.from('maintenance').delete().eq('id', id)
+    setRecords(p => p.filter(r => r.id !== id))
+  }
+
+  const statusColor = { done: C.success, scheduled: C.primary, overdue: C.danger }
+  const statusLabel = { done: t.done, scheduled: t.scheduled, overdue: t.overdue }
+  const carName = id => cars.find(c => c.id === parseInt(id))?.plate || id
+
+  const upcoming = records.filter(r => r.next_due && new Date(r.next_due) > new Date() && r.status !== 'done')
+  const overdueCount = records.filter(r => r.status === 'overdue').length
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+      {/* Summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+        {[
+          { label: t.maintenanceHistory, value: records.length, color: C.primary, icon: '🔧' },
+          { label: t.maintenanceDue, value: upcoming.length, color: C.warning, icon: '📅' },
+          { label: t.overdue, value: overdueCount, color: C.danger, icon: '⚠️' },
+        ].map(s => (
+          <div key={s.label} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ height: 3, background: s.color }} />
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 22 }}>{s.icon}</span>
+                <span style={{ fontSize: 30, fontWeight: 800, color: s.color }}>{s.value}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{s.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add form */}
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', overflow: 'hidden', marginBottom: 20 }}>
+        <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>🔧 {t.maintenanceTab}</span>
+          <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+            {showAdd ? t.cancel : t.newItem}
+          </button>
+        </div>
+        {showAdd && (
+          <form onSubmit={add} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px,1fr))', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.cars}</label>
+              <select required value={form.car_id} onChange={e => setForm({ ...form, car_id: e.target.value })} style={inp}>
+                <option value="">—</option>
+                {cars.map(c => <option key={c.id} value={c.id}>{c.plate} {c.make}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceType}</label>
+              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={inp}>
+                {['Oil Change','Tire Rotation','Inspection','Brake Service','Other'].map(v => <option key={v} value={v}>{t[v.toLowerCase().replace(/ /g,'')] || v}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceDate}</label>
+              <input required type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.nextDue}</label>
+              <input type="date" value={form.next_due} onChange={e => setForm({ ...form, next_due: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.amount}</label>
+              <input type="number" min="0" step="0.01" value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} style={inp} placeholder="0.00" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.status}</label>
+              <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
+                <option value="done">{t.done}</option>
+                <option value="scheduled">{t.scheduled}</option>
+                <option value="overdue">{t.overdue}</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: 'span 2' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.actions}</label>
+              <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t.serviceType + '…'} style={inp} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button type="submit" style={{ ...btnPrimary, padding: '8px 18px', fontSize: 13, width: '100%' }}>{t.add}</button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* Records table */}
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+            <thead>
+              <tr>
+                {[t.cars, t.serviceType, t.serviceDate, t.nextDue, t.amount, t.status, t.actions].map(h => (
+                  <th key={h} style={mkTh(rtl)}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
+              ) : records.length === 0 ? (
+                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noMaintenance}</td></tr>
+              ) : records.map(r => (
+                <tr key={r.id} style={{ background: C.surface }}>
+                  <td style={mkTd(rtl)}><span style={{ fontWeight: 600, color: C.primary }}>{carName(r.car_id)}</span></td>
+                  <td style={mkTd(rtl)}>{r.type}</td>
+                  <td style={mkTd(rtl)}>{r.date}</td>
+                  <td style={mkTd(rtl)}>{r.next_due || '—'}</td>
+                  <td style={mkTd(rtl)}>{r.cost ? `$${parseFloat(r.cost).toFixed(2)}` : '—'}</td>
+                  <td style={mkTd(rtl)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textMuted} /></td>
+                  <td style={mkTd(rtl)}><ActionBtn variant="delete" onClick={() => del(r.id)}>{t.delete}</ActionBtn></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Costs Tab ────────────────────────────────────────────────────────────────
+function CostsTab({ cars, drivers, companyId, t, rtl }) {
+  const [costs, setCosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' })
+  const inp = inlineInput(rtl)
+
+  useEffect(() => { load() }, [companyId])
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('costs').select('*').eq('company_id', companyId).order('date', { ascending: false })
+    setCosts(data || [])
+    setLoading(false)
+  }
+  async function add(e) {
+    e.preventDefault()
+    const { data, error } = await supabase.from('costs').insert([{
+      company_id: companyId,
+      car_id: form.car_id ? parseInt(form.car_id) : null,
+      driver_id: form.driver_id || null,
+      category: form.category, amount: parseFloat(form.amount),
+      description: form.description || null, date: form.date,
+    }]).select()
+    if (!error && data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' }) }
+  }
+  async function del(id) {
+    if (!window.confirm(t.confirmDelete)) return
+    await supabase.from('costs').delete().eq('id', id)
+    setCosts(p => p.filter(c => c.id !== id))
+  }
+
+  const total = costs.reduce((s, c) => s + parseFloat(c.amount || 0), 0)
+  const byCategory = costs.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + parseFloat(c.amount || 0); return acc }, {})
+  const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted }
+  const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther }
+  const carName = id => cars.find(c => c.id === parseInt(id))?.plate || id
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+      {/* Summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', gridColumn: 'span 1' }}>
+          <div style={{ height: 3, background: gradient }} />
+          <div style={{ padding: '16px 20px' }}>
+            <span style={{ fontSize: 22 }}>💰</span>
+            <p style={{ margin: '8px 0 0', fontSize: 30, fontWeight: 800, color: C.primary }}>${total.toFixed(2)}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: C.textSecondary }}>{t.totalCost}</p>
+          </div>
+        </div>
+        {Object.entries(byCategory).sort((a,b) => b[1]-a[1]).slice(0,4).map(([cat, amt]) => (
+          <div key={cat} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ height: 3, background: catColors[cat] || C.textMuted }} />
+            <div style={{ padding: '16px 20px' }}>
+              <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: catColors[cat] || C.textMuted }}>${amt.toFixed(2)}</p>
+              <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{catLabel[cat] || cat}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add form */}
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
+        <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>💰 {t.costsTab}</span>
+          <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+            {showAdd ? t.cancel : t.newItem}
+          </button>
+        </div>
+        {showAdd && (
+          <form onSubmit={add} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.category}</label>
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={inp}>
+                {['Fuel','Insurance','Fine','Repair','Maintenance','Other'].map(v => <option key={v} value={v}>{catLabel[v] || v}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.amount}</label>
+              <input required type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={inp} placeholder="0.00" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceDate}</label>
+              <input required type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.cars}</label>
+              <select value={form.car_id} onChange={e => setForm({ ...form, car_id: e.target.value })} style={inp}>
+                <option value="">—</option>
+                {cars.map(c => <option key={c.id} value={c.id}>{c.plate} {c.make}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.driver}</label>
+              <select value={form.driver_id} onChange={e => setForm({ ...form, driver_id: e.target.value })} style={inp}>
+                <option value="">—</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.actions}</label>
+              <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description…" style={inp} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button type="submit" style={{ ...btnPrimary, padding: '8px 18px', fontSize: 13, width: '100%' }}>{t.add}</button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* Table */}
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+            <thead>
+              <tr>
+                {[t.serviceDate, t.category, t.amount, t.cars, t.driver, t.actions].map(h => (
+                  <th key={h} style={mkTh(rtl)}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
+              ) : costs.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
+              ) : costs.map(c => (
+                <tr key={c.id} style={{ background: C.surface }}>
+                  <td style={mkTd(rtl)}>{c.date}</td>
+                  <td style={mkTd(rtl)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
+                  <td style={{ ...mkTd(rtl), fontWeight: 700, color: C.textPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
+                  <td style={mkTd(rtl)}>{c.car_id ? carName(c.car_id) : '—'}</td>
+                  <td style={mkTd(rtl)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
+                  <td style={mkTd(rtl)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Activity Log section ─────────────────────────────────────────────────────
+function ActivityLogSection({ companyId, t, rtl }) {
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.from('activity_log').select('*').eq('company_id', companyId)
+      .order('created_at', { ascending: false }).limit(50)
+      .then(({ data }) => { setLogs(data || []); setLoading(false) })
+  }, [companyId])
+
+  const actionLabel = { add: t.actionAdd, update: t.actionUpdate, delete: t.actionDelete }
+  const actionColor = { add: C.success, update: C.primary, delete: C.danger }
+
+  return (
+    <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+      <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📋 {t.activityLog}</h3>
+      {loading ? (
+        <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
+      ) : logs.length === 0 ? (
+        <p style={{ color: C.textMuted, fontSize: 14 }}>{t.noActivity}</p>
+      ) : logs.map(l => (
+        <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: actionColor[l.action] || C.textMuted, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>
+              <strong style={{ color: actionColor[l.action] || C.textMuted }}>{actionLabel[l.action] || l.action}</strong>
+              {' '}{l.entity_type}{l.entity_name ? ` — ${l.entity_name}` : ''}
+            </span>
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{l.user_email} · {new Date(l.created_at).toLocaleString()}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Dashboard component ─────────────────────────────────────────────────────
-function Dashboard({ cars, drivers, branches, t, rtl }) {
+function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter, onExport }) {
   const unassigned = cars.filter(c => !c.branch_id).length
 
   const carsPerBranch = branches.map((b, i) => ({
@@ -777,6 +1162,22 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+
+      {/* Dashboard toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 4 }}>
+          {[['all', t.filterAll], ['month', t.filterMonth], ['quarter', t.filterQuarter], ['year', t.filterYear]].map(([k, l]) => (
+            <button key={k} onClick={() => setDashFilter(k)} style={{
+              padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+              background: dashFilter === k ? C.primary : 'transparent',
+              color: dashFilter === k ? '#fff' : C.textSecondary,
+              transition: 'all 0.15s',
+            }}>{l}</button>
+          ))}
+        </div>
+        <div style={{ flex: 1 }} />
+        <button onClick={onExport} style={{ ...btnPrimary, padding: '7px 16px', fontSize: 12 }}>📥 {t.exportExcel}</button>
+      </div>
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: 16, marginBottom: 20 }}>
@@ -860,7 +1261,7 @@ function Dashboard({ cars, drivers, branches, t, rtl }) {
 }
 
 // ── Settings Tab ────────────────────────────────────────────────────────────
-function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t }) {
+function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl }) {
   const company  = profile?.companies
   const isAdmin  = profile?.role === 'admin'
 
@@ -1196,6 +1597,9 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           ))}
         </div>
 
+        {/* Activity log — admin only */}
+        {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} rtl={rtl} />}
+
       </div>
     </div>
   )
@@ -1206,25 +1610,40 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
   const [cars, setCars]           = useState([])
-  const [activeTab, setActiveTab] = useState('cars')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [editingId, setEditingId] = useState(null)
   const [loading, setLoading]     = useState(true)
   const [showAdd, setShowAdd]     = useState(false)
   const [search, setSearch]       = useState('')
   const [lang, setLang]           = useState(initialLang || 'en')
   const isMobile                  = useIsMobile()
-  const [filesFor, setFilesFor] = useState(null) // { entity, entityType }
+  const [filesFor, setFilesFor]   = useState(null)
   const [companyLimits, setCompanyLimits] = useState({ max_cars: null, max_users: null })
-  // Master can switch which company they're viewing
-  const [viewCompanyId, setViewCompanyId] = useState(isMaster ? null : companyId)
+  const [viewCompanyId, setViewCompanyId]   = useState(isMaster ? null : companyId)
   const [viewCompanyName, setViewCompanyName] = useState(null)
+  // New feature state
+  const [selectedIds, setSelectedIds] = useState([])
+  const [dashFilter, setDashFilter]   = useState('all')
+  const realtimeRef = useRef(null)
 
   const t   = T[lang]
   const rtl = lang === 'he'
-
   const activeCompanyId = isMaster ? viewCompanyId : companyId
 
   useEffect(() => { loadAll() }, [activeCompanyId])
+
+  // ── Real-time sync ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeCompanyId) return
+    if (realtimeRef.current) supabase.removeChannel(realtimeRef.current)
+    const channel = supabase.channel(`fleet-${activeCompanyId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cars',     filter: `company_id=eq.${activeCompanyId}` }, () => loadAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers',  filter: `company_id=eq.${activeCompanyId}` }, () => loadAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'branches', filter: `company_id=eq.${activeCompanyId}` }, () => loadAll())
+      .subscribe()
+    realtimeRef.current = channel
+    return () => { supabase.removeChannel(channel) }
+  }, [activeCompanyId])
 
   async function loadAll() {
     setLoading(true)
@@ -1240,6 +1659,45 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (c) setCars(c)
     if (co) setCompanyLimits(co)
     setLoading(false)
+  }
+
+  // ── Activity logging ──────────────────────────────────────────────────────
+  async function logActivity(action, entityType, entityName) {
+    if (!activeCompanyId) return
+    await supabase.from('activity_log').insert([{
+      company_id: activeCompanyId,
+      user_email: session.user.email,
+      action, entity_type: entityType, entity_name: entityName,
+    }])
+  }
+
+  // ── Export to Excel ───────────────────────────────────────────────────────
+  function exportExcel() {
+    const wb = XLSX.utils.book_new()
+    const carSheet  = XLSX.utils.json_to_sheet(cars.map(c => ({ Plate: c.plate, Make: c.make, Model: c.model, Year: c.year, Status: c.status, Fuel: c.fuel, Branch: getBranchName(c.branch_id) })))
+    const drvSheet  = XLSX.utils.json_to_sheet(drivers.map(d => ({ Name: d.name, License: d.license, Phone: d.phone, Status: d.status, Branch: getBranchName(d.branch_id) })))
+    const brnSheet  = XLSX.utils.json_to_sheet(branches.map(b => ({ Name: b.name, City: b.city, Address: b.address, Manager: b.manager, Phone: b.phone })))
+    XLSX.utils.book_append_sheet(wb, carSheet, 'Vehicles')
+    XLSX.utils.book_append_sheet(wb, drvSheet, 'Drivers')
+    XLSX.utils.book_append_sheet(wb, brnSheet, 'Branches')
+    XLSX.writeFile(wb, `fleet-export-${new Date().toISOString().slice(0,10)}.xlsx`)
+  }
+
+  // ── Bulk actions ──────────────────────────────────────────────────────────
+  function toggleSelect(id) { setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]) }
+  function toggleSelectAll(items) {
+    const ids = items.map(i => i.id)
+    setSelectedIds(p => p.length === ids.length && ids.every(id => p.includes(id)) ? [] : ids)
+  }
+  async function bulkDelete(tab) {
+    if (!selectedIds.length || !window.confirm(t.confirmDelete)) return
+    const table = tab === 'cars' ? 'cars' : tab === 'drivers' ? 'drivers' : 'branches'
+    await supabase.from(table).delete().in('id', selectedIds)
+    if (tab === 'cars')    setCars(p => p.filter(x => !selectedIds.includes(x.id)))
+    if (tab === 'drivers') setDrivers(p => p.filter(x => !selectedIds.includes(x.id)))
+    if (tab === 'branches') setBranches(p => p.filter(x => !selectedIds.includes(x.id)))
+    setSelectedIds([])
+    logActivity('delete', tab, `${selectedIds.length} items`)
   }
 
   function switchToCompany(co) {
@@ -1261,18 +1719,32 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
     if (error) { setCrudError(error.message); return }
     setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
+    logActivity('add', 'car', `${form.plate} ${form.make}`)
   }
   async function updateCar(form) {
     const c = { ...cleanCar(form), id: form.id }
     const { error } = await supabase.from('cars').update(c).eq('id', c.id)
     if (error) { setCrudError(error.message); return }
+    // Log driver assignment change for history
+    const prev = cars.find(x => x.id === form.id)
+    if (prev && prev.driver_id !== form.driver_id) {
+      await supabase.from('driver_car_history').insert([{
+        company_id: activeCompanyId, car_id: form.id,
+        driver_id: form.driver_id || null,
+        driver_name: drivers.find(d => d.id === form.driver_id)?.name || null,
+        assigned_at: new Date().toISOString(),
+      }])
+    }
     setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null); setCrudError('')
+    logActivity('update', 'car', `${form.plate} ${form.make}`)
   }
   async function deleteCar(id) {
     if (!window.confirm(t.confirmDelete)) return
+    const car = cars.find(c => c.id === id)
     const { error } = await supabase.from('cars').delete().eq('id', id)
     if (error) { setCrudError(error.message); return }
     setCars(p => p.filter(c => c.id !== id))
+    logActivity('delete', 'car', `${car?.plate} ${car?.make}`)
   }
   async function addDriver(form) {
     if (companyLimits.max_users != null && drivers.length >= companyLimits.max_users) {
@@ -1281,40 +1753,48 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const { data, error } = await supabase.from('drivers').insert([cleanDriver(form)]).select()
     if (error) { setCrudError(error.message); return }
     setDrivers(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
+    logActivity('add', 'driver', form.name)
   }
   async function updateDriver(form) {
     const d = { ...cleanDriver(form), id: form.id }
     const { error } = await supabase.from('drivers').update(d).eq('id', d.id)
     if (error) { setCrudError(error.message); return }
     setDrivers(p => p.map(x => x.id === d.id ? { ...x, ...d } : x)); setEditingId(null); setCrudError('')
+    logActivity('update', 'driver', form.name)
   }
   async function deleteDriver(id) {
     if (!window.confirm(t.confirmDelete)) return
+    const drv = drivers.find(d => d.id === id)
     const { error } = await supabase.from('drivers').delete().eq('id', id)
     if (error) { setCrudError(error.message); return }
     setDrivers(p => p.filter(d => d.id !== id))
+    logActivity('delete', 'driver', drv?.name)
   }
   async function addBranch(form) {
     const { data, error } = await supabase.from('branches').insert([cleanBranch(form)]).select()
     if (error) { setCrudError(error.message); return }
     setBranches(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
+    logActivity('add', 'branch', form.name)
   }
   async function updateBranch(form) {
     const b = { ...cleanBranch(form), id: form.id }
     const { error } = await supabase.from('branches').update(b).eq('id', b.id)
     if (error) { setCrudError(error.message); return }
     setBranches(p => p.map(x => x.id === b.id ? { ...x, ...b } : x)); setEditingId(null); setCrudError('')
+    logActivity('update', 'branch', form.name)
   }
   async function deleteBranch(id) {
     if (!window.confirm(t.confirmDelete)) return
+    const brn = branches.find(b => b.id === id)
     const { error } = await supabase.from('branches').delete().eq('id', id)
     if (error) { setCrudError(error.message); return }
     setBranches(p => p.filter(b => b.id !== id))
+    logActivity('delete', 'branch', brn?.name)
   }
 
   function getBranchName(id) { return branches.find(b => b.id === id)?.name || '—' }
   function getBranchIdx(id)  { return branches.findIndex(b => b.id === id) }
-  function switchTab(tab)    { setActiveTab(tab); setEditingId(null); setShowAdd(false); setSearch('') }
+  function switchTab(tab)    { setActiveTab(tab); setEditingId(null); setShowAdd(false); setSearch(''); setSelectedIds([]); setCrudError('') }
 
   const q = search.toLowerCase()
   const filteredCars     = cars.filter(c     => c.plate?.toLowerCase().includes(q) || c.make?.toLowerCase().includes(q) || c.model?.toLowerCase().includes(q) || getBranchName(c.branch_id).toLowerCase().includes(q))
@@ -1322,11 +1802,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const filteredBranches = branches.filter(b => b.name?.toLowerCase().includes(q)  || b.city?.toLowerCase().includes(q) || b.manager?.toLowerCase().includes(q))
 
   const tabs = [
-    { id: 'dashboard', label: t.dashboard, icon: '📊', count: null },
-    { id: 'cars',      label: t.fleet,     icon: '🚗', count: cars.length },
-    { id: 'drivers',   label: t.drivers,   icon: '👤', count: drivers.length },
-    { id: 'branches',  label: t.branches,  icon: '🏢', count: branches.length },
-    { id: 'settings',  label: t.settings,  icon: '⚙️', count: null },
+    { id: 'dashboard',   label: t.dashboard,      icon: '📊', count: null },
+    { id: 'cars',        label: t.fleet,          icon: '🚗', count: cars.length },
+    { id: 'drivers',     label: t.drivers,        icon: '👤', count: drivers.length },
+    { id: 'branches',    label: t.branches,       icon: '🏢', count: branches.length },
+    { id: 'maintenance', label: t.maintenanceTab, icon: '🔧', count: null },
+    { id: 'costs',       label: t.costsTab,       icon: '💰', count: null },
+    { id: 'settings',    label: t.settings,       icon: '⚙️', count: null },
   ]
 
   const activeTabData  = tabs.find(tab => tab.id === activeTab)
@@ -1508,12 +1990,22 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Dashboard view */}
         {activeTab === 'dashboard' && (
-          <Dashboard cars={cars} drivers={drivers} branches={branches} t={t} rtl={rtl} />
+          <Dashboard cars={cars} drivers={drivers} branches={branches} t={t} rtl={rtl} dashFilter={dashFilter} setDashFilter={setDashFilter} onExport={exportExcel} />
         )}
 
         {/* Settings view */}
         {activeTab === 'settings' && (
-          <SettingsTab profile={profile} companyId={activeCompanyId} session={session} isMaster={isMaster} onSelectCompany={switchToCompany} t={t} />
+          <SettingsTab profile={profile} companyId={activeCompanyId} session={session} isMaster={isMaster} onSelectCompany={switchToCompany} t={t} rtl={rtl} />
+        )}
+
+        {/* Maintenance tab */}
+        {activeTab === 'maintenance' && activeCompanyId && (
+          <MaintenanceTab cars={cars} companyId={activeCompanyId} t={t} rtl={rtl} />
+        )}
+
+        {/* Costs tab */}
+        {activeTab === 'costs' && activeCompanyId && (
+          <CostsTab cars={cars} drivers={drivers} companyId={activeCompanyId} t={t} rtl={rtl} />
         )}
 
         {/* Board */}
@@ -1524,19 +2016,40 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
         )}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
           <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
-            <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
               <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{currentCount}</span>
+              <div style={{ flex: 1 }} />
+              {/* Export button */}
+              <button onClick={exportExcel} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                📥 {t.exportExcel}
+              </button>
             </div>
+
+            {/* Bulk actions bar */}
+            {selectedIds.length > 0 && (
+              <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} selected</span>
+                <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '5px 14px', fontSize: 12 }}>🗑 {t.bulkDelete}</button>
+                <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 12 }}>✕</button>
+              </div>
+            )}
 
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 600 : 'auto' }}>
               <thead>
                 <tr>
+                  {/* Checkbox select-all */}
+                  <th style={{ ...mkTh(rtl), width: 36, padding: '11px 12px' }}>
+                    <input type="checkbox"
+                      checked={selectedIds.length > 0 && (activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches).every(x => selectedIds.includes(x.id))}
+                      onChange={() => toggleSelectAll(activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches)}
+                      style={{ cursor: 'pointer' }} />
+                  </th>
                   {activeTab === 'cars' && <>
                     <th style={mkTh(rtl)}>{t.plate}</th>
                     <th style={mkTh(rtl)}>{t.make} / {t.model}</th>
@@ -1569,25 +2082,31 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 {activeTab === 'cars' && filteredCars.map(car =>
                   editingId === car.id
                     ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers} onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })} t={t} rtl={rtl} />
+                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
+                        selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
+                        onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })} t={t} rtl={rtl} />
                 )}
-                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
+                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
                 {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
 
                 {activeTab === 'drivers' && filteredDrivers.map(driver =>
                   editingId === driver.id
                     ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx} onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} />
+                    : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
+                        selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
+                        onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} />
                 )}
-                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
+                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
                 {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
 
                 {activeTab === 'branches' && filteredBranches.map((branch, i) =>
                   editingId === branch.id
                     ? <EditableBranchRow key={branch.id} branch={branch} onSave={updateBranch} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
-                    : <BranchRow key={branch.id} branch={branch} index={i} onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} />
+                    : <BranchRow key={branch.id} branch={branch} index={i}
+                        selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
+                        onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} />
                 )}
-                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noBranches}</td></tr>}
+                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noBranches}</td></tr>}
                 {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
               </tbody>
             </table>
