@@ -472,6 +472,31 @@ function getFileIcon(name) {
   return '📎'
 }
 
+// ── Vehicle photo thumbnail ─────────────────────────────────────────────────
+function PhotoThumb({ path, onUpload }) {
+  const [url, setUrl] = useState(null)
+  const inputRef = useRef(null)
+  useEffect(() => {
+    if (!path) { setUrl(null); return }
+    supabase.storage.from('fleet-documents').createSignedUrl(path, 86400)
+      .then(({ data }) => { if (data) setUrl(data.signedUrl) })
+  }, [path])
+  return (
+    <>
+      <div onClick={() => inputRef.current?.click()} title={path ? 'Change photo' : 'Upload photo'}
+        style={{ width: 32, height: 32, borderRadius: 7, overflow: 'hidden', cursor: 'pointer', background: C.bg, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'border-color 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.borderColor = C.primary}
+        onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+        {url
+          ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <span style={{ fontSize: 14 }}>📷</span>}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files[0]; if (f) onUpload(f); e.target.value = '' }} />
+    </>
+  )
+}
+
 // ── Status badge helpers ────────────────────────────────────────────────────
 const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintenance: C.warning }
 const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
@@ -496,7 +521,7 @@ function getListOptions(type, customLists) {
 }
 
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, t, rtl }) {
+function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, t, rtl }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl)
   const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
@@ -505,7 +530,12 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: selected ? C.primary + '08' : hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
       <td style={{ ...td, width: 36, padding: '10px 12px' }}><input type="checkbox" checked={!!selected} onChange={onSelect} style={{ cursor: 'pointer' }} /></td>
-      <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>{car.plate}</td>
+      <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <PhotoThumb path={car.photo_url} onUpload={onPhotoChange} />
+          {car.plate}
+        </span>
+      </td>
       <td style={td}>{car.make} {car.model}</td>
       <td style={td}>{car.year || '—'}</td>
       <td style={td}><Badge label={t[CAR_STATUS_KEY[car.status]] || car.status || t.available} color={statusColor} /></td>
@@ -1108,22 +1138,38 @@ function ActivityLogSection({ companyId, t, rtl }) {
 }
 
 // ── Dashboard component ─────────────────────────────────────────────────────
-function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter, onExport }) {
-  const unassigned = cars.filter(c => !c.branch_id).length
+function filterByDate(items, filter) {
+  if (filter === 'all') return items
+  const now = new Date()
+  return items.filter(item => {
+    const d = new Date(item.created_at)
+    if (filter === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    if (filter === 'quarter') return d.getFullYear() === now.getFullYear() && Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3)
+    if (filter === 'year') return d.getFullYear() === now.getFullYear()
+    return true
+  })
+}
 
-  const carsPerBranch = branches.map((b, i) => ({
+function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter, onExport }) {
+  const filtCars     = filterByDate(cars,     dashFilter)
+  const filtDrivers  = filterByDate(drivers,  dashFilter)
+  const filtBranches = filterByDate(branches, dashFilter)
+
+  const unassigned = filtCars.filter(c => !c.branch_id).length
+
+  const carsPerBranch = filtBranches.map((b, i) => ({
     name: b.name, color: branchColor(i),
-    count: cars.filter(c => c.branch_id === b.id).length,
+    count: filtCars.filter(c => c.branch_id === b.id).length,
   }))
-  const driversPerBranch = branches.map((b, i) => ({
+  const driversPerBranch = filtBranches.map((b, i) => ({
     name: b.name, color: branchColor(i),
-    count: drivers.filter(d => d.branch_id === b.id).length,
+    count: filtDrivers.filter(d => d.branch_id === b.id).length,
   }))
   const maxCars    = Math.max(...carsPerBranch.map(b => b.count), 1)
   const maxDrivers = Math.max(...driversPerBranch.map(b => b.count), 1)
 
   const modelCounts = {}
-  cars.forEach(c => { if (c.model) modelCounts[c.model] = (modelCounts[c.model] || 0) + 1 })
+  filtCars.forEach(c => { if (c.model) modelCounts[c.model] = (modelCounts[c.model] || 0) + 1 })
   const topModels = Object.entries(modelCounts).sort((a, b) => b[1] - a[1]).slice(0, 6)
   const maxModel  = Math.max(...topModels.map(([, n]) => n), 1)
 
@@ -1181,9 +1227,9 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: 16, marginBottom: 20 }}>
-        {card('🚗', cars.length,     t.totalFleet,    C.primary)}
-        {card('👤', drivers.length,  t.totalDrivers,  C.success)}
-        {card('🏢', branches.length, t.totalBranches, '#8b5cf6')}
+        {card('🚗', filtCars.length,     t.totalFleet,    C.primary)}
+        {card('👤', filtDrivers.length,  t.totalDrivers,  C.success)}
+        {card('🏢', filtBranches.length, t.totalBranches, '#8b5cf6')}
         {unassigned > 0 && card('⚠️', unassigned, t.unassigned, C.warning)}
       </div>
 
@@ -1228,9 +1274,9 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
               </tr>
             </thead>
             <tbody>
-              {branches.length === 0
+              {filtBranches.length === 0
                 ? <tr><td colSpan={3} style={{ padding: '20px 0', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{t.noData}</td></tr>
-                : branches.map((b, i) => (
+                : filtBranches.map((b, i) => (
                   <tr key={b.id}>
                     <td style={{ padding: '10px 0', fontSize: 13, color: C.textPrimary, borderBottom: `1px solid ${C.border}` }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row' }}>
@@ -1241,12 +1287,12 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
                     </td>
                     <td style={{ textAlign: 'center', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: C.primary, background: C.primary + '12', borderRadius: 6, padding: '2px 10px' }}>
-                        {cars.filter(c => c.branch_id === b.id).length}
+                        {filtCars.filter(c => c.branch_id === b.id).length}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: C.success, background: C.success + '12', borderRadius: 6, padding: '2px 10px' }}>
-                        {drivers.filter(d => d.branch_id === b.id).length}
+                        {filtDrivers.filter(d => d.branch_id === b.id).length}
                       </span>
                     </td>
                   </tr>
@@ -1683,6 +1729,17 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     XLSX.writeFile(wb, `fleet-export-${new Date().toISOString().slice(0,10)}.xlsx`)
   }
 
+  // ── Vehicle photo upload ──────────────────────────────────────────────────
+  async function uploadCarPhoto(carId, file) {
+    const safeName = file.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
+    const path = `${activeCompanyId}/car-photos/${carId}/${Date.now()}_${safeName}`
+    const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, file, { upsert: true })
+    if (uploadErr) { setCrudError(uploadErr.message); return }
+    const { error: dbErr } = await supabase.from('cars').update({ photo_url: path }).eq('id', carId)
+    if (dbErr) { setCrudError(dbErr.message); return }
+    setCars(p => p.map(c => c.id === carId ? { ...c, photo_url: path } : c))
+  }
+
   // ── Bulk actions ──────────────────────────────────────────────────────────
   function toggleSelect(id) { setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]) }
   function toggleSelectAll(items) {
@@ -2084,7 +2141,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                     ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
                     : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                         selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
-                        onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })} t={t} rtl={rtl} />
+                        onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
+                        onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} />
                 )}
                 {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
                 {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
