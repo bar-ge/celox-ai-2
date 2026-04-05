@@ -113,6 +113,7 @@ const T = {
     filterAll:'All Time', filterMonth:'This Month', filterQuarter:'This Quarter', filterYear:'This Year',
     // photo
     photo:'Photo', uploadPhoto:'Upload Photo', changePhoto:'Change Photo',
+    description:'Description', unlimited:'Unlimited', itemsSelected:'selected',
     totalCost:'Total Cost', costByCategory:'Cost by Category', recentCosts:'Recent Costs',
     maintenanceDue:'Maintenance Due', maintenanceHistory:'Service History',
   },
@@ -184,6 +185,7 @@ const T = {
     filterAll:'כל הזמן', filterMonth:'חודש זה', filterQuarter:'רבעון זה', filterYear:'שנה זו',
     // photo
     photo:'תמונה', uploadPhoto:'העלה תמונה', changePhoto:'החלף תמונה',
+    description:'תיאור', unlimited:'ללא הגבלה', itemsSelected:'נבחרו',
     totalCost:'סה"כ עלות', costByCategory:'עלות לפי קטגוריה', recentCosts:'עלויות אחרונות',
     maintenanceDue:'תחזוקה קרובה', maintenanceHistory:'היסטוריית שירות',
   },
@@ -199,7 +201,7 @@ const btnPrimary = {
 }
 const btnGhost = {
   background: 'transparent', border: `1px solid ${C.border}`,
-  color: C.textSecondary, borderRadius: 6, cursor: 'pointer',
+  color: C.textPrimarySecondary, borderRadius: 6, cursor: 'pointer',
 }
 const btnDanger = {
   background: C.danger + '18', color: C.danger,
@@ -207,7 +209,7 @@ const btnDanger = {
 }
 const closeBtn = {
   background: 'transparent', border: 'none',
-  fontSize: 20, cursor: 'pointer', color: C.textMuted, lineHeight: 1,
+  fontSize: 20, cursor: 'pointer', color: C.textPrimaryMuted, lineHeight: 1,
 }
 const rowStyle = { padding: '10px 0', borderBottom: `1px solid ${C.border}` }
 
@@ -216,7 +218,7 @@ const mkTh = (rtl, mobile) => ({
   padding: mobile ? '8px 10px' : '11px 16px',
   fontSize: mobile ? 10 : 11,
   fontWeight: 700,
-  color: C.textMuted,
+  color: C.textPrimaryMuted,
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
   borderBottom: `2px solid ${C.border}`,
@@ -228,7 +230,7 @@ const mkTh = (rtl, mobile) => ({
 const mkTd = (rtl, mobile) => ({
   padding: mobile ? '7px 10px' : '10px 16px',
   fontSize: mobile ? 12 : 14,
-  color: C.textPrimary,
+  color: C.textPrimaryPrimary,
   borderBottom: `1px solid ${C.border}`,
   verticalAlign: 'middle',
   textAlign: rtl ? 'right' : 'left',
@@ -239,7 +241,7 @@ const inlineInput = (rtl) => ({
   borderRadius: 6,
   padding: '6px 10px',
   fontSize: 14,
-  color: C.textPrimary,
+  color: C.textPrimaryPrimary,
   background: C.surface,
   outline: 'none',
   width: '100%',
@@ -269,7 +271,7 @@ function ActionBtn({ onClick, variant, children }) {
   const variants = {
     edit:   { background: C.primary + '18', color: C.primary },
     save:   { background: C.success + '22', color: C.successText },
-    cancel: { background: C.bg, color: C.textSecondary },
+    cancel: { background: C.bg, color: C.textPrimarySecondary },
     delete: { background: C.danger + '18', color: C.danger },
   }
   return (
@@ -381,8 +383,8 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
         {/* Header */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>📎 {t.files}</div>
-            <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{entityLabel}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimaryPrimary }}>📎 {t.files}</div>
+            <div style={{ fontSize: 12, color: C.textPrimarySecondary, marginTop: 2 }}>{entityLabel}</div>
           </div>
           <button onClick={onClose} style={{ ...closeBtn, padding: 4 }}>×</button>
         </div>
@@ -390,9 +392,9 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
         {/* File list */}
         <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
           {loading ? (
-            <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.loadingShort}</p>
+            <p style={{ color: C.textPrimarySecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.loadingShort}</p>
           ) : docs.length === 0 ? (
-            <p style={{ color: C.textSecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.noFiles}</p>
+            <p style={{ color: C.textPrimarySecondary, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>{t.noFiles}</p>
           ) : docs.map(doc => {
             const status = expiryStatus(doc)
             return (
@@ -400,8 +402,8 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{getFileIcon(doc.name)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
-                    <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimaryPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
+                    <div style={{ fontSize: 11, color: C.textPrimarySecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span>{formatSize(doc.size)} · {new Date(doc.created_at).toLocaleDateString()}</span>
                       {status && (
                         <span style={{ background: status.bg, color: status.color, borderRadius: 4, padding: '1px 6px', fontWeight: 700, fontSize: 11 }}>
@@ -436,9 +438,9 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
         <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.border}` }}>
           {pendingFile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 13, color: C.textPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
+              <div style={{ fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>📅 {t.expiryDate}</label>
+                <label style={{ fontSize: 12, color: C.textPrimarySecondary, whiteSpace: 'nowrap' }}>📅 {t.expiryDate}</label>
                 <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
                   style={{ flex: 1, padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
               </div>
@@ -475,7 +477,7 @@ function getFileIcon(name) {
 }
 
 // ── Vehicle photo thumbnail ─────────────────────────────────────────────────
-function PhotoThumb({ path, onUpload }) {
+function PhotoThumb({ path, onUpload, t }) {
   const [url, setUrl] = useState(null)
   const inputRef = useRef(null)
   useEffect(() => {
@@ -485,7 +487,7 @@ function PhotoThumb({ path, onUpload }) {
   }, [path])
   return (
     <>
-      <div onClick={() => inputRef.current?.click()} title={path ? 'Change photo' : 'Upload photo'}
+      <div onClick={() => inputRef.current?.click()} title={path ? t.changePhoto : t.uploadPhoto}
         style={{ width: 32, height: 32, borderRadius: 7, overflow: 'hidden', cursor: 'pointer', background: C.bg, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'border-color 0.15s' }}
         onMouseEnter={e => e.currentTarget.style.borderColor = C.primary}
         onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
@@ -501,7 +503,7 @@ function PhotoThumb({ path, onUpload }) {
 
 // ── Status badge helpers ────────────────────────────────────────────────────
 const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintenance: C.warning }
-const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
+const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textPrimaryMuted }
 
 // Maps DB value → translation key
 const CAR_STATUS_KEY = { Available: 'available', 'In Use': 'inUse', Maintenance: 'maintenance' }
@@ -524,7 +526,7 @@ function getListOptions(type) {
 function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, t, rtl, mobile }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl, mobile)
-  const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
+  const statusColor = CAR_STATUS_COLOR[car.status] || C.textPrimaryMuted
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
@@ -532,7 +534,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
       <td style={{ ...td, width: 36, padding: '10px 12px' }}><input type="checkbox" checked={!!selected} onChange={onSelect} style={{ cursor: 'pointer' }} /></td>
       <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <PhotoThumb path={car.photo_url} onUpload={onPhotoChange} />
+          <PhotoThumb path={car.photo_url} onUpload={onPhotoChange} t={t} />
           {car.plate}
         </span>
       </td>
@@ -543,7 +545,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
       <td style={td}>
         {getBranchName(car.branch_id) !== '—'
           ? <Badge label={getBranchName(car.branch_id)} color={branchColor(getBranchIdx(car.branch_id))} />
-          : <span style={{ color: C.textMuted }}>—</span>}
+          : <span style={{ color: C.textPrimaryMuted }}>—</span>}
       </td>
       <td style={td}>
         {assignedDriver
@@ -553,13 +555,13 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
               </span>
               <span style={{ fontSize: 13 }}>{assignedDriver.name}</span>
             </span>
-          : <span style={{ color: C.textMuted }}>—</span>}
+          : <span style={{ color: C.textPrimaryMuted }}>—</span>}
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
-          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
+          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textPrimarySecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
         </span>
       </td>
     </tr>
@@ -639,13 +641,13 @@ function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, on
       <td style={td}>
         {getBranchName(driver.branch_id) !== '—'
           ? <Badge label={getBranchName(driver.branch_id)} color={branchColor(getBranchIdx(driver.branch_id))} />
-          : <span style={{ color: C.textMuted }}>—</span>}
+          : <span style={{ color: C.textPrimaryMuted }}>—</span>}
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
-          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
+          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textPrimarySecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
         </span>
       </td>
     </tr>
@@ -862,7 +864,7 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
                 <span style={{ fontSize: 22 }}>{s.icon}</span>
                 <span style={{ fontSize: 30, fontWeight: 800, color: s.color }}>{s.value}</span>
               </div>
-              <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{s.label}</p>
+              <p style={{ margin: 0, fontSize: 13, color: C.textPrimarySecondary, fontWeight: 500 }}>{s.label}</p>
             </div>
           </div>
         ))}
@@ -879,32 +881,32 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
         {showAdd && (
           <form onSubmit={add} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px,1fr))', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.cars}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.cars}</label>
               <select required value={form.car_id} onChange={e => setForm({ ...form, car_id: e.target.value })} style={inp}>
                 <option value="">—</option>
                 {cars.map(c => <option key={c.id} value={c.id}>{c.plate} {c.make}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceType}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.serviceType}</label>
               <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={inp}>
                 {['Oil Change','Tire Rotation','Inspection','Brake Service','Other'].map(v => <option key={v} value={v}>{t[v.toLowerCase().replace(/ /g,'')] || v}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceDate}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.serviceDate}</label>
               <input required type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.nextDue}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.nextDue}</label>
               <input type="date" value={form.next_due} onChange={e => setForm({ ...form, next_due: e.target.value })} style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.amount}</label>
-              <input type="number" min="0" step="0.01" value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} style={inp} placeholder="0.00" />
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.amount}</label>
+              <input type="number" min="0" step="0.01" value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.status}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.status}</label>
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
                 <option value="done">{t.done}</option>
                 <option value="scheduled">{t.scheduled}</option>
@@ -912,8 +914,8 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: 'span 2' }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.actions}</label>
-              <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t.serviceType + '…'} style={inp} />
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.actions}</label>
+              <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t.description + '…'} style={inp} />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button type="submit" style={{ ...btnPrimary, padding: '8px 18px', fontSize: 13, width: '100%' }}>{t.add}</button>
@@ -935,9 +937,9 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
+                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textPrimaryMuted }}>{t.loadingShort}</td></tr>
               ) : records.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noMaintenance}</td></tr>
+                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textPrimaryMuted }}>{t.noMaintenance}</td></tr>
               ) : records.map(r => (
                 <tr key={r.id} style={{ background: C.surface }}>
                   <td style={mkTd(rtl)}><span style={{ fontWeight: 600, color: C.primary }}>{carName(r.car_id)}</span></td>
@@ -945,7 +947,7 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
                   <td style={mkTd(rtl)}>{r.date}</td>
                   <td style={mkTd(rtl)}>{r.next_due || '—'}</td>
                   <td style={mkTd(rtl)}>{r.cost ? `$${parseFloat(r.cost).toFixed(2)}` : '—'}</td>
-                  <td style={mkTd(rtl)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textMuted} /></td>
+                  <td style={mkTd(rtl)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textPrimaryMuted} /></td>
                   <td style={mkTd(rtl)}><ActionBtn variant="delete" onClick={() => del(r.id)}>{t.delete}</ActionBtn></td>
                 </tr>
               ))}
@@ -978,7 +980,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
     const { data, error } = await supabase.from('costs').insert([{
       company_id: companyId,
       car_id: form.car_id ? parseInt(form.car_id) : null,
-      driver_id: form.driver_id || null,
+      driver_id: form.driver_id ? parseInt(form.driver_id) : null,
       category: form.category, amount: parseFloat(form.amount),
       description: form.description || null, date: form.date,
     }]).select()
@@ -992,7 +994,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
 
   const total = costs.reduce((s, c) => s + parseFloat(c.amount || 0), 0)
   const byCategory = costs.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + parseFloat(c.amount || 0); return acc }, {})
-  const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted }
+  const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textPrimaryMuted }
   const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther }
   const carName = id => cars.find(c => c.id === parseInt(id))?.plate || id
 
@@ -1005,15 +1007,15 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           <div style={{ padding: '16px 20px' }}>
             <span style={{ fontSize: 22 }}>💰</span>
             <p style={{ margin: '8px 0 0', fontSize: 30, fontWeight: 800, color: C.primary }}>${total.toFixed(2)}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: C.textSecondary }}>{t.totalCost}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: C.textPrimarySecondary }}>{t.totalCost}</p>
           </div>
         </div>
         {Object.entries(byCategory).sort((a,b) => b[1]-a[1]).slice(0,4).map(([cat, amt]) => (
           <div key={cat} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ height: 3, background: catColors[cat] || C.textMuted }} />
+            <div style={{ height: 3, background: catColors[cat] || C.textPrimaryMuted }} />
             <div style={{ padding: '16px 20px' }}>
-              <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: catColors[cat] || C.textMuted }}>${amt.toFixed(2)}</p>
-              <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{catLabel[cat] || cat}</p>
+              <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: catColors[cat] || C.textPrimaryMuted }}>${amt.toFixed(2)}</p>
+              <p style={{ margin: 0, fontSize: 13, color: C.textPrimarySecondary }}>{catLabel[cat] || cat}</p>
             </div>
           </div>
         ))}
@@ -1030,36 +1032,36 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
         {showAdd && (
           <form onSubmit={add} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.category}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.category}</label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={inp}>
                 {['Fuel','Insurance','Fine','Repair','Maintenance','Other'].map(v => <option key={v} value={v}>{catLabel[v] || v}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.amount}</label>
-              <input required type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={inp} placeholder="0.00" />
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.amount}</label>
+              <input required type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceDate}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.serviceDate}</label>
               <input required type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.cars}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.cars}</label>
               <select value={form.car_id} onChange={e => setForm({ ...form, car_id: e.target.value })} style={inp}>
                 <option value="">—</option>
                 {cars.map(c => <option key={c.id} value={c.id}>{c.plate} {c.make}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.driver}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.driver}</label>
               <select value={form.driver_id} onChange={e => setForm({ ...form, driver_id: e.target.value })} style={inp}>
                 <option value="">—</option>
                 {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.actions}</label>
-              <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description…" style={inp} />
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textPrimarySecondary }}>{t.actions}</label>
+              <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t.description + '…'} style={inp} />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button type="submit" style={{ ...btnPrimary, padding: '8px 18px', fontSize: 13, width: '100%' }}>{t.add}</button>
@@ -1081,14 +1083,14 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
+                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textPrimaryMuted }}>{t.loadingShort}</td></tr>
               ) : costs.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
+                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textPrimaryMuted }}>{t.noCosts}</td></tr>
               ) : costs.map(c => (
                 <tr key={c.id} style={{ background: C.surface }}>
                   <td style={mkTd(rtl)}>{c.date}</td>
-                  <td style={mkTd(rtl)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
-                  <td style={{ ...mkTd(rtl), fontWeight: 700, color: C.textPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
+                  <td style={mkTd(rtl)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textPrimaryMuted} /></td>
+                  <td style={{ ...mkTd(rtl), fontWeight: 700, color: C.textPrimaryPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
                   <td style={mkTd(rtl)}>{c.car_id ? carName(c.car_id) : '—'}</td>
                   <td style={mkTd(rtl)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
                   <td style={mkTd(rtl)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
@@ -1118,20 +1120,20 @@ function ActivityLogSection({ companyId, t }) {
 
   return (
     <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-      <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📋 {t.activityLog}</h3>
+      <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimaryPrimary }}>📋 {t.activityLog}</h3>
       {loading ? (
-        <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
+        <p style={{ color: C.textPrimarySecondary, fontSize: 14 }}>{t.loadingShort}</p>
       ) : logs.length === 0 ? (
-        <p style={{ color: C.textMuted, fontSize: 14 }}>{t.noActivity}</p>
+        <p style={{ color: C.textPrimaryMuted, fontSize: 14 }}>{t.noActivity}</p>
       ) : logs.map(l => (
         <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: actionColor[l.action] || C.textMuted, flexShrink: 0 }} />
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: actionColor[l.action] || C.textPrimaryMuted, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>
-              <strong style={{ color: actionColor[l.action] || C.textMuted }}>{actionLabel[l.action] || l.action}</strong>
+            <span style={{ fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 500 }}>
+              <strong style={{ color: actionColor[l.action] || C.textPrimaryMuted }}>{actionLabel[l.action] || l.action}</strong>
               {' '}{l.entity_type}{l.entity_name ? ` — ${l.entity_name}` : ''}
             </span>
-            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{l.user_email} · {new Date(l.created_at).toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: C.textPrimaryMuted, marginTop: 2 }}>{l.user_email} · {new Date(l.created_at).toLocaleString()}</div>
           </div>
         </div>
       ))}
@@ -1184,20 +1186,20 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
           <div style={{ width: 42, height: 42, borderRadius: 10, background: color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
           <p style={{ margin: 0, fontSize: 38, fontWeight: 800, color, lineHeight: 1 }}>{value}</p>
         </div>
-        <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{label}</p>
+        <p style={{ margin: 0, fontSize: 13, color: C.textPrimarySecondary, fontWeight: 500 }}>{label}</p>
       </div>
     </div>
   )
 
   const barChart = (title, data, max) => (
     <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-      <h3 style={{ margin: '0 0 18px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{title}</h3>
+      <h3 style={{ margin: '0 0 18px', fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary }}>{title}</h3>
       {data.length === 0
-        ? <p style={{ color: C.textMuted, fontSize: 13 }}>{t.noData}</p>
+        ? <p style={{ color: C.textPrimaryMuted, fontSize: 13 }}>{t.noData}</p>
         : data.map(b => (
           <div key={b.name} style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>{b.name}</span>
+              <span style={{ fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 500 }}>{b.name}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: b.color }}>{b.count}</span>
             </div>
             <div style={{ height: 10, borderRadius: 5, background: C.border }}>
@@ -1219,7 +1221,7 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
             <button key={k} onClick={() => setDashFilter(k)} style={{
               padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
               background: dashFilter === k ? C.primary : 'transparent',
-              color: dashFilter === k ? '#fff' : C.textSecondary,
+              color: dashFilter === k ? '#fff' : C.textPrimarySecondary,
               transition: 'all 0.15s',
             }}>{l}</button>
           ))}
@@ -1247,14 +1249,14 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
 
         {/* Top models */}
         <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.topModels}</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary }}>{t.topModels}</h3>
           {topModels.length === 0
-            ? <p style={{ color: C.textMuted, fontSize: 13 }}>{t.noData}</p>
+            ? <p style={{ color: C.textPrimaryMuted, fontSize: 13 }}>{t.noData}</p>
             : topModels.map(([model, count], i) => (
               <div key={model} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
                   <span style={{ width: 22, height: 22, borderRadius: '50%', background: branchColor(i), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>{model}</span>
+                  <span style={{ flex: 1, fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 500 }}>{model}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: branchColor(i), background: branchColor(i) + '18', borderRadius: 10, padding: '2px 8px' }}>{count}</span>
                 </div>
                 <div style={{ height: 6, borderRadius: 3, background: C.border, marginLeft: 32 }}>
@@ -1267,25 +1269,25 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
 
         {/* Branch overview table */}
         <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.branchOverview}</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary }}>{t.branchOverview}</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: rtl ? 'right' : 'left', fontSize: 11, fontWeight: 600, color: C.textMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.branchName}</th>
-                <th style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: C.textMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.cars}</th>
-                <th style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: C.textMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.drivers}</th>
+                <th style={{ textAlign: rtl ? 'right' : 'left', fontSize: 11, fontWeight: 600, color: C.textPrimaryMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.branchName}</th>
+                <th style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: C.textPrimaryMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.cars}</th>
+                <th style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: C.textPrimaryMuted, padding: '0 0 10px', borderBottom: `2px solid ${C.border}`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.drivers}</th>
               </tr>
             </thead>
             <tbody>
               {filtBranches.length === 0
-                ? <tr><td colSpan={3} style={{ padding: '20px 0', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{t.noData}</td></tr>
+                ? <tr><td colSpan={3} style={{ padding: '20px 0', textAlign: 'center', color: C.textPrimaryMuted, fontSize: 13 }}>{t.noData}</td></tr>
                 : filtBranches.map((b, i) => (
                   <tr key={b.id}>
-                    <td style={{ padding: '10px 0', fontSize: 13, color: C.textPrimary, borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: '10px 0', fontSize: 13, color: C.textPrimaryPrimary, borderBottom: `1px solid ${C.border}` }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row' }}>
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: branchColor(i), flexShrink: 0 }} />
                         <span style={{ fontWeight: 500 }}>{b.name}</span>
-                        <span style={{ fontSize: 11, color: C.textMuted }}>{b.city}</span>
+                        <span style={{ fontSize: 11, color: C.textPrimaryMuted }}>{b.city}</span>
                       </span>
                     </td>
                     <td style={{ textAlign: 'center', padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
@@ -1421,9 +1423,9 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   }
 
   const row   = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
-  const lbl   = { fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
+  const lbl   = { fontSize: 11, fontWeight: 700, color: C.textPrimarySecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
   const card  = { background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }
-  const inp   = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+  const inp   = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimaryPrimary, background: C.bg }
   const msgOk = { color: C.success, fontSize: 13, background: C.success + '10', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.success}40` }
   const msgEr = { color: C.danger,  fontSize: 13, background: C.danger  + '10', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.danger}40`  }
 
@@ -1435,7 +1437,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* Create company */}
           <div style={card}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.text }}>➕ {t.createCompany}</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>➕ {t.createCompany}</h3>
             <form onSubmit={createCompany} style={{ display: 'flex', gap: 10 }}>
               <input
                 value={newName} required
@@ -1457,22 +1459,22 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* All companies list */}
           <div style={card}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.text }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
               🏢 {t.allCompanies}
-              <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+              <span style={{ marginLeft: 8, background: C.bg, color: C.textPrimarySecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
                 {companies.length}
               </span>
             </h3>
             {loading ? (
-              <p style={{ color: C.textSecondary, fontSize: 14, paddingTop: 16 }}>{t.loadingShort}</p>
+              <p style={{ color: C.textPrimarySecondary, fontSize: 14, paddingTop: 16 }}>{t.loadingShort}</p>
             ) : companies.length === 0 ? (
-              <p style={{ color: C.textSecondary, fontSize: 14, paddingTop: 16 }}>{t.noCompanies}</p>
+              <p style={{ color: C.textPrimarySecondary, fontSize: 14, paddingTop: 16 }}>{t.noCompanies}</p>
             ) : companies.map(co => (
               <div key={co.id} style={{ ...row, flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
                 {/* Row top: name + buttons */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
                       {co.name}
                       <span style={{
                         fontSize: 11, borderRadius: 4, padding: '2px 7px', fontWeight: 700,
@@ -1482,7 +1484,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                         {co.is_active ? t.activeStatus : t.closedStatus}
                       </span>
                     </div>
-                    <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                    <div style={{ fontSize: 12, color: C.textPrimarySecondary, marginTop: 2, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
                       {co.invite_code}
                     </div>
                   </div>
@@ -1493,7 +1495,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                     }}>{t.manage}</button>
                     <button onClick={() => startEditLimits(co)} style={{
                       background: 'transparent', border: `1px solid ${C.border}`,
-                      color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      color: C.textPrimarySecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     }}>⚙️</button>
                     <button onClick={() => toggleActive(co)} style={{
                       background: 'transparent',
@@ -1504,25 +1506,25 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                   </div>
                 </div>
                 {/* Limits row — current values always visible */}
-                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSecondary }}>
-                  <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.text : C.textSecondary }}>{co.max_cars ?? '∞'}</strong></span>
-                  <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.text : C.textSecondary }}>{co.max_users ?? '∞'}</strong></span>
+                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textPrimarySecondary }}>
+                  <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.textPrimary : C.textPrimarySecondary }}>{co.max_cars ?? '∞'}</strong></span>
+                  <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.textPrimary : C.textPrimarySecondary }}>{co.max_users ?? '∞'}</strong></span>
                 </div>
                 {/* Inline limits editor */}
                 {editingLimits === co.id && (
                   <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>🚗 {t.maxCars}</label>
+                      <label style={{ fontSize: 12, color: C.textPrimarySecondary, whiteSpace: 'nowrap' }}>🚗 {t.maxCars}</label>
                       <input type="number" min="0" value={limitCars} onChange={e => setLimitCars(e.target.value)}
-                        placeholder="∞" style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                        placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>👤 {t.maxUsers}</label>
+                      <label style={{ fontSize: 12, color: C.textPrimarySecondary, whiteSpace: 'nowrap' }}>👤 {t.maxUsers}</label>
                       <input type="number" min="0" value={limitUsers} onChange={e => setLimitUsers(e.target.value)}
-                        placeholder="∞" style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                        placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <button onClick={() => saveLimits(co)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t.save}</button>
-                    <button onClick={() => setEditingLimits(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
+                    <button onClick={() => setEditingLimits(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textPrimarySecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
                   </div>
                 )}
               </div>
@@ -1541,11 +1543,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
         {/* Company info */}
         <div style={card}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.text }}>🏢 {t.companyName}</h3>
+          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🏢 {t.companyName}</h3>
 
           <div style={{ marginBottom: 20 }}>
             <div style={lbl}>{t.companyName}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{company?.name}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary }}>{company?.name}</div>
           </div>
 
           <div>
@@ -1567,7 +1569,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 {copied ? t.codeCopied : t.copyCode}
               </button>
             </div>
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSecondary }}>
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textPrimarySecondary }}>
               {t.shareCodeHint}
             </p>
           </div>
@@ -1576,7 +1578,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
         {/* Admin: invite by email */}
         {isAdmin && (
           <div style={card}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.text }}>📨 {t.inviteByEmail}</h3>
+            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📨 {t.inviteByEmail}</h3>
             <form onSubmit={sendInvite} style={{ display: 'flex', gap: 10 }}>
               <input
                 type="email" value={inviteEmail} required
@@ -1599,15 +1601,15 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
         {/* Members */}
         <div style={card}>
-          <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.text }}>
+          <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
             👥 {t.members}
-            <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+            <span style={{ marginLeft: 8, background: C.bg, color: C.textPrimarySecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
               {members.length}
             </span>
           </h3>
 
           {loading ? (
-            <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
+            <p style={{ color: C.textPrimarySecondary, fontSize: 14 }}>{t.loadingShort}</p>
           ) : members.map(m => (
             <div key={m.id} style={row}>
               <div style={{
@@ -1620,7 +1622,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimaryPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
                   {m.email}
                   {m.id === session.user.id && (
                     <span style={{ fontSize: 11, background: C.primary + '15', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
@@ -1628,7 +1630,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: C.textPrimarySecondary, marginTop: 2 }}>
                   {m.role === 'admin' ? t.admin : t.member}
                 </div>
               </div>
@@ -1879,7 +1881,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: C.bg, width: '100%' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${C.primary}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-        <p style={{ color: C.textSecondary, margin: 0, fontSize: 14 }}>{t.loading}</p>
+        <p style={{ color: C.textPrimarySecondary, margin: 0, fontSize: 14 }}>{t.loading}</p>
       </div>
     </div>
   )
@@ -2023,16 +2025,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
           paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
         }}>
-          <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimaryPrimary, flex: 1 }}>
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
           {/* Search + New item — hidden on dashboard and settings */}
           {activeTab !== 'dashboard' && activeTab !== 'settings' && <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: isMobile ? '5px 8px' : '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
-              <span style={{ fontSize: 12, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
+              <span style={{ fontSize: 12, color: C.textPrimaryMuted, order: rtl ? 1 : 0 }}>🔍</span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
-                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: isMobile ? 12 : 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
+                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: isMobile ? 12 : 13, color: C.textPrimaryPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
             <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
               background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`, color: '#fff', border: 'none',
@@ -2071,7 +2073,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Board */}
         {activeTab !== 'dashboard' && activeTab !== 'settings' && isMaster && !activeCompanyId && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textSecondary }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textPrimarySecondary }}>
             <span style={{ fontSize: 40 }}>🏢</span>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.selectCompanyPrompt}</p>
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
@@ -2094,7 +2096,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             {/* Bulk actions bar */}
             {selectedIds.length > 0 && (
               <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: isMobile ? '6px 10px' : '8px 18px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: isMobile ? 11 : 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} selected</span>
+                <span style={{ fontSize: isMobile ? 11 : 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} {t.itemsSelected}</span>
                 <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: isMobile ? '4px 10px' : '5px 14px', fontSize: 11 }}>🗑 {t.bulkDelete}</button>
                 <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: isMobile ? '4px 7px' : '5px 10px', fontSize: 11 }}>✕</button>
               </div>
@@ -2148,7 +2150,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
                         onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} mobile={isMobile} />
                 )}
-                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noCars}</td></tr>}
+                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textPrimaryMuted, fontSize: isMobile ? 12 : 14 }}>{t.noCars}</td></tr>}
                 {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
 
                 {activeTab === 'drivers' && filteredDrivers.map(driver =>
@@ -2158,7 +2160,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
                         onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} mobile={isMobile} />
                 )}
-                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noDrivers}</td></tr>}
+                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textPrimaryMuted, fontSize: isMobile ? 12 : 14 }}>{t.noDrivers}</td></tr>}
                 {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
 
                 {activeTab === 'branches' && filteredBranches.map((branch, i) =>
@@ -2168,7 +2170,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
                         onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} mobile={isMobile} />
                 )}
-                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noBranches}</td></tr>}
+                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textPrimaryMuted, fontSize: isMobile ? 12 : 14 }}>{t.noBranches}</td></tr>}
                 {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
               </tbody>
             </table>
@@ -2185,7 +2187,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             {/* Footer add link */}
             <div style={{ padding: '8px 18px', borderTop: `1px solid ${C.border}`, background: C.footerBg }}>
               <button onClick={() => { setShowAdd(true); setEditingId(null); setCrudError('') }} style={{
-                background: 'transparent', border: 'none', color: C.textSecondary,
+                background: 'transparent', border: 'none', color: C.textPrimarySecondary,
                 cursor: 'pointer', fontSize: 13, padding: '4px 0',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
