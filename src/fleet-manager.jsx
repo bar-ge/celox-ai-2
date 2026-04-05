@@ -397,8 +397,8 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
             const status = expiryStatus(doc)
             return (
               <div key={doc.id} style={rowStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>{getFileIcon(doc.name)}</span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{getFileIcon(doc.name)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
                     <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -410,9 +410,11 @@ function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [
                       )}
                     </div>
                   </div>
-                  <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }} style={{ ...btnGhost, padding: '4px 7px', fontSize: 11 }}>📅</button>
-                  <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↓</button>
-                  <button onClick={() => deleteFile(doc)} style={{ ...btnDanger, padding: '5px 10px', fontSize: 12 }}>✕</button>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                    <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }} style={{ ...btnGhost, padding: '5px 8px', fontSize: 13 }}>📅</button>
+                    <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↓</button>
+                    <button onClick={() => deleteFile(doc)} style={{ ...btnDanger, padding: '5px 10px', fontSize: 12 }}>✕</button>
+                  </div>
                 </div>
                 {/* Inline expiry editor */}
                 {editingExpiry === doc.id && (
@@ -815,6 +817,7 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done' })
   const inp = inlineInput(rtl)
+  const isMobile = useIsMobile()
 
   useEffect(() => { load() }, [companyId])
   async function load() {
@@ -846,9 +849,9 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
   const overdueCount = records.filter(r => r.status === 'overdue').length
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: t.maintenanceHistory, value: records.length, color: C.primary, icon: '🔧' },
           { label: t.maintenanceDue, value: upcoming.length, color: C.warning, icon: '📅' },
@@ -963,6 +966,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' })
   const inp = inlineInput(rtl)
+  const isMobile = useIsMobile()
 
   useEffect(() => { load() }, [companyId])
   async function load() {
@@ -995,9 +999,9 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const carName = id => cars.find(c => c.id === parseInt(id))?.plate || id
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
       {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
         <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', gridColumn: 'span 1' }}>
           <div style={{ height: 3, background: gradient }} />
           <div style={{ padding: '16px 20px' }}>
@@ -1151,6 +1155,7 @@ function filterByDate(items, filter) {
 }
 
 function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter, onExport }) {
+  const isMobile = useIsMobile()
   const filtCars     = filterByDate(cars,     dashFilter)
   const filtDrivers  = filterByDate(drivers,  dashFilter)
   const filtBranches = filterByDate(branches, dashFilter)
@@ -1207,7 +1212,7 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
   )
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
 
       {/* Dashboard toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -1226,7 +1231,7 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: isMobile ? 10 : 16, marginBottom: 20 }}>
         {card('🚗', filtCars.length,     t.totalFleet,    C.primary)}
         {card('👤', filtDrivers.length,  t.totalDrivers,  C.success)}
         {card('🏢', filtBranches.length, t.totalBranches, '#8b5cf6')}
@@ -1234,13 +1239,13 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
       </div>
 
       {/* Bar charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
         {barChart(t.carsByBranch,    carsPerBranch,    maxCars)}
         {barChart(t.driversByBranch, driversPerBranch, maxDrivers)}
       </div>
 
       {/* Top models + Branch table */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 16 }}>
 
         {/* Top models */}
         <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
@@ -1990,14 +1995,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           {tabs.map(item => (
             <button key={item.id} onClick={() => switchTab(item.id)} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 2, padding: '8px 4px',
+              justifyContent: 'center', gap: 2, padding: '10px 2px',
               border: 'none', cursor: 'pointer', background: 'transparent',
               color: activeTab === item.id ? '#fff' : C.navText,
               borderTop: activeTab === item.id ? `2px solid ${C.primary}` : '2px solid transparent',
-              transition: 'color 0.15s',
+              transition: 'color 0.15s', minWidth: 0,
             }}>
-              <span style={{ fontSize: 18 }}>{item.icon}</span>
-              <span style={{ fontSize: 10, fontWeight: activeTab === item.id ? 700 : 400, whiteSpace: 'nowrap' }}>{item.label}</span>
+              <span style={{ fontSize: 20 }}>{item.icon}</span>
+              {activeTab === item.id && (
+                <span style={{ fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>{item.label}</span>
+              )}
             </button>
           ))}
         </div>
@@ -2089,7 +2096,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
             {/* Bulk actions bar */}
             {selectedIds.length > 0 && (
-              <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} selected</span>
                 <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '5px 14px', fontSize: 12 }}>🗑 {t.bulkDelete}</button>
                 <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 12 }}>✕</button>
