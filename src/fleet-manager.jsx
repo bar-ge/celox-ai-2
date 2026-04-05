@@ -212,9 +212,9 @@ const closeBtn = {
 const rowStyle = { padding: '10px 0', borderBottom: `1px solid ${C.border}` }
 
 // ── Shared table style atoms ────────────────────────────────────────────────
-const mkTh = (rtl) => ({
-  padding: '11px 16px',
-  fontSize: 11,
+const mkTh = (rtl, mobile) => ({
+  padding: mobile ? '8px 10px' : '11px 16px',
+  fontSize: mobile ? 10 : 11,
   fontWeight: 700,
   color: C.textMuted,
   textTransform: 'uppercase',
@@ -225,9 +225,9 @@ const mkTh = (rtl) => ({
   textAlign: rtl ? 'right' : 'left',
 })
 
-const mkTd = (rtl) => ({
-  padding: '10px 16px',
-  fontSize: 14,
+const mkTd = (rtl, mobile) => ({
+  padding: mobile ? '7px 10px' : '10px 16px',
+  fontSize: mobile ? 12 : 14,
   color: C.textPrimary,
   borderBottom: `1px solid ${C.border}`,
   verticalAlign: 'middle',
@@ -281,7 +281,7 @@ function ActionBtn({ onClick, variant, children }) {
 }
 
 // ── Files Modal ─────────────────────────────────────────────────────────────
-function FilesModal({ entity, entityType, companyId, onClose, t, customLists = [] }) {
+function FilesModal({ entity, entityType, companyId, onClose, t }) {
   const [docs, setDocs]           = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -516,16 +516,14 @@ const DEFAULT_LISTS = {
   file_type:     ['License', 'Invoice', 'Insurance', 'Registration', 'Inspection', 'ID', 'Other'],
   car_type:      ['Sedan', 'SUV', 'Truck', 'Van', 'Bus', 'Motorcycle'],
 }
-function getListOptions(type, customLists) {
-  const defaults = DEFAULT_LISTS[type] || []
-  const customs  = (customLists || []).filter(c => c.list_type === type).map(c => c.value)
-  return [...defaults, ...customs.filter(v => !defaults.includes(v))]
+function getListOptions(type) {
+  return DEFAULT_LISTS[type] || []
 }
 
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, t, rtl }) {
+function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, t, rtl, mobile }) {
   const [hover, setHover] = useState(false)
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
   return (
@@ -568,9 +566,9 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
   )
 }
 
-function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl }) {
+function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobile }) {
   const [form, setForm] = useState({ ...car })
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: C.rowHover }}>
@@ -619,9 +617,9 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl }) {
   )
 }
 
-function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onFiles, t, rtl }) {
+function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onFiles, t, rtl, mobile }) {
   const [hover, setHover] = useState(false)
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
@@ -654,9 +652,9 @@ function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, on
   )
 }
 
-function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl }) {
+function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile }) {
   const [form, setForm] = useState({ ...driver })
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: C.rowHover }}>
@@ -685,9 +683,9 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl }) {
   )
 }
 
-function BranchRow({ branch, index, selected, onSelect, onEdit, onDelete, t, rtl }) {
+function BranchRow({ branch, index, selected, onSelect, onEdit, onDelete, t, rtl, mobile }) {
   const [hover, setHover] = useState(false)
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: selected ? C.primary + '08' : hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
@@ -712,9 +710,9 @@ function BranchRow({ branch, index, selected, onSelect, onEdit, onDelete, t, rtl
   )
 }
 
-function EditableBranchRow({ branch, onSave, onCancel, t, rtl }) {
+function EditableBranchRow({ branch, onSave, onCancel, t, rtl, mobile }) {
   const [form, setForm] = useState({ ...branch })
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: C.rowHover }}>
@@ -734,9 +732,9 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl }) {
 }
 
 // ── Add-item inline rows ────────────────────────────────────────────────────
-function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl }) {
+function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile }) {
   const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   function submit() { if (form.plate.trim() && form.make.trim() && form.model.trim()) onAdd(form) }
   return (
@@ -771,9 +769,9 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl }) {
   )
 }
 
-function AddDriverRow({ branches, onAdd, onCancel, t, rtl }) {
+function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile }) {
   const [form, setForm] = useState({ name: '', license: '', phone: '', status: 'Active', branch_id: '' })
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   function submit() { if (form.name.trim() && form.license.trim()) onAdd(form) }
   return (
@@ -793,9 +791,9 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl }) {
   )
 }
 
-function AddBranchRow({ onAdd, onCancel, t, rtl }) {
+function AddBranchRow({ onAdd, onCancel, t, rtl, mobile }) {
   const [form, setForm] = useState({ name: '', city: '', address: '', manager: '', phone: '' })
-  const td = mkTd(rtl)
+  const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   function submit() { if (form.name.trim() && form.city.trim()) onAdd(form) }
   return (
@@ -1105,7 +1103,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
 }
 
 // ── Activity Log section ─────────────────────────────────────────────────────
-function ActivityLogSection({ companyId, t, rtl }) {
+function ActivityLogSection({ companyId, t }) {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -1649,7 +1647,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
         </div>
 
         {/* Activity log — admin only */}
-        {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} rtl={rtl} />}
+        {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} />}
 
       </div>
     </div>
@@ -1894,23 +1892,23 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       <nav style={{
         background: C.navBg,
         borderBottom: `1px solid ${C.navBorder}`,
-        height: 56,
+        height: isMobile ? 44 : 56,
         display: 'flex',
         alignItems: 'center',
-        padding: isMobile ? '0 14px' : '0 24px',
-        gap: 8,
+        padding: isMobile ? '0 10px' : '0 24px',
+        gap: 6,
         flexShrink: 0,
         direction: 'ltr',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: isMobile ? 0 : 24, flex: isMobile ? 1 : 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: isMobile ? 0 : 24, flex: isMobile ? 1 : 'none' }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+            width: isMobile ? 26 : 34, height: isMobile ? 26 : 34, borderRadius: isMobile ? 7 : 9, flexShrink: 0,
             background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 10px rgba(59,130,246,0.45)',
           }}>
-            <span style={{ color: '#fff', fontWeight: 900, fontSize: 15, letterSpacing: '-0.5px' }}>FL</span>
+            <span style={{ color: '#fff', fontWeight: 900, fontSize: isMobile ? 11 : 15, letterSpacing: '-0.5px' }}>FL</span>
           </div>
           {!isMobile && <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', letterSpacing: '-0.2px' }}>{t.appName}</span>}
         </div>
@@ -1959,8 +1957,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             )}
             <button onClick={onSignOut} style={{
               background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-              color: C.navText, borderRadius: 6, padding: isMobile ? '5px 10px' : '4px 10px',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              color: C.navText, borderRadius: 5, padding: isMobile ? '3px 7px' : '4px 10px',
+              fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer',
               transition: 'background 0.15s', whiteSpace: 'nowrap',
             }}>
               {isMobile ? '↩' : t.signOut}
@@ -1969,11 +1967,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         )}
 
         {/* Language toggle */}
-        <div style={{ display: 'flex', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ display: 'flex', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden', flexShrink: 0 }}>
           {['en', 'he'].map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
-              padding: isMobile ? '5px 10px' : '5px 14px', border: 'none', cursor: 'pointer',
-              fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+              padding: isMobile ? '3px 7px' : '5px 14px', border: 'none', cursor: 'pointer',
+              fontSize: isMobile ? 10 : 12, fontWeight: 700, letterSpacing: '0.04em',
               background: lang === l ? 'rgba(255,255,255,0.2)' : 'transparent',
               color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
               transition: 'all 0.15s',
@@ -1995,15 +1993,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           {tabs.map(item => (
             <button key={item.id} onClick={() => switchTab(item.id)} style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 2, padding: '10px 2px',
+              justifyContent: 'center', gap: 1, padding: '6px 2px',
               border: 'none', cursor: 'pointer', background: 'transparent',
               color: activeTab === item.id ? '#fff' : C.navText,
               borderTop: activeTab === item.id ? `2px solid ${C.primary}` : '2px solid transparent',
               transition: 'color 0.15s', minWidth: 0,
             }}>
-              <span style={{ fontSize: 20 }}>{item.icon}</span>
+              <span style={{ fontSize: 16 }}>{item.icon}</span>
               {activeTab === item.id && (
-                <span style={{ fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>{item.label}</span>
+                <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>{item.label}</span>
               )}
             </button>
           ))}
@@ -2011,39 +2009,38 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       )}
 
       {/* ── CONTENT ───────────────────────────────────────────────────────── */}
-      <div dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: isMobile ? 60 : 0 }}>
+      <div dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: isMobile ? 48 : 0 }}>
 
         {/* Sub-header */}
         <div style={{
           background: C.surface, borderBottom: `1px solid ${C.border}`,
-          boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
-          padding: isMobile ? '0 12px' : '0 24px',
-          height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 'auto' : 56,
-          minHeight: 56,
-          display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, flexShrink: 0,
+          padding: isMobile ? '0 10px' : '0 24px',
+          height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 'auto' : (isMobile ? 44 : 56),
+          minHeight: isMobile ? 44 : 56,
+          display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 14, flexShrink: 0,
           boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
           flexWrap: isMobile ? 'wrap' : 'nowrap',
-          paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 10 : 0,
-          paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 10 : 0,
+          paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
+          paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
         }}>
-          <h2 style={{ margin: 0, fontSize: isMobile ? 15 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
           {/* Search + New item — hidden on dashboard and settings */}
           {activeTab !== 'dashboard' && activeTab !== 'settings' && <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
-              <span style={{ fontSize: 13, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: isMobile ? '5px 8px' : '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
+              <span style={{ fontSize: 12, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
-                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
+                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: isMobile ? 12 : 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
             <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
               background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`, color: '#fff', border: 'none',
-              borderRadius: 8, padding: isMobile ? '8px 14px' : '8px 18px',
-              fontSize: isMobile ? 20 : 13, fontWeight: 700,
+              borderRadius: 7, padding: isMobile ? '6px 10px' : '8px 18px',
+              fontSize: isMobile ? 16 : 13, fontWeight: 700,
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               boxShadow: '0 2px 10px rgba(59,130,246,0.35)', transition: 'opacity 0.15s',
-              whiteSpace: 'nowrap', minWidth: isMobile ? 40 : 'auto', letterSpacing: '0.01em',
+              whiteSpace: 'nowrap', minWidth: isMobile ? 34 : 'auto', letterSpacing: '0.01em',
             }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
@@ -2080,26 +2077,26 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
         )}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
-          <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 8 : 24 }}>
+          <div style={{ background: C.surface, borderRadius: isMobile ? 8 : 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
 
             {/* Group header */}
-            <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
-              <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{currentCount}</span>
+            <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, padding: isMobile ? '8px 12px' : '12px 20px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: isMobile ? 12 : 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
+              <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
               <div style={{ flex: 1 }} />
               {/* Export button */}
-              <button onClick={exportExcel} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              {!isMobile && <button onClick={exportExcel} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 📥 {t.exportExcel}
-              </button>
+              </button>}
             </div>
 
             {/* Bulk actions bar */}
             {selectedIds.length > 0 && (
-              <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} selected</span>
-                <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '5px 14px', fontSize: 12 }}>🗑 {t.bulkDelete}</button>
-                <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 12 }}>✕</button>
+              <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: isMobile ? '6px 10px' : '8px 18px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: isMobile ? 11 : 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} selected</span>
+                <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: isMobile ? '4px 10px' : '5px 14px', fontSize: 11 }}>🗑 {t.bulkDelete}</button>
+                <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: isMobile ? '4px 7px' : '5px 10px', fontSize: 11 }}>✕</button>
               </div>
             )}
 
@@ -2108,71 +2105,71 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               <thead>
                 <tr>
                   {/* Checkbox select-all */}
-                  <th style={{ ...mkTh(rtl), width: 36, padding: '11px 12px' }}>
+                  <th style={{ ...mkTh(rtl, isMobile), width: 36, padding: isMobile ? '8px 8px' : '11px 12px' }}>
                     <input type="checkbox"
                       checked={selectedIds.length > 0 && (activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches).every(x => selectedIds.includes(x.id))}
                       onChange={() => toggleSelectAll(activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches)}
                       style={{ cursor: 'pointer' }} />
                   </th>
                   {activeTab === 'cars' && <>
-                    <th style={mkTh(rtl)}>{t.plate}</th>
-                    <th style={mkTh(rtl)}>{t.make} / {t.model}</th>
-                    <th style={mkTh(rtl)}>{t.year}</th>
-                    <th style={mkTh(rtl)}>{t.status}</th>
-                    <th style={mkTh(rtl)}>{t.fuel}</th>
-                    <th style={mkTh(rtl)}>{t.branch}</th>
-                    <th style={mkTh(rtl)}>{t.driver}</th>
-                    <th style={{ ...mkTh(rtl), width: 140 }}>{t.actions}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.plate}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.make} / {t.model}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.year}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.status}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.fuel}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.branch}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.driver}</th>
+                    <th style={{ ...mkTh(rtl, isMobile), width: isMobile ? 90 : 140 }}>{t.actions}</th>
                   </>}
                   {activeTab === 'drivers' && <>
-                    <th style={mkTh(rtl)}>{t.name}</th>
-                    <th style={mkTh(rtl)}>{t.license}</th>
-                    <th style={mkTh(rtl)}>{t.phone}</th>
-                    <th style={mkTh(rtl)}>{t.driverStatus}</th>
-                    <th style={mkTh(rtl)}>{t.branch}</th>
-                    <th style={{ ...mkTh(rtl), width: 140 }}>{t.actions}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.name}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.license}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.phone}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.driverStatus}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.branch}</th>
+                    <th style={{ ...mkTh(rtl, isMobile), width: isMobile ? 90 : 140 }}>{t.actions}</th>
                   </>}
                   {activeTab === 'branches' && <>
-                    <th style={mkTh(rtl)}>{t.branchName}</th>
-                    <th style={mkTh(rtl)}>{t.city}</th>
-                    <th style={mkTh(rtl)}>{t.address}</th>
-                    <th style={mkTh(rtl)}>{t.manager}</th>
-                    <th style={mkTh(rtl)}>{t.phone}</th>
-                    <th style={{ ...mkTh(rtl), width: 140 }}>{t.actions}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.branchName}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.city}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.address}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.manager}</th>
+                    <th style={mkTh(rtl, isMobile)}>{t.phone}</th>
+                    <th style={{ ...mkTh(rtl, isMobile), width: isMobile ? 90 : 140 }}>{t.actions}</th>
                   </>}
                 </tr>
               </thead>
               <tbody>
                 {activeTab === 'cars' && filteredCars.map(car =>
                   editingId === car.id
-                    ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
+                    ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} />
                     : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                         selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
                         onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
-                        onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} />
+                        onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} mobile={isMobile} />
                 )}
-                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
-                {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
+                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noCars}</td></tr>}
+                {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
 
                 {activeTab === 'drivers' && filteredDrivers.map(driver =>
                   editingId === driver.id
-                    ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
+                    ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} />
                     : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
                         selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
-                        onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} />
+                        onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} mobile={isMobile} />
                 )}
-                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
-                {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
+                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noDrivers}</td></tr>}
+                {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
 
                 {activeTab === 'branches' && filteredBranches.map((branch, i) =>
                   editingId === branch.id
-                    ? <EditableBranchRow key={branch.id} branch={branch} onSave={updateBranch} onCancel={() => setEditingId(null)} t={t} rtl={rtl} />
+                    ? <EditableBranchRow key={branch.id} branch={branch} onSave={updateBranch} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} />
                     : <BranchRow key={branch.id} branch={branch} index={i}
                         selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
-                        onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} />
+                        onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} mobile={isMobile} />
                 )}
-                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noBranches}</td></tr>}
-                {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} />}
+                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noBranches}</td></tr>}
+                {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
               </tbody>
             </table>
             </div>{/* end overflowX scroll wrapper */}
