@@ -2210,19 +2210,6 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         direction: 'ltr',
       }}>
 
-        {/* Logo — fixed width, never shrinks */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0, marginRight: 8 }}>
-          <div style={{
-            width: isMobile ? 26 : 30, height: isMobile ? 26 : 30,
-            borderRadius: 8, flexShrink: 0,
-            background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(59,130,246,0.4)',
-          }}>
-            <span style={{ color: '#fff', fontWeight: 900, fontSize: isMobile ? 11 : 13, letterSpacing: '-0.5px' }}>FL</span>
-          </div>
-          {isMobile && <span style={{ flex: 1 }} />}
-        </div>
 
         {/* Nav tabs — desktop only; flex:1 so they take available space, overflow hidden so they never push right controls off screen */}
         {!isMobile && (
