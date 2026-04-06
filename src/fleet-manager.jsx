@@ -2204,34 +2204,35 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         height: isMobile ? 44 : 56,
         display: 'flex',
         alignItems: 'center',
-        padding: isMobile ? '0 10px' : '0 24px',
-        gap: 4,
+        padding: isMobile ? '0 10px' : '0 16px',
+        gap: 0,
         flexShrink: 0,
         direction: 'ltr',
-        overflow: 'hidden',
       }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: isMobile ? 0 : 12, flex: isMobile ? 1 : 'none', flexShrink: 0 }}>
+
+        {/* Logo — fixed width, never shrinks */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0, marginRight: 8 }}>
           <div style={{
-            width: isMobile ? 26 : 34, height: isMobile ? 26 : 34, borderRadius: isMobile ? 7 : 9, flexShrink: 0,
+            width: isMobile ? 26 : 30, height: isMobile ? 26 : 30,
+            borderRadius: 8, flexShrink: 0,
             background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 10px rgba(59,130,246,0.45)',
+            boxShadow: '0 2px 8px rgba(59,130,246,0.4)',
           }}>
-            <span style={{ color: '#fff', fontWeight: 900, fontSize: isMobile ? 11 : 15, letterSpacing: '-0.5px' }}>FL</span>
+            <span style={{ color: '#fff', fontWeight: 900, fontSize: isMobile ? 11 : 13, letterSpacing: '-0.5px' }}>FL</span>
           </div>
-          {!isMobile && <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', letterSpacing: '-0.2px' }}>{t.appName}</span>}
+          {isMobile && <span style={{ flex: 1 }} />}
         </div>
 
-        {/* Nav tabs — desktop only, hidden on mobile (tabs move to bottom bar) */}
+        {/* Nav tabs — desktop only; flex:1 so they take available space, overflow hidden so they never push right controls off screen */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, minWidth: 0, direction: rtl ? 'rtl' : 'ltr' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0, overflow: 'hidden', direction: rtl ? 'rtl' : 'ltr' }}>
             {tabs.map(item => {
               const isActive = activeTab === item.id
               return (
                 <button key={item.id} onClick={() => switchTab(item.id)} title={item.label} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  padding: isActive ? '6px 14px' : '6px 10px',
+                  padding: isActive ? '6px 12px' : '6px 9px',
                   borderRadius: 6, border: 'none', cursor: 'pointer', flexShrink: 0,
                   background: isActive ? C.navActiveBg : 'transparent',
                   color: isActive ? C.navActive : C.navText,
@@ -2240,7 +2241,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   transition: 'background 0.15s, color 0.15s',
                   whiteSpace: 'nowrap',
                 }}>
-                  <span style={{ fontSize: isActive ? 15 : 18 }}>{item.icon}</span>
+                  <span style={{ fontSize: isActive ? 14 : 17 }}>{item.icon}</span>
                   {isActive && item.label}
                   {isActive && item.count !== null && (
                     <span style={{
@@ -2254,42 +2255,41 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           </div>
         )}
 
-        {/* User email + sign out */}
-        {session && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            {/* email hidden — saves space */}
-            {isMaster && viewCompanyName && (
-              <span style={{
-                background: C.primary + '40', color: C.navActive,
-                borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
-              }}>
-                🏢 {viewCompanyName}
-              </span>
-            )}
+        {/* Right side — sign-out + lang toggle. flexShrink:0 so they are NEVER cut off */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
+          {isMaster && viewCompanyName && !isMobile && (
+            <span style={{
+              background: C.primary + '40', color: C.navActive,
+              borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+            }}>
+              🏢 {viewCompanyName}
+            </span>
+          )}
+          {session && (
             <button onClick={onSignOut} style={{
               background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-              color: C.navText, borderRadius: 5, padding: isMobile ? '3px 7px' : '4px 10px',
+              color: C.navText, borderRadius: 5,
+              padding: isMobile ? '3px 7px' : '4px 9px',
               fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer',
-              transition: 'background 0.15s', whiteSpace: 'nowrap',
+              whiteSpace: 'nowrap',
             }}>
               {isMobile ? '↩' : t.signOut}
             </button>
+          )}
+          <div style={{ display: 'flex', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden' }}>
+            {['en', 'he'].map(l => (
+              <button key={l} onClick={() => setLang(l)} style={{
+                padding: isMobile ? '3px 6px' : '4px 10px',
+                border: 'none', cursor: 'pointer',
+                fontSize: isMobile ? 10 : 11, fontWeight: 700, letterSpacing: '0.04em',
+                background: lang === l ? 'rgba(255,255,255,0.2)' : 'transparent',
+                color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
+                transition: 'all 0.15s',
+              }}>
+                {l === 'en' ? 'EN' : 'HE'}
+              </button>
+            ))}
           </div>
-        )}
-
-        {/* Language toggle */}
-        <div style={{ display: 'flex', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden', flexShrink: 0 }}>
-          {['en', 'he'].map(l => (
-            <button key={l} onClick={() => setLang(l)} style={{
-              padding: isMobile ? '3px 7px' : '5px 14px', border: 'none', cursor: 'pointer',
-              fontSize: isMobile ? 10 : 12, fontWeight: 700, letterSpacing: '0.04em',
-              background: lang === l ? 'rgba(255,255,255,0.2)' : 'transparent',
-              color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
-              transition: 'all 0.15s',
-            }}>
-              {l === 'en' ? 'EN' : 'HE'}
-            </button>
-          ))}
         </div>
       </nav>
 
