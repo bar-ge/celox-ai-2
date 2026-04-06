@@ -289,7 +289,7 @@ function ActionBtn({ onClick, variant, children }) {
 }
 
 // ── Files Modal ─────────────────────────────────────────────────────────────
-function FilesModal({ entity, entityType, companyId, onClose, t }) {
+function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
   const [docs, setDocs]           = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -389,12 +389,14 @@ function FilesModal({ entity, entityType, companyId, onClose, t }) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
       background: C.overlay, display: 'flex',
-      alignItems: 'center', justifyContent: 'center', padding: 16,
+      alignItems: isMobile ? 'flex-end' : 'center',
+      justifyContent: 'center', padding: isMobile ? 0 : 16,
     }} onClick={onClose}>
       <div style={{
-        background: C.surface, borderRadius: 12, width: '100%', maxWidth: 500,
+        background: C.surface, width: '100%', maxWidth: isMobile ? '100%' : 500,
+        borderRadius: isMobile ? '18px 18px 0 0' : 12,
         boxShadow: '0 8px 40px rgba(0,0,0,0.2)', border: `1px solid ${C.border}`,
-        maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+        maxHeight: isMobile ? '92vh' : '85vh', display: 'flex', flexDirection: 'column',
       }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -800,6 +802,190 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }
   )
 }
 
+// ── Mobile card views ──────────────────────────────────────────────────────
+function MobileCarCard({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, t, rtl }) {
+  const assignedDriver = drivers.find(d => d.id === car.driver_id)
+  const statusColor    = CAR_STATUS_COLOR[car.status] || C.textMuted
+  const branchName     = getBranchName(car.branch_id)
+  const branchIdx      = getBranchIdx(car.branch_id)
+  return (
+    <div style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, padding: '12px 14px', marginBottom: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.05)', position: 'relative', direction: rtl ? 'rtl' : 'ltr' }}>
+      <input type="checkbox" checked={!!selected} onChange={onSelect} style={{ position: 'absolute', top: 12, [rtl ? 'left' : 'right']: 12, cursor: 'pointer' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, paddingRight: rtl ? 0 : 22, paddingLeft: rtl ? 22 : 0 }}>
+        <PhotoThumb path={car.photo_url} onUpload={onPhotoChange} t={t} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>{car.plate}</div>
+          <div style={{ fontSize: 12, color: C.textSecondary }}>{car.make} {car.model}{car.year ? ` · ${car.year}` : ''}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        <Badge label={t[CAR_STATUS_KEY[car.status]] || car.status || t.available} color={statusColor} />
+        {car.fuel && <Badge label={t[CAR_FUEL_KEY[car.fuel]] || car.fuel} color={C.textMuted} />}
+        {branchName !== '—' && <Badge label={branchName} color={branchColor(branchIdx)} />}
+        {assignedDriver && <Badge label={assignedDriver.name} color={C.primary} />}
+      </div>
+      <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
+        <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
+        <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>📎</button>
+      </div>
+    </div>
+  )
+}
+
+function MobileDriverCard({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onFiles, t, rtl }) {
+  const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
+  const branchName  = getBranchName(driver.branch_id)
+  const branchIdx   = getBranchIdx(driver.branch_id)
+  return (
+    <div style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, padding: '12px 14px', marginBottom: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.05)', position: 'relative', direction: rtl ? 'rtl' : 'ltr' }}>
+      <input type="checkbox" checked={!!selected} onChange={onSelect} style={{ position: 'absolute', top: 12, [rtl ? 'left' : 'right']: 12, cursor: 'pointer' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, paddingRight: rtl ? 0 : 22, paddingLeft: rtl ? 22 : 0 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+          {driver.name?.charAt(0)?.toUpperCase() || '?'}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>{driver.name}</div>
+          <div style={{ fontSize: 12, color: C.textSecondary }}>{driver.phone || driver.license || ''}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        <Badge label={t[DRIVER_STATUS_KEY[driver.status]] || driver.status || t.active} color={statusColor} />
+        {driver.license && <Badge label={driver.license} color={C.warning} />}
+        {branchName !== '—' && <Badge label={branchName} color={branchColor(branchIdx)} />}
+      </div>
+      <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
+        <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
+        <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>📎</button>
+      </div>
+    </div>
+  )
+}
+
+function MobileBranchCard({ branch, index, selected, onSelect, onEdit, onDelete, t, rtl }) {
+  return (
+    <div style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, padding: '12px 14px', marginBottom: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.05)', position: 'relative', direction: rtl ? 'rtl' : 'ltr' }}>
+      <input type="checkbox" checked={!!selected} onChange={onSelect} style={{ position: 'absolute', top: 12, [rtl ? 'left' : 'right']: 12, cursor: 'pointer' }} />
+      <div style={{ paddingRight: rtl ? 0 : 22, paddingLeft: rtl ? 22 : 0, marginBottom: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>{branch.name}</div>
+        <div style={{ fontSize: 12, color: C.textSecondary }}>{branch.city}{branch.address ? ` · ${branch.address}` : ''}</div>
+      </div>
+      {(branch.manager || branch.phone) && (
+        <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 10, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {branch.manager && <span>👤 {branch.manager}</span>}
+          {branch.phone   && <span>📞 {branch.phone}</span>}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
+        <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
+      </div>
+    </div>
+  )
+}
+
+// ── Mobile bottom-sheet form (add / edit) ───────────────────────────────────
+function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSave, onCancel, t, rtl }) {
+  const isEdit = mode === 'edit'
+  const defaults = {
+    cars:    { plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' },
+    drivers: { name: '', license: '', phone: '', status: 'Active', branch_id: '' },
+    branches:{ name: '', city: '', address: '', manager: '', phone: '' },
+  }
+  const [form, setForm] = useState(isEdit && item ? { ...item } : defaults[tab] || {})
+  const [err, setErr]   = useState('')
+
+  const inp = { width: '100%', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 15, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+  const fw  = { display: 'flex', flexDirection: 'column', gap: 5 }
+  const lbl = { fontSize: 12, fontWeight: 600, color: C.textSecondary }
+  const row2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }
+
+  async function handleSave() {
+    setErr('')
+    await onSave(form)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end' }} onClick={onCancel}>
+      <div style={{ background: C.surface, width: '100%', borderRadius: '18px 18px 0 0', padding: '16px 16px 28px', maxHeight: '92vh', overflowY: 'auto', direction: rtl ? 'rtl' : 'ltr' }} onClick={e => e.stopPropagation()}>
+        <div style={{ width: 36, height: 4, background: C.border, borderRadius: 2, margin: '0 auto 16px' }} />
+        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: C.textPrimary }}>{isEdit ? t.edit : t.newItem}</h3>
+        {err && <div style={{ color: C.danger, fontSize: 13, marginBottom: 10, padding: '8px 12px', background: C.danger+'10', borderRadius: 6 }}>{err}</div>}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {tab === 'cars' && <>
+            <div style={fw}><label style={lbl}>{t.plate}</label><input value={form.plate||''} onChange={e=>setForm({...form,plate:e.target.value})} placeholder={t.plate} style={inp} autoFocus={!isEdit} /></div>
+            <div style={row2}>
+              <div style={fw}><label style={lbl}>{t.make}</label><input value={form.make||''} onChange={e=>setForm({...form,make:e.target.value})} placeholder={t.make} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.model}</label><input value={form.model||''} onChange={e=>setForm({...form,model:e.target.value})} placeholder={t.model} style={inp} /></div>
+            </div>
+            <div style={row2}>
+              <div style={fw}><label style={lbl}>{t.year}</label><input type="number" value={form.year||''} onChange={e=>setForm({...form,year:e.target.value})} placeholder={t.year} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.status}</label>
+                <select value={form.status||'Available'} onChange={e=>setForm({...form,status:e.target.value})} style={inp}>
+                  {getMergedOptions('car_status',customLists).map(v=><option key={v} value={v}>{t[CAR_STATUS_KEY[v]]||v}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={fw}><label style={lbl}>{t.fuel}</label>
+              <select value={form.fuel||'Petrol'} onChange={e=>setForm({...form,fuel:e.target.value})} style={inp}>
+                {getMergedOptions('fuel_type',customLists).map(v=><option key={v} value={v}>{t[CAR_FUEL_KEY[v]]||v}</option>)}
+              </select>
+            </div>
+            <div style={fw}><label style={lbl}>{t.branch}</label>
+              <select value={form.branch_id||''} onChange={e=>setForm({...form,branch_id:e.target.value})} style={inp}>
+                <option value="">{t.noBranch}</option>
+                {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+            <div style={fw}><label style={lbl}>{t.driver}</label>
+              <select value={form.driver_id||''} onChange={e=>setForm({...form,driver_id:e.target.value})} style={inp}>
+                <option value="">{t.noDriver}</option>
+                {drivers.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          </>}
+
+          {tab === 'drivers' && <>
+            <div style={fw}><label style={lbl}>{t.name}</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.name} style={inp} autoFocus={!isEdit} /></div>
+            <div style={row2}>
+              <div style={fw}><label style={lbl}>{t.license}</label><input value={form.license||''} onChange={e=>setForm({...form,license:e.target.value})} placeholder={t.license} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.phone}</label><input value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})} placeholder={t.phone} style={inp} /></div>
+            </div>
+            <div style={fw}><label style={lbl}>{t.driverStatus}</label>
+              <select value={form.status||'Active'} onChange={e=>setForm({...form,status:e.target.value})} style={inp}>
+                {getMergedOptions('driver_status',customLists).map(v=><option key={v} value={v}>{t[DRIVER_STATUS_KEY[v]]||v}</option>)}
+              </select>
+            </div>
+            <div style={fw}><label style={lbl}>{t.branch}</label>
+              <select value={form.branch_id||''} onChange={e=>setForm({...form,branch_id:e.target.value})} style={inp}>
+                <option value="">{t.noBranch}</option>
+                {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+          </>}
+
+          {tab === 'branches' && <>
+            <div style={fw}><label style={lbl}>{t.branchName}</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.branchName} style={inp} autoFocus={!isEdit} /></div>
+            <div style={row2}>
+              <div style={fw}><label style={lbl}>{t.city}</label><input value={form.city||''} onChange={e=>setForm({...form,city:e.target.value})} placeholder={t.city} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.phone}</label><input value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})} placeholder={t.phone} style={inp} /></div>
+            </div>
+            <div style={fw}><label style={lbl}>{t.address}</label><input value={form.address||''} onChange={e=>setForm({...form,address:e.target.value})} placeholder={t.address} style={inp} /></div>
+            <div style={fw}><label style={lbl}>{t.manager}</label><input value={form.manager||''} onChange={e=>setForm({...form,manager:e.target.value})} placeholder={t.manager} style={inp} /></div>
+          </>}
+
+          <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+            <button onClick={handleSave} style={{ ...btnPrimary, flex: 1, padding: '13px', fontSize: 15 }}>{isEdit ? t.save : t.add}</button>
+            <button onClick={onCancel} style={{ ...btnGhost, padding: '13px 20px', fontSize: 15 }}>{t.cancel}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AddBranchRow({ onAdd, onCancel, t, rtl, mobile }) {
   const [form, setForm] = useState({ name: '', city: '', address: '', manager: '', phone: '' })
   const td = mkTd(rtl, mobile)
@@ -934,11 +1120,11 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
       {/* Records table */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 520 : 600 }}>
             <thead>
               <tr>
                 {[t.cars, t.serviceType, t.serviceDate, t.nextDue, t.amount, t.status, t.actions].map(h => (
-                  <th key={h} style={mkTh(rtl)}>{h}</th>
+                  <th key={h} style={mkTh(rtl, isMobile)}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -949,13 +1135,13 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
                 <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noMaintenance}</td></tr>
               ) : records.map(r => (
                 <tr key={r.id} style={{ background: C.surface }}>
-                  <td style={mkTd(rtl)}><span style={{ fontWeight: 600, color: C.primary }}>{carName(r.car_id)}</span></td>
-                  <td style={mkTd(rtl)}>{r.type}</td>
-                  <td style={mkTd(rtl)}>{r.date}</td>
-                  <td style={mkTd(rtl)}>{r.next_due || '—'}</td>
-                  <td style={mkTd(rtl)}>{r.cost ? `$${parseFloat(r.cost).toFixed(2)}` : '—'}</td>
-                  <td style={mkTd(rtl)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textMuted} /></td>
-                  <td style={mkTd(rtl)}><ActionBtn variant="delete" onClick={() => del(r.id)}>{t.delete}</ActionBtn></td>
+                  <td style={mkTd(rtl, isMobile)}><span style={{ fontWeight: 600, color: C.primary }}>{carName(r.car_id)}</span></td>
+                  <td style={mkTd(rtl, isMobile)}>{r.type}</td>
+                  <td style={mkTd(rtl, isMobile)}>{r.date}</td>
+                  <td style={mkTd(rtl, isMobile)}>{r.next_due || '—'}</td>
+                  <td style={mkTd(rtl, isMobile)}>{r.cost ? `$${parseFloat(r.cost).toFixed(2)}` : '—'}</td>
+                  <td style={mkTd(rtl, isMobile)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textMuted} /></td>
+                  <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(r.id)}>{t.delete}</ActionBtn></td>
                 </tr>
               ))}
             </tbody>
@@ -1080,11 +1266,11 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       {/* Table */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 420 : 500 }}>
             <thead>
               <tr>
                 {[t.serviceDate, t.category, t.amount, t.cars, t.driver, t.actions].map(h => (
-                  <th key={h} style={mkTh(rtl)}>{h}</th>
+                  <th key={h} style={mkTh(rtl, isMobile)}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -1095,12 +1281,12 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                 <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
               ) : costs.map(c => (
                 <tr key={c.id} style={{ background: C.surface }}>
-                  <td style={mkTd(rtl)}>{c.date}</td>
-                  <td style={mkTd(rtl)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
-                  <td style={{ ...mkTd(rtl), fontWeight: 700, color: C.textPrimaryPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
-                  <td style={mkTd(rtl)}>{c.car_id ? carName(c.car_id) : '—'}</td>
-                  <td style={mkTd(rtl)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
-                  <td style={mkTd(rtl)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
+                  <td style={mkTd(rtl, isMobile)}>{c.date}</td>
+                  <td style={mkTd(rtl, isMobile)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
+                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimaryPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
+                  <td style={mkTd(rtl, isMobile)}>{c.car_id ? carName(c.car_id) : '—'}</td>
+                  <td style={mkTd(rtl, isMobile)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
+                  <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
                 </tr>
               ))}
             </tbody>
@@ -1411,6 +1597,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
 function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl, onCustomListsChange }) {
   const company  = profile?.companies
   const isAdmin  = profile?.role === 'admin'
+  const isMobile = useIsMobile()
 
   // Shared member list state
   const [members, setMembers]   = useState([])
@@ -1529,8 +1716,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   // ── MASTER VIEW ──────────────────────────────────────────────────────────
   if (isMaster) {
     return (
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
-        <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
+        <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Create company */}
           <div style={card}>
@@ -1635,8 +1822,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
   // ── REGULAR USER VIEW ────────────────────────────────────────────────────
   return (
-    <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
-      <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
+      <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Company info */}
         <div style={card}>
@@ -2199,124 +2386,187 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
         )}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && (!isMaster || activeCompanyId) && <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 8 : 24 }}>
-          <div style={{ background: C.surface, borderRadius: isMobile ? 8 : 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
-
-            {/* Group header */}
-            <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, padding: isMobile ? '8px 12px' : '12px 20px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ color: '#fff', fontWeight: 700, fontSize: isMobile ? 12 : 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
-              <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
-              <div style={{ flex: 1 }} />
-              {/* Export button */}
-              {!isMobile && <button onClick={exportExcel} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                📥 {t.exportExcel}
-              </button>}
-            </div>
-
-            {/* Bulk actions bar */}
-            {selectedIds.length > 0 && (
-              <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: isMobile ? '6px 10px' : '8px 18px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: isMobile ? 11 : 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} {t.itemsSelected}</span>
-                <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: isMobile ? '4px 10px' : '5px 14px', fontSize: 11 }}>🗑 {t.bulkDelete}</button>
-                <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: isMobile ? '4px 7px' : '5px 10px', fontSize: 11 }}>✕</button>
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && (!isMaster || activeCompanyId) && (
+          isMobile ? (
+            /* ── MOBILE: card list ─────────────────────────────────────── */
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 70px' }}>
+              {/* Group header */}
+              <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, borderRadius: 10, padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>{boardLabel}</span>
+                <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
+                <div style={{ flex: 1 }} />
+                {selectedIds.length > 0 && (
+                  <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '4px 10px', fontSize: 11 }}>🗑 {selectedIds.length}</button>
+                )}
               </div>
-            )}
 
-            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 600 : 'auto' }}>
-              <thead>
-                <tr>
-                  {/* Checkbox select-all */}
-                  <th style={{ ...mkTh(rtl, isMobile), width: 36, padding: isMobile ? '8px 8px' : '11px 12px' }}>
-                    <input type="checkbox"
-                      checked={selectedIds.length > 0 && (activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches).every(x => selectedIds.includes(x.id))}
-                      onChange={() => toggleSelectAll(activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches)}
-                      style={{ cursor: 'pointer' }} />
-                  </th>
-                  {activeTab === 'cars' && <>
-                    <th style={mkTh(rtl, isMobile)}>{t.plate}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.make} / {t.model}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.year}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.status}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.fuel}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.branch}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.driver}</th>
-                    <th style={{ ...mkTh(rtl, isMobile), width: isMobile ? 90 : 140 }}>{t.actions}</th>
-                  </>}
-                  {activeTab === 'drivers' && <>
-                    <th style={mkTh(rtl, isMobile)}>{t.name}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.license}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.phone}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.driverStatus}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.branch}</th>
-                    <th style={{ ...mkTh(rtl, isMobile), width: isMobile ? 90 : 140 }}>{t.actions}</th>
-                  </>}
-                  {activeTab === 'branches' && <>
-                    <th style={mkTh(rtl, isMobile)}>{t.branchName}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.city}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.address}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.manager}</th>
-                    <th style={mkTh(rtl, isMobile)}>{t.phone}</th>
-                    <th style={{ ...mkTh(rtl, isMobile), width: isMobile ? 90 : 140 }}>{t.actions}</th>
-                  </>}
-                </tr>
-              </thead>
-              <tbody>
-                {activeTab === 'cars' && filteredCars.map(car =>
-                  editingId === car.id
-                    ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />
-                    : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
-                        selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
-                        onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
-                        onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} mobile={isMobile} />
-                )}
-                {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noCars}</td></tr>}
-                {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />}
+              {/* Error banner */}
+              {crudError && (
+                <div style={{ background: C.danger+'10', border: `1px solid ${C.danger}30`, borderRadius: 8, padding: '10px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, color: C.danger, fontWeight: 600 }}>⚠ {crudError}</span>
+                  <button onClick={() => setCrudError('')} style={{ ...closeBtn, fontSize: 16 }}>×</button>
+                </div>
+              )}
 
-                {activeTab === 'drivers' && filteredDrivers.map(driver =>
-                  editingId === driver.id
-                    ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />
-                    : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
-                        selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
-                        onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} mobile={isMobile} />
-                )}
-                {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noDrivers}</td></tr>}
-                {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />}
+              {/* Cards */}
+              {activeTab === 'cars' && (filteredCars.length === 0
+                ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 14, padding: '40px 0' }}>{t.noCars}</div>
+                : filteredCars.map(car => (
+                    <MobileCarCard key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
+                      selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
+                      onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)}
+                      onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
+                      onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} />
+                  ))
+              )}
+              {activeTab === 'drivers' && (filteredDrivers.length === 0
+                ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 14, padding: '40px 0' }}>{t.noDrivers}</div>
+                : filteredDrivers.map(driver => (
+                    <MobileDriverCard key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
+                      selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
+                      onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)}
+                      onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} />
+                  ))
+              )}
+              {activeTab === 'branches' && (filteredBranches.length === 0
+                ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 14, padding: '40px 0' }}>{t.noBranches}</div>
+                : filteredBranches.map((branch, i) => (
+                    <MobileBranchCard key={branch.id} branch={branch} index={i}
+                      selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
+                      onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} />
+                  ))
+              )}
 
-                {activeTab === 'branches' && filteredBranches.map((branch, i) =>
-                  editingId === branch.id
-                    ? <EditableBranchRow key={branch.id} branch={branch} onSave={updateBranch} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} />
-                    : <BranchRow key={branch.id} branch={branch} index={i}
-                        selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
-                        onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} mobile={isMobile} />
-                )}
-                {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noBranches}</td></tr>}
-                {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
-              </tbody>
-            </table>
-            </div>{/* end overflowX scroll wrapper */}
-
-            {/* Inline error banner */}
-            {crudError && (
-              <div style={{ padding: '10px 18px', background: C.danger + '10', borderTop: `1px solid ${C.danger}30`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: C.danger, fontWeight: 600 }}>⚠ {crudError}</span>
-                <button onClick={() => setCrudError('')} style={{ ...closeBtn, fontSize: 16 }}>×</button>
-              </div>
-            )}
-
-            {/* Footer add link */}
-            <div style={{ padding: '8px 18px', borderTop: `1px solid ${C.border}`, background: C.footerBg }}>
-              <button onClick={() => { setShowAdd(true); setEditingId(null); setCrudError('') }} style={{
-                background: 'transparent', border: 'none', color: C.textSecondary,
-                cursor: 'pointer', fontSize: 13, padding: '4px 0',
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ fontSize: 16, color: C.primary, fontWeight: 700 }}>+</span>
-                {t.addItem}
-              </button>
+              {/* Mobile form modal (add or edit) */}
+              {(showAdd || editingId) && (
+                <MobileFormModal
+                  mode={showAdd ? 'add' : 'edit'}
+                  tab={activeTab}
+                  item={editingId ? (activeTab === 'cars' ? cars.find(c => c.id === editingId) : activeTab === 'drivers' ? drivers.find(d => d.id === editingId) : branches.find(b => b.id === editingId)) : null}
+                  branches={branches} drivers={drivers} customLists={customLists}
+                  onSave={showAdd ? (activeTab === 'cars' ? addCar : activeTab === 'drivers' ? addDriver : addBranch)
+                                  : (activeTab === 'cars' ? updateCar : activeTab === 'drivers' ? updateDriver : updateBranch)}
+                  onCancel={() => { setShowAdd(false); setEditingId(null) }}
+                  t={t} rtl={rtl}
+                />
+              )}
             </div>
-          </div>
-        </div>}
+          ) : (
+            /* ── DESKTOP: table ────────────────────────────────────────── */
+            <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+              <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', animation: 'fadeIn 0.2s ease' }}>
+
+                {/* Group header */}
+                <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
+                  <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={exportExcel} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    📥 {t.exportExcel}
+                  </button>
+                </div>
+
+                {/* Bulk actions bar */}
+                {selectedIds.length > 0 && (
+                  <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} {t.itemsSelected}</span>
+                    <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '5px 14px', fontSize: 11 }}>🗑 {t.bulkDelete}</button>
+                    <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 11 }}>✕</button>
+                  </div>
+                )}
+
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...mkTh(rtl, false), width: 36, padding: '11px 12px' }}>
+                        <input type="checkbox"
+                          checked={selectedIds.length > 0 && (activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches).every(x => selectedIds.includes(x.id))}
+                          onChange={() => toggleSelectAll(activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches)}
+                          style={{ cursor: 'pointer' }} />
+                      </th>
+                      {activeTab === 'cars' && <>
+                        <th style={mkTh(rtl, false)}>{t.plate}</th>
+                        <th style={mkTh(rtl, false)}>{t.make} / {t.model}</th>
+                        <th style={mkTh(rtl, false)}>{t.year}</th>
+                        <th style={mkTh(rtl, false)}>{t.status}</th>
+                        <th style={mkTh(rtl, false)}>{t.fuel}</th>
+                        <th style={mkTh(rtl, false)}>{t.branch}</th>
+                        <th style={mkTh(rtl, false)}>{t.driver}</th>
+                        <th style={{ ...mkTh(rtl, false), width: 140 }}>{t.actions}</th>
+                      </>}
+                      {activeTab === 'drivers' && <>
+                        <th style={mkTh(rtl, false)}>{t.name}</th>
+                        <th style={mkTh(rtl, false)}>{t.license}</th>
+                        <th style={mkTh(rtl, false)}>{t.phone}</th>
+                        <th style={mkTh(rtl, false)}>{t.driverStatus}</th>
+                        <th style={mkTh(rtl, false)}>{t.branch}</th>
+                        <th style={{ ...mkTh(rtl, false), width: 140 }}>{t.actions}</th>
+                      </>}
+                      {activeTab === 'branches' && <>
+                        <th style={mkTh(rtl, false)}>{t.branchName}</th>
+                        <th style={mkTh(rtl, false)}>{t.city}</th>
+                        <th style={mkTh(rtl, false)}>{t.address}</th>
+                        <th style={mkTh(rtl, false)}>{t.manager}</th>
+                        <th style={mkTh(rtl, false)}>{t.phone}</th>
+                        <th style={{ ...mkTh(rtl, false), width: 140 }}>{t.actions}</th>
+                      </>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeTab === 'cars' && filteredCars.map(car =>
+                      editingId === car.id
+                        ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={false} customLists={customLists} />
+                        : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
+                            selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
+                            onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
+                            onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} mobile={false} />
+                    )}
+                    {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
+                    {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
+
+                    {activeTab === 'drivers' && filteredDrivers.map(driver =>
+                      editingId === driver.id
+                        ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={false} customLists={customLists} />
+                        : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
+                            selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
+                            onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} mobile={false} />
+                    )}
+                    {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
+                    {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
+
+                    {activeTab === 'branches' && filteredBranches.map((branch, i) =>
+                      editingId === branch.id
+                        ? <EditableBranchRow key={branch.id} branch={branch} onSave={updateBranch} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={false} />
+                        : <BranchRow key={branch.id} branch={branch} index={i}
+                            selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
+                            onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} mobile={false} />
+                    )}
+                    {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noBranches}</td></tr>}
+                    {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} />}
+                  </tbody>
+                </table>
+                </div>
+
+                {/* Inline error banner */}
+                {crudError && (
+                  <div style={{ padding: '10px 18px', background: C.danger + '10', borderTop: `1px solid ${C.danger}30`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13, color: C.danger, fontWeight: 600 }}>⚠ {crudError}</span>
+                    <button onClick={() => setCrudError('')} style={{ ...closeBtn, fontSize: 16 }}>×</button>
+                  </div>
+                )}
+
+                {/* Footer add link */}
+                <div style={{ padding: '8px 18px', borderTop: `1px solid ${C.border}`, background: C.footerBg }}>
+                  <button onClick={() => { setShowAdd(true); setEditingId(null); setCrudError('') }} style={{ background: 'transparent', border: 'none', color: C.textSecondary, cursor: 'pointer', fontSize: 13, padding: '4px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 16, color: C.primary, fontWeight: 700 }}>+</span>
+                    {t.addItem}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        )}
       </div>
 
       {/* Files modal */}
@@ -2327,6 +2577,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           companyId={activeCompanyId}
           onClose={() => setFilesFor(null)}
           t={t}
+          isMobile={isMobile}
         />
       )}
     </div>
