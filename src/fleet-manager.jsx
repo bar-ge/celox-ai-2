@@ -2228,9 +2228,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   transition: 'background 0.15s, color 0.15s',
                   whiteSpace: 'nowrap',
                 }}>
-                  <span style={{ fontSize: isActive ? 14 : 17 }}>{item.icon}</span>
-                  {isActive && item.label}
-                  {isActive && item.count !== null && (
+                  <span style={{ fontSize: 14 }}>{item.icon}</span>
+                  {item.label}
+                  {item.count !== null && (
                     <span style={{
                       background: 'rgba(255,255,255,0.2)', color: '#fff',
                       borderRadius: 10, padding: '1px 5px', fontSize: 10, fontWeight: 700,
