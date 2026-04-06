@@ -2205,12 +2205,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         display: 'flex',
         alignItems: 'center',
         padding: isMobile ? '0 10px' : '0 24px',
-        gap: 6,
+        gap: 4,
         flexShrink: 0,
         direction: 'ltr',
+        overflow: 'hidden',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: isMobile ? 0 : 24, flex: isMobile ? 1 : 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: isMobile ? 0 : 12, flex: isMobile ? 1 : 'none', flexShrink: 0 }}>
           <div style={{
             width: isMobile ? 26 : 34, height: isMobile ? 26 : 34, borderRadius: isMobile ? 7 : 9, flexShrink: 0,
             background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`,
@@ -2224,27 +2225,26 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Nav tabs — desktop only, hidden on mobile (tabs move to bottom bar) */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, direction: rtl ? 'rtl' : 'ltr' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0, direction: rtl ? 'rtl' : 'ltr' }}>
             {tabs.map(item => (
               <button key={item.id} onClick={() => switchTab(item.id)} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                minWidth: 110,
-                padding: '7px 14px',
-                borderRadius: 6, border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                padding: '6px 10px',
+                borderRadius: 6, border: 'none', cursor: 'pointer', flexShrink: 0,
                 background: activeTab === item.id ? C.navActiveBg : 'transparent',
                 color: activeTab === item.id ? C.navActive : C.navText,
                 fontWeight: activeTab === item.id ? 700 : 400,
-                fontSize: 14,
+                fontSize: 13,
                 transition: 'background 0.15s, color 0.15s',
                 whiteSpace: 'nowrap',
               }}>
-                <span style={{ fontSize: 15 }}>{item.icon}</span>
+                <span style={{ fontSize: 14 }}>{item.icon}</span>
                 {item.label}
-                {item.count !== null && (
+                {item.count !== null && activeTab === item.id && (
                   <span style={{
-                    background: 'rgba(255,255,255,0.15)',
-                    color: activeTab === item.id ? '#fff' : C.navText,
-                    borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 700,
+                    background: 'rgba(255,255,255,0.2)',
+                    color: '#fff',
+                    borderRadius: 10, padding: '1px 5px', fontSize: 10, fontWeight: 700,
                   }}>{item.count}</span>
                 )}
               </button>
@@ -2254,8 +2254,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* User email + sign out */}
         {session && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {!isMobile && <span style={{ color: C.navText, fontSize: 12, whiteSpace: 'nowrap' }}>{session.user.email}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {/* email hidden — saves space */}
             {isMaster && viewCompanyName && (
               <span style={{
                 background: C.primary + '40', color: C.navActive,
