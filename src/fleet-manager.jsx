@@ -2225,30 +2225,32 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Nav tabs — desktop only, hidden on mobile (tabs move to bottom bar) */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0, direction: rtl ? 'rtl' : 'ltr' }}>
-            {tabs.map(item => (
-              <button key={item.id} onClick={() => switchTab(item.id)} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                padding: '6px 10px',
-                borderRadius: 6, border: 'none', cursor: 'pointer', flexShrink: 0,
-                background: activeTab === item.id ? C.navActiveBg : 'transparent',
-                color: activeTab === item.id ? C.navActive : C.navText,
-                fontWeight: activeTab === item.id ? 700 : 400,
-                fontSize: 13,
-                transition: 'background 0.15s, color 0.15s',
-                whiteSpace: 'nowrap',
-              }}>
-                <span style={{ fontSize: 14 }}>{item.icon}</span>
-                {item.label}
-                {item.count !== null && activeTab === item.id && (
-                  <span style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    color: '#fff',
-                    borderRadius: 10, padding: '1px 5px', fontSize: 10, fontWeight: 700,
-                  }}>{item.count}</span>
-                )}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, minWidth: 0, direction: rtl ? 'rtl' : 'ltr' }}>
+            {tabs.map(item => {
+              const isActive = activeTab === item.id
+              return (
+                <button key={item.id} onClick={() => switchTab(item.id)} title={item.label} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  padding: isActive ? '6px 14px' : '6px 10px',
+                  borderRadius: 6, border: 'none', cursor: 'pointer', flexShrink: 0,
+                  background: isActive ? C.navActiveBg : 'transparent',
+                  color: isActive ? C.navActive : C.navText,
+                  fontWeight: isActive ? 700 : 400,
+                  fontSize: 13,
+                  transition: 'background 0.15s, color 0.15s',
+                  whiteSpace: 'nowrap',
+                }}>
+                  <span style={{ fontSize: isActive ? 15 : 18 }}>{item.icon}</span>
+                  {isActive && item.label}
+                  {isActive && item.count !== null && (
+                    <span style={{
+                      background: 'rgba(255,255,255,0.2)', color: '#fff',
+                      borderRadius: 10, padding: '1px 5px', fontSize: 10, fontWeight: 700,
+                    }}>{item.count}</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
 
