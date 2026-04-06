@@ -55,6 +55,11 @@ const T = {
     plate:'Plate', make:'Make', model:'Model', year:'Year', status:'Status', fuel:'Fuel', mileage:'Mileage', branch:'Branch',
     available:'Available', inUse:'In Use', maintenance:'Maintenance',
     petrol:'Petrol', diesel:'Diesel', electric:'Electric', hybrid:'Hybrid',
+    // file types
+    ftLicense:'License', ftInvoice:'Invoice', ftInsurance:'Insurance', ftRegistration:'Registration',
+    ftInspection:'Inspection', ftID:'ID', ftOther:'Other',
+    // vehicle types
+    vtSedan:'Sedan', vtSUV:'SUV', vtTruck:'Truck', vtVan:'Van', vtBus:'Bus', vtMotorcycle:'Motorcycle',
     // drivers
     name:'Name', license:'License', phone:'Phone', driverStatus:'Status', active:'Active', inactive:'Inactive',
     // branches
@@ -130,6 +135,11 @@ const T = {
     plate:'לוחית', make:'יצרן', model:'דגם', year:'שנה', status:'סטטוס', fuel:'דלק', mileage:'ק"מ', branch:'סניף',
     available:'פנוי', inUse:'בשימוש', maintenance:'תחזוקה',
     petrol:'בנזין', diesel:'דיזל', electric:'חשמלי', hybrid:'היברידי',
+    // file types
+    ftLicense:'רישיון', ftInvoice:'חשבונית', ftInsurance:'ביטוח', ftRegistration:'רישום',
+    ftInspection:'טסט', ftID:'תעודת זהות', ftOther:'אחר',
+    // vehicle types
+    vtSedan:'סדאן', vtSUV:'רכב שטח', vtTruck:'משאית', vtVan:'ואן', vtBus:'אוטובוס', vtMotorcycle:'אופנוע',
     // drivers
     name:'שם', license:'רישיון', phone:'טלפון', driverStatus:'סטטוס', active:'פעיל', inactive:'לא פעיל',
     // branches
@@ -525,9 +535,15 @@ const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintena
 const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
 
 // Maps DB value → translation key
-const CAR_STATUS_KEY = { Available: 'available', 'In Use': 'inUse', Maintenance: 'maintenance' }
-const CAR_FUEL_KEY   = { Petrol: 'petrol', Diesel: 'diesel', Electric: 'electric', Hybrid: 'hybrid' }
+const CAR_STATUS_KEY    = { Available: 'available', 'In Use': 'inUse', Maintenance: 'maintenance' }
+const CAR_FUEL_KEY      = { Petrol: 'petrol', Diesel: 'diesel', Electric: 'electric', Hybrid: 'hybrid' }
 const DRIVER_STATUS_KEY = { Active: 'active', Inactive: 'inactive' }
+const FILE_TYPE_KEY     = { License: 'ftLicense', Invoice: 'ftInvoice', Insurance: 'ftInsurance', Registration: 'ftRegistration', Inspection: 'ftInspection', ID: 'ftID', Other: 'ftOther' }
+const CAR_TYPE_KEY      = { Sedan: 'vtSedan', SUV: 'vtSUV', Truck: 'vtTruck', Van: 'vtVan', Bus: 'vtBus', Motorcycle: 'vtMotorcycle' }
+
+function translateListValue(v, t) {
+  return t[CAR_STATUS_KEY[v]] || t[CAR_FUEL_KEY[v]] || t[DRIVER_STATUS_KEY[v]] || t[FILE_TYPE_KEY[v]] || t[CAR_TYPE_KEY[v]] || v
+}
 
 // ── Custom list defaults & helper ────────────────────────────────────────────
 const DEFAULT_LISTS = {
@@ -1562,7 +1578,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: 8 }}>
               {defaults.map(v => (
-                <span key={v} style={defBadge} title={t.defaults}>🔒 {t[CAR_STATUS_KEY[v]] || t[CAR_FUEL_KEY[v]] || t[DRIVER_STATUS_KEY[v]] || v}</span>
+                <span key={v} style={defBadge} title={t.defaults}>🔒 {translateListValue(v, t)}</span>
               ))}
               {customs.map(item => (
                 <span key={item.id} style={badge}>
