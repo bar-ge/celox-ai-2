@@ -89,6 +89,7 @@ const T = {
     listCarStatus:'Vehicle Status', listDriverStatus:'Driver Status',
     listFuelType:'Fuel Types', listFileType:'Document Types', listCarType:'Vehicle Types',
     addValue:'Add value…', noCustomValues:'No custom values yet.', docType:'Document Type',
+    customListsHint:'Add custom options to the dropdowns used across the app. Built-in defaults cannot be removed.',
     // maintenance
     maintenanceTab:'Maintenance', serviceType:'Service Type', serviceDate:'Date', nextDue:'Next Due',
     noMaintenance:'No maintenance records yet.',
@@ -163,6 +164,7 @@ const T = {
     listCarStatus:'סטטוס רכב', listDriverStatus:'סטטוס נהג',
     listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listCarType:'סוגי רכב',
     addValue:'הוסף ערך…', noCustomValues:'אין ערכים מותאמים עדיין.', docType:'סוג מסמך',
+    customListsHint:'הוסף אפשרויות מותאמות לרשימות הנפתחות בכל האפליקציה. ערכי ברירת המחדל לא ניתנים למחיקה.',
     // maintenance
     maintenanceTab:'תחזוקה', serviceType:'סוג שירות', serviceDate:'תאריך', nextDue:'תאריך הבא',
     noMaintenance:'אין רשומות תחזוקה עדיין.',
@@ -533,8 +535,10 @@ const DEFAULT_LISTS = {
   file_type:     ['License', 'Invoice', 'Insurance', 'Registration', 'Inspection', 'ID', 'Other'],
   car_type:      ['Sedan', 'SUV', 'Truck', 'Van', 'Bus', 'Motorcycle'],
 }
-function getListOptions(type) {
-  return DEFAULT_LISTS[type] || []
+function getMergedOptions(type, customLists = {}) {
+  const defaults = DEFAULT_LISTS[type] || []
+  const custom = (customLists[type] || []).filter(v => !defaults.includes(v))
+  return [...defaults, ...custom]
 }
 
 // ── Data rows ───────────────────────────────────────────────────────────────
@@ -583,7 +587,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
   )
 }
 
-function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobile }) {
+function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ ...car })
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
@@ -599,17 +603,12 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobi
       <td style={td}><input type="number" value={form.year || ''} placeholder={t.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status || 'Available'} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
-          <option value="Available">{t.available}</option>
-          <option value="In Use">{t.inUse}</option>
-          <option value="Maintenance">{t.maintenance}</option>
+          {getMergedOptions('car_status', customLists).map(v => <option key={v} value={v}>{t[CAR_STATUS_KEY[v]] || v}</option>)}
         </select>
       </td>
       <td style={td}>
         <select value={form.fuel || 'Petrol'} onChange={e => setForm({ ...form, fuel: e.target.value })} style={inp}>
-          <option value="Petrol">{t.petrol}</option>
-          <option value="Diesel">{t.diesel}</option>
-          <option value="Electric">{t.electric}</option>
-          <option value="Hybrid">{t.hybrid}</option>
+          {getMergedOptions('fuel_type', customLists).map(v => <option key={v} value={v}>{t[CAR_FUEL_KEY[v]] || v}</option>)}
         </select>
       </td>
       <td style={td}>
@@ -669,7 +668,7 @@ function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, on
   )
 }
 
-function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile }) {
+function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ ...driver })
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
@@ -680,8 +679,7 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile 
       <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status || 'Active'} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
-          <option value="Active">{t.active}</option>
-          <option value="Inactive">{t.inactive}</option>
+          {getMergedOptions('driver_status', customLists).map(v => <option key={v} value={v}>{t[DRIVER_STATUS_KEY[v]] || v}</option>)}
         </select>
       </td>
       <td style={td}>
@@ -749,7 +747,7 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl, mobile }) {
 }
 
 // ── Add-item inline rows ────────────────────────────────────────────────────
-function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile }) {
+function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
@@ -766,17 +764,12 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile }) {
       <td style={td}><input type="number" placeholder={t.year} value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
-          <option value="Available">{t.available}</option>
-          <option value="In Use">{t.inUse}</option>
-          <option value="Maintenance">{t.maintenance}</option>
+          {getMergedOptions('car_status', customLists).map(v => <option key={v} value={v}>{t[CAR_STATUS_KEY[v]] || v}</option>)}
         </select>
       </td>
       <td style={td}>
         <select value={form.fuel} onChange={e => setForm({ ...form, fuel: e.target.value })} style={inp}>
-          <option value="Petrol">{t.petrol}</option>
-          <option value="Diesel">{t.diesel}</option>
-          <option value="Electric">{t.electric}</option>
-          <option value="Hybrid">{t.hybrid}</option>
+          {getMergedOptions('fuel_type', customLists).map(v => <option key={v} value={v}>{t[CAR_FUEL_KEY[v]] || v}</option>)}
         </select>
       </td>
       <td style={td}><select value={form.branch_id} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}><option value="">{t.noBranch}</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></td>
@@ -786,7 +779,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile }) {
   )
 }
 
-function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile }) {
+function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ name: '', license: '', phone: '', status: 'Active', branch_id: '' })
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
@@ -798,8 +791,7 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile }) {
       <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
-          <option value="Active">{t.active}</option>
-          <option value="Inactive">{t.inactive}</option>
+          {getMergedOptions('driver_status', customLists).map(v => <option key={v} value={v}>{t[DRIVER_STATUS_KEY[v]] || v}</option>)}
         </select>
       </td>
       <td style={td}><select value={form.branch_id} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}><option value="">{t.noBranch}</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></td>
@@ -1326,8 +1318,97 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
   )
 }
 
+// ── Custom Lists Section (admin only) ────────────────────────────────────────
+function CustomListsSection({ companyId, t, onCustomListsChange }) {
+  const LIST_DEFS = [
+    { key: 'car_status',    label: t.listCarStatus },
+    { key: 'driver_status', label: t.listDriverStatus },
+    { key: 'fuel_type',     label: t.listFuelType },
+    { key: 'file_type',     label: t.listFileType },
+    { key: 'car_type',      label: t.listCarType },
+  ]
+  const [items, setItems]   = useState([])
+  const [adding, setAdding] = useState({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.from('custom_lists').select('*').eq('company_id', companyId).order('sort_order')
+      .then(({ data }) => { if (data) setItems(data); setLoading(false) })
+  }, [companyId])
+
+  async function addValue(listKey) {
+    const value = (adding[listKey] || '').trim()
+    if (!value) return
+    const { data, error } = await supabase.from('custom_lists').insert({
+      company_id: companyId, list_type: listKey, value,
+    }).select().single()
+    if (!error && data) {
+      setItems(p => [...p, data])
+      setAdding(p => ({ ...p, [listKey]: '' }))
+      onCustomListsChange()
+    }
+  }
+
+  async function removeValue(item) {
+    const { error } = await supabase.from('custom_lists').delete().eq('id', item.id)
+    if (!error) {
+      setItems(p => p.filter(i => i.id !== item.id))
+      onCustomListsChange()
+    }
+  }
+
+  const card  = { background: '#f8faff', borderRadius: 8, border: '1px solid #e4eaf4', padding: '10px 14px', marginBottom: 8 }
+  const badge = { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
+    background: '#e8f0fe', color: '#2563eb', borderRadius: 5, padding: '3px 8px', marginRight: 6, marginBottom: 4 }
+  const defBadge = { ...badge, background: '#f3f4f6', color: '#6b7280', cursor: 'default' }
+
+  if (loading) return <p style={{ color: C.textSecondary, fontSize: 13 }}>{t.loadingShort}</p>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {LIST_DEFS.map(({ key, label }) => {
+        const defaults = DEFAULT_LISTS[key] || []
+        const customs  = items.filter(i => i.list_type === key)
+        return (
+          <div key={key} style={card}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+              {label}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: 8 }}>
+              {defaults.map(v => (
+                <span key={v} style={defBadge} title={t.defaults}>🔒 {t[CAR_STATUS_KEY[v]] || t[CAR_FUEL_KEY[v]] || t[DRIVER_STATUS_KEY[v]] || v}</span>
+              ))}
+              {customs.map(item => (
+                <span key={item.id} style={badge}>
+                  {item.value}
+                  <button onClick={() => removeValue(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#2563eb', fontWeight: 900, fontSize: 14, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+              {customs.length === 0 && defaults.length === 0 && (
+                <span style={{ fontSize: 12, color: C.textMuted }}>{t.noCustomValues}</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={adding[key] || ''}
+                onChange={e => setAdding(p => ({ ...p, [key]: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && addValue(key)}
+                placeholder={t.addValue}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.bg, color: C.textPrimary }}
+              />
+              <button onClick={() => addValue(key)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                +
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Settings Tab ────────────────────────────────────────────────────────────
-function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl }) {
+function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl, onCustomListsChange }) {
   const company  = profile?.companies
   const isAdmin  = profile?.role === 'admin'
 
@@ -1664,6 +1745,17 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           ))}
         </div>
 
+        {/* Custom Lists — admin only */}
+        {isAdmin && companyId && (
+          <div style={card}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🗂 {t.customLists}</h3>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>
+              {t.customListsHint}
+            </p>
+            <CustomListsSection companyId={companyId} t={t} onCustomListsChange={onCustomListsChange} />
+          </div>
+        )}
+
         {/* Activity log — admin only */}
         {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} />}
 
@@ -1686,6 +1778,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const isMobile                  = useIsMobile()
   const [filesFor, setFilesFor]   = useState(null)
   const [companyLimits, setCompanyLimits] = useState({ max_cars: null, max_users: null })
+  const [customLists, setCustomLists]     = useState({})
   const [viewCompanyId, setViewCompanyId]   = useState(isMaster ? null : companyId)
   const [viewCompanyName, setViewCompanyName] = useState(null)
   // New feature state
@@ -1715,16 +1808,25 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   async function loadAll() {
     setLoading(true)
     if (!activeCompanyId) { setBranches([]); setDrivers([]); setCars([]); setLoading(false); return }
-    const [{ data: b }, { data: d }, { data: c }, { data: co }] = await Promise.all([
+    const [{ data: b }, { data: d }, { data: c }, { data: co }, { data: cl }] = await Promise.all([
       supabase.from('branches').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('drivers').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('cars').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('companies').select('max_cars, max_users').eq('id', activeCompanyId).maybeSingle(),
+      supabase.from('custom_lists').select('*').eq('company_id', activeCompanyId).order('sort_order'),
     ])
     if (b) setBranches(b)
     if (d) setDrivers(d)
     if (c) setCars(c)
     if (co) setCompanyLimits(co)
+    if (cl) {
+      const grouped = {}
+      cl.forEach(item => {
+        if (!grouped[item.list_type]) grouped[item.list_type] = []
+        grouped[item.list_type].push(item.value)
+      })
+      setCustomLists(grouped)
+    }
     setLoading(false)
   }
 
@@ -2076,7 +2178,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Settings view */}
         {activeTab === 'settings' && (
-          <SettingsTab profile={profile} companyId={activeCompanyId} session={session} isMaster={isMaster} onSelectCompany={switchToCompany} t={t} rtl={rtl} />
+          <SettingsTab profile={profile} companyId={activeCompanyId} session={session} isMaster={isMaster} onSelectCompany={switchToCompany} t={t} rtl={rtl} onCustomListsChange={loadAll} />
         )}
 
         {/* Maintenance tab */}
@@ -2162,24 +2264,24 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               <tbody>
                 {activeTab === 'cars' && filteredCars.map(car =>
                   editingId === car.id
-                    ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} />
+                    ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />
                     : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                         selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
                         onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
                         onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} mobile={isMobile} />
                 )}
                 {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noCars}</td></tr>}
-                {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
+                {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />}
 
                 {activeTab === 'drivers' && filteredDrivers.map(driver =>
                   editingId === driver.id
-                    ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} />
+                    ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />
                     : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
                         selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
                         onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} mobile={isMobile} />
                 )}
                 {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: isMobile ? '24px 12px' : '40px', textAlign: 'center', color: C.textMuted, fontSize: isMobile ? 12 : 14 }}>{t.noDrivers}</td></tr>}
-                {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} />}
+                {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={isMobile} customLists={customLists} />}
 
                 {activeTab === 'branches' && filteredBranches.map((branch, i) =>
                   editingId === branch.id
