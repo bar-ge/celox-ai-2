@@ -88,7 +88,7 @@ function LangToggle({ lang, setLang }) {
   return (
     <div style={{ display: 'flex', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', marginBottom: 24 }}>
       {['en', 'he'].map(l => (
-        <button key={l} onClick={() => setLang(l)} style={{
+        <button key={l} onClick={() => { setLang(l); localStorage.setItem('fleet_lang', l) }} style={{
           flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer',
           fontWeight: 700, fontSize: 13,
           background: lang === l ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'transparent',
@@ -359,7 +359,7 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = still loading
   const [profile, setProfile] = useState(undefined)
-  const [lang, setLang]       = useState('en')
+  const [lang, setLang]       = useState(() => localStorage.getItem('fleet_lang') || 'en')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
