@@ -1977,7 +1977,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [loading, setLoading]     = useState(true)
   const [showAdd, setShowAdd]     = useState(false)
   const [search, setSearch]       = useState('')
-  const [lang, setLang]           = useState(initialLang || 'en')
+  const [lang, setLang]           = useState(() => localStorage.getItem('fleet_lang') || initialLang || 'en')
   const isMobile                  = useIsMobile()
   const [filesFor, setFilesFor]   = useState(null)
   const [companyLimits, setCompanyLimits] = useState({ max_cars: null, max_users: null })
@@ -2281,7 +2281,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           )}
           <div style={{ display: 'flex', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden' }}>
             {['en', 'he'].map(l => (
-              <button key={l} onClick={() => setLang(l)} style={{
+              <button key={l} onClick={() => { setLang(l); localStorage.setItem('fleet_lang', l) }} style={{
                 padding: isMobile ? '3px 6px' : '4px 10px',
                 border: 'none', cursor: 'pointer',
                 fontSize: isMobile ? 10 : 11, fontWeight: 700, letterSpacing: '0.04em',
