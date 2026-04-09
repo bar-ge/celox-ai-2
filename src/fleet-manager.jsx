@@ -2209,15 +2209,23 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
 
   // ── Export to Excel ───────────────────────────────────────────────────────
-  function exportExcel() {
+  function exportExcel(tab) {
     const wb = XLSX.utils.book_new()
-    const carSheet  = XLSX.utils.json_to_sheet(cars.map(c => ({ Plate: c.plate, Make: c.make, Model: c.model, Year: c.year, Status: c.status, Fuel: c.fuel, Branch: getBranchName(c.branch_id) })))
-    const drvSheet  = XLSX.utils.json_to_sheet(drivers.map(d => ({ Name: d.name, License: d.license, Phone: d.phone, Status: d.status, Branch: getBranchName(d.branch_id) })))
-    const brnSheet  = XLSX.utils.json_to_sheet(branches.map(b => ({ Name: b.name, City: b.city, Address: b.address, Manager: b.manager, Phone: b.phone })))
-    XLSX.utils.book_append_sheet(wb, carSheet, 'Vehicles')
-    XLSX.utils.book_append_sheet(wb, drvSheet, 'Drivers')
-    XLSX.utils.book_append_sheet(wb, brnSheet, 'Branches')
-    XLSX.writeFile(wb, `fleet-export-${new Date().toISOString().slice(0,10)}.xlsx`)
+    const date = new Date().toISOString().slice(0, 10)
+    if (!tab || tab === 'cars') {
+      const carSheet = XLSX.utils.json_to_sheet(cars.map(c => ({ Plate: c.plate, Make: c.make, Model: c.model, Year: c.year, Status: c.status, Fuel: c.fuel, Branch: getBranchName(c.branch_id) })))
+      XLSX.utils.book_append_sheet(wb, carSheet, 'Vehicles')
+    }
+    if (!tab || tab === 'drivers') {
+      const drvSheet = XLSX.utils.json_to_sheet(drivers.map(d => ({ Name: d.name, License: d.license, Phone: d.phone, Status: d.status, Branch: getBranchName(d.branch_id) })))
+      XLSX.utils.book_append_sheet(wb, drvSheet, 'Drivers')
+    }
+    if (!tab || tab === 'branches') {
+      const brnSheet = XLSX.utils.json_to_sheet(branches.map(b => ({ Name: b.name, City: b.city, Address: b.address, Manager: b.manager, Phone: b.phone })))
+      XLSX.utils.book_append_sheet(wb, brnSheet, 'Branches')
+    }
+    const suffix = tab ? `-${tab}` : '-all'
+    XLSX.writeFile(wb, `fleet-export${suffix}-${date}.xlsx`)
   }
 
   // ── Vehicle photo upload ──────────────────────────────────────────────────
@@ -2657,7 +2665,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, letterSpacing: '0.01em' }}>{boardLabel}</span>
                   <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
                   <div style={{ flex: 1 }} />
-                  <button onClick={exportExcel} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  <button onClick={() => exportExcel(activeTab)} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     📥 {t.exportExcel}
                   </button>
                 </div>
