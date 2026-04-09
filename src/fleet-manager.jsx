@@ -1998,129 +1998,135 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   // ── REGULAR USER VIEW ────────────────────────────────────────────────────
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
-      <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        gap: 16,
+        maxWidth: 1100,
+        alignItems: 'start',
+      }}>
 
-        {/* Company info */}
-        <div style={card}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🏢 {t.companyName}</h3>
+        {/* ── LEFT COLUMN ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          <div style={{ marginBottom: 20 }}>
-            <div style={lbl}>{t.companyName}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary }}>{company?.name}</div>
-          </div>
-
-          <div>
-            <div style={lbl}>{t.inviteCode}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{
-                fontFamily: 'monospace', fontSize: 22, fontWeight: 900,
-                letterSpacing: '0.15em', color: C.primary,
-                background: C.primary + '12', padding: '8px 16px', borderRadius: 8,
-                border: `1px solid ${C.primary}30`,
-              }}>
-                {company?.invite_code}
-              </span>
-              <button onClick={copyCode} style={{
-                background: copied ? C.success : C.primary, color: '#fff',
-                border: 'none', borderRadius: 8, padding: '8px 16px',
-                fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s',
-              }}>
-                {copied ? t.codeCopied : t.copyCode}
-              </button>
-            </div>
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSecondary }}>
-              {t.shareCodeHint}
-            </p>
-          </div>
-        </div>
-
-        {/* Admin: invite by email */}
-        {isAdmin && (
+          {/* Company info */}
           <div style={card}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📨 {t.inviteByEmail}</h3>
-            <form onSubmit={sendInvite} style={{ display: 'flex', gap: 10 }}>
-              <input
-                type="email" value={inviteEmail} required
-                onChange={e => setInviteEmail(e.target.value)}
-                placeholder={t.emailPlaceholder}
-                style={{ ...inp, flex: 1 }}
-              />
-              <button type="submit" disabled={inviting} style={{
-                background: C.primary, color: '#fff', border: 'none',
-                borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 700,
-                cursor: inviting ? 'not-allowed' : 'pointer', opacity: inviting ? 0.7 : 1, whiteSpace: 'nowrap',
-              }}>
-                {inviting ? '…' : t.sendInvite}
-              </button>
-            </form>
-            {inviteMsg && <div style={{ ...msgOk, marginTop: 10 }}>{inviteMsg}</div>}
-            {inviteErr && <div style={{ ...msgEr, marginTop: 10 }}>{inviteErr}</div>}
-          </div>
-        )}
-
-        {/* Members */}
-        <div style={card}>
-          <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
-            👥 {t.members}
-            <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
-              {members.length}
-            </span>
-          </h3>
-
-          {loading ? (
-            <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
-          ) : members.map(m => (
-            <div key={m.id} style={row}>
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                background: `linear-gradient(135deg, ${C.navBg}, ${C.primary})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontWeight: 800, fontSize: 14,
-              }}>
-                {(m.email || '?')[0].toUpperCase()}
-              </div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {m.email}
-                  {m.id === session.user.id && (
-                    <span style={{ fontSize: 11, background: C.primary + '15', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
-                      {t.you}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
-                  {m.role === 'admin' ? t.admin : t.member}
-                </div>
-              </div>
-
-              {isAdmin && m.id !== session.user.id && (
-                <button onClick={() => removeMember(m.id)} style={{
-                  background: 'transparent', border: `1px solid ${C.danger}40`,
-                  color: C.danger, borderRadius: 6, padding: '5px 10px',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🏢 {t.companyName}</h3>
+            <div style={{ marginBottom: 20 }}>
+              <div style={lbl}>{t.companyName}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary }}>{company?.name}</div>
+            </div>
+            <div>
+              <div style={lbl}>{t.inviteCode}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{
+                  fontFamily: 'monospace', fontSize: 20, fontWeight: 900,
+                  letterSpacing: '0.15em', color: C.primary,
+                  background: C.primary + '12', padding: '8px 16px', borderRadius: 8,
+                  border: `1px solid ${C.primary}30`,
                 }}>
-                  {t.removeMember}
+                  {company?.invite_code}
+                </span>
+                <button onClick={copyCode} style={{
+                  background: copied ? C.success : C.primary, color: '#fff',
+                  border: 'none', borderRadius: 8, padding: '8px 16px',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s',
+                }}>
+                  {copied ? t.codeCopied : t.copyCode}
                 </button>
-              )}
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSecondary }}>{t.shareCodeHint}</p>
             </div>
-          ))}
+          </div>
+
+          {/* Custom Lists — admin only */}
+          {isAdmin && companyId && (
+            <div style={card}>
+              <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🗂 {t.customLists}</h3>
+              <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>{t.customListsHint}</p>
+              <CustomListsSection companyId={companyId} t={t} onCustomListsChange={onCustomListsChange} />
+            </div>
+          )}
+
         </div>
 
-        {/* Custom Lists — admin only */}
-        {isAdmin && companyId && (
+        {/* ── RIGHT COLUMN ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Admin: invite by email */}
+          {isAdmin && (
+            <div style={card}>
+              <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📨 {t.inviteByEmail}</h3>
+              <form onSubmit={sendInvite} style={{ display: 'flex', gap: 10 }}>
+                <input
+                  type="email" value={inviteEmail} required
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder={t.emailPlaceholder}
+                  style={{ ...inp, flex: 1 }}
+                />
+                <button type="submit" disabled={inviting} style={{
+                  background: C.primary, color: '#fff', border: 'none',
+                  borderRadius: 7, padding: '9px 18px', fontSize: 13, fontWeight: 700,
+                  cursor: inviting ? 'not-allowed' : 'pointer', opacity: inviting ? 0.7 : 1, whiteSpace: 'nowrap',
+                }}>
+                  {inviting ? '…' : t.sendInvite}
+                </button>
+              </form>
+              {inviteMsg && <div style={{ ...msgOk, marginTop: 10 }}>{inviteMsg}</div>}
+              {inviteErr && <div style={{ ...msgEr, marginTop: 10 }}>{inviteErr}</div>}
+            </div>
+          )}
+
+          {/* Members */}
           <div style={card}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🗂 {t.customLists}</h3>
-            <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>
-              {t.customListsHint}
-            </p>
-            <CustomListsSection companyId={companyId} t={t} onCustomListsChange={onCustomListsChange} />
+            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
+              👥 {t.members}
+              <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                {members.length}
+              </span>
+            </h3>
+            {loading ? (
+              <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
+            ) : members.map(m => (
+              <div key={m.id} style={row}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                  background: `linear-gradient(135deg, ${C.navBg}, ${C.primary})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontWeight: 800, fontSize: 14,
+                }}>
+                  {(m.email || '?')[0].toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {m.email}
+                    {m.id === session.user.id && (
+                      <span style={{ fontSize: 11, background: C.primary + '15', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
+                        {t.you}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>
+                    {m.role === 'admin' ? t.admin : t.member}
+                  </div>
+                </div>
+                {isAdmin && m.id !== session.user.id && (
+                  <button onClick={() => removeMember(m.id)} style={{
+                    background: 'transparent', border: `1px solid ${C.danger}40`,
+                    color: C.danger, borderRadius: 6, padding: '5px 10px',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>
+                    {t.removeMember}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
-        )}
 
-        {/* Activity log — admin only */}
-        {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} />}
+          {/* Activity log — admin only */}
+          {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} />}
 
+        </div>
       </div>
     </div>
   )
