@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import './App.css'
+
+const HCAPTCHA_SITE_KEY = '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
 
 const MASTER_EMAIL = import.meta.env.VITE_MASTER_EMAIL || 'bar.gershenzon@gmail.com'
 
@@ -46,6 +49,7 @@ const L = {
     pwNumber: 'Number (0-9)',
     pwSymbol: 'Symbol (!@#$...)',
     pwTooWeak: 'Password is too weak. Please meet all requirements.',
+    captchaRequired: 'Please complete the CAPTCHA verification.',
   },
   he: {
     signIn: 'כניסה', signUp: 'הרשמה',
@@ -74,6 +78,7 @@ const L = {
     pwNumber: 'ספרה (0-9)',
     pwSymbol: 'תו מיוחד (!@#$...)',
     pwTooWeak: 'הסיסמה חלשה מדי. אנא עמוד בכל הדרישות.',
+    captchaRequired: 'אנא השלם את אימות ה-CAPTCHA.',
   },
 }
 
@@ -258,6 +263,8 @@ function LoginScreen({ lang, setLang }) {
   const [error, setError]       = useState('')
   const [success, setSuccess]   = useState('')
   const [loading, setLoading]   = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const captchaRef = useRef(null)
 
   const rtl = lang === 'he'
   const { score } = getPasswordStrength(password)
@@ -266,6 +273,7 @@ function LoginScreen({ lang, setLang }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(''); setSuccess('')
+    if (!captchaToken) { setError(t.captchaRequired); return }
     // Enforce strong password on signup
     if (mode === 'signup' && !isStrongEnough) {
       setError(t.pwTooWeak); return
@@ -273,10 +281,10 @@ function LoginScreen({ lang, setLang }) {
     setLoading(true)
 
     if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
       if (error) setError(error.message)
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { error } = await supabase.auth.signUp({ email, password, options: { captchaToken } })
       if (error) setError(error.message)
       else {
         setEmail(''); setPassword('')
@@ -284,10 +292,12 @@ function LoginScreen({ lang, setLang }) {
         setSuccess(t.accountCreated)
       }
     }
+    captchaRef.current?.resetCaptcha()
+    setCaptchaToken('')
     setLoading(false)
   }
 
-  function switchMode(m) { setMode(m); setError(''); setSuccess('') }
+  function switchMode(m) { setMode(m); setError(''); setSuccess(''); setCaptchaToken(''); captchaRef.current?.resetCaptcha() }
 
   return (
     <Page>
@@ -317,7 +327,16 @@ function LoginScreen({ lang, setLang }) {
           </div>
           <Err  msg={error} />
           <Succ msg={success} />
-          <button type="submit" disabled={loading || (mode === 'signup' && password.length > 0 && !isStrongEnough)} style={primaryBtn(loading || (mode === 'signup' && password.length > 0 && !isStrongEnough))}>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <HCaptcha
+              sitekey={HCAPTCHA_SITE_KEY}
+              onVerify={token => setCaptchaToken(token)}
+              onExpire={() => setCaptchaToken('')}
+              ref={captchaRef}
+              theme="light"
+            />
+          </div>
+          <button type="submit" disabled={loading || !captchaToken || (mode === 'signup' && password.length > 0 && !isStrongEnough)} style={primaryBtn(loading || !captchaToken || (mode === 'signup' && password.length > 0 && !isStrongEnough))}>
             {loading ? '…' : mode === 'login' ? t.submitSignIn : t.submitSignUp}
           </button>
         </form>
