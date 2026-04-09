@@ -2213,16 +2213,37 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const wb = XLSX.utils.book_new()
     const date = new Date().toISOString().slice(0, 10)
     if (!tab || tab === 'cars') {
-      const carSheet = XLSX.utils.json_to_sheet(cars.map(c => ({ Plate: c.plate, Make: c.make, Model: c.model, Year: c.year, Status: c.status, Fuel: c.fuel, Branch: getBranchName(c.branch_id) })))
-      XLSX.utils.book_append_sheet(wb, carSheet, 'Vehicles')
+      const carSheet = XLSX.utils.json_to_sheet(cars.map(c => ({
+        [t.plate]:   c.plate,
+        [t.make]:    c.make,
+        [t.model]:   c.model,
+        [t.year]:    c.year,
+        [t.status]:  c.status,
+        [t.fuel]:    c.fuel,
+        [t.branch]:  getBranchName(c.branch_id),
+        [t.driver]:  drivers.find(d => d.id === c.driver_id)?.name || '',
+      })))
+      XLSX.utils.book_append_sheet(wb, carSheet, t.cars || 'Vehicles')
     }
     if (!tab || tab === 'drivers') {
-      const drvSheet = XLSX.utils.json_to_sheet(drivers.map(d => ({ Name: d.name, License: d.license, Phone: d.phone, Status: d.status, Branch: getBranchName(d.branch_id) })))
-      XLSX.utils.book_append_sheet(wb, drvSheet, 'Drivers')
+      const drvSheet = XLSX.utils.json_to_sheet(drivers.map(d => ({
+        [t.name]:         d.name,
+        [t.license]:      d.license,
+        [t.phone]:        d.phone,
+        [t.driverStatus]: d.status,
+        [t.branch]:       getBranchName(d.branch_id),
+      })))
+      XLSX.utils.book_append_sheet(wb, drvSheet, t.drivers || 'Drivers')
     }
     if (!tab || tab === 'branches') {
-      const brnSheet = XLSX.utils.json_to_sheet(branches.map(b => ({ Name: b.name, City: b.city, Address: b.address, Manager: b.manager, Phone: b.phone })))
-      XLSX.utils.book_append_sheet(wb, brnSheet, 'Branches')
+      const brnSheet = XLSX.utils.json_to_sheet(branches.map(b => ({
+        [t.branchName]: b.name,
+        [t.city]:       b.city,
+        [t.address]:    b.address,
+        [t.manager]:    b.manager,
+        [t.phone]:      b.phone,
+      })))
+      XLSX.utils.book_append_sheet(wb, brnSheet, t.branches || 'Branches')
     }
     const suffix = tab ? `-${tab}` : '-all'
     XLSX.writeFile(wb, `fleet-export${suffix}-${date}.xlsx`)
