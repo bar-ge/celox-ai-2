@@ -39,6 +39,13 @@ const L = {
     accept: 'Accept',
     contactAdmin: 'Contact your company admin if you need access.',
     codeNotFound: 'Code not found or company is inactive.',
+    pwWeak: 'Weak', pwFair: 'Fair', pwGood: 'Good', pwStrong: 'Strong',
+    pwMinLength: 'At least 8 characters',
+    pwUppercase: 'Uppercase letter (A-Z)',
+    pwLowercase: 'Lowercase letter (a-z)',
+    pwNumber: 'Number (0-9)',
+    pwSymbol: 'Symbol (!@#$...)',
+    pwTooWeak: 'Password is too weak. Please meet all requirements.',
   },
   he: {
     signIn: 'כניסה', signUp: 'הרשמה',
@@ -60,6 +67,13 @@ const L = {
     accept: 'אשר',
     contactAdmin: 'צור קשר עם מנהל החברה אם אתה זקוק לגישה.',
     codeNotFound: 'הקוד לא נמצא או החברה אינה פעילה.',
+    pwWeak: 'חלש', pwFair: 'בינוני', pwGood: 'טוב', pwStrong: 'חזק',
+    pwMinLength: 'לפחות 8 תווים',
+    pwUppercase: 'אות גדולה (A-Z)',
+    pwLowercase: 'אות קטנה (a-z)',
+    pwNumber: 'ספרה (0-9)',
+    pwSymbol: 'תו מיוחד (!@#$...)',
+    pwTooWeak: 'הסיסמה חלשה מדי. אנא עמוד בכל הדרישות.',
   },
 }
 
@@ -171,6 +185,70 @@ function Tabs({ options, value, onChange }) {
   )
 }
 
+// ── Password strength helpers ──────────────────────────────────────────────
+function getPasswordStrength(pw) {
+  const checks = {
+    length:    pw.length >= 8,
+    uppercase: /[A-Z]/.test(pw),
+    lowercase: /[a-z]/.test(pw),
+    number:    /[0-9]/.test(pw),
+    symbol:    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pw),
+  }
+  const score = Object.values(checks).filter(Boolean).length
+  return { checks, score }
+}
+
+function PasswordStrengthMeter({ password, t, rtl }) {
+  if (!password) return null
+  const { checks, score } = getPasswordStrength(password)
+  const levels = [
+    { min: 0, label: t.pwWeak,   color: '#ef4444' },
+    { min: 2, label: t.pwFair,   color: '#f59e0b' },
+    { min: 3, label: t.pwGood,   color: '#3b82f6' },
+    { min: 5, label: t.pwStrong, color: '#10b981' },
+  ]
+  const level = [...levels].reverse().find(l => score >= l.min) || levels[0]
+
+  const reqStyle = (ok) => ({
+    display: 'flex', alignItems: 'center', gap: 6,
+    fontSize: 12, color: ok ? '#10b981' : '#94a3b8',
+    flexDirection: rtl ? 'row-reverse' : 'row',
+  })
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      {/* Bar */}
+      <div style={{ display: 'flex', gap: 3, marginBottom: 4 }}>
+        {[1,2,3,4,5].map(i => (
+          <div key={i} style={{
+            flex: 1, height: 4, borderRadius: 2,
+            background: i <= score ? level.color : '#e2e8f0',
+            transition: 'background 0.2s',
+          }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: rtl ? 'flex-start' : 'flex-end', marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: level.color }}>{level.label}</span>
+      </div>
+      {/* Checklist */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {[
+          [checks.length,    t.pwMinLength],
+          [checks.uppercase, t.pwUppercase],
+          [checks.lowercase, t.pwLowercase],
+          [checks.number,    t.pwNumber],
+          [checks.symbol,    t.pwSymbol],
+        ].map(([ok, label]) => (
+          <div key={label} style={reqStyle(ok)}>
+            <span style={{ fontSize: 13 }}>{ok ? '✅' : '○'}</span>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Login / Sign-up screen ─────────────────────────────────────────────────
 function LoginScreen({ lang, setLang }) {
   const t = L[lang]
@@ -181,9 +259,17 @@ function LoginScreen({ lang, setLang }) {
   const [success, setSuccess]   = useState('')
   const [loading, setLoading]   = useState(false)
 
+  const rtl = lang === 'he'
+  const { score } = getPasswordStrength(password)
+  const isStrongEnough = score >= 4
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError(''); setSuccess('')
+    // Enforce strong password on signup
+    if (mode === 'signup' && !isStrongEnough) {
+      setError(t.pwTooWeak); return
+    }
     setLoading(true)
 
     if (mode === 'login') {
@@ -225,10 +311,13 @@ function LoginScreen({ lang, setLang }) {
             <input type="password" value={password} required
               onChange={e => setPassword(e.target.value)}
               placeholder={t.passwordPlaceholder} style={inputStyle} />
+            {mode === 'signup' && (
+              <PasswordStrengthMeter password={password} t={t} rtl={rtl} />
+            )}
           </div>
           <Err  msg={error} />
           <Succ msg={success} />
-          <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+          <button type="submit" disabled={loading || (mode === 'signup' && password.length > 0 && !isStrongEnough)} style={primaryBtn(loading || (mode === 'signup' && password.length > 0 && !isStrongEnough))}>
             {loading ? '…' : mode === 'login' ? t.submitSignIn : t.submitSignUp}
           </button>
         </form>
