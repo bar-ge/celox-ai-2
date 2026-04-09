@@ -124,6 +124,10 @@ const T = {
     photoTooLarge:'Photo too large (max 5 MB).', photoTypeNotAllowed:'Only JPG, PNG, WebP or GIF images allowed.',
     totalCost:'Total Cost', costByCategory:'Cost by Category', recentCosts:'Recent Costs',
     maintenanceDue:'Maintenance Due', maintenanceHistory:'Service History',
+    // dashboard extras
+    fleetStatus:'Fleet Status', utilizationRate:'Utilization Rate', driverAssignment:'Driver Assignment',
+    recentVehicles:'Recently Added Vehicles', noRecentVehicles:'No vehicles added yet.',
+    assigned:'Assigned', unassignedDrivers:'Unassigned',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -204,6 +208,10 @@ const T = {
     photoTooLarge:'התמונה גדולה מדי (מקסימום 5 MB).', photoTypeNotAllowed:'מותר רק JPG, PNG, WebP או GIF.',
     totalCost:'סה"כ עלות', costByCategory:'עלות לפי קטגוריה', recentCosts:'עלויות אחרונות',
     maintenanceDue:'תחזוקה קרובה', maintenanceHistory:'היסטוריית שירות',
+    // dashboard extras
+    fleetStatus:'מצב הצי', utilizationRate:'אחוז ניצולת', driverAssignment:'שיוך נהגים',
+    recentVehicles:'רכבים שנוספו לאחרונה', noRecentVehicles:'טרם נוספו רכבים.',
+    assigned:'משויכים', unassignedDrivers:'ללא שיוך',
   },
 }
 
@@ -246,7 +254,7 @@ const mkTh = (rtl, mobile) => ({
 const mkTd = (rtl, mobile) => ({
   padding: mobile ? '7px 10px' : '10px 16px',
   fontSize: mobile ? 12 : 14,
-  color: C.textPrimaryPrimary,
+  color: C.textPrimary,
   borderBottom: `1px solid ${C.border}`,
   verticalAlign: 'middle',
   textAlign: rtl ? 'right' : 'left',
@@ -257,7 +265,7 @@ const inlineInput = (rtl) => ({
   borderRadius: 6,
   padding: '6px 10px',
   fontSize: 14,
-  color: C.textPrimaryPrimary,
+  color: C.textPrimary,
   background: C.surface,
   outline: 'none',
   width: '100%',
@@ -412,7 +420,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
         {/* Header */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimaryPrimary }}>📎 {t.files}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>📎 {t.files}</div>
             <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{entityLabel}</div>
           </div>
           <button onClick={onClose} style={{ ...closeBtn, padding: 4 }}>×</button>
@@ -431,7 +439,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{getFileIcon(doc.name)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimaryPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
                     <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span>{formatSize(doc.size)} · {new Date(doc.created_at).toLocaleDateString()}</span>
                       {status && (
@@ -467,7 +475,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
         <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.border}` }}>
           {pendingFile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
+              <div style={{ fontSize: 13, color: C.textPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>📅 {t.expiryDate}</label>
                 <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
@@ -1299,7 +1307,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                 <tr key={c.id} style={{ background: C.surface }}>
                   <td style={mkTd(rtl, isMobile)}>{c.date}</td>
                   <td style={mkTd(rtl, isMobile)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
-                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimaryPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
+                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.car_id ? carName(c.car_id) : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
@@ -1329,7 +1337,7 @@ function ActivityLogSection({ companyId, t }) {
 
   return (
     <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-      <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimaryPrimary }}>📋 {t.activityLog}</h3>
+      <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📋 {t.activityLog}</h3>
       {loading ? (
         <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
       ) : logs.length === 0 ? (
@@ -1338,7 +1346,7 @@ function ActivityLogSection({ companyId, t }) {
         <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: actionColor[l.action] || C.textMuted, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 500 }}>
+            <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>
               <strong style={{ color: actionColor[l.action] || C.textMuted }}>{actionLabel[l.action] || l.action}</strong>
               {' '}{l.entity_type}{l.entity_name ? ` — ${l.entity_name}` : ''}
             </span>
@@ -1346,6 +1354,50 @@ function ActivityLogSection({ companyId, t }) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── Donut chart (pure SVG, no library) ─────────────────────────────────────
+function DonutChart({ segments, size = 160, thickness = 28, label, sublabel }) {
+  const r = (size - thickness) / 2
+  const cx = size / 2
+  const cy = size / 2
+  const circumference = 2 * Math.PI * r
+  const total = segments.reduce((s, seg) => s + seg.value, 0)
+
+  let offset = 0
+  const arcs = segments.map(seg => {
+    const len = total > 0 ? (seg.value / total) * circumference : 0
+    const gap = total > 0 ? 2 : 0
+    const arc = { ...seg, dasharray: Math.max(len - gap, 0), dashoffset: -offset, len }
+    offset += len
+    return arc
+  })
+
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        {/* Background track */}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.border} strokeWidth={thickness} />
+        {total === 0
+          ? null
+          : arcs.map((arc, i) => (
+            <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+              stroke={arc.color} strokeWidth={thickness}
+              strokeDasharray={`${arc.dasharray} ${circumference}`}
+              strokeDashoffset={arc.dashoffset}
+              strokeLinecap="butt"
+              style={{ transition: 'stroke-dasharray 0.6s ease' }}
+            />
+          ))
+        }
+      </svg>
+      {/* Center label */}
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+        <span style={{ fontSize: 22, fontWeight: 800, color: C.textPrimary, lineHeight: 1 }}>{label}</span>
+        {sublabel && <span style={{ fontSize: 11, color: C.textSecondary, marginTop: 2 }}>{sublabel}</span>}
+      </div>
     </div>
   )
 }
@@ -1371,6 +1423,22 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
 
   const unassigned = filtCars.filter(c => !c.branch_id).length
 
+  // Status breakdown for donut chart
+  const statusAvailable   = filtCars.filter(c => c.status === 'Available').length
+  const statusInUse       = filtCars.filter(c => c.status === 'In Use').length
+  const statusMaintenance = filtCars.filter(c => c.status === 'Maintenance').length
+  const statusOther       = filtCars.length - statusAvailable - statusInUse - statusMaintenance
+  const utilizationPct = filtCars.length > 0 ? Math.round((statusInUse / filtCars.length) * 100) : 0
+  const assignedDrivers   = filtDrivers.filter(d => d.branch_id).length
+  const driverAssignPct   = filtDrivers.length > 0 ? Math.round((assignedDrivers / filtDrivers.length) * 100) : 0
+
+  const donutSegments = [
+    { label: t.available,    value: statusAvailable,   color: C.success },
+    { label: t.inUse,        value: statusInUse,       color: C.primary },
+    { label: t.maintenance,  value: statusMaintenance, color: C.warning },
+    ...(statusOther > 0 ? [{ label: '…', value: statusOther, color: C.textMuted }] : []),
+  ]
+
   const carsPerBranch = filtBranches.map((b, i) => ({
     name: b.name, color: branchColor(i),
     count: filtCars.filter(c => c.branch_id === b.id).length,
@@ -1387,7 +1455,12 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
   const topModels = Object.entries(modelCounts).sort((a, b) => b[1] - a[1]).slice(0, 6)
   const maxModel  = Math.max(...topModels.map(([, n]) => n), 1)
 
-  const card = (icon, value, label, color) => (
+  // Recent vehicles (last 5, by created_at)
+  const recentVehicles = [...filtCars]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 5)
+
+  const card = (icon, value, label, color, sub) => (
     <div key={label} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
       <div style={{ height: 3, background: `linear-gradient(90deg, ${color}, ${color}99)` }} />
       <div style={{ padding: '18px 20px 20px' }}>
@@ -1396,19 +1469,20 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
           <p style={{ margin: 0, fontSize: 38, fontWeight: 800, color, lineHeight: 1 }}>{value}</p>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{label}</p>
+        {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: C.textMuted }}>{sub}</p>}
       </div>
     </div>
   )
 
   const barChart = (title, data, max) => (
     <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-      <h3 style={{ margin: '0 0 18px', fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary }}>{title}</h3>
+      <h3 style={{ margin: '0 0 18px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{title}</h3>
       {data.length === 0
         ? <p style={{ color: C.textMuted, fontSize: 13 }}>{t.noData}</p>
         : data.map(b => (
           <div key={b.name} style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <span style={{ fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 500 }}>{b.name}</span>
+              <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>{b.name}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: b.color }}>{b.count}</span>
             </div>
             <div style={{ height: 10, borderRadius: 5, background: C.border }}>
@@ -1447,25 +1521,62 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
         {unassigned > 0 && card('⚠️', unassigned, t.unassigned, C.warning)}
       </div>
 
-      {/* Bar charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
-        {barChart(t.carsByBranch,    carsPerBranch,    maxCars)}
-        {barChart(t.driversByBranch, driversPerBranch, maxDrivers)}
+      {/* KPI row: utilization + driver assignment */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
+        {card('📈', `${utilizationPct}%`, t.utilizationRate, C.primary,
+          `${statusInUse} / ${filtCars.length} ${t.cars}`)}
+        {card('🧑‍✈️', `${driverAssignPct}%`, t.driverAssignment, C.success,
+          `${assignedDrivers} ${t.assigned} · ${filtDrivers.length - assignedDrivers} ${t.unassignedDrivers}`)}
+      </div>
+
+      {/* Fleet status donut + bar charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
+
+        {/* Donut chart — Fleet Status */}
+        <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.fleetStatus}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <DonutChart
+              size={150} thickness={26}
+              segments={donutSegments}
+              label={filtCars.length}
+              sublabel={t.cars}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minWidth: 100 }}>
+              {donutSegments.map(seg => (
+                <div key={seg.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 12, color: C.textSecondary }}>{seg.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: seg.color }}>{seg.value}</span>
+                  <span style={{ fontSize: 11, color: C.textMuted, minWidth: 32, textAlign: 'right' }}>
+                    {filtCars.length > 0 ? `${Math.round((seg.value / filtCars.length) * 100)}%` : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bar charts stacked */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 10 : 16 }}>
+          {barChart(t.carsByBranch,    carsPerBranch,    maxCars)}
+          {barChart(t.driversByBranch, driversPerBranch, maxDrivers)}
+        </div>
       </div>
 
       {/* Top models + Branch table */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
 
         {/* Top models */}
         <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary }}>{t.topModels}</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.topModels}</h3>
           {topModels.length === 0
             ? <p style={{ color: C.textMuted, fontSize: 13 }}>{t.noData}</p>
             : topModels.map(([model, count], i) => (
               <div key={model} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
                   <span style={{ width: 22, height: 22, borderRadius: '50%', background: branchColor(i), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: C.textPrimaryPrimary, fontWeight: 500 }}>{model}</span>
+                  <span style={{ flex: 1, fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>{model}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: branchColor(i), background: branchColor(i) + '18', borderRadius: 10, padding: '2px 8px' }}>{count}</span>
                 </div>
                 <div style={{ height: 6, borderRadius: 3, background: C.border, marginLeft: 32 }}>
@@ -1478,7 +1589,7 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
 
         {/* Branch overview table */}
         <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary }}>{t.branchOverview}</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.branchOverview}</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -1492,7 +1603,7 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
                 ? <tr><td colSpan={3} style={{ padding: '20px 0', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{t.noData}</td></tr>
                 : filtBranches.map((b, i) => (
                   <tr key={b.id}>
-                    <td style={{ padding: '10px 0', fontSize: 13, color: C.textPrimaryPrimary, borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: '10px 0', fontSize: 13, color: C.textPrimary, borderBottom: `1px solid ${C.border}` }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: rtl ? 'row-reverse' : 'row' }}>
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: branchColor(i), flexShrink: 0 }} />
                         <span style={{ fontWeight: 500 }}>{b.name}</span>
@@ -1515,6 +1626,44 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Recently Added Vehicles */}
+      <div style={{ background: C.surface, borderRadius: 10, padding: 20, border: `1px solid ${C.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{t.recentVehicles}</h3>
+        {recentVehicles.length === 0
+          ? <p style={{ color: C.textMuted, fontSize: 13 }}>{t.noRecentVehicles}</p>
+          : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {recentVehicles.map((car, i) => {
+                const branch = branches.find(b => b.id === car.branch_id)
+                const statusColor = car.status === 'Available' ? C.success : car.status === 'In Use' ? C.primary : C.warning
+                return (
+                  <div key={car.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
+                    borderBottom: i < recentVehicles.length - 1 ? `1px solid ${C.border}` : 'none',
+                  }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 9, background: branchColor(i) + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🚗</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {car.plate} · {car.make} {car.model}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+                        {branch ? branch.name : t.noBranch} · {car.year || '—'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: statusColor, background: statusColor + '15', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                      {car.status || t.available}
+                    </span>
+                    <span style={{ fontSize: 11, color: C.textMuted, whiteSpace: 'nowrap' }}>
+                      {car.created_at ? new Date(car.created_at).toLocaleDateString() : ''}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        }
       </div>
     </div>
   )
@@ -1725,7 +1874,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const row   = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
   const lbl   = { fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
   const card  = { background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }
-  const inp   = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimaryPrimary, background: C.bg }
+  const inp   = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
   const msgOk = { color: C.success, fontSize: 13, background: C.success + '10', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.success}40` }
   const msgEr = { color: C.danger,  fontSize: 13, background: C.danger  + '10', padding: '8px 12px', borderRadius: 6, border: `1px solid ${C.danger}40`  }
 
@@ -1774,7 +1923,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 {/* Row top: name + buttons */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimaryPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
                       {co.name}
                       <span style={{
                         fontSize: 11, borderRadius: 4, padding: '2px 7px', fontWeight: 700,
@@ -1922,7 +2071,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimaryPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
                   {m.email}
                   {m.id === session.user.id && (
                     <span style={{ fontSize: 11, background: C.primary + '15', color: C.primary, borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>
@@ -2337,7 +2486,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
           paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
         }}>
-          <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimaryPrimary, flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
@@ -2346,7 +2495,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: isMobile ? '5px 8px' : '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
               <span style={{ fontSize: 12, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
-                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: isMobile ? 12 : 13, color: C.textPrimaryPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
+                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: isMobile ? 12 : 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
             <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
               background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`, color: '#fff', border: 'none',
