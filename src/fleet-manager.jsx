@@ -2438,6 +2438,21 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               🏢 {viewCompanyName}
             </span>
           )}
+          {session && !isMobile && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6,
+              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(255,255,255,0.85)',
+              whiteSpace: 'nowrap', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              <span style={{ width: 20, height: 20, borderRadius: '50%', background: C.primary,
+                color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 700, flexShrink: 0,
+              }}>
+                {session.user.email?.[0]?.toUpperCase()}
+              </span>
+              {session.user.email?.split('@')[0]}
+            </span>
+          )}
           {session && (
             <button onClick={onSignOut} style={{
               background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
