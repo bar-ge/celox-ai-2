@@ -2266,8 +2266,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     logActivity('add', 'car', `${form.plate} ${form.make}`)
   }
   async function updateCar(form) {
-    const c = { ...cleanCar(form), id: form.id }
-    const { error } = await supabase.from('cars').update(c).eq('id', c.id)
+    const { id: carId, ...carData } = { ...cleanCar(form), id: form.id }
+    const { error } = await supabase.from('cars').update(carData).eq('id', carId)
+    const c = { ...carData, id: carId }
     if (error) { setCrudError(error.message); return }
     // Log driver assignment change for history
     const prev = cars.find(x => x.id === form.id)
@@ -2310,10 +2311,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     logActivity('add', 'driver', form.name)
   }
   async function updateDriver(form) {
-    const d = { ...cleanDriver(form), id: form.id }
-    const { error } = await supabase.from('drivers').update(d).eq('id', d.id)
+    const { id: driverId, ...driverData } = { ...cleanDriver(form), id: form.id }
+    const { error } = await supabase.from('drivers').update(driverData).eq('id', driverId)
     if (error) { setCrudError(error.message); return }
-    setDrivers(p => p.map(x => x.id === d.id ? { ...x, ...d } : x)); setEditingId(null); setCrudError('')
+    setDrivers(p => p.map(x => x.id === driverId ? { ...x, ...driverData, id: driverId } : x)); setEditingId(null); setCrudError('')
     logActivity('update', 'driver', form.name)
   }
   async function deleteDriver(id) {
@@ -2331,10 +2332,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     logActivity('add', 'branch', form.name)
   }
   async function updateBranch(form) {
-    const b = { ...cleanBranch(form), id: form.id }
-    const { error } = await supabase.from('branches').update(b).eq('id', b.id)
+    const { id: branchId, ...branchData } = { ...cleanBranch(form), id: form.id }
+    const { error } = await supabase.from('branches').update(branchData).eq('id', branchId)
     if (error) { setCrudError(error.message); return }
-    setBranches(p => p.map(x => x.id === b.id ? { ...x, ...b } : x)); setEditingId(null); setCrudError('')
+    setBranches(p => p.map(x => x.id === branchId ? { ...x, ...branchData, id: branchId } : x)); setEditingId(null); setCrudError('')
     logActivity('update', 'branch', form.name)
   }
   async function deleteBranch(id) {
