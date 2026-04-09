@@ -289,6 +289,10 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
       role,
     })
     if (pe) { setError(pe.message); setLoading(false); return }
+    // Notify company admins that a new member joined
+    supabase.functions.invoke('send-notification', {
+      body: { type: 'member_joined', payload: { new_member_email: session.user.email, company_id: companyId } },
+    }).catch(() => {})
     onDone(session)
   }
 

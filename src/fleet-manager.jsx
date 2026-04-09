@@ -1820,6 +1820,10 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     } else {
       setInviteMsg(t.inviteSent(email))
       setInviteEmail('')
+      // Send email notification to invitee
+      supabase.functions.invoke('send-notification', {
+        body: { type: 'invite_sent', payload: { email, company_id: companyId, invited_by_email: session.user.email } },
+      }).catch(() => {})
     }
     setInviting(false)
   }
@@ -2268,6 +2272,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         driver_name: drivers.find(d => d.id === form.driver_id)?.name || null,
         assigned_at: new Date().toISOString(),
       }])
+    }
+    // Notify admins if status changed
+    if (prev && prev.status !== form.status) {
+      supabase.functions.invoke('send-notification', {
+        body: { type: 'status_changed', payload: {
+          plate: form.plate, make: form.make, model: form.model,
+          old_status: prev.status, new_status: form.status,
+          company_id: activeCompanyId, changed_by_email: session.user.email,
+        }},
+      }).catch(() => {})
     }
     setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null); setCrudError('')
     logActivity('update', 'car', `${form.plate} ${form.make}`)
