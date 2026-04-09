@@ -619,6 +619,7 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobi
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: C.rowHover }}>
+      <td style={td} />
       <td style={td}><input value={form.plate || ''} placeholder={t.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} /></td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -700,6 +701,7 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile,
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: C.rowHover }}>
+      <td style={td} />
       <td style={td}><input value={form.name || ''} placeholder={t.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.license || ''} placeholder={t.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
@@ -757,6 +759,7 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl, mobile }) {
   const inp = inlineInput(rtl)
   return (
     <tr style={{ background: C.rowHover }}>
+      <td style={td} />
       <td style={td}><input value={form.name || ''} placeholder={t.branchName} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.city || ''} placeholder={t.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.address || ''} placeholder={t.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
@@ -780,6 +783,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
   function submit() { if (form.plate.trim() && form.make.trim() && form.model.trim()) onAdd(form) }
   return (
     <tr style={{ background: C.rowAdd }}>
+      <td style={td} />
       <td style={td}><input autoFocus placeholder={t.plate} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -812,6 +816,7 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }
   function submit() { if (form.name.trim() && form.license.trim()) onAdd(form) }
   return (
     <tr style={{ background: C.rowAdd }}>
+      <td style={td} />
       <td style={td}><input autoFocus placeholder={t.name} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.license} value={form.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
@@ -1017,6 +1022,7 @@ function AddBranchRow({ onAdd, onCancel, t, rtl, mobile }) {
   function submit() { if (form.name.trim() && form.city.trim()) onAdd(form) }
   return (
     <tr style={{ background: C.rowAdd }}>
+      <td style={td} />
       <td style={td}><input autoFocus placeholder={t.branchName} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.city} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.address} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
