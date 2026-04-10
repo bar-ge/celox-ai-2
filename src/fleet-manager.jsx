@@ -1344,25 +1344,40 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
       ? validRows.filter(r => existingPlates.has(r.plate.trim().toLowerCase()))
       : []
 
-    const mapCar = r => ({ plate: r.plate, make: r.make, model: r.model,
-      year: r.year ? parseInt(r.year) : null,
-      status: r.status || 'Available', fuel: r.fuel || 'Petrol',
-      branch_id: branchByName(r.branch), driver_id: safeDriverId(r.driver_id) })
-
     let totalCount = 0
 
-    // Insert new rows
+    // Insert new cars WITHOUT driver_id first (avoids FK constraint entirely)
+    // Then link drivers in a second pass after the rows exist
     if (toInsert.length > 0) {
       const insertPayload = toInsert.map(r => type === 'cars'
-        ? { company_id: companyId, ...mapCar(r) }
-        : { company_id: companyId, name: r.name, license: r.license, phone: r.phone || null, status: r.status || 'Active', branch_id: branchByName(r.branch) }
+        ? { company_id: companyId, plate: r.plate, make: r.make, model: r.model,
+            year: r.year ? parseInt(r.year) : null,
+            status: r.status || 'Available', fuel: r.fuel || 'Petrol',
+            branch_id: branchByName(r.branch), driver_id: null }
+        : { company_id: companyId, name: r.name, license: r.license,
+            phone: r.phone || null, status: r.status || 'Active',
+            branch_id: branchByName(r.branch) }
       )
-      const { error: insErr } = await supabase.from(type === 'cars' ? 'cars' : 'drivers').insert(insertPayload)
+      const { data: inserted, error: insErr } = await supabase
+        .from(type === 'cars' ? 'cars' : 'drivers')
+        .insert(insertPayload)
+        .select('id, plate')
       if (insErr) { setError(insErr.message); setImporting(false); return }
       totalCount += toInsert.length
+
+      // Second pass: link drivers to newly inserted cars
+      if (type === 'cars' && inserted) {
+        for (const r of toInsert) {
+          const driverId = safeDriverId(r.driver_id)
+          if (!driverId) continue
+          const car = inserted.find(c => c.plate?.trim().toLowerCase() === r.plate.trim().toLowerCase())
+          if (!car) continue
+          await supabase.from('cars').update({ driver_id: driverId }).eq('id', car.id)
+        }
+      }
     }
 
-    // Update existing rows (driver_id + branch_id only — preserve other fields)
+    // Update existing rows (driver_id + branch_id only)
     for (const r of toUpdate) {
       const car = existingCars.find(c => c.plate?.trim().toLowerCase() === r.plate.trim().toLowerCase())
       if (!car) continue
@@ -1371,7 +1386,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
       const { error: updErr } = await supabase.from('cars')
         .update({ driver_id: driverId, branch_id: branchId })
         .eq('id', car.id)
-      if (updErr) { setError(`${updErr.message} (plate: ${r.plate}, driver_id: ${r.driver_id})`); setImporting(false); return }
+      if (updErr) { setError(updErr.message); setImporting(false); return }
       totalCount++
     }
 
