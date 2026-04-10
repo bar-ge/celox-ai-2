@@ -1262,22 +1262,26 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
         const parsed = dataLines.map(line => {
           const col = line.split(',').map(s => s.replace(/^"|"$/g, '').trim())
           if (type === 'cars') {
-            const driverName = col[7]?.trim() || ''
-            // Try to auto-match driver name to existing driver (case-insensitive)
-            const matchedDriver = driverName && driverName !== '0'
-              ? drivers.find(d => d.name?.trim().toLowerCase() === driverName.toLowerCase())
+            const driverName = (col[7]?.trim() === '0' ? '' : col[7]?.trim()) || ''
+            // Match: 1) exact, 2) csv name contained in db name, 3) db name contained in csv name
+            const matchedDriver = driverName
+              ? drivers.find(d => {
+                  const dn = d.name?.trim().toLowerCase()
+                  const cn = driverName.toLowerCase()
+                  return dn === cn || dn.includes(cn) || cn.includes(dn)
+                })
               : null
             return {
               _id: Math.random().toString(36).slice(2),
-              plate:      col[0] || '',
-              make:       col[1] || '',
-              model:      col[2] || '',
-              year:       col[3] || '',
-              status:     normalizeStatus(col[4]),
-              fuel:       normalizeFuel(col[5]),
-              branch:     col[6] || '',
-              driver_id:  matchedDriver ? String(matchedDriver.id) : '',
-              _driverName: driverName !== '0' ? driverName : '', // for display hint
+              plate:       col[0] || '',
+              make:        col[1] || '',
+              model:       col[2] || '',
+              year:        col[3] || '',
+              status:      normalizeStatus(col[4]),
+              fuel:        normalizeFuel(col[5]),
+              branch:      col[6] || '',
+              driver_id:   matchedDriver ? String(matchedDriver.id) : '',
+              _driverName: driverName, // always show CSV name as hint
               _skip: false,
             }
           } else {
@@ -1428,8 +1432,10 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                                 <option value="">—</option>
                                 {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                               </select>
-                              {r._driverName && !r.driver_id && (
-                                <div style={{ fontSize:10, color:C.warning, marginTop:2 }}>{r._driverName}</div>
+                              {r._driverName && (
+                                <div style={{ fontSize:10, color: r.driver_id ? C.success : C.warning, marginTop:2 }}>
+                                  {r._driverName}{r.driver_id ? ' ✓' : ' ⚠ לא נמצא'}
+                                </div>
                               )}
                             </td>
                           </> : <>
