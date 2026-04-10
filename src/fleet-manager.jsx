@@ -130,7 +130,7 @@ const T = {
     recentVehicles:'Recently Added Vehicles', noRecentVehicles:'No vehicles added yet.',
     assigned:'Assigned', unassignedDrivers:'Unassigned',
     // csv import (fuel)
-    importCsv:'Import CSV', csvImportTitle:'Import Fuel CSV', csvSelectFile:'Select CSV file from fuel company',
+    importCsv:'Import CSV', csvImportTitle:'Import Fuel CSV', csvSelectFile:'Import CSV file',
     csvPreview:'Preview', csvConfirmImport: n => `Import ${n} rows`, csvImporting:'Importing…',
     csvImported: n => `${n} records imported successfully.`, csvError:'Failed to read file.',
     csvStation:'Station', csvLiters:'Liters', csvFuelType:'Fuel Type',
@@ -230,7 +230,7 @@ const T = {
     recentVehicles:'רכבים שנוספו לאחרונה', noRecentVehicles:'טרם נוספו רכבים.',
     assigned:'משויכים', unassignedDrivers:'ללא שיוך',
     // csv import (fuel)
-    importCsv:'ייבוא CSV', csvImportTitle:'ייבוא קובץ דלק', csvSelectFile:'בחר קובץ CSV מחברת הדלק',
+    importCsv:'ייבוא CSV', csvImportTitle:'ייבוא קובץ דלק', csvSelectFile:'ייבוא קובץ CSV',
     csvPreview:'תצוגה מקדימה', csvConfirmImport: n => `ייבא ${n} שורות`, csvImporting:'מייבא…',
     csvImported: n => `${n} רשומות יובאו בהצלחה.`, csvError:'שגיאה בקריאת הקובץ.',
     csvStation:'תחנה', csvLiters:'ליטרים', csvFuelType:'סוג דלק',
