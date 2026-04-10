@@ -1358,21 +1358,31 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
             phone: r.phone || null, status: r.status || 'Active',
             branch_id: branchByName(r.branch) }
       )
-      const { data: inserted, error: insErr } = await supabase
+      const { error: insErr } = await supabase
         .from(type === 'cars' ? 'cars' : 'drivers')
         .insert(insertPayload)
-        .select('id, plate')
       if (insErr) { setError(insErr.message); setImporting(false); return }
       totalCount += toInsert.length
 
-      // Second pass: link drivers to newly inserted cars
-      if (type === 'cars' && inserted) {
-        for (const r of toInsert) {
-          const driverId = safeDriverId(r.driver_id)
-          if (!driverId) continue
-          const car = inserted.find(c => c.plate?.trim().toLowerCase() === r.plate.trim().toLowerCase())
-          if (!car) continue
-          await supabase.from('cars').update({ driver_id: driverId }).eq('id', car.id)
+      // Second pass: re-fetch inserted cars by plate, then link drivers
+      if (type === 'cars') {
+        const rowsWithDriver = toInsert.filter(r => safeDriverId(r.driver_id))
+        if (rowsWithDriver.length > 0) {
+          const plates = rowsWithDriver.map(r => r.plate.trim())
+          const { data: fetchedCars } = await supabase
+            .from('cars')
+            .select('id, plate')
+            .eq('company_id', companyId)
+            .in('plate', plates)
+          if (fetchedCars && fetchedCars.length > 0) {
+            for (const r of rowsWithDriver) {
+              const driverId = safeDriverId(r.driver_id)
+              if (!driverId) continue
+              const car = fetchedCars.find(c => c.plate?.trim() === r.plate.trim())
+              if (!car) continue
+              await supabase.from('cars').update({ driver_id: driverId }).eq('id', car.id)
+            }
+          }
         }
       }
     }
