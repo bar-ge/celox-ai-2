@@ -126,7 +126,7 @@ const T = {
     totalCost:'Total Cost', costByCategory:'Cost by Category', recentCosts:'Recent Costs',
     maintenanceDue:'Maintenance Due', maintenanceHistory:'Service History',
     // dashboard extras
-    fleetStatus:'Fleet Status', utilizationRate:'Utilization Rate', driverAssignment:'Driver Assignment',
+    fleetStatus:'Fleet Status', utilizationRate:'Driver Utilization Rate', driverAssignment:'Driver Assignment',
     recentVehicles:'Recently Added Vehicles', noRecentVehicles:'No vehicles added yet.',
     assigned:'Assigned', unassignedDrivers:'Unassigned',
     // csv import (fuel)
@@ -226,7 +226,7 @@ const T = {
     totalCost:'סה"כ עלות', costByCategory:'עלות לפי קטגוריה', recentCosts:'עלויות אחרונות',
     maintenanceDue:'תחזוקה קרובה', maintenanceHistory:'היסטוריית שירות',
     // dashboard extras
-    fleetStatus:'מצב הצי', utilizationRate:'אחוז ניצולת', driverAssignment:'שיוך נהגים',
+    fleetStatus:'מצב הצי', utilizationRate:'אחוז ניצולת נהגים', driverAssignment:'שיוך נהגים',
     recentVehicles:'רכבים שנוספו לאחרונה', noRecentVehicles:'טרם נוספו רכבים.',
     assigned:'משויכים', unassignedDrivers:'ללא שיוך',
     // csv import (fuel)
@@ -246,6 +246,18 @@ const T = {
     csvImportedDrivers: n => `${n} נהגים יובאו בהצלחה.`,
     csvRowError:'חלק מהשורות שגויות ויידולגו.',
   },
+}
+
+// ── Plate number formatter ───────────────────────────────────────────────────
+function formatPlate(plate) {
+  if (!plate) return plate
+  const digits = plate.replace(/\D/g, '')
+  const n = digits.length
+  if (n === 8) return `${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5,8)}`
+  if (n === 7) return `${digits.slice(0,2)}-${digits.slice(2,5)}-${digits.slice(5,7)}`
+  if (n === 6) return `${digits.slice(0,3)}-${digits.slice(3,6)}`
+  if (n >= 1)  return digits
+  return plate
 }
 
 // ── Shared style constants ───────────────────────────────────────────────────
@@ -613,7 +625,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
       <td style={{ ...td, fontWeight: 600, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <PhotoThumb path={car.photo_url} onUpload={onPhotoChange} t={t} />
-          {car.plate}
+          {formatPlate(car.plate)}
         </span>
       </td>
       <td style={td}>{car.make} {car.model}</td>
@@ -876,7 +888,7 @@ function MobileCarCard({ car, getBranchName, getBranchIdx, drivers, selected, on
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, paddingRight: rtl ? 0 : 22, paddingLeft: rtl ? 22 : 0 }}>
         <PhotoThumb path={car.photo_url} onUpload={onPhotoChange} t={t} />
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>{car.plate}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>{formatPlate(car.plate)}</div>
           <div style={{ fontSize: 12, color: C.textSecondary }}>{car.make} {car.model}{car.year ? ` · ${car.year}` : ''}</div>
         </div>
       </div>
@@ -1099,7 +1111,7 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
 
   const statusColor = { done: C.success, scheduled: C.primary, overdue: C.danger }
   const statusLabel = { done: t.done, scheduled: t.scheduled, overdue: t.overdue }
-  const carName = id => cars.find(c => c.id === parseInt(id))?.plate || id
+  const carName = id => formatPlate(cars.find(c => c.id === parseInt(id))?.plate) || id
 
   const upcoming = records.filter(r => r.next_due && new Date(r.next_due) > new Date() && r.status !== 'done')
   const overdueCount = records.filter(r => r.status === 'overdue').length
@@ -1264,12 +1276,14 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
           const col = line.split(',').map(s => s.replace(/^"|"$/g, '').trim())
           if (type === 'cars') {
             const driverName = (col[7]?.trim() === '0' ? '' : col[7]?.trim()) || ''
-            // Match: 1) exact, 2) csv name contained in db name, 3) db name contained in csv name
+            // Match: 1) exact full name, 2) every word in CSV name appears in DB name
             const matchedDriver = driverName
               ? drivers.find(d => {
                   const dn = d.name?.trim().toLowerCase()
-                  const cn = driverName.toLowerCase()
-                  return dn === cn || dn.includes(cn) || cn.includes(dn)
+                  const cn = driverName.trim().toLowerCase()
+                  if (dn === cn) return true
+                  const words = cn.split(/\s+/).filter(w => w.length > 1)
+                  return words.length > 0 && words.every(w => dn.includes(w))
                 })
               : null
             return {
@@ -1699,6 +1713,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const [costs, setCosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [selectedCostIds, setSelectedCostIds] = useState([])
   const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
@@ -1725,13 +1740,24 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
     if (!window.confirm(t.confirmDelete)) return
     await supabase.from('costs').delete().eq('id', id)
     setCosts(p => p.filter(c => c.id !== id))
+    setSelectedCostIds(p => p.filter(x => x !== id))
+  }
+  async function bulkDelCosts() {
+    if (!selectedCostIds.length || !window.confirm(t.confirmDelete)) return
+    await supabase.from('costs').delete().in('id', selectedCostIds)
+    setCosts(p => p.filter(c => !selectedCostIds.includes(c.id)))
+    setSelectedCostIds([])
+  }
+  function toggleCost(id) { setSelectedCostIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]) }
+  function toggleAllCosts() {
+    setSelectedCostIds(p => p.length === costs.length ? [] : costs.map(c => c.id))
   }
 
   const total = costs.reduce((s, c) => s + parseFloat(c.amount || 0), 0)
   const byCategory = costs.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + parseFloat(c.amount || 0); return acc }, {})
   const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted }
   const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther }
-  const carName = id => cars.find(c => c.id === parseInt(id))?.plate || id
+  const carName = id => formatPlate(cars.find(c => c.id === parseInt(id))?.plate) || id
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
@@ -1805,12 +1831,29 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
         )}
       </div>
 
+      {/* Bulk action bar */}
+      {selectedCostIds.length > 0 && (
+        <div style={{ background: C.primary + '10', border: `1px solid ${C.primary}30`, borderRadius: 8, padding: '8px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>{selectedCostIds.length} {t.itemsSelected}</span>
+          <button onClick={bulkDelCosts} style={{ ...btnDanger, padding: '5px 14px', fontSize: 12 }}>🗑 {t.bulkDelete}</button>
+          <button onClick={() => setSelectedCostIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 12 }}>✕</button>
+        </div>
+      )}
+
       {/* Table */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 420 : 500 }}>
             <thead>
               <tr>
+                <th style={{ ...mkTh(rtl, isMobile), width: 36, padding: '11px 12px' }}>
+                  <label style={{ cursor: 'pointer' }} title={t.selectAll}>
+                    <input type="checkbox"
+                      checked={costs.length > 0 && selectedCostIds.length === costs.length}
+                      onChange={toggleAllCosts}
+                      style={{ cursor: 'pointer' }} />
+                  </label>
+                </th>
                 {[t.serviceDate, t.category, t.amount, t.cars, t.driver, t.actions].map(h => (
                   <th key={h} style={mkTh(rtl, isMobile)}>{h}</th>
                 ))}
@@ -1818,11 +1861,14 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
+                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
               ) : costs.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
+                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
               ) : costs.map(c => (
-                <tr key={c.id} style={{ background: C.surface }}>
+                <tr key={c.id} style={{ background: selectedCostIds.includes(c.id) ? C.primary + '08' : C.surface }}>
+                  <td style={{ ...mkTd(rtl, isMobile), width: 36, padding: '10px 12px' }}>
+                    <input type="checkbox" checked={selectedCostIds.includes(c.id)} onChange={() => toggleCost(c.id)} style={{ cursor: 'pointer' }} />
+                  </td>
                   <td style={mkTd(rtl, isMobile)}>{c.date}</td>
                   <td style={mkTd(rtl, isMobile)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
                   <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>₪{parseFloat(c.amount).toFixed(2)}</td>
@@ -1946,7 +1992,8 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
   const statusInUse       = filtCars.filter(c => c.status === 'In Use').length
   const statusMaintenance = filtCars.filter(c => c.status === 'Maintenance').length
   const statusOther       = filtCars.length - statusAvailable - statusInUse - statusMaintenance
-  const utilizationPct = filtCars.length > 0 ? Math.round((statusInUse / filtCars.length) * 100) : 0
+  const driversWithCar  = filtDrivers.filter(d => filtCars.some(c => c.driver_id === d.id)).length
+  const utilizationPct  = filtDrivers.length > 0 ? Math.round((driversWithCar / filtDrivers.length) * 100) : 0
   const assignedDrivers   = filtDrivers.filter(d => d.branch_id).length
   const driverAssignPct   = filtDrivers.length > 0 ? Math.round((assignedDrivers / filtDrivers.length) * 100) : 0
 
@@ -2042,7 +2089,7 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
       {/* KPI row: utilization + driver assignment */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
         {card('📈', `${utilizationPct}%`, t.utilizationRate, C.primary,
-          `${statusInUse} / ${filtCars.length} ${t.cars}`)}
+          `${driversWithCar} / ${filtDrivers.length} ${t.drivers}`)}
         {card('🧑‍✈️', `${driverAssignPct}%`, t.driverAssignment, C.success,
           `${assignedDrivers} ${t.assigned} · ${filtDrivers.length - assignedDrivers} ${t.unassignedDrivers}`)}
       </div>
@@ -2164,14 +2211,14 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
                     <div style={{ width: 36, height: 36, borderRadius: 9, background: branchColor(i) + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🚗</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {car.plate} · {car.make} {car.model}
+                        {formatPlate(car.plate)} · {car.make} {car.model}
                       </div>
                       <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
                         {branch ? branch.name : t.noBranch} · {car.year || '—'}
                       </div>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 600, color: statusColor, background: statusColor + '15', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-                      {car.status || t.available}
+                      {car.status === 'Available' ? t.available : car.status === 'In Use' ? t.inUse : car.status === 'Maintenance' ? t.maintenance : car.status || t.available}
                     </span>
                     <span style={{ fontSize: 11, color: C.textMuted, whiteSpace: 'nowrap' }}>
                       {car.created_at ? new Date(car.created_at).toLocaleDateString() : ''}
