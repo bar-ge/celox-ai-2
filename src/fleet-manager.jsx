@@ -1331,11 +1331,11 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     setImporting(true)
     const branchByName = name => branches.find(b => b.name?.toLowerCase() === name?.toLowerCase())?.id || null
     const existingPlates = new Set(existingCars.map(c => c.plate?.trim().toLowerCase()))
-    // Parse and validate driver_id against the loaded drivers list
+    // IDs come from the drivers dropdown — just parse, no extra validation needed
     const safeDriverId = id => {
+      if (!id || id === '' || id === '0') return null
       const n = parseInt(id)
-      if (isNaN(n) || n <= 0) return null
-      return drivers.some(d => parseInt(d.id) === n) ? n : null
+      return !isNaN(n) && n > 0 ? n : null
     }
 
     const validRows = rows.filter(r => !r._skip).filter(r => type === 'cars' ? r.plate : r.name)
