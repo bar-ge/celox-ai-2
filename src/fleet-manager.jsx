@@ -3145,6 +3145,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 70px' }}>
               {/* Group header */}
               <div style={{ background: `linear-gradient(90deg, ${C.primary}, ${C.indigo})`, borderRadius: 10, padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                  <input type="checkbox"
+                    checked={selectedIds.length > 0 && (activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches).every(x => selectedIds.includes(x.id))}
+                    onChange={() => toggleSelectAll(activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches)}
+                    style={{ cursor: 'pointer', width: 15, height: 15 }} />
+                  <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 600 }}>{t.selectAll}</span>
+                </label>
                 <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>{boardLabel}</span>
                 <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
                 <div style={{ flex: 1 }} />
@@ -3232,11 +3239,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      <th style={{ ...mkTh(rtl, false), width: 36, padding: '11px 12px' }}>
-                        <input type="checkbox"
-                          checked={selectedIds.length > 0 && (activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches).every(x => selectedIds.includes(x.id))}
-                          onChange={() => toggleSelectAll(activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches)}
-                          style={{ cursor: 'pointer' }} />
+                      <th style={{ ...mkTh(rtl, false), width: 50, padding: '11px 12px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }} title={t.selectAll}>
+                          <input type="checkbox"
+                            checked={selectedIds.length > 0 && (activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches).every(x => selectedIds.includes(x.id))}
+                            onChange={() => toggleSelectAll(activeTab === 'cars' ? filteredCars : activeTab === 'drivers' ? filteredDrivers : filteredBranches)}
+                            style={{ cursor: 'pointer' }} />
+                        </label>
                       </th>
                       {activeTab === 'cars' && <>
                         <th style={mkTh(rtl, false)}>{t.plate}</th>
