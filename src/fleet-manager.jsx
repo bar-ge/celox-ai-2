@@ -1331,10 +1331,11 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     setImporting(true)
     const branchByName = name => branches.find(b => b.name?.toLowerCase() === name?.toLowerCase())?.id || null
     const existingPlates = new Set(existingCars.map(c => c.plate?.trim().toLowerCase()))
-    // Parse driver_id safely — IDs come from the dropdown so they're already valid
+    // Parse and validate driver_id against the loaded drivers list
     const safeDriverId = id => {
       const n = parseInt(id)
-      return !isNaN(n) && n > 0 ? n : null
+      if (isNaN(n) || n <= 0) return null
+      return drivers.some(d => parseInt(d.id) === n) ? n : null
     }
 
     const validRows = rows.filter(r => !r._skip).filter(r => type === 'cars' ? r.plate : r.name)
@@ -1365,10 +1366,12 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     for (const r of toUpdate) {
       const car = existingCars.find(c => c.plate?.trim().toLowerCase() === r.plate.trim().toLowerCase())
       if (!car) continue
+      const driverId = safeDriverId(r.driver_id)
+      const branchId = branchByName(r.branch) || car.branch_id || null
       const { error: updErr } = await supabase.from('cars')
-        .update({ driver_id: safeDriverId(r.driver_id), branch_id: branchByName(r.branch) || car.branch_id })
+        .update({ driver_id: driverId, branch_id: branchId })
         .eq('id', car.id)
-      if (updErr) { setError(updErr.message); setImporting(false); return }
+      if (updErr) { setError(`${updErr.message} (plate: ${r.plate}, driver_id: ${r.driver_id})`); setImporting(false); return }
       totalCount++
     }
 
@@ -1480,7 +1483,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                             <td style={td}>
                               <select value={r.driver_id} onChange={e => updateRow(r._id, 'driver_id', e.target.value)} style={{ ...cellSel, borderColor: r._driverName && !r.driver_id ? C.warning : C.border }}>
                                 <option value="">—</option>
-                                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                {drivers.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
                               </select>
                               {r._driverName && (
                                 <div style={{ fontSize:10, color: r.driver_id ? C.success : C.warning, marginTop:2 }}>
