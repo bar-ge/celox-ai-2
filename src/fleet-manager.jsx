@@ -1250,19 +1250,34 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
           : firstCells.some(c => ['name','שם','license','רישיון'].includes(c))
         const dataLines = hasHeader ? lines.slice(1) : lines
 
+        // Maps for Hebrew (and alternate) CSV values → English DB values
+        const STATUS_MAP = { 'בשימוש':'In Use', 'פנוי':'Available', 'תחזוקה':'Maintenance', 'in use':'In Use', 'available':'Available', 'maintenance':'Maintenance' }
+        const FUEL_MAP   = { 'בנזין':'Petrol', 'דיזל':'Diesel', 'חשמלי':'Electric', 'היברידי':'Hybrid', 'petrol':'Petrol', 'diesel':'Diesel', 'electric':'Electric', 'hybrid':'Hybrid' }
+        const DRV_STATUS_MAP = { 'פעיל':'Active', 'לא פעיל':'Inactive', 'active':'Active', 'inactive':'Inactive' }
+
+        const normalizeStatus = v => STATUS_MAP[v?.trim().toLowerCase()] || STATUS_MAP[v?.trim()] || 'Available'
+        const normalizeFuel   = v => FUEL_MAP[v?.trim().toLowerCase()]   || FUEL_MAP[v?.trim()]   || 'Petrol'
+        const normalizeDrvSt  = v => DRV_STATUS_MAP[v?.trim().toLowerCase()] || DRV_STATUS_MAP[v?.trim()] || 'Active'
+
         const parsed = dataLines.map(line => {
           const col = line.split(',').map(s => s.replace(/^"|"$/g, '').trim())
           if (type === 'cars') {
+            const driverName = col[7]?.trim() || ''
+            // Try to auto-match driver name to existing driver (case-insensitive)
+            const matchedDriver = driverName && driverName !== '0'
+              ? drivers.find(d => d.name?.trim().toLowerCase() === driverName.toLowerCase())
+              : null
             return {
               _id: Math.random().toString(36).slice(2),
-              plate:     col[0] || '',
-              make:      col[1] || '',
-              model:     col[2] || '',
-              year:      col[3] || '',
-              status:    col[4] || 'Available',
-              fuel:      col[5] || 'Petrol',
-              branch:    col[6] || '',
-              driver_id: '',             // selected driver id — chosen in preview
+              plate:      col[0] || '',
+              make:       col[1] || '',
+              model:      col[2] || '',
+              year:       col[3] || '',
+              status:     normalizeStatus(col[4]),
+              fuel:       normalizeFuel(col[5]),
+              branch:     col[6] || '',
+              driver_id:  matchedDriver ? String(matchedDriver.id) : '',
+              _driverName: driverName !== '0' ? driverName : '', // for display hint
               _skip: false,
             }
           } else {
@@ -1271,7 +1286,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
               name:    col[0] || '',
               license: col[1] || '',
               phone:   col[2] || '',
-              status:  col[3] || 'Active',
+              status:  normalizeDrvSt(col[3]),
               branch:  col[4] || '',
               _skip: false,
             }
@@ -1409,10 +1424,13 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                               </select>
                             </td>
                             <td style={td}>
-                              <select value={r.driver_id} onChange={e => updateRow(r._id, 'driver_id', e.target.value)} style={cellSel}>
+                              <select value={r.driver_id} onChange={e => updateRow(r._id, 'driver_id', e.target.value)} style={{ ...cellSel, borderColor: r._driverName && !r.driver_id ? C.warning : C.border }}>
                                 <option value="">—</option>
                                 {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                               </select>
+                              {r._driverName && !r.driver_id && (
+                                <div style={{ fontSize:10, color:C.warning, marginTop:2 }}>{r._driverName}</div>
+                              )}
                             </td>
                           </> : <>
                             <td style={td}><input value={r.name}    onChange={e => updateRow(r._id, 'name',    e.target.value)} style={cellInp} /></td>
