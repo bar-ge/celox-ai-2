@@ -1331,11 +1331,10 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     setImporting(true)
     const branchByName = name => branches.find(b => b.name?.toLowerCase() === name?.toLowerCase())?.id || null
     const existingPlates = new Set(existingCars.map(c => c.plate?.trim().toLowerCase()))
-    // IDs come from the drivers dropdown — just parse, no extra validation needed
+    // driver IDs are text (UUID) — just validate non-empty/non-zero
     const safeDriverId = id => {
       if (!id || id === '' || id === '0') return null
-      const n = parseInt(id)
-      return !isNaN(n) && n > 0 ? n : null
+      return String(id).trim() || null
     }
 
     const validRows = rows.filter(r => !r._skip).filter(r => type === 'cars' ? r.plate : r.name)
@@ -1364,25 +1363,22 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
       if (insErr) { setError(insErr.message); setImporting(false); return }
       totalCount += toInsert.length
 
-      // Second pass: re-fetch inserted cars by plate, then link drivers
+      // Second pass: link drivers by updating via plate + company_id (no ID fetch needed)
       if (type === 'cars') {
-        const rowsWithDriver = toInsert.filter(r => safeDriverId(r.driver_id))
-        if (rowsWithDriver.length > 0) {
-          const plates = rowsWithDriver.map(r => r.plate.trim())
-          const { data: fetchedCars } = await supabase
-            .from('cars')
-            .select('id, plate')
+        // Group plates by driver_id for bulk updates
+        const byDriver = {}
+        for (const r of toInsert) {
+          const driverId = safeDriverId(r.driver_id)
+          if (!driverId) continue
+          if (!byDriver[driverId]) byDriver[driverId] = []
+          byDriver[driverId].push(r.plate.trim())
+        }
+        for (const [driverId, driverPlates] of Object.entries(byDriver)) {
+          const { error: linkErr } = await supabase.from('cars')
+            .update({ driver_id: driverId })
             .eq('company_id', companyId)
-            .in('plate', plates)
-          if (fetchedCars && fetchedCars.length > 0) {
-            for (const r of rowsWithDriver) {
-              const driverId = safeDriverId(r.driver_id)
-              if (!driverId) continue
-              const car = fetchedCars.find(c => c.plate?.trim() === r.plate.trim())
-              if (!car) continue
-              await supabase.from('cars').update({ driver_id: driverId }).eq('id', car.id)
-            }
-          }
+            .in('plate', driverPlates)
+          if (linkErr) { setError(linkErr.message); setImporting(false); return }
         }
       }
     }
