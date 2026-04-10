@@ -1368,7 +1368,6 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const [costs, setCosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [showImport, setShowImport] = useState(false)
   const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
@@ -1430,14 +1429,9 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
         <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>💰 {t.costsTab}</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setShowImport(true)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.15)' }}>
-              📥 {t.importCsv}
-            </button>
-            <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
-              {showAdd ? t.cancel : t.newItem}
-            </button>
-          </div>
+          <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+            {showAdd ? t.cancel : t.newItem}
+          </button>
         </div>
         {showAdd && (
           <form onSubmit={add} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
@@ -1479,17 +1473,6 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           </form>
         )}
       </div>
-
-      <CsvImportModal
-        open={showImport}
-        onClose={() => setShowImport(false)}
-        cars={cars}
-        drivers={drivers}
-        companyId={companyId}
-        t={t}
-        rtl={rtl}
-        onImported={() => { setShowImport(false); load() }}
-      />
 
       {/* Table */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
@@ -2350,6 +2333,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   // New feature state
   const [selectedIds, setSelectedIds] = useState([])
   const [dashFilter, setDashFilter]   = useState('all')
+  const [showCsvImport, setShowCsvImport] = useState(false)
+  const [costsReloadKey, setCostsReloadKey] = useState(0)
   const realtimeRef = useRef(null)
 
   const t   = T[lang]
@@ -2778,8 +2763,32 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
               {isMobile ? '+' : t.newItem}
             </button>
+            {activeTab === 'costs' && activeCompanyId && (
+              <button onClick={() => setShowCsvImport(true)} style={{
+                background: 'transparent', color: C.primary, border: `1px solid ${C.primary}`,
+                borderRadius: 7, padding: isMobile ? '6px 10px' : '7px 14px',
+                fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}>
+                📥 {t.importCsv}
+              </button>
+            )}
           </>}
         </div>
+
+        {/* CSV Import Modal — rendered at top level so it's never clipped */}
+        {showCsvImport && (
+          <CsvImportModal
+            open={showCsvImport}
+            onClose={() => setShowCsvImport(false)}
+            cars={cars}
+            drivers={drivers}
+            companyId={activeCompanyId}
+            t={t}
+            rtl={rtl}
+            onImported={() => { setShowCsvImport(false); setCostsReloadKey(k => k + 1) }}
+          />
+        )}
 
         {/* Dashboard view */}
         {activeTab === 'dashboard' && (
@@ -2798,7 +2807,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Costs tab */}
         {activeTab === 'costs' && activeCompanyId && (
-          <CostsTab cars={cars} drivers={drivers} companyId={activeCompanyId} t={t} rtl={rtl} />
+          <CostsTab key={costsReloadKey} cars={cars} drivers={drivers} companyId={activeCompanyId} t={t} rtl={rtl} />
         )}
 
         {/* Board */}
