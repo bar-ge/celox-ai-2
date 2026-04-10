@@ -1235,10 +1235,11 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     const reader = new FileReader()
     reader.onload = evt => {
       try {
-        // Try UTF-8 first, fall back to windows-1255 for Hebrew files
-        let text
-        try { text = new TextDecoder('utf-8').decode(evt.target.result) }
-        catch { text = new TextDecoder('windows-1255').decode(evt.target.result) }
+        // Decode: try UTF-8 first; if result contains replacement chars (garbled), use windows-1255
+        let text = new TextDecoder('utf-8').decode(evt.target.result)
+        if (text.includes('\uFFFD')) {
+          text = new TextDecoder('windows-1255').decode(evt.target.result)
+        }
         const lines = text.split(/\r?\n/).filter(l => l.trim())
         if (lines.length === 0) { setError(t.csvNoRows); return }
 
