@@ -1320,9 +1320,9 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     onImported()
   }
 
-  const CAR_STATUSES   = ['Available', 'In Use', 'Maintenance']
-  const CAR_FUELS      = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
-  const DRV_STATUSES   = ['Active', 'Inactive']
+  const CAR_STATUSES   = [{ v:'Available', l:t.available }, { v:'In Use', l:t.inUse }, { v:'Maintenance', l:t.maintenance }]
+  const CAR_FUELS      = [{ v:'Petrol', l:t.petrol }, { v:'Diesel', l:t.diesel }, { v:'Electric', l:t.electric }, { v:'Hybrid', l:t.hybrid }]
+  const DRV_STATUSES   = [{ v:'Active', l:t.active }, { v:'Inactive', l:t.inactive }]
 
   const overlay  = { position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }
   const box      = { background:C.surface, borderRadius:16, width:'100%', maxWidth:960, maxHeight:'92vh', display:'flex', flexDirection:'column', boxShadow:'0 24px 80px rgba(0,0,0,0.25)', direction: rtl ? 'rtl' : 'ltr' }
@@ -1391,12 +1391,12 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                             <td style={{ ...td, width:70 }}><input value={r.year} type="number" onChange={e => updateRow(r._id, 'year', e.target.value)} style={cellInp} /></td>
                             <td style={td}>
                               <select value={r.status} onChange={e => updateRow(r._id, 'status', e.target.value)} style={cellSel}>
-                                {CAR_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                                {CAR_STATUSES.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
                               </select>
                             </td>
                             <td style={td}>
                               <select value={r.fuel} onChange={e => updateRow(r._id, 'fuel', e.target.value)} style={cellSel}>
-                                {CAR_FUELS.map(f => <option key={f} value={f}>{f}</option>)}
+                                {CAR_FUELS.map(f => <option key={f.v} value={f.v}>{f.l}</option>)}
                               </select>
                             </td>
                             <td style={td}>
@@ -1411,7 +1411,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                             <td style={td}><input value={r.phone}   onChange={e => updateRow(r._id, 'phone',   e.target.value)} style={cellInp} /></td>
                             <td style={td}>
                               <select value={r.status} onChange={e => updateRow(r._id, 'status', e.target.value)} style={cellSel}>
-                                {DRV_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                                {DRV_STATUSES.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
                               </select>
                             </td>
                             <td style={td}>
