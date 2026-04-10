@@ -1316,6 +1316,12 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     setImporting(true)
     const branchByName = name => branches.find(b => b.name?.toLowerCase() === name?.toLowerCase())?.id || null
     const existingPlates = new Set(existingCars.map(c => c.plate?.trim().toLowerCase()))
+    // Validate driver_id actually exists in the drivers list before inserting
+    const validDriverId = id => {
+      if (!id) return null
+      const parsed = parseInt(id)
+      return drivers.find(d => d.id === parsed) ? parsed : null
+    }
 
     const toInsert = rows
       .filter(r => !r._skip)
@@ -1326,7 +1332,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
             year: r.year ? parseInt(r.year) : null,
             status: r.status || 'Available', fuel: r.fuel || 'Petrol',
             branch_id: branchByName(r.branch),
-            driver_id: r.driver_id ? parseInt(r.driver_id) : null }
+            driver_id: validDriverId(r.driver_id) }
         : { company_id: companyId, name: r.name, license: r.license,
             phone: r.phone || null, status: r.status || 'Active',
             branch_id: branchByName(r.branch) }
