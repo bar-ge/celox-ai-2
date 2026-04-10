@@ -1184,7 +1184,7 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
                   <td style={mkTd(rtl, isMobile)}>{r.type}</td>
                   <td style={mkTd(rtl, isMobile)}>{r.date}</td>
                   <td style={mkTd(rtl, isMobile)}>{r.next_due || '—'}</td>
-                  <td style={mkTd(rtl, isMobile)}>{r.cost ? `$${parseFloat(r.cost).toFixed(2)}` : '—'}</td>
+                  <td style={mkTd(rtl, isMobile)}>{r.cost ? `₪${parseFloat(r.cost).toFixed(2)}` : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textMuted} /></td>
                   <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(r.id)}>{t.delete}</ActionBtn></td>
                 </tr>
@@ -1410,7 +1410,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           <div style={{ height: 3, background: gradient }} />
           <div style={{ padding: '16px 20px' }}>
             <span style={{ fontSize: 22 }}>💰</span>
-            <p style={{ margin: '8px 0 0', fontSize: 30, fontWeight: 800, color: C.primary }}>${total.toFixed(2)}</p>
+            <p style={{ margin: '8px 0 0', fontSize: 30, fontWeight: 800, color: C.primary }}>₪{total.toFixed(2)}</p>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: C.textSecondary }}>{t.totalCost}</p>
           </div>
         </div>
@@ -1418,7 +1418,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           <div key={cat} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ height: 3, background: catColors[cat] || C.textMuted }} />
             <div style={{ padding: '16px 20px' }}>
-              <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: catColors[cat] || C.textMuted }}>${amt.toFixed(2)}</p>
+              <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: catColors[cat] || C.textMuted }}>₪{amt.toFixed(2)}</p>
               <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{catLabel[cat] || cat}</p>
             </div>
           </div>
@@ -1494,7 +1494,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                 <tr key={c.id} style={{ background: C.surface }}>
                   <td style={mkTd(rtl, isMobile)}>{c.date}</td>
                   <td style={mkTd(rtl, isMobile)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
-                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>${parseFloat(c.amount).toFixed(2)}</td>
+                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>₪{parseFloat(c.amount).toFixed(2)}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.car_id ? carName(c.car_id) : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
