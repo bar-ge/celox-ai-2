@@ -1316,11 +1316,12 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     setImporting(true)
     const branchByName = name => branches.find(b => b.name?.toLowerCase() === name?.toLowerCase())?.id || null
     const existingPlates = new Set(existingCars.map(c => c.plate?.trim().toLowerCase()))
-    // Validate driver_id actually exists in the drivers list before inserting
-    const validDriverId = id => {
-      if (!id) return null
-      const parsed = parseInt(id)
-      return drivers.find(d => d.id === parsed) ? parsed : null
+    // Build a Set of valid driver IDs (as numbers) from the drivers prop
+    const validDriverIds = new Set(drivers.map(d => Number(d.id)))
+    const safeDriverId = id => {
+      if (!id && id !== 0) return null
+      const n = Number(id)
+      return !isNaN(n) && n > 0 && validDriverIds.has(n) ? n : null
     }
 
     const toInsert = rows
@@ -1332,7 +1333,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
             year: r.year ? parseInt(r.year) : null,
             status: r.status || 'Available', fuel: r.fuel || 'Petrol',
             branch_id: branchByName(r.branch),
-            driver_id: validDriverId(r.driver_id) }
+            driver_id: safeDriverId(r.driver_id) }
         : { company_id: companyId, name: r.name, license: r.license,
             phone: r.phone || null, status: r.status || 'Active',
             branch_id: branchByName(r.branch) }
@@ -1391,6 +1392,11 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
           {rows.length > 0 && !done && (
             <>
               <p style={{ margin:'0 0 10px', fontSize:12, color:C.textMuted }}>✏️ {t.csvEditNote}</p>
+              {type === 'cars' && drivers.length === 0 && (
+                <div style={{ background:'#fff7ed', color:'#b45309', borderRadius:8, padding:'8px 12px', marginBottom:10, fontSize:12 }}>
+                  ⚠️ {rtl ? 'לא נמצאו נהגים במערכת. ייבא נהגים קודם כדי לקשר רכבים.' : 'No drivers found in the system. Import drivers first to link vehicles.'}
+                </div>
+              )}
               <div style={{ overflowX:'auto', borderRadius:8, border:`1px solid ${C.border}` }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth: type === 'cars' ? 720 : 560 }}>
                   <thead>
