@@ -1219,13 +1219,14 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
 // Generic editable CSV import for cars and drivers.
 // type = 'cars' | 'drivers'
 function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCars, drivers, companyId, t, rtl, onImported }) {
-  const [rows, setRows] = useState([])      // array of editable row objects
+  const [rows, setRows] = useState([])
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
   const [done, setDone] = useState('')
   const [fileName, setFileName] = useState('')
+  const [updateMode, setUpdateMode] = useState(false) // update existing instead of skip
 
-  function reset() { setRows([]); setError(''); setDone(''); setFileName('') }
+  function reset() { setRows([]); setError(''); setDone(''); setFileName(''); setUpdateMode(false) }
 
   // ── Parse CSV into rows ──
   function handleFile(e) {
@@ -1324,28 +1325,45 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
       return !isNaN(n) && n > 0 && validDriverIds.has(n) ? n : null
     }
 
-    const toInsert = rows
-      .filter(r => !r._skip)
-      .filter(r => type === 'cars' ? r.plate : r.name)
-      .filter(r => type === 'cars' ? !existingPlates.has(r.plate.trim().toLowerCase()) : true)
-      .map(r => type === 'cars'
-        ? { company_id: companyId, plate: r.plate, make: r.make, model: r.model,
-            year: r.year ? parseInt(r.year) : null,
-            status: r.status || 'Available', fuel: r.fuel || 'Petrol',
-            branch_id: branchByName(r.branch),
-            driver_id: safeDriverId(r.driver_id) }
-        : { company_id: companyId, name: r.name, license: r.license,
-            phone: r.phone || null, status: r.status || 'Active',
-            branch_id: branchByName(r.branch) }
-      )
+    const validRows = rows.filter(r => !r._skip).filter(r => type === 'cars' ? r.plate : r.name)
+    const toInsert = validRows.filter(r => type === 'cars' ? !existingPlates.has(r.plate.trim().toLowerCase()) : true)
+    const toUpdate = type === 'cars' && updateMode
+      ? validRows.filter(r => existingPlates.has(r.plate.trim().toLowerCase()))
+      : []
 
-    if (toInsert.length === 0) { setError(t.csvNoRows); setImporting(false); return }
-    const table = type === 'cars' ? 'cars' : 'drivers'
-    const { error: insErr } = await supabase.from(table).insert(toInsert)
+    const mapCar = r => ({ plate: r.plate, make: r.make, model: r.model,
+      year: r.year ? parseInt(r.year) : null,
+      status: r.status || 'Available', fuel: r.fuel || 'Petrol',
+      branch_id: branchByName(r.branch), driver_id: safeDriverId(r.driver_id) })
+
+    let totalCount = 0
+
+    // Insert new rows
+    if (toInsert.length > 0) {
+      const insertPayload = toInsert.map(r => type === 'cars'
+        ? { company_id: companyId, ...mapCar(r) }
+        : { company_id: companyId, name: r.name, license: r.license, phone: r.phone || null, status: r.status || 'Active', branch_id: branchByName(r.branch) }
+      )
+      const { error: insErr } = await supabase.from(type === 'cars' ? 'cars' : 'drivers').insert(insertPayload)
+      if (insErr) { setError(insErr.message); setImporting(false); return }
+      totalCount += toInsert.length
+    }
+
+    // Update existing rows (driver_id + branch_id only — preserve other fields)
+    for (const r of toUpdate) {
+      const car = existingCars.find(c => c.plate?.trim().toLowerCase() === r.plate.trim().toLowerCase())
+      if (!car) continue
+      const { error: updErr } = await supabase.from('cars')
+        .update({ driver_id: safeDriverId(r.driver_id), branch_id: branchByName(r.branch) || car.branch_id })
+        .eq('id', car.id)
+      if (updErr) { setError(updErr.message); setImporting(false); return }
+      totalCount++
+    }
+
     setImporting(false)
-    if (insErr) { setError(insErr.message); return }
+    if (totalCount === 0) { setError(t.csvNoRows); return }
     const msg = type === 'cars' ? t.csvImportedCars : t.csvImportedDrivers
-    setDone(typeof msg === 'function' ? msg(toInsert.length) : `${toInsert.length} imported.`)
+    setDone(typeof msg === 'function' ? msg(totalCount) : `${totalCount} imported.`)
     onImported()
   }
 
@@ -1391,7 +1409,15 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
 
           {rows.length > 0 && !done && (
             <>
-              <p style={{ margin:'0 0 10px', fontSize:12, color:C.textMuted }}>✏️ {t.csvEditNote}</p>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, flexWrap:'wrap', gap:8 }}>
+                <p style={{ margin:0, fontSize:12, color:C.textMuted }}>✏️ {t.csvEditNote}</p>
+                {type === 'cars' && (
+                  <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, fontWeight:600, color: updateMode ? C.primary : C.textSecondary }}>
+                    <input type="checkbox" checked={updateMode} onChange={e => setUpdateMode(e.target.checked)} style={{ cursor:'pointer' }} />
+                    {rtl ? 'עדכן רכבים קיימים (קשר נהג)' : 'Update existing vehicles (link driver)'}
+                  </label>
+                )}
+              </div>
               {type === 'cars' && drivers.length === 0 && (
                 <div style={{ background:'#fff7ed', color:'#b45309', borderRadius:8, padding:'8px 12px', marginBottom:10, fontSize:12 }}>
                   ⚠️ {rtl ? 'לא נמצאו נהגים במערכת. ייבא נהגים קודם כדי לקשר רכבים.' : 'No drivers found in the system. Import drivers first to link vehicles.'}
@@ -1487,7 +1513,11 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
           <div style={{ padding:'12px 20px', borderTop:`1px solid ${C.border}`, display:'flex', justifyContent:'flex-end', gap:10, flexShrink:0 }}>
             <button onClick={() => { reset(); onClose() }} style={{ ...btnGhost, padding:'8px 18px', fontSize:13 }}>{t.cancel}</button>
             <button onClick={handleImport} disabled={importing} style={{ ...btnPrimary, padding:'8px 20px', fontSize:13, opacity: importing ? 0.7 : 1 }}>
-              {importing ? t.csvImporting : (typeof t.csvConfirmImport === 'function' ? t.csvConfirmImport(rows.filter(r => type !== 'cars' || !existingPlatesSet.has(r.plate?.trim().toLowerCase())).length) : 'Import')}
+              {importing ? t.csvImporting : (typeof t.csvConfirmImport === 'function' ? t.csvConfirmImport(
+                updateMode
+                  ? rows.filter(r => !r._skip).length
+                  : rows.filter(r => !r._skip && (type !== 'cars' || !existingPlatesSet.has(r.plate?.trim().toLowerCase()))).length
+              ) : 'Import')}
             </button>
           </div>
         )}
