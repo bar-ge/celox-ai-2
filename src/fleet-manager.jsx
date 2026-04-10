@@ -129,13 +129,22 @@ const T = {
     fleetStatus:'Fleet Status', utilizationRate:'Utilization Rate', driverAssignment:'Driver Assignment',
     recentVehicles:'Recently Added Vehicles', noRecentVehicles:'No vehicles added yet.',
     assigned:'Assigned', unassignedDrivers:'Unassigned',
-    // csv import
+    // csv import (fuel)
     importCsv:'Import CSV', csvImportTitle:'Import Fuel CSV', csvSelectFile:'Select CSV file from fuel company',
     csvPreview:'Preview', csvConfirmImport: n => `Import ${n} rows`, csvImporting:'Importing…',
     csvImported: n => `${n} records imported successfully.`, csvError:'Failed to read file.',
     csvStation:'Station', csvLiters:'Liters', csvFuelType:'Fuel Type',
     csvSkipNote:'Rows where the vehicle plate is not found in the system will be skipped.',
     csvNoRows:'No valid rows found in file.', csvVehicleNotFound:'Not found',
+    // csv import (cars/drivers)
+    importCsvCars:'Import Vehicles CSV', importCsvDrivers:'Import Drivers CSV',
+    csvCarsCols:'Expected columns: Plate, Make, Model, Year, Status, Fuel, Branch',
+    csvDriversCols:'Expected columns: Name, License, Phone, Status, Branch',
+    csvEditNote:'You can edit any row before importing.',
+    csvDuplicateSkipped:'(duplicate plate — will be skipped)',
+    csvImportedCars: n => `${n} vehicles imported successfully.`,
+    csvImportedDrivers: n => `${n} drivers imported successfully.`,
+    csvRowError:'Some rows have errors and will be skipped.',
   },
   he: {
     appName:'מנהל הצי', dashboard:'לוח בקרה', fleet:'צי רכבים', drivers:'נהגים', branches:'סניפים', cars:'רכבים',
@@ -220,13 +229,22 @@ const T = {
     fleetStatus:'מצב הצי', utilizationRate:'אחוז ניצולת', driverAssignment:'שיוך נהגים',
     recentVehicles:'רכבים שנוספו לאחרונה', noRecentVehicles:'טרם נוספו רכבים.',
     assigned:'משויכים', unassignedDrivers:'ללא שיוך',
-    // csv import
+    // csv import (fuel)
     importCsv:'ייבוא CSV', csvImportTitle:'ייבוא קובץ דלק', csvSelectFile:'בחר קובץ CSV מחברת הדלק',
     csvPreview:'תצוגה מקדימה', csvConfirmImport: n => `ייבא ${n} שורות`, csvImporting:'מייבא…',
     csvImported: n => `${n} רשומות יובאו בהצלחה.`, csvError:'שגיאה בקריאת הקובץ.',
     csvStation:'תחנה', csvLiters:'ליטרים', csvFuelType:'סוג דלק',
     csvSkipNote:'שורות שבהן לוחית הרישוי אינה קיימת במערכת תדולגנה.',
     csvNoRows:'לא נמצאו שורות תקינות בקובץ.', csvVehicleNotFound:'לא נמצא',
+    // csv import (cars/drivers)
+    importCsvCars:'ייבוא רכבים CSV', importCsvDrivers:'ייבוא נהגים CSV',
+    csvCarsCols:'עמודות נדרשות: לוחית, יצרן, דגם, שנה, סטטוס, דלק, סניף',
+    csvDriversCols:'עמודות נדרשות: שם, רישיון, טלפון, סטטוס, סניף',
+    csvEditNote:'ניתן לערוך כל שורה לפני הייבוא.',
+    csvDuplicateSkipped:'(לוחית כפולה — תדולג)',
+    csvImportedCars: n => `${n} רכבים יובאו בהצלחה.`,
+    csvImportedDrivers: n => `${n} נהגים יובאו בהצלחה.`,
+    csvRowError:'חלק מהשורות שגויות ויידולגו.',
   },
 }
 
@@ -1195,6 +1213,244 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
       </div>
     </div>
   )
+}
+
+// ── Cars / Drivers CSV Import Modal ──────────────────────────────────────────
+// Generic editable CSV import for cars and drivers.
+// type = 'cars' | 'drivers'
+function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCars, companyId, t, rtl, onImported }) {
+  const [rows, setRows] = useState([])      // array of editable row objects
+  const [error, setError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [done, setDone] = useState('')
+  const [fileName, setFileName] = useState('')
+
+  function reset() { setRows([]); setError(''); setDone(''); setFileName('') }
+
+  // ── Parse CSV into rows ──
+  function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setFileName(file.name); setError(''); setDone(''); setRows([])
+    const reader = new FileReader()
+    reader.onload = evt => {
+      try {
+        // Try UTF-8 first, fall back to windows-1255 for Hebrew files
+        let text
+        try { text = new TextDecoder('utf-8').decode(evt.target.result) }
+        catch { text = new TextDecoder('windows-1255').decode(evt.target.result) }
+        const lines = text.split(/\r?\n/).filter(l => l.trim())
+        if (lines.length === 0) { setError(t.csvNoRows); return }
+
+        // Detect header row — skip if first cell matches known headers
+        const firstCells = lines[0].split(',').map(s => s.trim().toLowerCase())
+        const hasHeader = type === 'cars'
+          ? firstCells.some(c => ['plate','לוחית','make','יצרן','model','דגם'].includes(c))
+          : firstCells.some(c => ['name','שם','license','רישיון'].includes(c))
+        const dataLines = hasHeader ? lines.slice(1) : lines
+
+        const parsed = dataLines.map(line => {
+          const col = line.split(',').map(s => s.replace(/^"|"$/g, '').trim())
+          if (type === 'cars') {
+            return {
+              _id: Math.random().toString(36).slice(2),
+              plate:     col[0] || '',
+              make:      col[1] || '',
+              model:     col[2] || '',
+              year:      col[3] || '',
+              status:    col[4] || 'Available',
+              fuel:      col[5] || 'Petrol',
+              branch:    col[6] || '',   // branch name — resolved on import
+              _skip: false,
+            }
+          } else {
+            return {
+              _id: Math.random().toString(36).slice(2),
+              name:    col[0] || '',
+              license: col[1] || '',
+              phone:   col[2] || '',
+              status:  col[3] || 'Active',
+              branch:  col[4] || '',
+              _skip: false,
+            }
+          }
+        }).filter(r => type === 'cars' ? r.plate : r.name)
+
+        if (parsed.length === 0) { setError(t.csvNoRows); return }
+        setRows(parsed)
+      } catch { setError(t.csvError) }
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
+  function updateRow(id, field, value) {
+    setRows(prev => prev.map(r => r._id === id ? { ...r, [field]: value } : r))
+  }
+  function removeRow(id) {
+    setRows(prev => prev.filter(r => r._id !== id))
+  }
+
+  // ── Import ──
+  async function handleImport() {
+    setImporting(true)
+    const branchByName = name => branches.find(b => b.name?.toLowerCase() === name?.toLowerCase())?.id || null
+    const existingPlates = new Set(existingCars.map(c => c.plate?.trim().toLowerCase()))
+
+    const toInsert = rows
+      .filter(r => !r._skip)
+      .filter(r => type === 'cars' ? r.plate : r.name)
+      .filter(r => type === 'cars' ? !existingPlates.has(r.plate.trim().toLowerCase()) : true)
+      .map(r => type === 'cars'
+        ? { company_id: companyId, plate: r.plate, make: r.make, model: r.model,
+            year: r.year ? parseInt(r.year) : null,
+            status: r.status || 'Available', fuel: r.fuel || 'Petrol',
+            branch_id: branchByName(r.branch), driver_id: null }
+        : { company_id: companyId, name: r.name, license: r.license,
+            phone: r.phone || null, status: r.status || 'Active',
+            branch_id: branchByName(r.branch) }
+      )
+
+    if (toInsert.length === 0) { setError(t.csvNoRows); setImporting(false); return }
+    const table = type === 'cars' ? 'cars' : 'drivers'
+    const { error: insErr } = await supabase.from(table).insert(toInsert)
+    setImporting(false)
+    if (insErr) { setError(insErr.message); return }
+    const msg = type === 'cars' ? t.csvImportedCars : t.csvImportedDrivers
+    setDone(typeof msg === 'function' ? msg(toInsert.length) : `${toInsert.length} imported.`)
+    onImported()
+  }
+
+  const CAR_STATUSES   = ['Available', 'In Use', 'Maintenance']
+  const CAR_FUELS      = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
+  const DRV_STATUSES   = ['Active', 'Inactive']
+
+  const overlay  = { position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }
+  const box      = { background:C.surface, borderRadius:16, width:'100%', maxWidth:960, maxHeight:'92vh', display:'flex', flexDirection:'column', boxShadow:'0 24px 80px rgba(0,0,0,0.25)', direction: rtl ? 'rtl' : 'ltr' }
+  const thStyle  = { padding:'9px 10px', fontSize:11, fontWeight:700, color:C.textSecondary, background:C.bgSubtle, textAlign: rtl ? 'right' : 'left', borderBottom:`1px solid ${C.border}`, whiteSpace:'nowrap' }
+  const cellInp  = { border:`1px solid ${C.border}`, borderRadius:4, padding:'4px 7px', fontSize:12, color:C.textPrimary, background:'#fff', width:'100%', boxSizing:'border-box' }
+  const cellSel  = { ...cellInp, cursor:'pointer' }
+
+  const title = type === 'cars' ? t.importCsvCars : t.importCsvDrivers
+  const hint  = type === 'cars' ? t.csvCarsCols   : t.csvDriversCols
+  const existingPlatesSet = new Set(existingCars.map(c => c.plate?.trim().toLowerCase()))
+
+  const modal = (
+    <div style={overlay} onClick={e => { if (e.target === e.currentTarget) { reset(); onClose() } }}>
+      <div style={box}>
+        {/* Header */}
+        <div style={{ background:gradient, padding:'14px 20px', borderRadius:'16px 16px 0 0', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+          <div>
+            <span style={{ color:'#fff', fontWeight:700, fontSize:15 }}>📥 {title}</span>
+            <p style={{ margin:'2px 0 0', fontSize:11, color:'rgba(255,255,255,0.75)' }}>{hint}</p>
+          </div>
+          <button onClick={() => { reset(); onClose() }} style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'#fff', borderRadius:6, padding:'4px 12px', cursor:'pointer', fontWeight:700 }}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding:16, overflowY:'auto', flex:1 }}>
+          {/* File picker */}
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
+            <label style={{ ...btnPrimary, padding:'8px 16px', fontSize:13, boxShadow:'none', cursor:'pointer', display:'inline-block' }}>
+              📂 {t.csvSelectFile}
+              <input type="file" accept=".csv" style={{ display:'none' }} onChange={handleFile} />
+            </label>
+            {fileName && <span style={{ fontSize:13, color:C.textSecondary }}>{fileName}</span>}
+          </div>
+
+          {error && <div style={{ background:'#fee2e2', color:'#b91c1c', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:13 }}>{error}</div>}
+          {done  && <div style={{ background:'#dcfce7', color:'#15803d', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:13 }}>{done}</div>}
+
+          {rows.length > 0 && !done && (
+            <>
+              <p style={{ margin:'0 0 10px', fontSize:12, color:C.textMuted }}>✏️ {t.csvEditNote}</p>
+              <div style={{ overflowX:'auto', borderRadius:8, border:`1px solid ${C.border}` }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', minWidth: type === 'cars' ? 720 : 560 }}>
+                  <thead>
+                    <tr>
+                      {type === 'cars'
+                        ? [t.plate, t.make, t.model, t.year, t.status, t.fuel, t.branch].map(h => <th key={h} style={thStyle}>{h}</th>)
+                        : [t.name, t.license, t.phone, t.driverStatus, t.branch].map(h => <th key={h} style={thStyle}>{h}</th>)
+                      }
+                      <th style={thStyle}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => {
+                      const isDupe = type === 'cars' && existingPlatesSet.has(r.plate?.trim().toLowerCase())
+                      const rowBg  = isDupe ? '#fff7ed' : C.surface
+                      const td     = { padding:'5px 8px', borderBottom:`1px solid ${C.border}`, background: rowBg }
+                      return (
+                        <tr key={r._id}>
+                          {type === 'cars' ? <>
+                            <td style={td}>
+                              <input value={r.plate} onChange={e => updateRow(r._id, 'plate', e.target.value)} style={{ ...cellInp, borderColor: isDupe ? C.warning : C.border }} />
+                              {isDupe && <div style={{ fontSize:10, color:C.warning, marginTop:2 }}>{t.csvDuplicateSkipped}</div>}
+                            </td>
+                            <td style={td}><input value={r.make}  onChange={e => updateRow(r._id, 'make',  e.target.value)} style={cellInp} /></td>
+                            <td style={td}><input value={r.model} onChange={e => updateRow(r._id, 'model', e.target.value)} style={cellInp} /></td>
+                            <td style={{ ...td, width:70 }}><input value={r.year} type="number" onChange={e => updateRow(r._id, 'year', e.target.value)} style={cellInp} /></td>
+                            <td style={td}>
+                              <select value={r.status} onChange={e => updateRow(r._id, 'status', e.target.value)} style={cellSel}>
+                                {CAR_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                            <td style={td}>
+                              <select value={r.fuel} onChange={e => updateRow(r._id, 'fuel', e.target.value)} style={cellSel}>
+                                {CAR_FUELS.map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </td>
+                            <td style={td}>
+                              <select value={r.branch} onChange={e => updateRow(r._id, 'branch', e.target.value)} style={cellSel}>
+                                <option value="">—</option>
+                                {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                              </select>
+                            </td>
+                          </> : <>
+                            <td style={td}><input value={r.name}    onChange={e => updateRow(r._id, 'name',    e.target.value)} style={cellInp} /></td>
+                            <td style={td}><input value={r.license} onChange={e => updateRow(r._id, 'license', e.target.value)} style={cellInp} /></td>
+                            <td style={td}><input value={r.phone}   onChange={e => updateRow(r._id, 'phone',   e.target.value)} style={cellInp} /></td>
+                            <td style={td}>
+                              <select value={r.status} onChange={e => updateRow(r._id, 'status', e.target.value)} style={cellSel}>
+                                {DRV_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                            <td style={td}>
+                              <select value={r.branch} onChange={e => updateRow(r._id, 'branch', e.target.value)} style={cellSel}>
+                                <option value="">—</option>
+                                {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                              </select>
+                            </td>
+                          </>}
+                          <td style={{ ...td, width:36, textAlign:'center' }}>
+                            <button onClick={() => removeRow(r._id)} title="Remove row" style={{ background:'none', border:'none', color:C.danger, cursor:'pointer', fontSize:15, lineHeight:1 }}>✕</button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ margin:'8px 0 0', fontSize:12, color:C.textMuted }}>
+                {rows.length} {t.itemsSelected} {type === 'cars' && ` · ${rows.filter(r => existingPlatesSet.has(r.plate?.trim().toLowerCase())).length > 0 ? rows.filter(r => existingPlatesSet.has(r.plate?.trim().toLowerCase())).length + ' ' + t.csvDuplicateSkipped : ''}`}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {rows.length > 0 && !done && (
+          <div style={{ padding:'12px 20px', borderTop:`1px solid ${C.border}`, display:'flex', justifyContent:'flex-end', gap:10, flexShrink:0 }}>
+            <button onClick={() => { reset(); onClose() }} style={{ ...btnGhost, padding:'8px 18px', fontSize:13 }}>{t.cancel}</button>
+            <button onClick={handleImport} disabled={importing} style={{ ...btnPrimary, padding:'8px 20px', fontSize:13, opacity: importing ? 0.7 : 1 }}>
+              {importing ? t.csvImporting : (typeof t.csvConfirmImport === 'function' ? t.csvConfirmImport(rows.filter(r => type !== 'cars' || !existingPlatesSet.has(r.plate?.trim().toLowerCase())).length) : 'Import')}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  return open ? createPortal(modal, document.body) : null
 }
 
 // ── Fuel CSV Import Modal ─────────────────────────────────────────────────────
@@ -2335,6 +2591,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [dashFilter, setDashFilter]   = useState('all')
   const [showCsvImport, setShowCsvImport] = useState(false)
   const [costsReloadKey, setCostsReloadKey] = useState(0)
+  const [showEntityCsvImport, setShowEntityCsvImport] = useState(null) // 'cars' | 'drivers' | null
   const realtimeRef = useRef(null)
 
   const t   = T[lang]
@@ -2763,8 +3020,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
               {isMobile ? '+' : t.newItem}
             </button>
-            {activeTab === 'costs' && activeCompanyId && (
-              <button onClick={() => setShowCsvImport(true)} style={{
+            {(activeTab === 'costs' || activeTab === 'cars' || activeTab === 'drivers') && activeCompanyId && (
+              <button onClick={() => {
+                if (activeTab === 'costs') setShowCsvImport(true)
+                else setShowEntityCsvImport(activeTab)
+              }} style={{
                 background: 'transparent', color: C.primary, border: `1px solid ${C.primary}`,
                 borderRadius: 7, padding: isMobile ? '6px 10px' : '7px 14px',
                 fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: 'pointer',
@@ -2776,7 +3036,22 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           </>}
         </div>
 
-        {/* CSV Import Modal — rendered at top level so it's never clipped */}
+        {/* Cars / Drivers entity CSV import modal */}
+        {showEntityCsvImport && (
+          <CsvEntityImportModal
+            open={!!showEntityCsvImport}
+            onClose={() => setShowEntityCsvImport(null)}
+            type={showEntityCsvImport}
+            branches={branches}
+            cars={cars}
+            companyId={activeCompanyId}
+            t={t}
+            rtl={rtl}
+            onImported={() => { setShowEntityCsvImport(null); loadAll() }}
+          />
+        )}
+
+        {/* Fuel CSV Import Modal — rendered at top level so it's never clipped */}
         {showCsvImport && (
           <CsvImportModal
             open={showCsvImport}
