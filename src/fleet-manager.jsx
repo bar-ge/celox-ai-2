@@ -138,7 +138,7 @@ const T = {
     csvNoRows:'No valid rows found in file.', csvVehicleNotFound:'Not found',
     // csv import (cars/drivers)
     importCsvCars:'Import Vehicles CSV', importCsvDrivers:'Import Drivers CSV',
-    csvCarsCols:'Expected columns: Plate, Make, Model, Year, Status, Fuel, Branch',
+    csvCarsCols:'Expected columns: Plate, Make, Model, Year, Status, Fuel, Branch, Driver',
     csvDriversCols:'Expected columns: Name, License, Phone, Status, Branch',
     csvEditNote:'You can edit any row before importing.',
     csvDuplicateSkipped:'(duplicate plate — will be skipped)',
@@ -238,7 +238,7 @@ const T = {
     csvNoRows:'לא נמצאו שורות תקינות בקובץ.', csvVehicleNotFound:'לא נמצא',
     // csv import (cars/drivers)
     importCsvCars:'ייבוא רכבים CSV', importCsvDrivers:'ייבוא נהגים CSV',
-    csvCarsCols:'עמודות נדרשות: לוחית, יצרן, דגם, שנה, סטטוס, דלק, סניף',
+    csvCarsCols:'עמודות נדרשות: לוחית, יצרן, דגם, שנה, סטטוס, דלק, סניף, נהג',
     csvDriversCols:'עמודות נדרשות: שם, רישיון, טלפון, סטטוס, סניף',
     csvEditNote:'ניתן לערוך כל שורה לפני הייבוא.',
     csvDuplicateSkipped:'(לוחית כפולה — תדולג)',
@@ -1218,7 +1218,7 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
 // ── Cars / Drivers CSV Import Modal ──────────────────────────────────────────
 // Generic editable CSV import for cars and drivers.
 // type = 'cars' | 'drivers'
-function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCars, companyId, t, rtl, onImported }) {
+function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCars, drivers, companyId, t, rtl, onImported }) {
   const [rows, setRows] = useState([])      // array of editable row objects
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
@@ -1261,7 +1261,8 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
               year:      col[3] || '',
               status:    col[4] || 'Available',
               fuel:      col[5] || 'Petrol',
-              branch:    col[6] || '',   // branch name — resolved on import
+              branch:    col[6] || '',
+              driver_id: '',             // selected driver id — chosen in preview
               _skip: false,
             }
           } else {
@@ -1305,7 +1306,8 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
         ? { company_id: companyId, plate: r.plate, make: r.make, model: r.model,
             year: r.year ? parseInt(r.year) : null,
             status: r.status || 'Available', fuel: r.fuel || 'Petrol',
-            branch_id: branchByName(r.branch), driver_id: null }
+            branch_id: branchByName(r.branch),
+            driver_id: r.driver_id ? parseInt(r.driver_id) : null }
         : { company_id: companyId, name: r.name, license: r.license,
             phone: r.phone || null, status: r.status || 'Active',
             branch_id: branchByName(r.branch) }
@@ -1369,7 +1371,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                   <thead>
                     <tr>
                       {type === 'cars'
-                        ? [t.plate, t.make, t.model, t.year, t.status, t.fuel, t.branch].map(h => <th key={h} style={thStyle}>{h}</th>)
+                        ? [t.plate, t.make, t.model, t.year, t.status, t.fuel, t.branch, t.driver].map(h => <th key={h} style={thStyle}>{h}</th>)
                         : [t.name, t.license, t.phone, t.driverStatus, t.branch].map(h => <th key={h} style={thStyle}>{h}</th>)
                       }
                       <th style={thStyle}></th>
@@ -1404,6 +1406,12 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                               <select value={r.branch} onChange={e => updateRow(r._id, 'branch', e.target.value)} style={cellSel}>
                                 <option value="">—</option>
                                 {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                              </select>
+                            </td>
+                            <td style={td}>
+                              <select value={r.driver_id} onChange={e => updateRow(r._id, 'driver_id', e.target.value)} style={cellSel}>
+                                <option value="">—</option>
+                                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                               </select>
                             </td>
                           </> : <>
@@ -3045,6 +3053,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             type={showEntityCsvImport}
             branches={branches}
             cars={cars}
+            drivers={drivers}
             companyId={activeCompanyId}
             t={t}
             rtl={rtl}
