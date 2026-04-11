@@ -1158,7 +1158,7 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceType}</label>
               <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={inp}>
-                {['Oil Change','Tire Rotation','Inspection','Brake Service','Other'].map(v => <option key={v} value={v}>{t[v.toLowerCase().replace(/ /g,'')] || v}</option>)}
+                {[['Oil Change',t.oilChange],['Tire Rotation',t.tireRotation],['Inspection',t.inspection],['Brake Service',t.brakeService],['Other',t.otherService]].map(([v,l]) => <option key={v} value={v}>{l || v}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
