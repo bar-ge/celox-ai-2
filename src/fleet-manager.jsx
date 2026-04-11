@@ -3085,7 +3085,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
           background: C.navBg, borderTop: `1px solid ${C.navBorder}`,
-          display: 'flex', direction: 'ltr',
+          display: 'flex', direction: rtl ? 'rtl' : 'ltr',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
           {tabs.map(item => (
