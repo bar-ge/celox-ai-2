@@ -1769,7 +1769,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           <div style={{ height: 3, background: gradient }} />
           <div style={{ padding: '14px 16px' }}>
             <span style={{ fontSize: 20 }}>💰</span>
-            <p style={{ margin: '6px 0 0', fontSize: isMobile ? 20 : 26, fontWeight: 800, color: C.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>₪{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 800, color: C.primary, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>₪{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textSecondary }}>{t.totalCost}</p>
           </div>
         </div>
@@ -1777,7 +1777,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           <div key={cat} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ height: 3, background: catColors[cat] || C.textMuted }} />
             <div style={{ padding: '14px 16px' }}>
-              <p style={{ margin: '0 0 4px', fontSize: isMobile ? 20 : 22, fontWeight: 800, color: catColors[cat] || C.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>₪{amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: catColors[cat] || C.textMuted, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>₪{amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               <p style={{ margin: 0, fontSize: 12, color: C.textSecondary }}>{catLabel[cat] || cat}</p>
             </div>
           </div>
