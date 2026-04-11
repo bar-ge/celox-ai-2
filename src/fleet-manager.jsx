@@ -2093,13 +2093,6 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
         {unassigned > 0 && card('⚠️', unassigned, t.unassigned, C.warning)}
       </div>
 
-      {/* KPI row: utilization + driver assignment */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
-        {card('📈', `${utilizationPct}%`, t.utilizationRate, C.primary,
-          `${driversWithCar} / ${filtDrivers.length} ${t.drivers}`)}
-        {card('🧑‍✈️', `${driverAssignPct}%`, t.driverAssignment, C.success,
-          `${assignedDrivers} ${t.assigned} · ${filtDrivers.length - assignedDrivers} ${t.unassignedDrivers}`)}
-      </div>
 
       {/* Fleet status donut + bar charts */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
