@@ -1764,7 +1764,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
       {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
         <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', gridColumn: 'span 1' }}>
           <div style={{ height: 3, background: gradient }} />
           <div style={{ padding: '16px 20px' }}>
