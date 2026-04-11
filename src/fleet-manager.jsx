@@ -588,14 +588,15 @@ const CAR_STATUS_COLOR   = { Available: C.success, 'In Use': C.primary, Maintena
 const DRIVER_STATUS_COLOR = { Active: C.success, Inactive: C.textMuted }
 
 // Maps DB value → translation key
-const CAR_STATUS_KEY    = { Available: 'available', 'In Use': 'inUse', Maintenance: 'maintenance' }
-const CAR_FUEL_KEY      = { Petrol: 'petrol', Diesel: 'diesel', Electric: 'electric', Hybrid: 'hybrid' }
-const DRIVER_STATUS_KEY = { Active: 'active', Inactive: 'inactive' }
-const FILE_TYPE_KEY     = { License: 'ftLicense', Invoice: 'ftInvoice', Insurance: 'ftInsurance', Registration: 'ftRegistration', Inspection: 'ftInspection', ID: 'ftID', Other: 'ftOther' }
+const CAR_STATUS_KEY        = { Available: 'available', 'In Use': 'inUse', Maintenance: 'maintenance' }
+const CAR_FUEL_KEY          = { Petrol: 'petrol', Diesel: 'diesel', Electric: 'electric', Hybrid: 'hybrid' }
+const DRIVER_STATUS_KEY     = { Active: 'active', Inactive: 'inactive' }
+const FILE_TYPE_KEY         = { License: 'ftLicense', Invoice: 'ftInvoice', Insurance: 'ftInsurance', Registration: 'ftRegistration', Inspection: 'ftInspection', ID: 'ftID', Other: 'ftOther' }
+const MAINTENANCE_TYPE_KEY  = { 'Oil Change': 'oilChange', 'Tire Rotation': 'tireRotation', 'Inspection': 'inspection', 'Brake Service': 'brakeService', 'Other': 'otherService' }
 const CAR_TYPE_KEY      = { Sedan: 'vtSedan', SUV: 'vtSUV', Truck: 'vtTruck', Van: 'vtVan', Bus: 'vtBus', Motorcycle: 'vtMotorcycle' }
 
 function translateListValue(v, t) {
-  return t[CAR_STATUS_KEY[v]] || t[CAR_FUEL_KEY[v]] || t[DRIVER_STATUS_KEY[v]] || t[FILE_TYPE_KEY[v]] || t[CAR_TYPE_KEY[v]] || v
+  return t[CAR_STATUS_KEY[v]] || t[CAR_FUEL_KEY[v]] || t[DRIVER_STATUS_KEY[v]] || t[FILE_TYPE_KEY[v]] || t[MAINTENANCE_TYPE_KEY[v]] || v
 }
 
 // ── Custom list defaults & helper ────────────────────────────────────────────
