@@ -1764,21 +1764,21 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
       {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', gridColumn: 'span 1' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill,minmax(200px,1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ height: 3, background: gradient }} />
-          <div style={{ padding: '16px 20px' }}>
-            <span style={{ fontSize: 22 }}>💰</span>
-            <p style={{ margin: '8px 0 0', fontSize: 30, fontWeight: 800, color: C.primary }}>₪{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: C.textSecondary }}>{t.totalCost}</p>
+          <div style={{ padding: '14px 16px' }}>
+            <span style={{ fontSize: 20 }}>💰</span>
+            <p style={{ margin: '6px 0 0', fontSize: isMobile ? 20 : 26, fontWeight: 800, color: C.primary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>₪{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textSecondary }}>{t.totalCost}</p>
           </div>
         </div>
         {Object.entries(byCategory).sort((a,b) => b[1]-a[1]).slice(0,4).map(([cat, amt]) => (
           <div key={cat} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ height: 3, background: catColors[cat] || C.textMuted }} />
-            <div style={{ padding: '16px 20px' }}>
-              <p style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: catColors[cat] || C.textMuted }}>₪{amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{catLabel[cat] || cat}</p>
+            <div style={{ padding: '14px 16px' }}>
+              <p style={{ margin: '0 0 4px', fontSize: isMobile ? 20 : 22, fontWeight: 800, color: catColors[cat] || C.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>₪{amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p style={{ margin: 0, fontSize: 12, color: C.textSecondary }}>{catLabel[cat] || cat}</p>
             </div>
           </div>
         ))}
