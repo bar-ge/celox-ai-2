@@ -93,7 +93,7 @@ const T = {
     confirmDelete:'Are you sure you want to delete this item?',
     customLists:'Custom Lists', defaults:'Defaults',
     listCarStatus:'Vehicle Status', listDriverStatus:'Driver Status',
-    listFuelType:'Fuel Types', listFileType:'Document Types', listCarType:'Vehicle Types',
+    listFuelType:'Fuel Types', listFileType:'Document Types', listMaintenanceType:'Maintenance Types',
     addValue:'Add value…', noCustomValues:'No custom values yet.', docType:'Document Type',
     customListsHint:'Add custom options to the dropdowns used across the app. Built-in defaults cannot be removed.',
     // maintenance
@@ -193,7 +193,7 @@ const T = {
     confirmDelete:'האם אתה בטוח שברצונך למחוק פריט זה?',
     customLists:'רשימות מותאמות', defaults:'ברירות מחדל',
     listCarStatus:'סטטוס רכב', listDriverStatus:'סטטוס נהג',
-    listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listCarType:'סוגי רכב',
+    listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listMaintenanceType:'סוגי תחזוקה',
     addValue:'הוסף ערך…', noCustomValues:'אין ערכים מותאמים עדיין.', docType:'סוג מסמך',
     customListsHint:'הוסף אפשרויות מותאמות לרשימות הנפתחות בכל האפליקציה. ערכי ברירת המחדל לא ניתנים למחיקה.',
     // maintenance
@@ -600,11 +600,11 @@ function translateListValue(v, t) {
 
 // ── Custom list defaults & helper ────────────────────────────────────────────
 const DEFAULT_LISTS = {
-  car_status:    ['Available', 'In Use', 'Maintenance'],
-  driver_status: ['Active', 'Inactive'],
-  fuel_type:     ['Petrol', 'Diesel', 'Electric', 'Hybrid'],
-  file_type:     ['License', 'Invoice', 'Insurance', 'Registration', 'Inspection', 'ID', 'Other'],
-  car_type:      ['Sedan', 'SUV', 'Truck', 'Van', 'Bus', 'Motorcycle'],
+  car_status:        ['Available', 'In Use', 'Maintenance'],
+  driver_status:     ['Active', 'Inactive'],
+  fuel_type:         ['Petrol', 'Diesel', 'Electric', 'Hybrid'],
+  file_type:         ['License', 'Invoice', 'Insurance', 'Registration', 'Inspection', 'ID', 'Other'],
+  maintenance_type:  ['Oil Change', 'Tire Rotation', 'Inspection', 'Brake Service', 'Other'],
 }
 function getMergedOptions(type, customLists = {}) {
   const defaults = DEFAULT_LISTS[type] || []
@@ -1079,7 +1079,7 @@ function AddBranchRow({ onAdd, onCancel, t, rtl, mobile }) {
 }
 
 // ── Maintenance Tab ──────────────────────────────────────────────────────────
-function MaintenanceTab({ cars, companyId, t, rtl }) {
+function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -1158,7 +1158,10 @@ function MaintenanceTab({ cars, companyId, t, rtl }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.serviceType}</label>
               <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={inp}>
-                {[['Oil Change',t.oilChange],['Tire Rotation',t.tireRotation],['Inspection',t.inspection],['Brake Service',t.brakeService],['Other',t.otherService]].map(([v,l]) => <option key={v} value={v}>{l || v}</option>)}
+                {getMergedOptions('maintenance_type', customLists).map(v => {
+                  const label = { 'Oil Change': t.oilChange, 'Tire Rotation': t.tireRotation, 'Inspection': t.inspection, 'Brake Service': t.brakeService, 'Other': t.otherService }
+                  return <option key={v} value={v}>{label[v] || v}</option>
+                })}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -2255,11 +2258,11 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
 // ── Custom Lists Section (admin only) ────────────────────────────────────────
 function CustomListsSection({ companyId, t, onCustomListsChange }) {
   const LIST_DEFS = [
-    { key: 'car_status',    label: t.listCarStatus },
-    { key: 'driver_status', label: t.listDriverStatus },
-    { key: 'fuel_type',     label: t.listFuelType },
-    { key: 'file_type',     label: t.listFileType },
-    { key: 'car_type',      label: t.listCarType },
+    { key: 'car_status',       label: t.listCarStatus },
+    { key: 'driver_status',    label: t.listDriverStatus },
+    { key: 'fuel_type',        label: t.listFuelType },
+    { key: 'file_type',        label: t.listFileType },
+    { key: 'maintenance_type', label: t.listMaintenanceType },
   ]
   const [items, setItems]   = useState([])
   const [adding, setAdding] = useState({})
@@ -3218,7 +3221,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Maintenance tab */}
         {activeTab === 'maintenance' && activeCompanyId && (
-          <MaintenanceTab cars={cars} companyId={activeCompanyId} t={t} rtl={rtl} />
+          <MaintenanceTab cars={cars} companyId={activeCompanyId} t={t} rtl={rtl} customLists={customLists} />
         )}
 
         {/* Costs tab */}
