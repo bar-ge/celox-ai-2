@@ -112,7 +112,7 @@ const T = {
     // activity
     activityLog:'Activity Log', activityAction:'Action', activityEntity:'Item', activityUser:'User', activityTime:'Time',
     actionAdd:'Added', actionUpdate:'Updated', actionDelete:'Deleted',
-    noActivity:'No activity yet.',
+    noActivity:'No activity yet.', loadMore:'Load more…',
     // bulk & export
     selectAll:'Select All', bulkDelete:'Delete Selected', bulkAssign:'Assign Branch',
     exportExcel:'Export Excel', exportPDF:'Export PDF',
@@ -212,7 +212,7 @@ const T = {
     // activity
     activityLog:'יומן פעילות', activityAction:'פעולה', activityEntity:'פריט', activityUser:'משתמש', activityTime:'זמן',
     actionAdd:'נוסף', actionUpdate:'עודכן', actionDelete:'נמחק',
-    noActivity:'אין פעילות עדיין.',
+    noActivity:'אין פעילות עדיין.', loadMore:'טען עוד…',
     // bulk & export
     selectAll:'בחר הכל', bulkDelete:'מחק נבחרים', bulkAssign:'שבץ סניף',
     exportExcel:'ייצא Excel', exportPDF:'ייצא PDF',
@@ -1896,12 +1896,23 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
 function ActivityLogSection({ companyId, t }) {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const PAGE = 50
 
-  useEffect(() => {
-    supabase.from('activity_log').select('*').eq('company_id', companyId)
-      .order('created_at', { ascending: false }).limit(50)
-      .then(({ data }) => { setLogs(data || []); setLoading(false) })
-  }, [companyId])
+  useEffect(() => { loadPage(0) }, [companyId])
+
+  async function loadPage(p) {
+    setLoading(true)
+    const { data } = await supabase.from('activity_log').select('*').eq('company_id', companyId)
+      .order('created_at', { ascending: false }).range(p * PAGE, p * PAGE + PAGE)
+    const rows = data || []
+    setLogs(prev => p === 0 ? rows : [...prev, ...rows])
+    setHasMore(rows.length === PAGE + 1)
+    if (rows.length === PAGE + 1) rows.pop() // remove sentinel
+    setPage(p)
+    setLoading(false)
+  }
 
   const actionLabel = { add: t.actionAdd, update: t.actionUpdate, delete: t.actionDelete }
   const actionColor = { add: C.success, update: C.primary, delete: C.danger }
@@ -1909,22 +1920,29 @@ function ActivityLogSection({ companyId, t }) {
   return (
     <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📋 {t.activityLog}</h3>
-      {loading ? (
-        <p style={{ color: C.textSecondary, fontSize: 14 }}>{t.loadingShort}</p>
-      ) : logs.length === 0 ? (
+      {logs.length === 0 && !loading ? (
         <p style={{ color: C.textMuted, fontSize: 14 }}>{t.noActivity}</p>
-      ) : logs.map(l => (
-        <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: actionColor[l.action] || C.textMuted, flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>
-              <strong style={{ color: actionColor[l.action] || C.textMuted }}>{actionLabel[l.action] || l.action}</strong>
-              {' '}{l.entity_type}{l.entity_name ? ` — ${l.entity_name}` : ''}
-            </span>
-            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{l.user_email} · {new Date(l.created_at).toLocaleString()}</div>
-          </div>
-        </div>
-      ))}
+      ) : (
+        <>
+          {logs.map(l => (
+            <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: actionColor[l.action] || C.textMuted, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 13, color: C.textPrimary, fontWeight: 500 }}>
+                  <strong style={{ color: actionColor[l.action] || C.textMuted }}>{actionLabel[l.action] || l.action}</strong>
+                  {' '}{l.entity_type}{l.entity_name ? ` — ${l.entity_name}` : ''}
+                </span>
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{l.user_email} · {new Date(l.created_at).toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
+          {hasMore && (
+            <button onClick={() => loadPage(page + 1)} disabled={loading} style={{ marginTop: 12, width: '100%', padding: '8px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 6, color: C.textSecondary, fontSize: 13, cursor: 'pointer' }}>
+              {loading ? t.loadingShort : (t.loadMore || 'Load more…')}
+            </button>
+          )}
+        </>
+      )}
     </div>
   )
 }
