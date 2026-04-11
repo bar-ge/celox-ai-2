@@ -1345,14 +1345,13 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
 
     let totalCount = 0
 
-    // Insert new cars WITHOUT driver_id first (avoids FK constraint entirely)
-    // Then link drivers in a second pass after the rows exist
     if (toInsert.length > 0) {
       const insertPayload = toInsert.map(r => type === 'cars'
         ? { company_id: companyId, plate: r.plate, make: r.make, model: r.model,
             year: r.year ? parseInt(r.year) : null,
             status: r.status || 'Available', fuel: r.fuel || 'Petrol',
-            branch_id: branchByName(r.branch), driver_id: null }
+            branch_id: branchByName(r.branch),
+            driver_id: safeDriverId(r.driver_id) }
         : { company_id: companyId, name: r.name, license: r.license,
             phone: r.phone || null, status: r.status || 'Active',
             branch_id: branchByName(r.branch) }
@@ -1362,25 +1361,6 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
         .insert(insertPayload)
       if (insErr) { setError(insErr.message); setImporting(false); return }
       totalCount += toInsert.length
-
-      // Second pass: link drivers by updating via plate + company_id (no ID fetch needed)
-      if (type === 'cars') {
-        // Group plates by driver_id for bulk updates
-        const byDriver = {}
-        for (const r of toInsert) {
-          const driverId = safeDriverId(r.driver_id)
-          if (!driverId) continue
-          if (!byDriver[driverId]) byDriver[driverId] = []
-          byDriver[driverId].push(r.plate.trim())
-        }
-        for (const [driverId, driverPlates] of Object.entries(byDriver)) {
-          const { error: linkErr } = await supabase.from('cars')
-            .update({ driver_id: driverId })
-            .eq('company_id', companyId)
-            .in('plate', driverPlates)
-          if (linkErr) { setError(linkErr.message); setImporting(false); return }
-        }
-      }
     }
 
     // Update existing rows (driver_id + branch_id only)
