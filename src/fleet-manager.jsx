@@ -1732,7 +1732,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
     const { data, error } = await supabase.from('costs').insert([{
       company_id: companyId,
       car_id: form.car_id ? parseInt(form.car_id) : null,
-      driver_id: form.driver_id ? parseInt(form.driver_id) : null,
+      driver_id: form.driver_id || null,
       category: form.category, amount: parseFloat(form.amount),
       description: form.description || null, date: form.date,
     }]).select()
@@ -1810,9 +1810,14 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.cars}</label>
-              <select value={form.car_id} onChange={e => setForm({ ...form, car_id: e.target.value })} style={inp}>
+              <select value={form.car_id} onChange={e => {
+                const carId = e.target.value
+                const car = cars.find(c => String(c.id) === carId)
+                const autoDriver = car?.driver_id || ''
+                setForm({ ...form, car_id: carId, driver_id: autoDriver })
+              }} style={inp}>
                 <option value="">—</option>
-                {cars.map(c => <option key={c.id} value={c.id}>{c.plate} {c.make}</option>)}
+                {cars.map(c => <option key={c.id} value={c.id}>{formatPlate(c.plate)} {c.make}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
