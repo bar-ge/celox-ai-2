@@ -50,6 +50,9 @@ const L = {
     pwSymbol: 'Symbol (!@#$...)',
     pwTooWeak: 'Password is too weak. Please meet all requirements.',
     captchaRequired: 'Please complete the CAPTCHA verification.',
+    consentRequired: 'You must agree to the Privacy Policy to create an account.',
+    consentLabel: 'I have read and agree to the',
+    consentLink: 'Privacy Policy',
   },
   he: {
     signIn: 'כניסה', signUp: 'הרשמה',
@@ -79,6 +82,9 @@ const L = {
     pwSymbol: 'תו מיוחד (!@#$...)',
     pwTooWeak: 'הסיסמה חלשה מדי. אנא עמוד בכל הדרישות.',
     captchaRequired: 'אנא השלם את אימות ה-CAPTCHA.',
+    consentRequired: 'עליך להסכים למדיניות הפרטיות כדי ליצור חשבון.',
+    consentLabel: 'קראתי ואני מסכים/ה ל',
+    consentLink: 'מדיניות הפרטיות',
   },
 }
 
@@ -264,6 +270,8 @@ function LoginScreen({ lang, setLang }) {
   const [success, setSuccess]   = useState('')
   const [loading, setLoading]   = useState(false)
   const [captchaToken, setCaptchaToken] = useState('')
+  const [consentChecked, setConsentChecked] = useState(false)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const captchaRef = useRef(null)
 
   const rtl = lang === 'he'
@@ -274,6 +282,7 @@ function LoginScreen({ lang, setLang }) {
     e.preventDefault()
     setError(''); setSuccess('')
     if (!captchaToken) { setError(t.captchaRequired); return }
+    if (mode === 'signup' && !consentChecked) { setError(t.consentRequired); return }
     // Enforce strong password on signup
     if (mode === 'signup' && !isStrongEnough) {
       setError(t.pwTooWeak); return
@@ -297,7 +306,7 @@ function LoginScreen({ lang, setLang }) {
     setLoading(false)
   }
 
-  function switchMode(m) { setMode(m); setError(''); setSuccess(''); setCaptchaToken(''); captchaRef.current?.resetCaptcha() }
+  function switchMode(m) { setMode(m); setError(''); setSuccess(''); setCaptchaToken(''); setConsentChecked(false); captchaRef.current?.resetCaptcha() }
 
   return (
     <Page>
@@ -325,6 +334,25 @@ function LoginScreen({ lang, setLang }) {
               <PasswordStrengthMeter password={password} t={t} rtl={rtl} />
             )}
           </div>
+          {mode === 'signup' && (
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', direction: rtl ? 'rtl' : 'ltr' }}>
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={e => setConsentChecked(e.target.checked)}
+                style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', accentColor: C.primary, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5 }}>
+                {t.consentLabel}{' '}
+                <button type="button" onClick={() => setShowPrivacyModal(true)} style={{
+                  background: 'none', border: 'none', color: C.primary, fontWeight: 700,
+                  fontSize: 13, cursor: 'pointer', padding: 0, textDecoration: 'underline',
+                }}>
+                  {t.consentLink}
+                </button>
+              </span>
+            </label>
+          )}
           <Err  msg={error} />
           <Succ msg={success} />
           <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -336,12 +364,57 @@ function LoginScreen({ lang, setLang }) {
               theme="light"
             />
           </div>
-          <button type="submit" disabled={loading || !captchaToken || (mode === 'signup' && password.length > 0 && !isStrongEnough)} style={primaryBtn(loading || !captchaToken || (mode === 'signup' && password.length > 0 && !isStrongEnough))}>
+          <button
+            type="submit"
+            disabled={loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough)))}
+            style={primaryBtn(loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough))))}>
             {loading ? '…' : mode === 'login' ? t.submitSignIn : t.submitSignUp}
           </button>
         </form>
       </Card>
       <p style={{ marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t.securedBy}</p>
+
+      {/* Privacy Policy Modal (inline, no fleet-manager dep) */}
+      {showPrivacyModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowPrivacyModal(false) }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600, maxHeight: '85vh', display: 'flex', flexDirection: 'column', direction: rtl ? 'rtl' : 'ltr' }}>
+            <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0f172a' }}>{rtl ? 'מדיניות פרטיות — Celox AI' : 'Privacy Policy — Celox AI'}</h2>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{rtl ? 'עדכון אחרון: 12 באפריל 2026' : 'Last updated: April 12, 2026'}</p>
+              </div>
+              <button onClick={() => setShowPrivacyModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b' }}>✕</button>
+            </div>
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontSize: 14, color: '#334155', lineHeight: 1.7 }}>
+              {rtl ? (
+                <>
+                  <p><strong>1. מבוא</strong> — Celox AI בע"מ מפעילה פלטפורמת SaaS לניהול צי רכבים. מדיניות זו מסבירה אילו נתונים אישיים אנו אוספים וכיצד אנו משתמשים בהם לפי חוק הגנת הפרטיות (תשמ"א-1981).</p>
+                  <p><strong>2. מידע שנאסף</strong> — שם, אימייל, טלפון, לוחיות רישוי, היסטוריית תחזוקה, לוגים של פעילות.</p>
+                  <p><strong>3. מטרות</strong> — ניהול צי, תזמון תחזוקה, אבטחה ותמיכה.</p>
+                  <p><strong>4. אחסון</strong> — המידע מאוחסן ב-Supabase (ארה"ב) עם הסכמי DPA. הצפנה בתעבורה ובאחסון.</p>
+                  <p><strong>5. הזכויות שלך</strong> — זכות עיון, תיקון ומחיקה. פנה אלינו: <strong>privacy@celoxai.com</strong></p>
+                  <p><strong>6. יצירת קשר</strong> — privacy@celoxai.com | Celox AI בע"מ, ישראל.</p>
+                </>
+              ) : (
+                <>
+                  <p><strong>1. Introduction</strong> — Celox AI Ltd. operates a SaaS fleet management platform. This policy explains what personal data we collect and how we use it under the Israeli Privacy Protection Law (1981).</p>
+                  <p><strong>2. Data Collected</strong> — Name, email, phone, license plates, maintenance history, activity logs.</p>
+                  <p><strong>3. Purpose</strong> — Fleet management, maintenance scheduling, security, and support.</p>
+                  <p><strong>4. Storage</strong> — Data stored on Supabase (USA) with DPA agreements. Encrypted in transit and at rest.</p>
+                  <p><strong>5. Your Rights</strong> — Right to access, correct, and delete your data. Contact: <strong>privacy@celoxai.com</strong></p>
+                  <p><strong>6. Contact</strong> — privacy@celoxai.com | Celox AI Ltd., Israel.</p>
+                </>
+              )}
+            </div>
+            <div style={{ padding: '12px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => { setConsentChecked(true); setShowPrivacyModal(false) }} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                {rtl ? 'מסכים/ה וסוגר' : 'Agree & Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Page>
   )
 }
