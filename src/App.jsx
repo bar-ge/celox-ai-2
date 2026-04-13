@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import './App.css'
 
 const HCAPTCHA_SITE_KEY = '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
@@ -590,13 +591,16 @@ export default function App() {
   }
 
   return (
-    <FleetManager
-      session={session}
-      profile={profile}
-      isMaster={isMaster}
-      companyId={profile?.company_id ?? null}
-      onSignOut={() => supabase.auth.signOut()}
-      initialLang={lang}
-    />
+    <>
+      <FleetManager
+        session={session}
+        profile={profile}
+        isMaster={isMaster}
+        companyId={profile?.company_id ?? null}
+        onSignOut={() => supabase.auth.signOut()}
+        initialLang={lang}
+      />
+      <SpeedInsights />
+    </>
   )
 }
