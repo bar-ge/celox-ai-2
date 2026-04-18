@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // ── Config ────────────────────────────────────────────────────────────────────
 // SECURITY FIX: API key now loaded from Supabase Secret, not hardcoded
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
+const CRON_SECRET    = Deno.env.get('CRON_SECRET') ?? ''
 const FROM_EMAIL     = 'Celox AI <noreply@celoxai.com>'
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -15,7 +16,13 @@ const TYPE_HE: Record<string, string> = {
   'Other':          'אחר',
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Allow calls with CRON_SECRET header (from pg_cron) or valid Supabase JWT
+  const cronHeader = req.headers.get('x-cron-secret')
+  if (CRON_SECRET && cronHeader !== CRON_SECRET) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY secret is not set')
     return new Response('RESEND_API_KEY not configured', { status: 500 })

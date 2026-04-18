@@ -2,6 +2,8 @@ import { supabase } from './supabaseClient'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // ── Date input (DD/MM/YY format) ───────────────────────────────────────────
 function DateInput({ value, onChange, style, required, placeholder }) {
@@ -241,6 +243,28 @@ const T = {
     privacyPolicy:'Privacy Policy', privacyPolicyDesc:'How we collect and protect your data',
     termsOfService:'Terms of Service', termsOfServiceDesc:'Rules and conditions for using Celox AI',
     privacyClose:'Close',
+    tosTitle:'Terms of Service — Celox AI',
+    tosUpdated:'Last updated: April 16, 2026',
+    tos1Title:'1. Acceptance of Terms',
+    tos1:'By accessing or using Celox AI ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.',
+    tos2Title:'2. Description of Service',
+    tos2:'Celox AI provides a SaaS fleet management platform including vehicle tracking, driver management, maintenance scheduling, and reporting tools.',
+    tos3Title:'3. Account Responsibilities',
+    tos3Items:['You are responsible for maintaining the confidentiality of your account credentials.','You must provide accurate and complete information when registering.','You are responsible for all activity that occurs under your account.','You must notify us immediately of any unauthorized use of your account.'],
+    tos4Title:'4. Acceptable Use',
+    tos4:'You agree not to misuse the Service. Prohibited activities include: unauthorized access to other accounts, uploading malicious content, reverse engineering the platform, or using the Service for unlawful purposes.',
+    tos5Title:'5. Data and Privacy',
+    tos5:'Your use of the Service is also governed by our Privacy Policy. By using the Service, you consent to the collection and use of your information as described therein.',
+    tos6Title:'6. Payment and Billing',
+    tos6:'Paid plans are billed in advance. All fees are non-refundable except as required by law. We reserve the right to change pricing with 30 days notice.',
+    tos7Title:'7. Termination',
+    tos7:'We reserve the right to suspend or terminate your account for violation of these terms. You may cancel your account at any time. Upon termination, your data will be retained for 30 days then deleted.',
+    tos8Title:'8. Limitation of Liability',
+    tos8:'Celox AI is provided "as is". We are not liable for indirect, incidental, or consequential damages. Our total liability shall not exceed the amount you paid us in the 12 months prior to the claim.',
+    tos9Title:'9. Governing Law',
+    tos9:'These terms are governed by the laws of the State of Israel. Any disputes shall be resolved in the competent courts of Tel Aviv.',
+    tos10Title:'10. Contact',
+    tos10:'For questions about these Terms, contact us at support@celoxai.com.',
     privacyTitle:'Privacy Policy — Celox AI',
     privacyUpdated:'Last updated: April 12, 2026',
     privacyIntroTitle:'1. Introduction',
@@ -391,6 +415,28 @@ const T = {
     privacyPolicy:'מדיניות פרטיות', privacyPolicyDesc:'כיצד אנו אוספים ומגינים על הנתונים שלך',
     termsOfService:'תנאי שירות', termsOfServiceDesc:'כללים ותנאים לשימוש ב-Celox AI',
     privacyClose:'סגור',
+    tosTitle:'תנאי שירות — Celox AI',
+    tosUpdated:'עדכון אחרון: 16 באפריל 2026',
+    tos1Title:'1. קבלת התנאים',
+    tos1:'על ידי גישה לשירות Celox AI או שימוש בו, אתה מסכים להיות מחויב לתנאי שירות אלה. אם אינך מסכים, אל תשתמש בשירות.',
+    tos2Title:'2. תיאור השירות',
+    tos2:'Celox AI מספקת פלטפורמת SaaS לניהול צי רכבים הכוללת מעקב רכבים, ניהול נהגים, תזמון תחזוקה וכלי דיווח.',
+    tos3Title:'3. אחריות החשבון',
+    tos3Items:['אתה אחראי לשמירה על סודיות פרטי הגישה לחשבונך.','עליך לספק מידע מדויק ומלא בעת ההרשמה.','אתה אחראי לכל פעילות שמתרחשת תחת חשבונך.','עליך להודיע לנו מיידית על כל שימוש לא מורשה בחשבונך.'],
+    tos4Title:'4. שימוש מותר',
+    tos4:'אתה מסכים שלא לעשות שימוש לרעה בשירות. פעילויות אסורות כוללות: גישה לא מורשית לחשבונות אחרים, העלאת תוכן זדוני, הנדסה לאחור של הפלטפורמה, או שימוש בשירות למטרות בלתי חוקיות.',
+    tos5Title:'5. נתונים ופרטיות',
+    tos5:'השימוש שלך בשירות כפוף גם למדיניות הפרטיות שלנו. על ידי שימוש בשירות, אתה מסכים לאיסוף ושימוש במידע שלך כמתואר בה.',
+    tos6Title:'6. תשלום וחיוב',
+    tos6:'תוכניות בתשלום מחויבות מראש. כל התשלומים אינם ניתנים להחזר אלא כנדרש על פי חוק. אנו שומרים את הזכות לשנות מחירים עם הודעה של 30 יום.',
+    tos7Title:'7. סיום שירות',
+    tos7:'אנו שומרים את הזכות להשעות או לסיים את חשבונך בשל הפרת תנאים אלה. תוכל לבטל את חשבונך בכל עת. עם הסיום, הנתונים שלך יישמרו 30 יום ולאחר מכן יימחקו.',
+    tos8Title:'8. הגבלת אחריות',
+    tos8:'Celox AI ניתנת "כמו שהיא". אנחנו לא אחראים לנזקים עקיפים, אגביים או תוצאתיים. האחריות הכוללת שלנו לא תעלה על הסכום ששילמת לנו ב-12 החודשים שקדמו לתביעה.',
+    tos9Title:'9. דין החל',
+    tos9:'תנאים אלה כפופים לחוקי מדינת ישראל. כל מחלוקות יפתרו בבתי המשפט המוסמכים בתל אביב.',
+    tos10Title:'10. יצירת קשר',
+    tos10:'לשאלות בנוגע לתנאים אלה, צור קשר בכתובת support@celoxai.com.',
     privacyTitle:'מדיניות פרטיות — Celox AI',
     privacyUpdated:'עדכון אחרון: 12 באפריל 2026',
     privacyIntroTitle:'1. מבוא',
@@ -798,11 +844,20 @@ function getMergedOptions(type, customLists = {}) {
 }
 
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, t, rtl, mobile }) {
+function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, onMileageUpdate, t, rtl, mobile }) {
   const [hover, setHover] = useState(false)
+  const [editingKm, setEditingKm] = useState(false)
+  const [kmVal, setKmVal] = useState(String(car.mileage || ''))
   const td = mkTd(rtl, mobile)
   const statusColor = CAR_STATUS_COLOR[car.status] || C.textMuted
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
+
+  function saveKm() {
+    const val = parseInt(kmVal)
+    if (!isNaN(val) && val >= 0) onMileageUpdate(car.id, val)
+    setEditingKm(false)
+  }
+
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: selected ? C.primary + '08' : hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
@@ -815,6 +870,22 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
       </td>
       <td style={td}>{car.make} {car.model}</td>
       <td style={td}>{car.year || '—'}</td>
+      <td style={{ ...td, cursor: 'pointer' }} onClick={() => { setKmVal(String(car.mileage || '')); setEditingKm(true) }}>
+        {editingKm ? (
+          <span style={{ display: 'flex', gap: 4, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+            <input autoFocus type="number" value={kmVal} onChange={e => setKmVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveKm(); if (e.key === 'Escape') setEditingKm(false) }}
+              style={{ width: 70, padding: '3px 6px', border: `1px solid ${C.primary}`, borderRadius: 5, fontSize: 12, outline: 'none' }} />
+            <button onClick={saveKm} style={{ background: C.success, color: '#fff', border: 'none', borderRadius: 4, padding: '3px 7px', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>✓</button>
+            <button onClick={() => setEditingKm(false)} style={{ background: C.border, color: C.textSecondary, border: 'none', borderRadius: 4, padding: '3px 7px', fontSize: 11, cursor: 'pointer' }}>✕</button>
+          </span>
+        ) : (
+          <span style={{ fontSize: 13, color: car.mileage ? C.textPrimary : C.textMuted }}>
+            {car.mileage ? car.mileage.toLocaleString() : '—'}
+            <span style={{ fontSize: 10, color: C.textMuted, marginInlineStart: 3 }}>✏️</span>
+          </span>
+        )}
+      </td>
       <td style={td}><Badge label={t[CAR_STATUS_KEY[car.status]] || car.status || t.available} color={statusColor} /></td>
       <td style={td}>{t[CAR_FUEL_KEY[car.fuel]] || car.fuel || '—'}</td>
       <td style={td}>
@@ -858,6 +929,7 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobi
         </div>
       </td>
       <td style={td}><input type="number" value={form.year || ''} placeholder={t.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
+      <td style={td}><input type="number" value={form.mileage || ''} placeholder={t.mileage} onChange={e => setForm({ ...form, mileage: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status || 'Available'} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
           {getMergedOptions('car_status', customLists).map(v => <option key={v} value={v}>{t[CAR_STATUS_KEY[v]] || v}</option>)}
@@ -1018,7 +1090,7 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl, mobile }) {
 // ── Add-item inline rows ────────────────────────────────────────────────────
 // ── Ministry of Transport vehicle lookup ────────────────────────────────────
 const FUEL_MAP = { 'בנזין': 'Petrol', 'דיזל': 'Diesel', 'גז': 'Petrol', 'חשמל': 'Electric', 'היברידי': 'Hybrid', 'היבריד': 'Hybrid' }
-async function lookupPlate(rawPlate) {
+async function lookupPlate(rawPlate, signal) {
   const plate = rawPlate.replace(/\D/g, '')
   if (!plate) return null
   const RESOURCE_IDS = [
@@ -1029,8 +1101,9 @@ async function lookupPlate(rawPlate) {
   ]
   for (const rid of RESOURCE_IDS) {
     try {
+      if (signal?.aborted) return null
       const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=${rid}&filters={"mispar_rechev":${plate}}&limit=1`
-      const res = await fetch(url)
+      const res = await fetch(url, { signal })
       const data = await res.json()
       const rec = data?.result?.records?.[0]
       if (rec) {
@@ -1042,21 +1115,25 @@ async function lookupPlate(rawPlate) {
         const color = (rec.tzeva_rechev || '').trim()
         return { make, model, year, fuel, color }
       }
-    } catch { /* try next resource */ }
+    } catch (e) { if (e?.name === 'AbortError') return null /* cancelled */ }
   }
   return null
 }
 
 function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customLists }) {
-  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
+  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', mileage: '', color: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
   const [lookupState, setLookupState] = useState('idle') // idle | loading | found | notfound
+  const abortRef = useRef(null)
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
 
   async function doLookup() {
     if (!form.plate.trim()) return
+    if (abortRef.current) abortRef.current.abort()
+    abortRef.current = new AbortController()
     setLookupState('loading')
-    const result = await lookupPlate(form.plate)
+    const result = await lookupPlate(form.plate, abortRef.current.signal)
+    if (result === null && abortRef.current?.signal.aborted) return
     if (result) {
       setForm(f => ({ ...f, ...result }))
       setLookupState('found')
@@ -1090,6 +1167,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
         </div>
       </td>
       <td style={td}><input type="number" placeholder={t.year} value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
+      <td style={td}><input type="number" placeholder={t.mileage} value={form.mileage} onChange={e => setForm({ ...form, mileage: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
           {getMergedOptions('car_status', customLists).map(v => <option key={v} value={v}>{t[CAR_STATUS_KEY[v]] || v}</option>)}
@@ -1220,7 +1298,7 @@ function MobileBranchCard({ branch, index, selected, onSelect, onEdit, onDelete,
 function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSave, onCancel, t, rtl }) {
   const isEdit = mode === 'edit'
   const defaults = {
-    cars:    { plate: '', make: '', model: '', year: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' },
+    cars:    { plate: '', make: '', model: '', year: '', mileage: '', color: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' },
     drivers: { name: '', license: '', phone: '', status: 'Active', branch_id: '' },
     branches:{ name: '', city: '', address: '', manager: '', phone: '' },
   }
@@ -1228,11 +1306,15 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
   const [err, setErr]   = useState('')
   const [lookupState, setLookupState] = useState('idle')
   const [lookupMsg, setLookupMsg]     = useState('')
+  const abortRef = useRef(null)
 
   async function doLookup() {
     if (!form.plate?.trim()) return
+    if (abortRef.current) abortRef.current.abort()
+    abortRef.current = new AbortController()
     setLookupState('loading'); setLookupMsg('')
-    const result = await lookupPlate(form.plate)
+    const result = await lookupPlate(form.plate, abortRef.current.signal)
+    if (result === null && abortRef.current?.signal.aborted) return
     if (result) {
       setForm(f => ({ ...f, ...result }))
       setLookupState('found')
@@ -1284,11 +1366,12 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
             </div>
             <div style={row2}>
               <div style={fw}><label style={lbl}>{t.year}</label><input type="number" value={form.year||''} onChange={e=>setForm({...form,year:e.target.value})} placeholder={t.year} style={inp} /></div>
-              <div style={fw}><label style={lbl}>{t.status}</label>
-                <select value={form.status||'Available'} onChange={e=>setForm({...form,status:e.target.value})} style={inp}>
-                  {getMergedOptions('car_status',customLists).map(v=><option key={v} value={v}>{t[CAR_STATUS_KEY[v]]||v}</option>)}
-                </select>
-              </div>
+              <div style={fw}><label style={lbl}>{t.mileage}</label><input type="number" value={form.mileage||''} onChange={e=>setForm({...form,mileage:e.target.value})} placeholder={t.mileage} style={inp} /></div>
+            </div>
+            <div style={fw}><label style={lbl}>{t.status}</label>
+              <select value={form.status||'Available'} onChange={e=>setForm({...form,status:e.target.value})} style={inp}>
+                {getMergedOptions('car_status',customLists).map(v=><option key={v} value={v}>{t[CAR_STATUS_KEY[v]]||v}</option>)}
+              </select>
             </div>
             <div style={fw}><label style={lbl}>{t.fuel}</label>
               <select value={form.fuel||'Petrol'} onChange={e=>setForm({...form,fuel:e.target.value})} style={inp}>
@@ -1888,7 +1971,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                   <thead>
                     <tr>
                       {type === 'cars'
-                        ? [t.plate, t.make, t.model, t.year, t.status, t.fuel, t.branch, t.driver].map(h => <th key={h} style={thStyle}>{h}</th>)
+                        ? [t.plate, t.make, t.model, t.year, t.mileage, t.status, t.fuel, t.branch, t.driver].map(h => <th key={h} style={thStyle}>{h}</th>)
                         : [t.name, t.license, t.phone, t.driverStatus, t.branch].map(h => <th key={h} style={thStyle}>{h}</th>)
                       }
                       <th style={thStyle}></th>
@@ -2787,7 +2870,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
 }
 
 // ── Settings Tab ────────────────────────────────────────────────────────────
-function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl, onCustomListsChange, onPrivacy }) {
+function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl, onCustomListsChange, onPrivacy, onTerms }) {
   const company  = profile?.companies
   const isAdmin  = profile?.role === 'admin'
   const isMobile = useIsMobile()
@@ -3169,7 +3252,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 </div>
                 <span style={{ fontSize: 12, color: C.textMuted }}>{rtl ? '←' : '→'}</span>
               </button>
-              <button onClick={onPrivacy} style={{
+              <button onClick={onTerms} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8,
                 padding: '10px 14px', cursor: 'pointer', textAlign: rtl ? 'right' : 'left',
@@ -3273,6 +3356,59 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
   return createPortal(body, document.body)
 }
 
+function TermsOfServiceModal({ onClose, t, rtl }) {
+  const Section = ({ title, children }) => (
+    <div style={{ marginBottom: 24 }}>
+      <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{title}</h3>
+      {children}
+    </div>
+  )
+  const body = (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{
+        background: '#fff', borderRadius: 16, width: '100%', maxWidth: 680,
+        maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        direction: rtl ? 'rtl' : 'ltr',
+      }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{t.tosTitle}</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{t.tosUpdated}</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}>✕</button>
+        </div>
+        <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontSize: 14, color: '#334155', lineHeight: 1.7 }}>
+          <Section title={t.tos1Title}><p style={{ margin: 0 }}>{t.tos1}</p></Section>
+          <Section title={t.tos2Title}><p style={{ margin: 0 }}>{t.tos2}</p></Section>
+          <Section title={t.tos3Title}>
+            <ul style={{ margin: 0, paddingInlineStart: 20 }}>
+              {t.tos3Items.map((item, i) => <li key={i} style={{ marginBottom: 4 }}>{item}</li>)}
+            </ul>
+          </Section>
+          <Section title={t.tos4Title}><p style={{ margin: 0 }}>{t.tos4}</p></Section>
+          <Section title={t.tos5Title}><p style={{ margin: 0 }}>{t.tos5}</p></Section>
+          <Section title={t.tos6Title}><p style={{ margin: 0 }}>{t.tos6}</p></Section>
+          <Section title={t.tos7Title}><p style={{ margin: 0 }}>{t.tos7}</p></Section>
+          <Section title={t.tos8Title}><p style={{ margin: 0 }}>{t.tos8}</p></Section>
+          <Section title={t.tos9Title}><p style={{ margin: 0 }}>{t.tos9}</p></Section>
+          <Section title={t.tos10Title}><p style={{ margin: 0 }}>{t.tos10}</p></Section>
+        </div>
+        <div style={{ padding: '12px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+          <button onClick={onClose} style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            {t.privacyClose}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+  return createPortal(body, document.body)
+}
+
 // ── Main component ──────────────────────────────────────────────────────────
 function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang }) {
   const [branches, setBranches]   = useState([])
@@ -3297,6 +3433,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [costsReloadKey, setCostsReloadKey] = useState(0)
   const [showEntityCsvImport, setShowEntityCsvImport] = useState(null) // 'cars' | 'drivers' | null
   const [showPrivacy, setShowPrivacy] = useState(false)
+  const [showTerms, setShowTerms]   = useState(false)
   const realtimeRef = useRef(null)
 
   const t   = T[lang]
@@ -3344,13 +3481,24 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
 
   // ── Activity logging ──────────────────────────────────────────────────────
-  async function logActivity(action, entityType, entityName) {
+  async function logActivity(action, entityType, entityName, details = null) {
     if (!activeCompanyId) return
     await supabase.from('activity_log').insert([{
       company_id: activeCompanyId,
       user_email: session.user.email,
       action, entity_type: entityType, entity_name: entityName,
+      details: details || undefined,
     }])
+  }
+
+  function diffObjects(prev, next, fields) {
+    const changes = {}
+    for (const f of fields) {
+      if (String(prev[f] ?? '') !== String(next[f] ?? '')) {
+        changes[f] = { from: prev[f] ?? null, to: next[f] ?? null }
+      }
+    }
+    return Object.keys(changes).length ? changes : null
   }
 
   // ── Export to Excel ───────────────────────────────────────────────────────
@@ -3394,7 +3542,62 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     XLSX.writeFile(wb, `fleet-export${suffix}-${date}.xlsx`)
   }
 
+  // ── Export to PDF ─────────────────────────────────────────────────────────
+  function exportPDF(tab) {
+    const doc = new jsPDF({ orientation: 'landscape' })
+    const date = new Date().toLocaleDateString()
+    const title = tab === 'cars' ? t.cars : tab === 'drivers' ? t.drivers : tab === 'branches' ? t.branches : 'Fleet'
+    doc.setFontSize(16)
+    doc.text(`Celox AI — ${title}`, 14, 16)
+    doc.setFontSize(9)
+    doc.setTextColor(100)
+    doc.text(date, doc.internal.pageSize.width - 14, 16, { align: 'right' })
+
+    if (!tab || tab === 'cars') {
+      autoTable(doc, {
+        startY: 24,
+        head: [[t.plate, t.make, t.model, t.year, t.mileage, t.status, t.fuel, t.branch, t.driver]],
+        body: cars.map(c => [
+          c.plate, c.make, c.model, c.year || '',
+          c.mileage ? c.mileage.toLocaleString() : '',
+          c.status, c.fuel,
+          getBranchName(c.branch_id),
+          drivers.find(d => d.id === c.driver_id)?.name || '',
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+      })
+    }
+    if (!tab || tab === 'drivers') {
+      const startY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 12 : 24
+      autoTable(doc, {
+        startY,
+        head: [[t.name, t.license, t.phone, t.driverStatus, t.branch]],
+        body: drivers.map(d => [d.name, d.license, d.phone || '', d.status, getBranchName(d.branch_id)]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [99, 102, 241] },
+      })
+    }
+    if (!tab || tab === 'branches') {
+      const startY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 12 : 24
+      autoTable(doc, {
+        startY,
+        head: [[t.branchName, t.city, t.address, t.manager, t.phone]],
+        body: branches.map(b => [b.name, b.city, b.address || '', b.manager || '', b.phone || '']),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [16, 185, 129] },
+      })
+    }
+    const suffix = tab ? `-${tab}` : '-all'
+    doc.save(`fleet-export${suffix}-${new Date().toISOString().slice(0,10)}.pdf`)
+  }
+
   // ── Vehicle photo upload ──────────────────────────────────────────────────
+  async function updateMileage(carId, mileage) {
+    await supabase.from('cars').update({ mileage }).eq('id', carId)
+    setCars(p => p.map(c => c.id === carId ? { ...c, mileage } : c))
+  }
+
   async function uploadCarPhoto(carId, file) {
     if (file.size > 5 * 1024 * 1024) { setCrudError(t.photoTooLarge); return }
     if (!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) { setCrudError(t.photoTypeNotAllowed); return }
@@ -3430,7 +3633,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     switchTab('cars')
   }
 
-  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, company_id: activeCompanyId } }
+  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, mileage: f.mileage ? parseInt(f.mileage) : 0, color: f.color || null, company_id: activeCompanyId } }
   function cleanDriver(f) { return { name: f.name, license: f.license, license_levels: f.license_levels || [], phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
@@ -3443,6 +3646,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
     if (error) { setCrudError(error.message); return }
     setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
+    if (form.driver_id) await supabase.from('drivers').update({ car_id: String(data[0].id) }).eq('id', form.driver_id)
     logActivity('add', 'car', `${form.plate} ${form.make}`)
   }
   async function updateCar(form) {
@@ -3459,6 +3663,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         driver_name: drivers.find(d => d.id === form.driver_id)?.name || null,
         assigned_at: new Date().toISOString(),
       }])
+      // Sync drivers.car_id — clear old driver's car_id, set new driver's car_id
+      if (prev.driver_id) await supabase.from('drivers').update({ car_id: null }).eq('id', prev.driver_id)
+      if (form.driver_id) await supabase.from('drivers').update({ car_id: String(form.id) }).eq('id', form.driver_id)
     }
     // Notify admins if status changed
     if (prev && prev.status !== form.status) {
@@ -3471,7 +3678,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       }).catch(() => {})
     }
     setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null); setCrudError('')
-    logActivity('update', 'car', `${form.plate} ${form.make}`)
+    const carDiff = prev ? diffObjects(prev, form, ['plate','make','model','year','status','fuel','mileage','color','branch_id','driver_id']) : null
+    logActivity('update', 'car', `${form.plate} ${form.make}`, carDiff)
   }
   async function deleteCar(id) {
     if (!window.confirm(t.confirmDelete)) return
@@ -3491,11 +3699,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     logActivity('add', 'driver', form.name)
   }
   async function updateDriver(form) {
+    const prevDrv = drivers.find(x => x.id === form.id)
     const { id: driverId, ...driverData } = { ...cleanDriver(form), id: form.id }
     const { error } = await supabase.from('drivers').update(driverData).eq('id', driverId)
     if (error) { setCrudError(error.message); return }
     setDrivers(p => p.map(x => x.id === driverId ? { ...x, ...driverData, id: driverId } : x)); setEditingId(null); setCrudError('')
-    logActivity('update', 'driver', form.name)
+    const drvDiff = prevDrv ? diffObjects(prevDrv, form, ['name','license','phone','status','branch_id','license_levels']) : null
+    logActivity('update', 'driver', form.name, drvDiff)
   }
   async function deleteDriver(id) {
     if (!window.confirm(t.confirmDelete)) return
@@ -3512,11 +3722,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     logActivity('add', 'branch', form.name)
   }
   async function updateBranch(form) {
+    const prevBrn = branches.find(x => x.id === form.id)
     const { id: branchId, ...branchData } = { ...cleanBranch(form), id: form.id }
     const { error } = await supabase.from('branches').update(branchData).eq('id', branchId)
     if (error) { setCrudError(error.message); return }
     setBranches(p => p.map(x => x.id === branchId ? { ...x, ...branchData, id: branchId } : x)); setEditingId(null); setCrudError('')
-    logActivity('update', 'branch', form.name)
+    const brnDiff = prevBrn ? diffObjects(prevBrn, form, ['name','city','address','manager','phone']) : null
+    logActivity('update', 'branch', form.name, brnDiff)
   }
   async function deleteBranch(id) {
     if (!window.confirm(t.confirmDelete)) return
@@ -3778,7 +3990,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Settings view */}
         {activeTab === 'settings' && (
-          <SettingsTab profile={profile} companyId={activeCompanyId} session={session} isMaster={isMaster} onSelectCompany={switchToCompany} t={t} rtl={rtl} onCustomListsChange={loadAll} onPrivacy={() => setShowPrivacy(true)} />
+          <SettingsTab profile={profile} companyId={activeCompanyId} session={session} isMaster={isMaster} onSelectCompany={switchToCompany} t={t} rtl={rtl} onCustomListsChange={loadAll} onPrivacy={() => setShowPrivacy(true)} onTerms={() => setShowTerms(true)} />
         )}
 
         {/* Maintenance tab */}
@@ -3884,6 +4096,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   <button onClick={() => exportExcel(activeTab)} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     📥 {t.exportExcel}
                   </button>
+                  <button onClick={() => exportPDF(activeTab)} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    📄 {t.exportPDF}
+                  </button>
                 </div>
 
                 {/* Bulk actions bar */}
@@ -3911,6 +4126,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         <th style={mkTh(rtl, false)}>{t.plate}</th>
                         <th style={mkTh(rtl, false)}>{t.make} / {t.model}</th>
                         <th style={mkTh(rtl, false)}>{t.year}</th>
+                        <th style={mkTh(rtl, false)}>{t.mileage}</th>
                         <th style={mkTh(rtl, false)}>{t.status}</th>
                         <th style={mkTh(rtl, false)}>{t.fuel}</th>
                         <th style={mkTh(rtl, false)}>{t.branch}</th>
@@ -3943,7 +4159,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                             selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
                             onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
-                            onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} mobile={false} />
+                            onPhotoChange={file => uploadCarPhoto(car.id, file)} onMileageUpdate={updateMileage} t={t} rtl={rtl} mobile={false} />
                     )}
                     {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
                     {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
@@ -4007,6 +4223,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       {/* Privacy Policy modal */}
       {showPrivacy && (
         <PrivacyPolicyModal onClose={() => setShowPrivacy(false)} t={t} rtl={rtl} />
+      )}
+      {/* Terms of Service modal */}
+      {showTerms && (
+        <TermsOfServiceModal onClose={() => setShowTerms(false)} t={t} rtl={rtl} />
       )}
     </div>
   )
