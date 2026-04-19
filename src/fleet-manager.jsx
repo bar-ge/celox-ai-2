@@ -54,34 +54,62 @@ function fmtDate(iso) {
 }
 
 // ── Multi-select checkbox dropdown ─────────────────────────────────────────
+// Uses a portal so the dropdown is never clipped by table overflow or z-index
 function MultiSelect({ options, value = [], onChange, placeholder, style, getLabel }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [pos, setPos]   = useState({ top: 0, left: 0, width: 180 })
+  const triggerRef  = useRef(null)
+  const dropdownRef = useRef(null)
+
   useEffect(() => {
-    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    function handler(e) {
+      const inTrigger  = triggerRef.current  && triggerRef.current.contains(e.target)
+      const inDropdown = dropdownRef.current && dropdownRef.current.contains(e.target)
+      if (!inTrigger && !inDropdown) setOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  function handleOpen() {
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 2, left: r.left, width: Math.max(r.width, 180) })
+    }
+    setOpen(p => !p)
+  }
+
   const toggle = v => onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v])
-  const label = v => getLabel ? getLabel(v) : v
+  const lbl    = v => getLabel ? getLabel(v) : v
+
   return (
-    <div ref={ref} style={{ position: 'relative', ...style }}>
-      <div onClick={() => setOpen(p => !p)} style={{ ...style, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
-        <span style={{ color: value.length ? '#1e293b' : '#94a3b8', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {value.length ? value.map(label).join(', ') : placeholder}
-        </span>
-        <span style={{ fontSize: 10, marginInlineStart: 4, color: '#64748b' }}>▾</span>
-      </div>
-      {open && (
-        <div style={{ position: 'absolute', zIndex: 999, top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '6px 0', maxHeight: 220, overflowY: 'auto', marginTop: 2 }}>
+    <div ref={triggerRef} onClick={handleOpen}
+      style={{ ...style, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
+      <span style={{ color: value.length ? '#1e293b' : '#94a3b8', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        {value.length ? value.map(lbl).join(', ') : placeholder}
+      </span>
+      <span style={{ fontSize: 10, marginInlineStart: 4, color: '#64748b', flexShrink: 0 }}>▾</span>
+
+      {open && createPortal(
+        <div ref={dropdownRef} onMouseDown={e => e.stopPropagation()}
+          style={{
+            position: 'fixed', zIndex: 99999,
+            top: pos.top, left: pos.left, width: pos.width,
+            background: '#fff', border: '1px solid #e2e8f0',
+            borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+            padding: '6px 0', maxHeight: 240, overflowY: 'auto',
+          }}>
           {options.map(opt => (
-            <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#1e293b' }}
-              onMouseDown={e => { e.preventDefault(); toggle(opt) }}>
-              <input type="checkbox" checked={value.includes(opt)} onChange={() => toggle(opt)} style={{ accentColor: '#3b82f6' }} />
-              {label(opt)}
+            <label key={opt} onClick={e => e.stopPropagation()}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 13, color: '#1e293b' }}>
+              <input type="checkbox" checked={value.includes(opt)}
+                onChange={() => toggle(opt)}
+                style={{ accentColor: '#0891b2', width: 15, height: 15 }} />
+              {lbl(opt)}
             </label>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -105,8 +133,8 @@ const C = {
   navText:      '#94a3b8',
   navActive:    '#f8fafc',
   navActiveBg:  'rgba(255,255,255,0.1)',
-  primary:      '#3b82f6',
-  primaryHover: '#2563eb',
+  primary:      '#0891b2',
+  primaryHover: '#0e7490',
   indigo:       '#6366f1',
   bg:           '#f1f5f9',
   bgSubtle:     '#f8fafc',
@@ -120,12 +148,12 @@ const C = {
   danger:       '#ef4444',
   warning:      '#f59e0b',
   overlay:      'rgba(15,23,42,0.55)',
-  rowHover:     '#f0f7ff',
-  rowAdd:       '#eff6ff',
+  rowHover:     '#ecfeff',
+  rowAdd:       '#ecfeff',
   footerBg:     '#f8fafc',
 }
 
-const BRANCH_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
+const BRANCH_COLORS = ['#0891b2','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
 const branchColor = idx => BRANCH_COLORS[Math.max(idx, 0) % BRANCH_COLORS.length]
 
 // ── Translations ────────────────────────────────────────────────────────────
@@ -476,6 +504,33 @@ const T = {
   },
 }
 
+// ── Nav SVG Icons ─────────────────────────────────────────────────────────────
+function TabIcon({ id, size = 15 }) {
+  const s = { width: size, height: size, flexShrink: 0 }
+  if (id === 'dashboard') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" fillOpacity=".9"/><rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" fillOpacity=".5"/><rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" fillOpacity=".5"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" fillOpacity=".9"/></svg>
+  )
+  if (id === 'cars') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><path d="M3 9.5h10M4.5 7l1.5-3h4l1.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><rect x="1.5" y="9" width="13" height="4" rx="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="4.5" cy="13.5" r="1.2" fill="currentColor"/><circle cx="11.5" cy="13.5" r="1.2" fill="currentColor"/></svg>
+  )
+  if (id === 'drivers') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.4"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+  )
+  if (id === 'branches') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><rect x="2" y="7" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.4"/><path d="M5 15V11h2.5v4M8.5 15V11H11v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M1 7.5L8 2l7 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+  )
+  if (id === 'maintenance') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><path d="M10.5 2a3.5 3.5 0 0 1 .55 6.95L5 15a1.5 1.5 0 0 1-2.12-2.12l6.05-6.05A3.5 3.5 0 0 1 10.5 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10.5" cy="5.5" r="1" fill="currentColor"/></svg>
+  )
+  if (id === 'costs') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/><path d="M8 4.5v1M8 10.5v1M6 7c0-.83.9-1.5 2-1.5s2 .67 2 1.5S9.1 8.5 8 8.5 6 9.17 6 10s.9 1.5 2 1.5 2-.67 2-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+  )
+  if (id === 'settings') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" strokeWidth="1.4"/><path d="M13.2 9.6a5.4 5.4 0 0 0 .13-.6l1.17-.9a.5.5 0 0 0 .12-.64l-1.1-1.9a.5.5 0 0 0-.61-.22l-1.38.55a5.3 5.3 0 0 0-1.03-.6l-.21-1.47A.5.5 0 0 0 9.8 3h-2.2a.5.5 0 0 0-.5.43l-.2 1.47a5.3 5.3 0 0 0-1.04.6L4.47 5a.5.5 0 0 0-.61.22l-1.1 1.9a.5.5 0 0 0 .12.64l1.17.9a5.4 5.4 0 0 0 0 1.2l-1.17.9a.5.5 0 0 0-.12.64l1.1 1.9a.5.5 0 0 0 .61.22l1.38-.55a5.3 5.3 0 0 0 1.04.6l.2 1.47a.5.5 0 0 0 .5.43h2.2a.5.5 0 0 0 .49-.43l.2-1.47a5.3 5.3 0 0 0 1.04-.6l1.38.55a.5.5 0 0 0 .61-.22l1.1-1.9a.5.5 0 0 0-.12-.64l-1.17-.9Z" stroke="currentColor" strokeWidth="1.3"/></svg>
+  )
+  return <span style={{ fontSize: size }}></span>
+}
+
 // ── Plate number formatter ───────────────────────────────────────────────────
 function formatPlate(plate) {
   if (!plate) return plate
@@ -647,7 +702,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
 
   async function downloadFile(doc) {
     const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(doc.storage_path, 60)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
   async function deleteFile(doc) {
@@ -683,7 +738,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
       alignItems: isMobile ? 'flex-end' : 'center',
       justifyContent: 'center', padding: isMobile ? 0 : 16,
     }} onClick={onClose}>
-      <div style={{
+      <div className="modal-content" style={{
         background: C.surface, width: '100%', maxWidth: isMobile ? '100%' : 500,
         borderRadius: isMobile ? '18px 18px 0 0' : 12,
         boxShadow: '0 8px 40px rgba(0,0,0,0.2)', border: `1px solid ${C.border}`,
@@ -853,7 +908,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
 
   function saveKm() {
-    const val = parseInt(kmVal)
+    const val = parseInt(kmVal, 10)
     if (!isNaN(val) && val >= 0) onMileageUpdate(car.id, val)
     setEditingKm(false)
   }
@@ -921,15 +976,15 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobi
   return (
     <tr style={{ background: C.rowHover }}>
       <td style={td} />
-      <td style={td}><input value={form.plate || ''} placeholder={t.plate} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.plate || ''} placeholder={t.plate} maxLength={20} onChange={e => setForm({ ...form, plate: e.target.value })} style={inp} /></td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
-          <input value={form.make || ''} placeholder={t.make} onChange={e => setForm({ ...form, make: e.target.value })} style={{ ...inp, width: '50%' }} />
-          <input value={form.model || ''} placeholder={t.model} onChange={e => setForm({ ...form, model: e.target.value })} style={{ ...inp, width: '50%' }} />
+          <input value={form.make || ''} placeholder={t.make} maxLength={50} onChange={e => setForm({ ...form, make: e.target.value })} style={{ ...inp, width: '50%' }} />
+          <input value={form.model || ''} placeholder={t.model} maxLength={50} onChange={e => setForm({ ...form, model: e.target.value })} style={{ ...inp, width: '50%' }} />
         </div>
       </td>
-      <td style={td}><input type="number" value={form.year || ''} placeholder={t.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
-      <td style={td}><input type="number" value={form.mileage || ''} placeholder={t.mileage} onChange={e => setForm({ ...form, mileage: e.target.value })} style={inp} /></td>
+      <td style={td}><input type="number" value={form.year || ''} placeholder={t.year} min={1900} max={2099} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
+      <td style={td}><input type="number" value={form.mileage || ''} placeholder={t.mileage} min={0} max={9999999} onChange={e => setForm({ ...form, mileage: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status || 'Available'} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
           {getMergedOptions('car_status', customLists).map(v => <option key={v} value={v}>{t[CAR_STATUS_KEY[v]] || v}</option>)}
@@ -1011,12 +1066,12 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile,
   return (
     <tr style={{ background: C.rowHover }}>
       <td style={td} />
-      <td style={td}><input value={form.name || ''} placeholder={t.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.license || ''} placeholder={t.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.name || ''} placeholder={t.name} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.license || ''} placeholder={t.license} maxLength={20} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
       <td style={td}>
         <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels || []} onChange={v => setForm({ ...form, license_levels: v })} placeholder={t.licenseLevel} style={inp} getLabel={l => t[LICENSE_LEVEL_KEY[l]] || l} />
       </td>
-      <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.phone || ''} placeholder={t.phone} maxLength={20} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status || 'Active'} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
           {getMergedOptions('driver_status', customLists).map(v => <option key={v} value={v}>{t[DRIVER_STATUS_KEY[v]] || v}</option>)}
@@ -1072,11 +1127,11 @@ function EditableBranchRow({ branch, onSave, onCancel, t, rtl, mobile }) {
   return (
     <tr style={{ background: C.rowHover }}>
       <td style={td} />
-      <td style={td}><input value={form.name || ''} placeholder={t.branchName} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.city || ''} placeholder={t.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.address || ''} placeholder={t.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.manager || ''} placeholder={t.manager} onChange={e => setForm({ ...form, manager: e.target.value })} style={inp} /></td>
-      <td style={td}><input value={form.phone || ''} placeholder={t.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.name || ''} placeholder={t.branchName} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.city || ''} placeholder={t.city} maxLength={60} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.address || ''} placeholder={t.address} maxLength={150} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.manager || ''} placeholder={t.manager} maxLength={80} onChange={e => setForm({ ...form, manager: e.target.value })} style={inp} /></td>
+      <td style={td}><input value={form.phone || ''} placeholder={t.phone} maxLength={20} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6 }}>
           <ActionBtn variant="save" onClick={() => onSave(form)}>{t.save}</ActionBtn>
@@ -1102,7 +1157,7 @@ async function lookupPlate(rawPlate, signal) {
   for (const rid of RESOURCE_IDS) {
     try {
       if (signal?.aborted) return null
-      const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=${rid}&filters={"mispar_rechev":${plate}}&limit=1`
+      const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=${rid}&filters=${encodeURIComponent(JSON.stringify({ mispar_rechev: plate }))}&limit=1`
       const res = await fetch(url, { signal })
       const data = await res.json()
       const rec = data?.result?.records?.[0]
@@ -1149,7 +1204,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
       <td style={td} />
       <td style={td}>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input autoFocus placeholder={t.plate} value={form.plate} onChange={e => { setForm({ ...form, plate: e.target.value }); setLookupState('idle') }} style={{ ...inp, flex: 1 }} onKeyDown={e => e.key === 'Enter' && doLookup()} />
+          <input autoFocus placeholder={t.plate} value={form.plate} maxLength={20} onChange={e => { setForm({ ...form, plate: e.target.value }); setLookupState('idle') }} style={{ ...inp, flex: 1 }} onKeyDown={e => e.key === 'Enter' && doLookup()} />
           <button onClick={doLookup} disabled={lookupState === 'loading' || !form.plate.trim()} title={t.plateLookup} style={{
             background: lookupState === 'found' ? C.success : lookupState === 'notfound' ? C.danger : C.primary,
             color: '#fff', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 11,
@@ -1162,12 +1217,12 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
       </td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4 }}>
-          <input placeholder={t.make} value={form.make} onChange={e => setForm({ ...form, make: e.target.value })} style={{ ...inp, width: '50%' }} />
-          <input placeholder={t.model} value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} style={{ ...inp, width: '50%' }} />
+          <input placeholder={t.make} value={form.make} maxLength={50} onChange={e => setForm({ ...form, make: e.target.value })} style={{ ...inp, width: '50%' }} />
+          <input placeholder={t.model} value={form.model} maxLength={50} onChange={e => setForm({ ...form, model: e.target.value })} style={{ ...inp, width: '50%' }} />
         </div>
       </td>
-      <td style={td}><input type="number" placeholder={t.year} value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
-      <td style={td}><input type="number" placeholder={t.mileage} value={form.mileage} onChange={e => setForm({ ...form, mileage: e.target.value })} style={inp} /></td>
+      <td style={td}><input type="number" placeholder={t.year} value={form.year} min={1900} max={2099} onChange={e => setForm({ ...form, year: e.target.value })} style={inp} /></td>
+      <td style={td}><input type="number" placeholder={t.mileage} value={form.mileage} min={0} max={9999999} onChange={e => setForm({ ...form, mileage: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
           {getMergedOptions('car_status', customLists).map(v => <option key={v} value={v}>{t[CAR_STATUS_KEY[v]] || v}</option>)}
@@ -1193,12 +1248,12 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }
   return (
     <tr style={{ background: C.rowAdd }}>
       <td style={td} />
-      <td style={td}><input autoFocus placeholder={t.name} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
-      <td style={td}><input placeholder={t.license} value={form.license} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
+      <td style={td}><input autoFocus placeholder={t.name} value={form.name} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input placeholder={t.license} value={form.license} maxLength={20} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
       <td style={td}>
         <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels} onChange={v => setForm({ ...form, license_levels: v })} placeholder={t.licenseLevel} style={inp} />
       </td>
-      <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
+      <td style={td}><input placeholder={t.phone} value={form.phone} maxLength={20} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={td}>
         <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inp}>
           {getMergedOptions('driver_status', customLists).map(v => <option key={v} value={v}>{t[DRIVER_STATUS_KEY[v]] || v}</option>)}
@@ -1348,7 +1403,7 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
             <div style={fw}>
               <label style={lbl}>{t.plate}</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input value={form.plate||''} onChange={e=>{ setForm({...form,plate:e.target.value}); setLookupState('idle'); setLookupMsg('') }} placeholder={t.plate} style={{ ...inp, flex: 1 }} autoFocus={!isEdit} />
+                <input value={form.plate||''} maxLength={20} onChange={e=>{ setForm({...form,plate:e.target.value}); setLookupState('idle'); setLookupMsg('') }} placeholder={t.plate} style={{ ...inp, flex: 1 }} autoFocus={!isEdit} />
                 <button onClick={doLookup} disabled={lookupState==='loading' || !form.plate?.trim()} style={{
                   background: lookupState==='found' ? C.success : lookupState==='notfound' ? C.danger : C.primary,
                   color:'#fff', border:'none', borderRadius:8, padding:'11px 14px',
@@ -1361,12 +1416,12 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
               {lookupMsg && <div style={{ fontSize:12, marginTop:4, color: lookupState==='found' ? C.success : C.danger, fontWeight:600 }}>{lookupMsg}</div>}
             </div>
             <div style={row2}>
-              <div style={fw}><label style={lbl}>{t.make}</label><input value={form.make||''} onChange={e=>setForm({...form,make:e.target.value})} placeholder={t.make} style={inp} /></div>
-              <div style={fw}><label style={lbl}>{t.model}</label><input value={form.model||''} onChange={e=>setForm({...form,model:e.target.value})} placeholder={t.model} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.make}</label><input value={form.make||''} maxLength={50} onChange={e=>setForm({...form,make:e.target.value})} placeholder={t.make} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.model}</label><input value={form.model||''} maxLength={50} onChange={e=>setForm({...form,model:e.target.value})} placeholder={t.model} style={inp} /></div>
             </div>
             <div style={row2}>
-              <div style={fw}><label style={lbl}>{t.year}</label><input type="number" value={form.year||''} onChange={e=>setForm({...form,year:e.target.value})} placeholder={t.year} style={inp} /></div>
-              <div style={fw}><label style={lbl}>{t.mileage}</label><input type="number" value={form.mileage||''} onChange={e=>setForm({...form,mileage:e.target.value})} placeholder={t.mileage} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.year}</label><input type="number" value={form.year||''} min={1900} max={2099} onChange={e=>setForm({...form,year:e.target.value})} placeholder={t.year} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.mileage}</label><input type="number" value={form.mileage||''} min={0} max={9999999} onChange={e=>setForm({...form,mileage:e.target.value})} placeholder={t.mileage} style={inp} /></div>
             </div>
             <div style={fw}><label style={lbl}>{t.status}</label>
               <select value={form.status||'Available'} onChange={e=>setForm({...form,status:e.target.value})} style={inp}>
@@ -1393,10 +1448,10 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
           </>}
 
           {tab === 'drivers' && <>
-            <div style={fw}><label style={lbl}>{t.name}</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.name} style={inp} autoFocus={!isEdit} /></div>
+            <div style={fw}><label style={lbl}>{t.name}</label><input value={form.name||''} maxLength={80} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.name} style={inp} autoFocus={!isEdit} /></div>
             <div style={row2}>
-              <div style={fw}><label style={lbl}>{t.license}</label><input value={form.license||''} onChange={e=>setForm({...form,license:e.target.value})} placeholder={t.license} style={inp} /></div>
-              <div style={fw}><label style={lbl}>{t.phone}</label><input value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})} placeholder={t.phone} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.license}</label><input value={form.license||''} maxLength={20} onChange={e=>setForm({...form,license:e.target.value})} placeholder={t.license} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.phone}</label><input value={form.phone||''} maxLength={20} onChange={e=>setForm({...form,phone:e.target.value})} placeholder={t.phone} style={inp} /></div>
             </div>
             <div style={fw}><label style={lbl}>{t.licenseLevel}</label>
               <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels||[]} onChange={v=>setForm({...form,license_levels:v})} placeholder={t.licenseLevel} style={inp} />
@@ -1415,13 +1470,13 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
           </>}
 
           {tab === 'branches' && <>
-            <div style={fw}><label style={lbl}>{t.branchName}</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.branchName} style={inp} autoFocus={!isEdit} /></div>
+            <div style={fw}><label style={lbl}>{t.branchName}</label><input value={form.name||''} maxLength={80} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t.branchName} style={inp} autoFocus={!isEdit} /></div>
             <div style={row2}>
-              <div style={fw}><label style={lbl}>{t.city}</label><input value={form.city||''} onChange={e=>setForm({...form,city:e.target.value})} placeholder={t.city} style={inp} /></div>
-              <div style={fw}><label style={lbl}>{t.phone}</label><input value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})} placeholder={t.phone} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.city}</label><input value={form.city||''} maxLength={60} onChange={e=>setForm({...form,city:e.target.value})} placeholder={t.city} style={inp} /></div>
+              <div style={fw}><label style={lbl}>{t.phone}</label><input value={form.phone||''} maxLength={20} onChange={e=>setForm({...form,phone:e.target.value})} placeholder={t.phone} style={inp} /></div>
             </div>
-            <div style={fw}><label style={lbl}>{t.address}</label><input value={form.address||''} onChange={e=>setForm({...form,address:e.target.value})} placeholder={t.address} style={inp} /></div>
-            <div style={fw}><label style={lbl}>{t.manager}</label><input value={form.manager||''} onChange={e=>setForm({...form,manager:e.target.value})} placeholder={t.manager} style={inp} /></div>
+            <div style={fw}><label style={lbl}>{t.address}</label><input value={form.address||''} maxLength={150} onChange={e=>setForm({...form,address:e.target.value})} placeholder={t.address} style={inp} /></div>
+            <div style={fw}><label style={lbl}>{t.manager}</label><input value={form.manager||''} maxLength={80} onChange={e=>setForm({...form,manager:e.target.value})} placeholder={t.manager} style={inp} /></div>
           </>}
 
           <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
@@ -1442,11 +1497,11 @@ function AddBranchRow({ onAdd, onCancel, t, rtl, mobile }) {
   return (
     <tr style={{ background: C.rowAdd }}>
       <td style={td} />
-      <td style={td}><input autoFocus placeholder={t.branchName} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
-      <td style={td}><input placeholder={t.city} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
-      <td style={td}><input placeholder={t.address} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
-      <td style={td}><input placeholder={t.manager} value={form.manager} onChange={e => setForm({ ...form, manager: e.target.value })} style={inp} /></td>
-      <td style={td}><input placeholder={t.phone} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
+      <td style={td}><input autoFocus placeholder={t.branchName} value={form.name} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input placeholder={t.city} value={form.city} maxLength={60} onChange={e => setForm({ ...form, city: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
+      <td style={td}><input placeholder={t.address} value={form.address} maxLength={150} onChange={e => setForm({ ...form, address: e.target.value })} style={inp} /></td>
+      <td style={td}><input placeholder={t.manager} value={form.manager} maxLength={80} onChange={e => setForm({ ...form, manager: e.target.value })} style={inp} /></td>
+      <td style={td}><input placeholder={t.phone} value={form.phone} maxLength={20} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}><span style={{ display: 'flex', gap: 6 }}><ActionBtn variant="save" onClick={submit}>{t.add}</ActionBtn><ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn></span></td>
     </tr>
   )
@@ -1507,11 +1562,11 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
     e.preventDefault()
     const payload = {
       company_id: companyId,
-      car_id: planForm.car_id ? parseInt(planForm.car_id) : null,
+      car_id: planForm.car_id ? parseInt(planForm.car_id, 10) : null,
       type: planForm.type,
-      km_interval: planForm.km_interval ? parseInt(planForm.km_interval) : null,
-      month_interval: planForm.month_interval ? parseInt(planForm.month_interval) : null,
-      last_km: planForm.last_km ? parseInt(planForm.last_km) : null,
+      km_interval: planForm.km_interval ? parseInt(planForm.km_interval, 10) : null,
+      month_interval: planForm.month_interval ? parseInt(planForm.month_interval, 10) : null,
+      last_km: planForm.last_km ? parseInt(planForm.last_km, 10) : null,
       last_date: planForm.last_date || null,
     }
     const { data, error } = await supabase.from('maintenance_plans').insert([payload]).select()
@@ -1875,7 +1930,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
     if (toInsert.length > 0) {
       const insertPayload = toInsert.map(r => type === 'cars'
         ? { company_id: companyId, plate: r.plate, make: r.make, model: r.model,
-            year: r.year ? parseInt(r.year) : null,
+            year: r.year ? parseInt(r.year, 10) : null,
             status: r.status || 'Available', fuel: r.fuel || 'Petrol',
             branch_id: branchByName(r.branch),
             driver_id: safeDriverId(r.driver_id) }
@@ -2128,6 +2183,7 @@ function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImp
   function handleFile(e) {
     const file = e.target.files[0]
     if (!file) return
+    if (file.size > 5 * 1024 * 1024) { setError(t.fileTooLarge); e.target.value = ''; return }
     setFileName(file.name)
     setError(''); setDone(''); setRows([])
     const reader = new FileReader()
@@ -2258,7 +2314,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
     e.preventDefault()
     const { data, error } = await supabase.from('costs').insert([{
       company_id: companyId,
-      car_id: form.car_id ? parseInt(form.car_id) : null,
+      car_id: form.car_id ? parseInt(form.car_id, 10) : null,
       driver_id: form.driver_id || null,
       category: form.category, amount: parseFloat(form.amount),
       description: form.description || null, date: form.date,
@@ -2286,7 +2342,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const byCategory = costs.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + parseFloat(c.amount || 0); return acc }, {})
   const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted }
   const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther }
-  const carName = id => formatPlate(cars.find(c => c.id === parseInt(id))?.plate) || id
+  const carName = id => formatPlate(cars.find(c => c.id === parseInt(id, 10))?.plate) || id
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
@@ -2578,14 +2634,17 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
     .slice(0, 5)
 
   const card = (icon, value, label, color, sub) => (
-    <div key={label} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
-      <div style={{ height: 3, background: `linear-gradient(90deg, ${color}, ${color}99)` }} />
+    <div key={label} style={{ background: C.surface, borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)' }}>
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${color}, ${color}80)` }} />
       <div style={{ padding: '18px 20px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 10, background: color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
-          <p style={{ margin: 0, fontSize: 38, fontWeight: 800, color, lineHeight: 1 }}>{value}</p>
+          {/* Double-bezel icon */}
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: color + '08', border: `1px solid ${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: color + '18', border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{icon}</div>
+          </div>
+          <p style={{ margin: 0, fontSize: 38, fontWeight: 800, color, lineHeight: 1, letterSpacing: '-1px' }}>{value}</p>
         </div>
-        <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{label}</p>
+        <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 600 }}>{label}</p>
         {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: C.textMuted }}>{sub}</p>}
       </div>
     </div>
@@ -2821,7 +2880,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
 
   const card  = { background: '#f8faff', borderRadius: 8, border: '1px solid #e4eaf4', padding: '10px 14px', marginBottom: 8 }
   const badge = { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
-    background: '#e8f0fe', color: '#2563eb', borderRadius: 5, padding: '3px 8px', marginRight: 6, marginBottom: 4 }
+    background: '#ecfeff', color: '#0891b2', borderRadius: 5, padding: '3px 8px', marginRight: 6, marginBottom: 4 }
   const defBadge = { ...badge, background: '#f3f4f6', color: '#6b7280', cursor: 'default' }
 
   if (loading) return <p style={{ color: C.textSecondary, fontSize: 13 }}>{t.loadingShort}</p>
@@ -2843,7 +2902,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
               {customs.map(item => (
                 <span key={item.id} style={badge}>
                   {item.value}
-                  <button onClick={() => removeValue(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#2563eb', fontWeight: 900, fontSize: 14, lineHeight: 1 }}>×</button>
+                  <button onClick={() => removeValue(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#0891b2', fontWeight: 900, fontSize: 14, lineHeight: 1 }}>×</button>
                 </span>
               ))}
               {customs.length === 0 && defaults.length === 0 && (
@@ -2977,8 +3036,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   async function saveLimits(co) {
     const { data } = await supabase.from('companies')
       .update({
-        max_cars:  limitCars  === '' ? null : parseInt(limitCars),
-        max_users: limitUsers === '' ? null : parseInt(limitUsers),
+        max_cars:  limitCars  === '' ? null : parseInt(limitCars, 10),
+        max_users: limitUsers === '' ? null : parseInt(limitUsers, 10),
       })
       .eq('id', co.id)
       .select().single()
@@ -3294,7 +3353,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
       background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 16,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{
+      <div className="modal-content" style={{
         background: '#fff', borderRadius: 16, width: '100%', maxWidth: 680,
         maxHeight: '90vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
@@ -3334,7 +3393,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
             <ul style={{ margin: '0 0 8px', paddingInlineStart: 20 }}>
               {t.privacyRightsItems.map((item, i) => <li key={i} style={{ marginBottom: 4 }}>{item}</li>)}
             </ul>
-            <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>{t.privacyRightsContact}</p>
+            <p style={{ margin: 0, fontWeight: 600, color: '#0891b2' }}>{t.privacyRightsContact}</p>
           </Section>
           <Section title={t.privacySecurityTitle}>
             <p style={{ margin: 0 }}>{t.privacySecurity}</p>
@@ -3346,7 +3405,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
 
         {/* Footer */}
         <div style={{ padding: '12px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
-          <button onClick={onClose} style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             {t.privacyClose}
           </button>
         </div>
@@ -3369,7 +3428,7 @@ function TermsOfServiceModal({ onClose, t, rtl }) {
       background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 16,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{
+      <div className="modal-content" style={{
         background: '#fff', borderRadius: 16, width: '100%', maxWidth: 680,
         maxHeight: '90vh', display: 'flex', flexDirection: 'column',
         boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
@@ -3399,7 +3458,7 @@ function TermsOfServiceModal({ onClose, t, rtl }) {
           <Section title={t.tos10Title}><p style={{ margin: 0 }}>{t.tos10}</p></Section>
         </div>
         <div style={{ padding: '12px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
-          <button onClick={onClose} style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             {t.privacyClose}
           </button>
         </div>
@@ -3633,7 +3692,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     switchTab('cars')
   }
 
-  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, mileage: f.mileage ? parseInt(f.mileage) : 0, color: f.color || null, company_id: activeCompanyId } }
+  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year, 10) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, mileage: f.mileage ? parseInt(f.mileage, 10) : 0, color: f.color || null, company_id: activeCompanyId } }
   function cleanDriver(f) { return { name: f.name, license: f.license, license_levels: f.license_levels || [], phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
@@ -3773,7 +3832,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   return (
     // Outer wrapper: always LTR so the nav never flips
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Inter','Figtree',system-ui,sans-serif", background: C.bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif", background: C.bg }}>
 
       {/* ── TOP NAVIGATION BAR ────────────────────────────────────────────── */}
       <nav style={{
@@ -3789,6 +3848,19 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       }}>
 
 
+        {/* Brand logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginRight: isMobile ? 4 : 12 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0891b2, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(8,145,178,0.4)', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 9h10M4.5 7l1.2-2.5h4.6L11.5 7" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+              <rect x="1.5" y="8.5" width="13" height="4" rx="2" stroke="white" strokeWidth="1.3"/>
+              <circle cx="4.5" cy="13" r="1" fill="white" fillOpacity="0.8"/>
+              <circle cx="11.5" cy="13" r="1" fill="white" fillOpacity="0.8"/>
+            </svg>
+          </div>
+          {!isMobile && <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 13, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>Celox AI</span>}
+        </div>
+
         {/* Nav tabs — desktop only; flex:1 so they take available space, overflow hidden so they never push right controls off screen */}
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0, overflow: 'hidden', direction: rtl ? 'rtl' : 'ltr' }}>
@@ -3797,20 +3869,26 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               return (
                 <button key={item.id} onClick={() => switchTab(item.id)} title={item.label} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  padding: isActive ? '6px 12px' : '6px 9px',
-                  borderRadius: 6, border: 'none', cursor: 'pointer', flexShrink: 0,
-                  background: isActive ? C.navActiveBg : 'transparent',
+                  padding: '6px 12px',
+                  borderRadius: 7,
+                  border: 'none', cursor: 'pointer', flexShrink: 0,
+                  background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
                   color: isActive ? C.navActive : C.navText,
                   fontWeight: isActive ? 700 : 400,
                   fontSize: 13,
-                  transition: 'background 0.15s, color 0.15s',
+                  outline: isActive ? '1px solid rgba(255,255,255,0.15)' : 'none',
+                  outlineOffset: -1,
+                  transition: 'color 0.15s, background 0.15s',
                   whiteSpace: 'nowrap',
-                }}>
-                  <span style={{ fontSize: 14 }}>{item.icon}</span>
+                }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#e2e8f0' }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.navText }}
+                >
+                  <TabIcon id={item.id} size={14} />
                   {item.label}
                   {item.count !== null && (
                     <span style={{
-                      background: 'rgba(255,255,255,0.2)', color: '#fff',
+                      background: isActive ? 'rgba(8,145,178,0.5)' : 'rgba(255,255,255,0.15)', color: '#fff',
                       borderRadius: 10, padding: '1px 5px', fontSize: 10, fontWeight: 700,
                     }}>{item.count}</span>
                   )}
@@ -3881,21 +3959,24 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           display: 'flex', direction: rtl ? 'rtl' : 'ltr',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
-          {tabs.map(item => (
-            <button key={item.id} onClick={() => switchTab(item.id)} style={{
-              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 1, padding: '6px 2px',
-              border: 'none', cursor: 'pointer', background: 'transparent',
-              color: activeTab === item.id ? '#fff' : C.navText,
-              borderTop: activeTab === item.id ? `2px solid ${C.primary}` : '2px solid transparent',
-              transition: 'color 0.15s', minWidth: 0,
-            }}>
-              <span style={{ fontSize: 16 }}>{item.icon}</span>
-              {activeTab === item.id && (
-                <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>{item.label}</span>
-              )}
-            </button>
-          ))}
+          {tabs.map(item => {
+            const isActive = activeTab === item.id
+            return (
+              <button key={item.id} onClick={() => switchTab(item.id)} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 2, padding: '6px 2px',
+                border: 'none', cursor: 'pointer', background: 'transparent',
+                color: isActive ? '#fff' : C.navText,
+                borderTop: isActive ? `2px solid ${C.primary}` : '2px solid transparent',
+                transition: 'color 0.15s', minWidth: 0,
+              }}>
+                <TabIcon id={item.id} size={17} />
+                {isActive && (
+                  <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>{item.label}</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -4042,7 +4123,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
               {/* Cards */}
               {activeTab === 'cars' && (filteredCars.length === 0
-                ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 14, padding: '40px 0' }}>{t.noCars}</div>
+                ? <div style={{ textAlign: 'center', padding: '48px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 40, opacity: 0.2 }}>🚗</span>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches' : 'No vehicles yet'}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted }}>{search ? 'Try a different search' : 'Tap + to add your first vehicle'}</div>
+                  </div>
                 : filteredCars.map(car => (
                     <MobileCarCard key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                       selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
@@ -4052,7 +4137,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   ))
               )}
               {activeTab === 'drivers' && (filteredDrivers.length === 0
-                ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 14, padding: '40px 0' }}>{t.noDrivers}</div>
+                ? <div style={{ textAlign: 'center', padding: '48px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 40, opacity: 0.2 }}>👤</span>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches' : 'No drivers yet'}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted }}>{search ? 'Try a different search' : 'Tap + to add your first driver'}</div>
+                  </div>
                 : filteredDrivers.map(driver => (
                     <MobileDriverCard key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
                       selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
@@ -4061,7 +4150,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   ))
               )}
               {activeTab === 'branches' && (filteredBranches.length === 0
-                ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 14, padding: '40px 0' }}>{t.noBranches}</div>
+                ? <div style={{ textAlign: 'center', padding: '48px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 40, opacity: 0.2 }}>🏢</span>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches' : 'No branches yet'}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted }}>{search ? 'Try a different search' : 'Tap + to add your first branch'}</div>
+                  </div>
                 : filteredBranches.map((branch, i) => (
                     <MobileBranchCard key={branch.id} branch={branch} index={i}
                       selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
@@ -4161,7 +4254,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                             onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
                             onPhotoChange={file => uploadCarPhoto(car.id, file)} onMileageUpdate={updateMileage} t={t} rtl={rtl} mobile={false} />
                     )}
-                    {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noCars}</td></tr>}
+                    {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && (
+                      <tr><td colSpan={9} style={{ padding: '52px 24px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 44, opacity: 0.18 }}>🚗</span>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches found' : 'No vehicles yet'}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? 'Try a different search term' : t.noCars}</div>
+                        </div>
+                      </td></tr>
+                    )}
                     {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
 
                     {activeTab === 'drivers' && filteredDrivers.map(driver =>
@@ -4171,7 +4272,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                             selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
                             onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} mobile={false} />
                     )}
-                    {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noDrivers}</td></tr>}
+                    {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && (
+                      <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 44, opacity: 0.18 }}>👤</span>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches found' : 'No drivers yet'}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? 'Try a different search term' : t.noDrivers}</div>
+                        </div>
+                      </td></tr>
+                    )}
                     {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
 
                     {activeTab === 'branches' && filteredBranches.map((branch, i) =>
@@ -4181,7 +4290,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                             selected={selectedIds.includes(branch.id)} onSelect={() => toggleSelect(branch.id)}
                             onEdit={() => setEditingId(branch.id)} onDelete={() => deleteBranch(branch.id)} t={t} rtl={rtl} mobile={false} />
                     )}
-                    {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: C.textMuted, fontSize: 14 }}>{t.noBranches}</td></tr>}
+                    {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && (
+                      <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 44, opacity: 0.18 }}>🏢</span>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches found' : 'No branches yet'}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? 'Try a different search term' : t.noBranches}</div>
+                        </div>
+                      </td></tr>
+                    )}
                     {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} />}
                   </tbody>
                 </table>

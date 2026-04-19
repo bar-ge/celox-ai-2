@@ -7,11 +7,11 @@ import './App.css'
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
 
-const MASTER_EMAIL = import.meta.env.VITE_MASTER_EMAIL || 'bar.gershenzon@gmail.com'
+const MASTER_EMAIL = import.meta.env.VITE_MASTER_EMAIL ?? ''
 
 const C = {
   navBg:    '#0f172a',
-  primary:  '#3b82f6',
+  primary:  '#0891b2',
   bg:       '#f1f5f9',
   surface:  '#ffffff',
   border:   '#e2e8f0',
@@ -33,7 +33,7 @@ const L = {
     accountCreated: 'Account created! Please sign in.',
     securedBy: 'Secured by Supabase Auth',
     joinSub: 'Join your company workspace',
-    joinWithCode: '🔑  Join with Code', pendingInvites: '📨  Pending Invites',
+    joinWithCode: 'Join with Code', pendingInvites: 'Pending Invites',
     inviteCodeLabel: 'Company Invite Code',
     inviteCodePlaceholder: 'e.g. AB12CD34',
     inviteCodeHint: 'Ask your company admin for the 8-character invite code.',
@@ -65,7 +65,7 @@ const L = {
     accountCreated: 'החשבון נוצר! אנא התחבר.',
     securedBy: 'מאובטח על ידי Supabase Auth',
     joinSub: 'הצטרף לסביבת העבודה של החברה',
-    joinWithCode: '🔑  הצטרף עם קוד', pendingInvites: '📨  הזמנות ממתינות',
+    joinWithCode: 'הצטרף עם קוד', pendingInvites: 'הזמנות ממתינות',
     inviteCodeLabel: 'קוד הזמנה לחברה',
     inviteCodePlaceholder: 'לדוגמה AB12CD34',
     inviteCodeHint: 'בקש מהמנהל שלך את קוד ההזמנה בן 8 תווים.',
@@ -101,27 +101,27 @@ const labelStyle = {
   textTransform: 'uppercase', letterSpacing: '0.07em',
 }
 const primaryBtn = (loading) => ({
-  background: 'linear-gradient(135deg, #3b82f6, #6366f1)', color: '#fff', border: 'none',
+  background: 'linear-gradient(135deg, #0891b2, #6366f1)', color: '#fff', border: 'none',
   borderRadius: 8, padding: '11px', fontSize: 14, fontWeight: 700,
   cursor: loading ? 'not-allowed' : 'pointer',
   opacity: loading ? 0.7 : 1, width: '100%',
   transition: 'opacity 0.15s', letterSpacing: '0.01em',
-  boxShadow: '0 2px 10px rgba(59,130,246,0.35)',
+  boxShadow: '0 2px 10px rgba(8,145,178,0.35)',
 })
 
-// ── Language toggle ────────────────────────────────────────────────────────
+// ── Language toggle (floating pill) ───────────────────────────────────────
 function LangToggle({ lang, setLang }) {
   return (
-    <div style={{ display: 'flex', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', marginBottom: 24 }}>
+    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, overflow: 'hidden' }}>
       {['en', 'he'].map(l => (
         <button key={l} onClick={() => { setLang(l); localStorage.setItem('fleet_lang', l) }} style={{
-          flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer',
-          fontWeight: 700, fontSize: 13,
-          background: lang === l ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'transparent',
-          color: lang === l ? '#fff' : C.textSub,
+          padding: '5px 14px', border: 'none', cursor: 'pointer',
+          fontWeight: 700, fontSize: 12, letterSpacing: '0.04em',
+          background: lang === l ? 'rgba(255,255,255,0.18)' : 'transparent',
+          color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
           transition: 'all 0.15s',
         }}>
-          {l === 'en' ? 'EN' : 'עב'}
+          {l === 'en' ? 'EN' : 'HE'}
         </button>
       ))}
     </div>
@@ -129,31 +129,39 @@ function LangToggle({ lang, setLang }) {
 }
 
 // ── Logo ───────────────────────────────────────────────────────────────────
-function Logo({ subtitle }) {
+function Logo() {
   return (
-    <div style={{ textAlign: 'center', marginBottom: 28 }}>
+    <div style={{ textAlign: 'center', marginBottom: 32 }}>
       <div style={{
-        width: 52, height: 52, borderRadius: 14, margin: '0 auto 12px',
-        background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+        width: 60, height: 60, borderRadius: 16, margin: '0 auto 16px',
+        background: 'linear-gradient(135deg, #0891b2, #6366f1)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 16px rgba(59,130,246,0.4)',
+        boxShadow: '0 4px 24px rgba(8,145,178,0.5), 0 0 0 1px rgba(255,255,255,0.1)',
       }}>
-        <span style={{ color: '#fff', fontWeight: 900, fontSize: 20, letterSpacing: '-0.5px' }}>FL</span>
+        <svg width="30" height="30" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="15" width="22" height="7" rx="3.5" fill="white" fillOpacity="0.9"/>
+          <rect x="6" y="10" width="14" height="7" rx="2" fill="white"/>
+          <circle cx="7.5" cy="22" r="2.5" fill="white" fillOpacity="0.6"/>
+          <circle cx="18.5" cy="22" r="2.5" fill="white" fillOpacity="0.6"/>
+          <rect x="10" y="6" width="6" height="5" rx="1" fill="white" fillOpacity="0.7"/>
+        </svg>
       </div>
-      <h1 style={{ fontSize: 24, fontWeight: 900, color: '#f8fafc', margin: 0, letterSpacing: '-0.3px' }}>Fleet Manager</h1>
-      {subtitle && <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, marginTop: 4 }}>{subtitle}</p>}
+      <h1 style={{ fontSize: 26, fontWeight: 900, color: '#f8fafc', margin: '0 0 6px', letterSpacing: '-0.6px' }}>Celox AI</h1>
+      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: 0, letterSpacing: '0.02em' }}>
+        Fleet management, simplified.
+      </p>
     </div>
   )
 }
 
 // ── Shared card ────────────────────────────────────────────────────────────
-function Card({ children, width = 380 }) {
+function Card({ children, width = 400 }) {
   return (
-    <div style={{
-      background: C.surface, borderRadius: 16, padding: '36px 32px',
-      width, maxWidth: '90vw',
-      boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.15)',
-      border: `1px solid rgba(255,255,255,0.1)`,
+    <div className="modal-content" style={{
+      background: C.surface, borderRadius: 18, padding: '32px 32px',
+      width, maxWidth: '92vw',
+      boxShadow: '0 24px 64px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.2)',
+      border: `1px solid rgba(255,255,255,0.08)`,
     }}>
       {children}
     </div>
@@ -161,15 +169,24 @@ function Card({ children, width = 380 }) {
 }
 
 // ── Full-page centered shell ───────────────────────────────────────────────
-function Page({ children }) {
+function Page({ children, lang, setLang }) {
   return (
     <div style={{
-      width: '100%', minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      width: '100%', minHeight: '100vh', position: 'relative',
+      background: `
+        radial-gradient(circle, rgba(8,145,178,0.06) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(135deg, #080f1e 0%, #0d1a30 50%, #080f1e 100%)
+      `,
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       padding: '24px 16px', boxSizing: 'border-box',
     }}>
+      {/* Floating lang toggle — top right */}
+      {lang !== undefined && (
+        <div style={{ position: 'absolute', top: 16, right: 20, direction: 'ltr' }}>
+          <LangToggle lang={lang} setLang={setLang} />
+        </div>
+      )}
       {children}
     </div>
   )
@@ -216,24 +233,29 @@ function PasswordStrengthMeter({ password, t, rtl }) {
   const levels = [
     { min: 0, label: t.pwWeak,   color: '#ef4444' },
     { min: 2, label: t.pwFair,   color: '#f59e0b' },
-    { min: 3, label: t.pwGood,   color: '#3b82f6' },
+    { min: 3, label: t.pwGood,   color: '#0891b2' },
     { min: 5, label: t.pwStrong, color: '#10b981' },
   ]
   const level = [...levels].reverse().find(l => score >= l.min) || levels[0]
 
-  const reqStyle = (ok) => ({
-    display: 'flex', alignItems: 'center', gap: 6,
-    fontSize: 12, color: ok ? '#10b981' : '#94a3b8',
-    flexDirection: rtl ? 'row-reverse' : 'row',
-  })
+  const CheckIcon = ({ ok }) => ok ? (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+      <circle cx="7" cy="7" r="6.5" fill="#10b981" fillOpacity="0.15" stroke="#10b981" strokeWidth="1.2"/>
+      <path d="M4.5 7l2 2 3-3" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ) : (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+      <circle cx="7" cy="7" r="6.5" stroke="#cbd5e1" strokeWidth="1.2"/>
+    </svg>
+  )
 
   return (
     <div style={{ marginTop: 8 }}>
-      {/* Bar */}
+      {/* Strength bar */}
       <div style={{ display: 'flex', gap: 3, marginBottom: 4 }}>
         {[1,2,3,4,5].map(i => (
           <div key={i} style={{
-            flex: 1, height: 4, borderRadius: 2,
+            flex: 1, height: 3, borderRadius: 2,
             background: i <= score ? level.color : '#e2e8f0',
             transition: 'background 0.2s',
           }} />
@@ -243,7 +265,7 @@ function PasswordStrengthMeter({ password, t, rtl }) {
         <span style={{ fontSize: 11, fontWeight: 700, color: level.color }}>{level.label}</span>
       </div>
       {/* Checklist */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         {[
           [checks.length,    t.pwMinLength],
           [checks.uppercase, t.pwUppercase],
@@ -251,9 +273,9 @@ function PasswordStrengthMeter({ password, t, rtl }) {
           [checks.number,    t.pwNumber],
           [checks.symbol,    t.pwSymbol],
         ].map(([ok, label]) => (
-          <div key={label} style={reqStyle(ok)}>
-            <span style={{ fontSize: 13 }}>{ok ? '✅' : '○'}</span>
-            <span>{label}</span>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, flexDirection: rtl ? 'row-reverse' : 'row' }}>
+            <CheckIcon ok={ok} />
+            <span style={{ fontSize: 12, color: ok ? '#10b981' : '#94a3b8' }}>{label}</span>
           </div>
         ))}
       </div>
@@ -310,10 +332,9 @@ function LoginScreen({ lang, setLang }) {
   function switchMode(m) { setMode(m); setError(''); setSuccess(''); setCaptchaToken(''); setConsentChecked(false); captchaRef.current?.resetCaptcha() }
 
   return (
-    <Page>
-      <Logo subtitle={mode === 'login' ? t.signInSub : t.signUpSub} />
+    <Page lang={lang} setLang={setLang}>
+      <Logo />
       <Card>
-        <LangToggle lang={lang} setLang={setLang} />
         <Tabs
           options={[['login', t.signIn], ['signup', t.signUp]]}
           value={mode}
@@ -479,10 +500,9 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
   }
 
   return (
-    <Page>
-      <Logo subtitle={t.joinSub} />
+    <Page lang={lang} setLang={setLang}>
+      <Logo />
       <Card>
-        <LangToggle lang={lang} setLang={setLang} />
         <Tabs
           options={[['code', t.joinWithCode], ['invites', t.pendingInvites]]}
           value={tab}
