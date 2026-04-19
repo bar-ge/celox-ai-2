@@ -898,8 +898,189 @@ function getMergedOptions(type, customLists = {}) {
   return [...defaults, ...custom]
 }
 
+// ── Car Detail Modal ─────────────────────────────────────────────────────────
+function CarDetailModal({ car, getBranchName, drivers, t, rtl, onClose }) {
+  const [tab, setTab]           = useState('overview')
+  const [maintenance, setMaint] = useState([])
+  const [costs, setCosts]       = useState([])
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      const [{ data: m }, { data: c }] = await Promise.all([
+        supabase.from('maintenance').select('*').eq('car_id', car.id).order('date', { ascending: false }),
+        supabase.from('cost_records').select('*').eq('car_id', car.id).order('date', { ascending: false }),
+      ])
+      setMaint(m || [])
+      setCosts(c || [])
+      setLoading(false)
+    }
+    load()
+  }, [car.id])
+
+  const driver = drivers.find(d => String(d.id) === String(car.driver_id) || String(d.car_id) === String(car.id))
+  const totalMaint = maintenance.reduce((s, r) => s + (r.cost || 0), 0)
+  const totalCost  = costs.reduce((s, r) => s + (r.amount || 0), 0)
+
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }
+  const modal   = { background: C.surface, borderRadius: 16, width: '100%', maxWidth: 720, boxShadow: '0 24px 80px rgba(0,0,0,0.25)', position: 'relative' }
+  const hdr     = { background: C.navBg, borderRadius: '16px 16px 0 0', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }
+  const sectionStyle = { padding: '0 24px 20px' }
+  const sTitle  = { fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10, marginTop: 20 }
+  const infoRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: `1px solid ${C.borderLight}`, fontSize: 13 }
+  const tabBar  = { display: 'flex', background: C.bg, borderBottom: `1px solid ${C.border}`, padding: '0 24px' }
+  const tabBtn  = active => ({ padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', borderBottom: active ? `2px solid ${C.primary}` : '2px solid transparent', color: active ? C.primary : C.textMuted, transition: 'color 0.15s' })
+  const card    = { background: C.bg, borderRadius: 10, padding: 14, marginBottom: 10, border: `1px solid ${C.border}` }
+
+  const statusBg  = s => s === 'done' ? '#dcfce7' : s === 'overdue' ? '#fee2e2' : '#dbeafe'
+  const statusClr = s => s === 'done' ? '#166534' : s === 'overdue' ? '#991b1b' : '#1e40af'
+
+  return (
+    <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={modal}>
+        {/* Header */}
+        <div style={hdr}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 6, padding: '3px 10px', fontWeight: 700, fontSize: 14, color: '#f8fafc', letterSpacing: 1 }}>
+                {formatPlate(car.plate)}
+              </span>
+              <Badge label={t[CAR_STATUS_KEY[car.status]] || car.status} color={s => s === 'Available' || s === t.available ? C.success : s === 'In Use' || s === t.inUse ? C.primary : C.warning} />
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{car.make} {car.model} {car.year ? `(${car.year})` : ''}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        </div>
+
+        {/* Tab bar */}
+        <div style={tabBar}>
+          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['maintenance', `🔧 ${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`], ['costs', `💰 ${rtl ? 'עלויות' : 'Costs'} (${costs.length})`]].map(([id, label]) => (
+            <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 48, color: C.textMuted }}>Loading…</div>
+        ) : (
+          <div style={{ padding: '0 0 24px' }}>
+
+            {/* ── OVERVIEW ── */}
+            {tab === 'overview' && (
+              <>
+                <div style={sectionStyle}>
+                  <div style={sTitle}>{rtl ? 'פרטי רכב' : 'Vehicle Details'}</div>
+                  {[
+                    [t.plate,   formatPlate(car.plate)],
+                    [t.make,    car.make],
+                    [t.model,   car.model],
+                    [t.year,    car.year],
+                    [t.fuel,    t[CAR_FUEL_KEY[car.fuel]] || car.fuel],
+                    [t.mileage, car.mileage ? car.mileage.toLocaleString() + ' km' : null],
+                    [rtl ? 'צבע' : 'Color', car.color],
+                    [t.branch,  getBranchName(car.branch_id)],
+                  ].filter(([, v]) => v && v !== '—').map(([label, value]) => (
+                    <div key={label} style={infoRow}>
+                      <span style={{ color: C.textMuted }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: C.textPrimary }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={sectionStyle}>
+                  <div style={sTitle}>{rtl ? 'נהג נוכחי' : 'Current Driver'}</div>
+                  {driver ? [
+                    [rtl ? 'שם' : 'Name',    driver.name],
+                    [rtl ? 'רישיון' : 'License', driver.license],
+                    [rtl ? 'טלפון' : 'Phone',  driver.phone],
+                    [rtl ? 'סטטוס' : 'Status', driver.status],
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label} style={infoRow}>
+                      <span style={{ color: C.textMuted }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: C.textPrimary }}>{value}</span>
+                    </div>
+                  )) : <div style={{ color: C.textMuted, fontSize: 13, paddingTop: 8 }}>{rtl ? 'אין נהג משויך' : 'No driver assigned'}</div>}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, padding: '0 24px' }}>
+                  {[[rtl ? 'רשומות תחזוקה' : 'Service Records', maintenance.length, C.primary],
+                    [rtl ? 'עלות תחזוקה' : 'Maint. Cost', '₪' + totalMaint.toLocaleString(), C.warning],
+                    [rtl ? 'עלויות אחרות' : 'Other Costs',  '₪' + totalCost.toLocaleString(),  C.danger],
+                  ].map(([label, value, color]) => (
+                    <div key={label} style={{ background: C.bg, borderRadius: 10, padding: '14px 12px', textAlign: 'center', border: `1px solid ${C.border}` }}>
+                      <div style={{ fontSize: 20, fontWeight: 900, color }}>{value}</div>
+                      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ── MAINTENANCE ── */}
+            {tab === 'maintenance' && (
+              <div style={sectionStyle}>
+                <div style={sTitle}>{rtl ? 'היסטוריית שירות' : 'Service History'}</div>
+                {maintenance.length === 0
+                  ? <div style={{ color: C.textMuted, fontSize: 13, textAlign: 'center', padding: '32px 0' }}>{t.noMaintenance}</div>
+                  : maintenance.map(r => (
+                    <div key={r.id} style={card}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{r.service_type || r.type}</span>
+                        <span style={{ background: statusBg(r.status), color: statusClr(r.status), borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>{r.status}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: C.textSecondary }}>
+                        {r.date && <span>📅 {r.date}</span>}
+                        {r.next_due && <span>⏭ {r.next_due}</span>}
+                        {r.cost    && <span>₪{Number(r.cost).toLocaleString()}</span>}
+                        {r.mileage && <span>{Number(r.mileage).toLocaleString()} km</span>}
+                      </div>
+                      {r.description && <div style={{ marginTop: 6, fontSize: 13, color: C.textMuted, fontStyle: 'italic' }}>{r.description}</div>}
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+
+            {/* ── COSTS ── */}
+            {tab === 'costs' && (
+              <div style={sectionStyle}>
+                {costs.length > 0 && (
+                  <div style={{ background: C.bg, borderRadius: 10, padding: '12px 16px', border: `1px solid ${C.border}`, marginTop: 16, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: C.textMuted, fontWeight: 600 }}>{rtl ? 'סה״כ עלויות' : 'Total Costs'}</span>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: C.primary }}>₪{totalCost.toLocaleString()}</span>
+                  </div>
+                )}
+                <div style={sTitle}>{rtl ? 'רשומות עלויות' : 'Cost Records'}</div>
+                {costs.length === 0
+                  ? <div style={{ color: C.textMuted, fontSize: 13, textAlign: 'center', padding: '32px 0' }}>{rtl ? 'אין רשומות עלויות' : 'No cost records yet.'}</div>
+                  : costs.map(r => {
+                    const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther }
+                    return (
+                      <div key={r.id} style={card}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{catLabel[r.category] || r.category}</span>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: C.primary }}>₪{Number(r.amount).toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 12, fontSize: 12, color: C.textSecondary }}>
+                          {r.date && <span>📅 {r.date}</span>}
+                        </div>
+                        {r.description && <div style={{ marginTop: 6, fontSize: 13, color: C.textMuted, fontStyle: 'italic' }}>{r.description}</div>}
+                      </div>
+                    )
+                  })
+                }
+              </div>
+            )}
+
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Data rows ───────────────────────────────────────────────────────────────
-function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, onMileageUpdate, t, rtl, mobile }) {
+function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, onMileageUpdate, onViewDetail, t, rtl, mobile }) {
   const [hover, setHover] = useState(false)
   const [editingKm, setEditingKm] = useState(false)
   const [kmVal, setKmVal] = useState(String(car.mileage || ''))
@@ -960,6 +1141,9 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
+          <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
+            {rtl ? '👁 פרטים' : '👁 View'}
+          </button>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
           <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
@@ -1266,7 +1450,7 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }
 }
 
 // ── Mobile card views ──────────────────────────────────────────────────────
-function MobileCarCard({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, t, rtl }) {
+function MobileCarCard({ car, getBranchName, getBranchIdx, drivers, selected, onSelect, onEdit, onDelete, onFiles, onPhotoChange, onViewDetail, t, rtl }) {
   const assignedDriver = drivers.find(d => d.id === car.driver_id)
   const statusColor    = CAR_STATUS_COLOR[car.status] || C.textMuted
   const branchName     = getBranchName(car.branch_id)
@@ -1288,6 +1472,9 @@ function MobileCarCard({ car, getBranchName, getBranchIdx, drivers, selected, on
         {assignedDriver && <Badge label={assignedDriver.name} color={C.primary} />}
       </div>
       <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
+          {rtl ? '👁 פרטים' : '👁 View'}
+        </button>
         <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
         <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
         <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>📎</button>
@@ -3493,6 +3680,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [showEntityCsvImport, setShowEntityCsvImport] = useState(null) // 'cars' | 'drivers' | null
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showTerms, setShowTerms]   = useState(false)
+  const [detailCar, setDetailCar]   = useState(null)
   const realtimeRef = useRef(null)
 
   const t   = T[lang]
@@ -4133,7 +4321,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                       selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
                       onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)}
                       onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
-                      onPhotoChange={file => uploadCarPhoto(car.id, file)} t={t} rtl={rtl} />
+                      onPhotoChange={file => uploadCarPhoto(car.id, file)} onViewDetail={() => setDetailCar(car)} t={t} rtl={rtl} />
                   ))
               )}
               {activeTab === 'drivers' && (filteredDrivers.length === 0
@@ -4252,7 +4440,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                             selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
                             onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
-                            onPhotoChange={file => uploadCarPhoto(car.id, file)} onMileageUpdate={updateMileage} t={t} rtl={rtl} mobile={false} />
+                            onPhotoChange={file => uploadCarPhoto(car.id, file)} onMileageUpdate={updateMileage} onViewDetail={() => setDetailCar(car)} t={t} rtl={rtl} mobile={false} />
                     )}
                     {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && (
                       <tr><td colSpan={9} style={{ padding: '52px 24px', textAlign: 'center' }}>
@@ -4324,6 +4512,18 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           )
         )}
       </div>
+
+      {/* Car Detail modal */}
+      {detailCar && (
+        <CarDetailModal
+          car={detailCar}
+          getBranchName={getBranchName}
+          drivers={drivers}
+          t={t}
+          rtl={rtl}
+          onClose={() => setDetailCar(null)}
+        />
+      )}
 
       {/* Files modal */}
       {filesFor && (
