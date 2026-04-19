@@ -924,7 +924,7 @@ function CarDetailModal({ car, getBranchName, drivers, t, rtl, onClose }) {
   const totalCost  = costs.reduce((s, r) => s + (r.amount || 0), 0)
 
   const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }
-  const modal   = { background: C.surface, borderRadius: 16, width: '100%', maxWidth: 720, boxShadow: '0 24px 80px rgba(0,0,0,0.25)', position: 'relative' }
+  const modal   = { background: C.surface, borderRadius: 16, width: '100%', maxWidth: 720, boxShadow: '0 24px 80px rgba(0,0,0,0.25)', position: 'relative', direction: rtl ? 'rtl' : 'ltr' }
   const hdr     = { background: C.navBg, borderRadius: '16px 16px 0 0', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }
   const sectionStyle = { padding: '0 24px 20px' }
   const sTitle  = { fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10, marginTop: 20 }
