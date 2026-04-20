@@ -25,6 +25,78 @@ const FORM_META = {
   yearly_training:  { icon: '🎓', title: 'אימות הדרכה שנתית', en: 'Yearly Training Acknowledgment' },
 }
 
+// ── File upload helper ────────────────────────────────────────────────────────
+async function uploadFiles(files, companyId, formLinkId) {
+  const uploaded = []
+  for (const file of files) {
+    const safeName = file.name.replace(/[^\w.\-]/g, '_')
+    const path = `form-submissions/${companyId}/${formLinkId}/${Date.now()}_${safeName}`
+    const { error } = await supabase.storage.from('fleet-documents').upload(path, file)
+    if (!error) {
+      const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(path, 60 * 60 * 24 * 365)
+      uploaded.push({ name: file.name, url: data?.signedUrl || path, path })
+    }
+  }
+  return uploaded
+}
+
+// ── File Attachments Component ────────────────────────────────────────────────
+function FileAttachments({ files, onAdd, onRemove }) {
+  const fileRef = useRef()
+
+  function handlePick(e) {
+    const picked = Array.from(e.target.files)
+    if (picked.length) onAdd(picked)
+    e.target.value = ''
+  }
+
+  return (
+    <div style={section}>
+      <div style={sectionTitle}>📎 קבצים מצורפים</div>
+
+      {files.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {files.map((f, i) => (
+            <div key={i} style={{ position: 'relative', border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', width: 84, height: 84, flexShrink: 0 }}>
+              {f.type.startsWith('image/')
+                ? <img src={URL.createObjectURL(f)} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: C.bg, padding: 4 }}>
+                    <span style={{ fontSize: 26 }}>{f.type.includes('pdf') ? '📄' : '📎'}</span>
+                    <span style={{ fontSize: 9, color: C.textSub, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', padding: '0 6px' }}>{f.name}</span>
+                  </div>
+                )
+              }
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                style={{ position: 'absolute', top: 3, right: 3, background: C.danger, color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, fontWeight: 900 }}
+              >×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div
+        onClick={() => fileRef.current?.click()}
+        style={{ border: `2px dashed ${C.border}`, borderRadius: 10, padding: '18px', textAlign: 'center', cursor: 'pointer', background: C.bg, transition: 'border-color 0.15s' }}
+      >
+        <div style={{ fontSize: 22, marginBottom: 6 }}>📎</div>
+        <div style={{ color: C.textSub, fontSize: 14, fontWeight: 600 }}>לחץ להוספת קבצים</div>
+        <div style={{ color: C.textMuted, fontSize: 11, marginTop: 3 }}>תמונות, PDF, Word, Excel — ניתן לבחור מספר קבצים</div>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+        style={{ display: 'none' }}
+        onChange={handlePick}
+      />
+    </div>
+  )
+}
+
 // ── Car Checklist Form ────────────────────────────────────────────────────────
 function CarChecklistForm({ link, onSubmit, submitting }) {
   const [form, setForm] = useState({
@@ -40,13 +112,22 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
     test_date: '', test_next: '', test_passed: '',
     // Registration
     registration_expiry: '',
+    // Mileage
+    mileage: '',
     // Notes
     notes: '', submitter_name: '',
   })
+  const [files, setFiles] = useState([])
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  async function handleSubmit(e) {
+    e.preventDefault()
+    const attachments = await uploadFiles(files, link.company_id, link.id)
+    onSubmit({ ...form, attachments })
+  }
+
   return (
-    <form onSubmit={e => { e.preventDefault(); onSubmit(form) }}>
+    <form onSubmit={handleSubmit}>
       <div style={section}>
         <div style={sectionTitle}>👤 שם הממלא</div>
         <div style={field}>
@@ -75,6 +156,10 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
             <input style={inp} value={form.model} onChange={e => set('model', e.target.value)} placeholder="קורולה" />
           </div>
         </div>
+        <div style={field}>
+          <label style={lbl}>קילומטראז' נוכחי</label>
+          <input style={inp} type="number" value={form.mileage} onChange={e => set('mileage', e.target.value)} placeholder="50000" />
+        </div>
       </div>
 
       <div style={section}>
@@ -96,7 +181,7 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
       </div>
 
       <div style={section}>
-        <div style={sectionTitle}>🛣️ חברות נתיבי תשלום (נטו / Yes)</div>
+        <div style={sectionTitle}>🛣️ נתיבי תשלום</div>
         <div style={{ display: 'flex', gap: 20, marginBottom: 14 }}>
           {[['yes', 'יש חברות'], ['no', 'אין חברות']].map(([v, l]) => (
             <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
@@ -106,20 +191,27 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
           ))}
         </div>
         {form.has_toll === 'yes' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <>
             <div style={field}>
-              <label style={lbl}>ספק</label>
-              <input style={inp} value={form.toll_provider} onChange={e => set('toll_provider', e.target.value)} placeholder="נטו / Yes / אחר" />
+              <label style={lbl}>חברה / כביש</label>
+              <select style={inp} value={form.toll_provider} onChange={e => set('toll_provider', e.target.value)}>
+                <option value="">בחר...</option>
+                {['כביש 6', 'כביש 6 צפון', 'מנהרות הכרמל', 'נתיב המהיר', 'גשר ירדן', 'מנהרת בית קשת', 'אחר'].map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
             </div>
-            <div style={field}>
-              <label style={lbl}>מספר תג</label>
-              <input style={inp} value={form.toll_tag} onChange={e => set('toll_tag', e.target.value)} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={field}>
+                <label style={lbl}>מספר תג / חשבון</label>
+                <input style={inp} value={form.toll_tag} onChange={e => set('toll_tag', e.target.value)} placeholder="12345678" />
+              </div>
+              <div style={field}>
+                <label style={lbl}>תפוגה</label>
+                <input style={inp} type="date" value={form.toll_expiry} onChange={e => set('toll_expiry', e.target.value)} />
+              </div>
             </div>
-            <div style={field}>
-              <label style={lbl}>תפוגה</label>
-              <input style={inp} type="date" value={form.toll_expiry} onChange={e => set('toll_expiry', e.target.value)} />
-            </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -158,6 +250,12 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
         <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="הערות נוספות..." />
       </div>
 
+      <FileAttachments
+        files={files}
+        onAdd={picked => setFiles(p => [...p, ...picked])}
+        onRemove={i => setFiles(p => p.filter((_, j) => j !== i))}
+      />
+
       <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#0891b2,#6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
         {submitting ? '…שולח' : '✅ שלח טופס'}
       </button>
@@ -168,35 +266,17 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
 // ── Driver Car Check Form ─────────────────────────────────────────────────────
 function DriverCarCheckForm({ link, onSubmit, submitting }) {
   const [form, setForm] = useState({
-    submitter_name: '', plate: link.cars?.plate || '',
+    submitter_name: '', plate: '',
     mileage: '', fuel_level: '', exterior_damage: '', damage_desc: '',
     interior_ok: '', notes: '',
   })
-  const [photo, setPhoto]   = useState(null)
-  const [preview, setPreview] = useState(null)
-  const fileRef = useRef()
+  const [files, setFiles] = useState([])
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  function pickPhoto(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setPhoto(file)
-    setPreview(URL.createObjectURL(file))
-  }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    let photoUrl = null
-    if (photo) {
-      const safeName = photo.name.replace(/[^\w.\-]/g, '_')
-      const path = `forms/${link.company_id}/${Date.now()}_${safeName}`
-      const { error } = await supabase.storage.from('fleet-documents').upload(path, photo)
-      if (!error) {
-        const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(path, 60 * 60 * 24 * 365)
-        photoUrl = data?.signedUrl || path
-      }
-    }
-    onSubmit({ ...form, photo_url: photoUrl })
+    const attachments = await uploadFiles(files, link.company_id, link.id)
+    onSubmit({ ...form, attachments })
   }
 
   return (
@@ -262,23 +342,15 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
       </div>
 
       <div style={section}>
-        <div style={sectionTitle}>📸 צילום הרכב</div>
-        <div
-          onClick={() => fileRef.current?.click()}
-          style={{ border: `2px dashed ${C.border}`, borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', background: C.bg }}>
-          {preview
-            ? <img src={preview} alt="preview" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, objectFit: 'cover' }} />
-            : <div style={{ color: C.textMuted, fontSize: 14 }}>📷 לחץ להעלאת תמונה</div>
-          }
-        </div>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={pickPhoto} />
-        {photo && <div style={{ fontSize: 12, color: C.textSub, marginTop: 6 }}>✓ {photo.name}</div>}
-      </div>
-
-      <div style={section}>
         <div style={sectionTitle}>📝 הערות</div>
         <textarea style={{ ...inp, minHeight: 70, resize: 'vertical' }} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="הערות נוספות..." />
       </div>
+
+      <FileAttachments
+        files={files}
+        onAdd={picked => setFiles(p => [...p, ...picked])}
+        onRemove={i => setFiles(p => p.filter((_, j) => j !== i))}
+      />
 
       <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#0891b2,#6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
         {submitting ? '…שולח' : '✅ שלח דוח בדיקה'}
@@ -299,11 +371,12 @@ const TRAINING_TOPICS = [
   'נהיגה בתנאי מזג אוויר קיצוניים',
 ]
 
-function YearlyTrainingForm({ onSubmit, submitting }) {
+function YearlyTrainingForm({ link, onSubmit, submitting }) {
   const [form, setForm] = useState({
     submitter_name: '', driver_license: '', training_date: new Date().toISOString().slice(0, 10),
     trainer_name: '', topics: [], other_topic: '', confirmed: false,
   })
+  const [files, setFiles] = useState([])
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   function toggleTopic(t) {
@@ -313,8 +386,15 @@ function YearlyTrainingForm({ onSubmit, submitting }) {
     }))
   }
 
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!form.confirmed) { alert('יש לאשר קריאת ההצהרה'); return }
+    const attachments = await uploadFiles(files, link.company_id, link.id)
+    onSubmit({ ...form, attachments })
+  }
+
   return (
-    <form onSubmit={e => { e.preventDefault(); if (!form.confirmed) { alert('יש לאשר קריאת ההצהרה'); return } onSubmit(form) }}>
+    <form onSubmit={handleSubmit}>
       <div style={section}>
         <div style={sectionTitle}>👤 פרטי הנהג</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -371,6 +451,12 @@ function YearlyTrainingForm({ onSubmit, submitting }) {
           <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>אני מאשר/ת את ההצהרה לעיל *</span>
         </label>
       </div>
+
+      <FileAttachments
+        files={files}
+        onAdd={picked => setFiles(p => [...p, ...picked])}
+        onRemove={i => setFiles(p => p.filter((_, j) => j !== i))}
+      />
 
       <button type="submit" disabled={submitting || !form.confirmed} style={{ width: '100%', background: form.confirmed ? 'linear-gradient(135deg,#0891b2,#6366f1)' : C.border, color: form.confirmed ? '#fff' : C.textMuted, border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: (!submitting && form.confirmed) ? 'pointer' : 'not-allowed', marginTop: 4, transition: 'all 0.2s' }}>
         {submitting ? '…שולח' : '✅ אשר וחתום'}
@@ -457,16 +543,11 @@ export default function PublicForm({ token }) {
             <div style={{ background: C.surface, borderRadius: 14, padding: '20px 20px 16px', marginBottom: 16, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{meta?.icon}</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 4 }}>{link.title || meta?.title}</div>
-              {link.cars && (
-                <div style={{ fontSize: 13, color: C.textSub }}>
-                  רכב: {link.cars.plate} · {link.cars.make} {link.cars.model}
-                </div>
-              )}
             </div>
 
             {link.type === 'car_checklist'    && <CarChecklistForm    link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'driver_car_check' && <DriverCarCheckForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
-            {link.type === 'yearly_training'  && <YearlyTrainingForm              onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'yearly_training'  && <YearlyTrainingForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
           </>
         )}
       </div>
