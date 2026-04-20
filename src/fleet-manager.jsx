@@ -3415,7 +3415,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   async function load() {
     setLoading(true)
     const { data } = await supabase.from('form_links')
-      .select('*, cars(plate,make,model)')
+      .select('*')
       .eq('company_id', companyId)
       .order('created_at', { ascending: false })
     setLinks(data || [])
@@ -3479,7 +3479,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
 
   function sendWhatsApp(link) {
     const url = `${window.location.origin}/form/${link.token}`
-    const driverName = link._driver?.name || link.driver_id || ''
+    const linkedDriver = link.driver_id ? (drivers || []).find(d => String(d.id) === String(link.driver_id)) : null
+    const driverName = linkedDriver?.name || ''
     const greeting = driverName ? `שלום ${driverName},\n` : 'שלום,\n'
     const msg = `${greeting}נשלח אליך קישור למילוי הטופס: ${link.title}\n\n${url}`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
@@ -3620,6 +3621,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           : links.map(link => {
               const meta = FORM_TYPES.find(f => f.id === link.type)
               const expired = link.expires_at && new Date(link.expires_at) < new Date()
+              const linkedCar    = link.car_id    ? (cars    || []).find(c => c.id    === link.car_id)    : null
+              const linkedDriver = link.driver_id ? (drivers || []).find(d => String(d.id) === String(link.driver_id)) : null
               return (
                 <div key={link.id} style={{ ...card, opacity: !link.is_active ? 0.6 : 1 }}>
                   <div style={cardHeader}>
@@ -3628,8 +3631,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link.title}</div>
                       <div style={{ fontSize: 12, color: C.textMuted, display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
                         <span>{rtl ? (meta?.label) : (meta?.labelEn)}</span>
-                        {(link._driver?.name || link.driver_id) && <span>· 👤 {link._driver?.name || link.driver_id}</span>}
-                        {link.cars && <span>· 🚗 {link.cars.plate} {link.cars.make}</span>}
+                        {linkedDriver && <span>· 👤 {linkedDriver.name}</span>}
+                        {linkedCar    && <span>· 🚗 {linkedCar.plate} {linkedCar.make}</span>}
                         {expired && <span style={{ color: C.danger, fontWeight: 700 }}>· {rtl ? 'פג תוקף' : 'Expired'}</span>}
                         {link.expires_at && !expired && <span>· {rtl ? 'עד' : 'until'} {new Date(link.expires_at).toLocaleDateString('he-IL')}</span>}
                       </div>
@@ -4838,7 +4841,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
         )}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && (!isMaster || activeCompanyId) && (
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && activeTab !== 'forms' && (!isMaster || activeCompanyId) && (
           isMobile ? (
             /* ── MOBILE: card list ─────────────────────────────────────── */
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 70px' }}>
