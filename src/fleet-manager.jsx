@@ -3394,20 +3394,21 @@ const FORM_TYPES = [
   { id: 'yearly_training',  icon: '🎓', label: 'אימות הדרכה שנתית',        labelEn: 'Yearly Training' },
 ]
 
-function FormsTab({ companyId, cars, session, t, rtl }) {
-  const [links,       setLinks]       = useState([])
-  const [loading,     setLoading]     = useState(true)
-  const [showCreate,  setShowCreate]  = useState(false)
-  const [createType,  setCreateType]  = useState('car_checklist')
-  const [createCar,   setCreateCar]   = useState('')
-  const [createTitle, setCreateTitle] = useState('')
-  const [createExpiry,setCreateExpiry]= useState('')
-  const [creating,    setCreating]    = useState(false)
-  const [copied,      setCopied]      = useState(null)
-  const [viewSubs,    setViewSubs]    = useState(null) // link to view submissions for
-  const [subs,        setSubs]        = useState([])
-  const [subsLoading, setSubsLoading] = useState(false)
-  const [expandSub,   setExpandSub]   = useState(null)
+function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
+  const [links,         setLinks]         = useState([])
+  const [loading,       setLoading]       = useState(true)
+  const [showCreate,    setShowCreate]    = useState(false)
+  const [createType,    setCreateType]    = useState('car_checklist')
+  const [createCar,     setCreateCar]     = useState('')
+  const [createDriver,  setCreateDriver]  = useState('')
+  const [createTitle,   setCreateTitle]   = useState('')
+  const [createExpiry,  setCreateExpiry]  = useState('')
+  const [creating,      setCreating]      = useState(false)
+  const [copied,        setCopied]        = useState(null)
+  const [viewSubs,      setViewSubs]      = useState(null)
+  const [subs,          setSubs]          = useState([])
+  const [subsLoading,   setSubsLoading]   = useState(false)
+  const [expandSub,     setExpandSub]     = useState(null)
 
   useEffect(() => { load() }, [companyId])
 
@@ -3424,19 +3425,27 @@ function FormsTab({ companyId, cars, session, t, rtl }) {
   async function createLink() {
     setCreating(true)
     const typeMeta = FORM_TYPES.find(f => f.id === createType)
+    const selectedDriver = drivers?.find(d => d.id === createDriver)
+    const autoTitle = createTitle.trim() || [
+      rtl ? typeMeta.label : typeMeta.labelEn,
+      selectedDriver ? `· ${selectedDriver.name}` : '',
+    ].filter(Boolean).join(' ')
     const { data, error } = await supabase.from('form_links').insert({
       company_id: companyId,
       type: createType,
       car_id: createCar || null,
-      title: createTitle.trim() || (rtl ? typeMeta.label : typeMeta.labelEn),
+      driver_id: createDriver || null,
+      title: autoTitle,
       created_by: session.user.id,
       expires_at: createExpiry || null,
       is_active: true,
     }).select()
     if (!error && data) {
-      setLinks(p => [data[0], ...p])
+      // attach driver info client-side for instant display
+      const row = { ...data[0], _driver: selectedDriver || null }
+      setLinks(p => [row, ...p])
       setShowCreate(false)
-      setCreateTitle(''); setCreateCar(''); setCreateExpiry('')
+      setCreateTitle(''); setCreateCar(''); setCreateDriver(''); setCreateExpiry('')
     }
     setCreating(false)
   }
@@ -3466,6 +3475,14 @@ function FormsTab({ companyId, cars, session, t, rtl }) {
     navigator.clipboard.writeText(url)
     setCopied(token)
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  function sendWhatsApp(link) {
+    const url = `${window.location.origin}/form/${link.token}`
+    const driverName = link._driver?.name || link.driver_id || ''
+    const greeting = driverName ? `שלום ${driverName},\n` : 'שלום,\n'
+    const msg = `${greeting}נשלח אליך קישור למילוי הטופס: ${link.title}\n\n${url}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
   const formUrl = token => `${window.location.origin}/form/${token}`
@@ -3548,6 +3565,13 @@ function FormsTab({ companyId, cars, session, t, rtl }) {
                   ))}
                 </div>
               </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'עובד / נהג (אופציונלי)' : 'Worker / Driver (optional)'}</label>
+                <select value={createDriver} onChange={e => setCreateDriver(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }}>
+                  <option value="">{rtl ? '— ללא שיוך לעובד —' : '— No specific worker —'}</option>
+                  {(drivers || []).map(d => <option key={d.id} value={d.id}>{d.name}{d.phone ? ` · ${d.phone}` : ''}</option>)}
+                </select>
+              </div>
               {(createType === 'car_checklist' || createType === 'driver_car_check') && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'רכב (אופציונלי)' : 'Vehicle (optional)'}</label>
@@ -3604,7 +3628,8 @@ function FormsTab({ companyId, cars, session, t, rtl }) {
                       <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link.title}</div>
                       <div style={{ fontSize: 12, color: C.textMuted, display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
                         <span>{rtl ? (meta?.label) : (meta?.labelEn)}</span>
-                        {link.cars && <span>· {link.cars.plate} {link.cars.make}</span>}
+                        {(link._driver?.name || link.driver_id) && <span>· 👤 {link._driver?.name || link.driver_id}</span>}
+                        {link.cars && <span>· 🚗 {link.cars.plate} {link.cars.make}</span>}
                         {expired && <span style={{ color: C.danger, fontWeight: 700 }}>· {rtl ? 'פג תוקף' : 'Expired'}</span>}
                         {link.expires_at && !expired && <span>· {rtl ? 'עד' : 'until'} {new Date(link.expires_at).toLocaleDateString('he-IL')}</span>}
                       </div>
@@ -3620,8 +3645,11 @@ function FormsTab({ companyId, cars, session, t, rtl }) {
                   </div>
                   {/* Actions */}
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: '10px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button onClick={() => sendWhatsApp(link)} style={{ ...btnGhost, color: '#25d366', borderColor: '#25d36640', background: '#25d36608', fontWeight: 700 }}>
+                      📲 {rtl ? 'שלח ב-WhatsApp' : 'Send via WhatsApp'}
+                    </button>
                     <button onClick={() => openSubs(link)} style={{ ...btnGhost, color: C.primary, borderColor: C.primary + '40', background: C.primary + '08' }}>
-                      {rtl ? '👁 צפה בתגובות' : '👁 View Submissions'}
+                      {rtl ? '👁 תגובות' : '👁 Submissions'}
                     </button>
                     <button onClick={() => toggleActive(link)} style={btnGhost}>
                       {link.is_active ? (rtl ? '⏸ השבת' : '⏸ Disable') : (rtl ? '▶ הפעל' : '▶ Enable')}
@@ -4799,7 +4827,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Forms tab */}
         {activeTab === 'forms' && activeCompanyId && (
-          <FormsTab companyId={activeCompanyId} cars={cars} session={session} t={t} rtl={rtl} />
+          <FormsTab companyId={activeCompanyId} cars={cars} drivers={drivers} session={session} t={t} rtl={rtl} />
         )}
 
         {/* Board */}
