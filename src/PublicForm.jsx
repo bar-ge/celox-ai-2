@@ -99,11 +99,12 @@ function FileAttachments({ files, onAdd, onRemove }) {
 
 // ── Car Checklist Form ────────────────────────────────────────────────────────
 function CarChecklistForm({ link, onSubmit, submitting }) {
+  const car = link.car || {}
   const [form, setForm] = useState({
-    plate: '',
-    make: '',
-    model: '',
-    year: '',
+    plate: car.plate || '',
+    make:  car.make  || '',
+    model: car.model || '',
+    year:  car.year  || '',
     // Insurance
     insurance_provider: '', insurance_policy: '', insurance_expiry: '',
     // Toll
@@ -265,8 +266,11 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
 
 // ── Driver Car Check Form ─────────────────────────────────────────────────────
 function DriverCarCheckForm({ link, onSubmit, submitting }) {
+  const car    = link.car    || {}
+  const driver = link.driver || {}
   const [form, setForm] = useState({
-    submitter_name: '', plate: '',
+    submitter_name: driver.name || '',
+    plate:          car.plate   || '',
     mileage: '', fuel_level: '', exterior_damage: '', damage_desc: '',
     interior_ok: '', notes: '',
   })
@@ -372,8 +376,11 @@ const TRAINING_TOPICS = [
 ]
 
 function YearlyTrainingForm({ link, onSubmit, submitting }) {
+  const driver = link.driver || {}
   const [form, setForm] = useState({
-    submitter_name: '', driver_license: '', training_date: new Date().toISOString().slice(0, 10),
+    submitter_name: driver.name    || '',
+    driver_license: driver.license || '',
+    training_date: new Date().toISOString().slice(0, 10),
     trainer_name: '', topics: [], other_topic: '', confirmed: false,
   })
   const [files, setFiles] = useState([])
@@ -477,7 +484,6 @@ export default function PublicForm({ token }) {
     async function load() {
       const { data, error } = await supabase
         .rpc('get_active_form_link', { p_token: token })
-        .maybeSingle()
       if (error || !data) { setError('הטופס לא נמצא או שאינו פעיל.'); setLoading(false); return }
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
         setError('תוקף הטופס פג.'); setLoading(false); return

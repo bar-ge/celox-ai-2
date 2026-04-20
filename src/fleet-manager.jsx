@@ -841,6 +841,100 @@ function getFileIcon(name) {
   return '📎'
 }
 
+// ── Form Submissions Section (shown inside Documents tab) ────────────────────
+const FORM_TYPE_LABELS = {
+  car_checklist:    { he: 'רשימת בדיקה לרכב חדש', icon: '📋' },
+  driver_car_check: { he: 'בדיקת רכב על ידי נהג',  icon: '🚗' },
+  yearly_training:  { he: 'אימות הדרכה שנתית',      icon: '🎓' },
+}
+
+function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
+  const [subs,     setSubs]     = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [expanded, setExpanded] = useState(null)
+
+  useEffect(() => {
+    async function load() {
+      // 1. get form_links for this entity
+      const col = entityType === 'car' ? 'car_id' : 'driver_id'
+      const { data: links } = await supabase
+        .from('form_links')
+        .select('id, title, type')
+        .eq('company_id', companyId)
+        .eq(col, String(entityId))
+      if (!links?.length) { setLoading(false); return }
+
+      // 2. get submissions for those links
+      const { data } = await supabase
+        .from('form_submissions')
+        .select('*')
+        .in('form_link_id', links.map(l => l.id))
+        .order('submitted_at', { ascending: false })
+
+      // attach link metadata to each submission
+      const linkMap = Object.fromEntries(links.map(l => [l.id, l]))
+      setSubs((data || []).map(s => ({ ...s, _link: linkMap[s.form_link_id] })))
+      setLoading(false)
+    }
+    load()
+  }, [entityId, entityType, companyId])
+
+  if (loading) return <div style={{ padding: '10px 0', color: '#94a3b8', fontSize: 13 }}>טוען טפסים...</div>
+  if (!subs.length) return null
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
+        {rtl ? 'טפסים שהוגשו' : 'Submitted Forms'}
+      </div>
+      {subs.map(sub => {
+        const meta = FORM_TYPE_LABELS[sub.type] || { he: sub.type, icon: '📋' }
+        const isOpen = expanded === sub.id
+        return (
+          <div key={sub.id} style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 8, overflow: 'hidden' }}>
+            <div
+              onClick={() => setExpanded(isOpen ? null : sub.id)}
+              style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+            >
+              <span style={{ fontSize: 18 }}>{meta.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{sub.submitter_name || meta.he}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
+                  {meta.he} · {new Date(sub.submitted_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+              <span style={{ color: '#94a3b8', fontSize: 14 }}>{isOpen ? '▲' : '▼'}</span>
+            </div>
+            {isOpen && (
+              <div style={{ borderTop: '1px solid #e2e8f0', padding: '12px 14px', fontSize: 12 }}>
+                {Object.entries(sub.data || {}).filter(([k, v]) => v && k !== 'submitter_name' && k !== 'attachments').map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#64748b', minWidth: 130, fontWeight: 600 }}>{k.replace(/_/g, ' ')}</span>
+                    <span style={{ color: '#0f172a', flex: 1 }}>{Array.isArray(v) ? v.join(', ') : String(v)}</span>
+                  </div>
+                ))}
+                {sub.data?.attachments?.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>קבצים מצורפים</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {sub.data.attachments.map((a, i) => (
+                        <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
+                          style={{ background: '#0891b2', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          📎 {a.name}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Inline Documents Pane (used inside detail modals) ───────────────────────
 function DocsPane({ entityId, entityType, companyId, t, rtl }) {
   const [docs, setDocs]               = useState([])
@@ -1239,6 +1333,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                   {rtl ? 'מסמכים' : 'Documents'}
                 </div>
                 <DocsPane key={docsKey} entityId={car.id} entityType="car" companyId={companyId} t={t} rtl={rtl} />
+                <FormSubmissionsSection entityId={car.id} entityType="car" companyId={companyId} rtl={rtl} />
               </div>
             )}
 
@@ -1340,6 +1435,7 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
             <div style={{ padding: '0 24px 20px' }}>
               <div style={sTitle}>{rtl ? 'מסמכים' : 'Documents'}</div>
               <DocsPane entityId={driver.id} entityType="driver" companyId={companyId} t={t} rtl={rtl} />
+              <FormSubmissionsSection entityId={driver.id} entityType="driver" companyId={companyId} rtl={rtl} />
             </div>
           )}
 
