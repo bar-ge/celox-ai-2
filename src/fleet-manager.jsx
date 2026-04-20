@@ -1231,7 +1231,6 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                     [t.year,    car.year],
                     [t.fuel,    t[CAR_FUEL_KEY[car.fuel]] || car.fuel],
                     [t.mileage, car.mileage ? car.mileage.toLocaleString() + ' km' : null],
-                    [rtl ? 'צבע' : 'Color', car.color],
                     [t.branch,  getBranchName(car.branch_id)],
                   ].filter(([, v]) => v && v !== '—').map(([label, value]) => (
                     <div key={label} style={infoRow}>

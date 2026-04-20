@@ -496,14 +496,20 @@ export default function PublicForm({ token }) {
 
   async function handleSubmit(data) {
     setSubmitting(true)
-    const { error } = await supabase.from('form_submissions').insert({
+    const { data: inserted, error } = await supabase.from('form_submissions').insert({
       form_link_id: link.id,
       company_id: link.company_id,
       type: link.type,
       submitter_name: data.submitter_name || '',
       data,
-    })
+    }).select('id').single()
     if (error) { alert('שגיאה בשליחה: ' + error.message); setSubmitting(false); return }
+
+    // Auto-create cost records for insurance / toll from car checklist
+    if (link.type === 'car_checklist' && link.car_id && inserted?.id) {
+      await supabase.rpc('create_costs_from_checklist', { p_submission_id: inserted.id })
+    }
+
     setDone(true)
     setSubmitting(false)
   }
