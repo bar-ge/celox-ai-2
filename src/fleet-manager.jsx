@@ -841,6 +841,165 @@ function getFileIcon(name) {
   return '📎'
 }
 
+// ── Inline Documents Pane (used inside detail modals) ───────────────────────
+function DocsPane({ entityId, entityType, companyId, t, rtl }) {
+  const [docs, setDocs]               = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [uploading, setUploading]     = useState(false)
+  const [error, setError]             = useState('')
+  const [pendingFile, setPendingFile] = useState(null)
+  const [expiryDate, setExpiryDate]   = useState('')
+  const [editingExpiry, setEditingExpiry] = useState(null)
+  const [editExpiryVal, setEditExpiryVal] = useState('')
+
+  useEffect(() => { loadDocs() }, [entityId])
+
+  async function loadDocs() {
+    setLoading(true)
+    const { data } = await supabase.from('documents')
+      .select('*').eq('entity_id', entityId).order('created_at', { ascending: false })
+    setDocs(data || [])
+    setLoading(false)
+  }
+
+  function pickFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setPendingFile(file); setExpiryDate(''); setError(''); e.target.value = ''
+  }
+
+  const ALLOWED = ['image/jpeg','image/png','image/webp','image/gif','application/pdf',
+    'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+
+  async function confirmUpload() {
+    if (!pendingFile) return
+    if (pendingFile.size > 10 * 1024 * 1024) { setError(t.fileTooLarge); return }
+    if (!ALLOWED.includes(pendingFile.type)) { setError(t.fileTypeNotAllowed); return }
+    setUploading(true); setError('')
+    const safeName = pendingFile.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
+    const path = `${companyId}/${entityType}/${entityId}/${Date.now()}_${safeName}`
+    const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, pendingFile)
+    if (uploadErr) { setError(uploadErr.message); setUploading(false); return }
+    const { error: dbErr } = await supabase.from('documents').insert({
+      company_id: companyId, entity_type: entityType, entity_id: entityId,
+      name: pendingFile.name, storage_path: path, size: pendingFile.size,
+      expires_at: expiryDate || null,
+    })
+    if (dbErr) setError(dbErr.message)
+    else { await loadDocs(); setPendingFile(null); setExpiryDate('') }
+    setUploading(false)
+  }
+
+  async function saveExpiry(doc) {
+    await supabase.from('documents').update({ expires_at: editExpiryVal || null }).eq('id', doc.id)
+    setDocs(p => p.map(d => d.id === doc.id ? { ...d, expires_at: editExpiryVal || null } : d))
+    setEditingExpiry(null)
+  }
+
+  async function downloadFile(doc) {
+    const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(doc.storage_path, 60)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  async function deleteFile(doc) {
+    await supabase.from('documents').delete().eq('id', doc.id)
+    await supabase.storage.from('fleet-documents').remove([doc.storage_path])
+    setDocs(p => p.filter(d => d.id !== doc.id))
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return ''
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  }
+
+  function expiryStatus(doc) {
+    if (!doc.expires_at) return null
+    const today = new Date(); today.setHours(0,0,0,0)
+    const exp = new Date(doc.expires_at)
+    const days = Math.round((exp - today) / 86400000)
+    if (days < 0)   return { label: t.expired,                    color: C.danger,  bg: C.danger  + '18' }
+    if (days <= 30) return { label: `${t.expiresIn} ${days}d`,    color: C.warning, bg: C.warning + '18' }
+    return                 { label: fmtDate(doc.expires_at),       color: C.success, bg: C.success + '18' }
+  }
+
+  const row = { background: C.bg, borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: `1px solid ${C.border}` }
+
+  return (
+    <div style={{ direction: rtl ? 'rtl' : 'ltr' }}>
+      {loading ? (
+        <p style={{ color: C.textMuted, textAlign: 'center', padding: '24px 0', fontSize: 14 }}>{t.loadingShort}</p>
+      ) : docs.length === 0 ? (
+        <p style={{ color: C.textMuted, textAlign: 'center', padding: '24px 0', fontSize: 14 }}>{t.noFiles}</p>
+      ) : docs.map(doc => {
+        const status = expiryStatus(doc)
+        return (
+          <div key={doc.id} style={row}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{getFileIcon(doc.name)}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
+                <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <span>{formatSize(doc.size)} · {fmtDate(doc.created_at?.split('T')[0])}</span>
+                  {status && <span style={{ background: status.bg, color: status.color, borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>{status.label}</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }}
+                  style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 7px', cursor: 'pointer', fontSize: 12 }}>📅</button>
+                <button onClick={() => downloadFile(doc)}
+                  style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↓</button>
+                <button onClick={() => deleteFile(doc)}
+                  style={{ background: C.danger + '18', color: C.danger, border: 'none', borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>✕</button>
+              </div>
+            </div>
+            {editingExpiry === doc.id && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, paddingInlineStart: 30 }}>
+                <DateInput value={editExpiryVal} onChange={e => setEditExpiryVal(e.target.value)}
+                  style={{ padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                <button onClick={() => saveExpiry(doc)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 5, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.save}</button>
+                <button onClick={() => { setEditingExpiry(null); setEditExpiryVal('') }}
+                  style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 5, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {error && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{error}</div>}
+
+      {/* Upload */}
+      <div style={{ marginTop: 12 }}>
+        {pendingFile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 13, color: C.textPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 12, color: C.textMuted, whiteSpace: 'nowrap' }}>📅 {t.expiryDate}</label>
+              <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={confirmUpload} disabled={uploading}
+                style={{ flex: 1, background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '10px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
+                {uploading ? '…' : `⬆ ${t.uploadFile}`}
+              </button>
+              <button onClick={() => setPendingFile(null)}
+                style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>{t.cancel}</button>
+            </div>
+          </div>
+        ) : (
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: C.primary + '15', border: `1px dashed ${C.primary}60`, color: C.primary, borderRadius: 8, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            ⬆ {t.uploadFile}
+            <input type="file" style={{ display: 'none' }} onChange={pickFile} />
+          </label>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Vehicle photo thumbnail ─────────────────────────────────────────────────
 function PhotoThumb({ path, onUpload, t }) {
   const [url, setUrl] = useState(null)
@@ -899,11 +1058,12 @@ function getMergedOptions(type, customLists = {}) {
 }
 
 // ── Car Detail Modal ─────────────────────────────────────────────────────────
-function CarDetailModal({ car, getBranchName, drivers, t, rtl, onClose }) {
+function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClose }) {
   const [tab, setTab]           = useState('overview')
   const [maintenance, setMaint] = useState([])
   const [costs, setCosts]       = useState([])
   const [loading, setLoading]   = useState(true)
+  const [docsKey, setDocsKey]   = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -955,7 +1115,7 @@ function CarDetailModal({ car, getBranchName, drivers, t, rtl, onClose }) {
 
         {/* Tab bar */}
         <div style={tabBar}>
-          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['maintenance', `🔧 ${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`], ['costs', `💰 ${rtl ? 'עלויות' : 'Costs'} (${costs.length})`]].map(([id, label]) => (
+          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['maintenance', `🔧 ${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`], ['costs', `💰 ${rtl ? 'עלויות' : 'Costs'} (${costs.length})`], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -1072,8 +1232,118 @@ function CarDetailModal({ car, getBranchName, drivers, t, rtl, onClose }) {
               </div>
             )}
 
+            {/* ── DOCUMENTS ── */}
+            {tab === 'documents' && (
+              <div style={{ padding: '0 24px 20px' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10, marginTop: 20 }}>
+                  {rtl ? 'מסמכים' : 'Documents'}
+                </div>
+                <DocsPane key={docsKey} entityId={car.id} entityType="car" companyId={companyId} t={t} rtl={rtl} />
+              </div>
+            )}
+
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Driver Detail Modal ──────────────────────────────────────────────────────
+function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onClose }) {
+  const [tab, setTab]       = useState('overview')
+  const [loading, setLoading] = useState(false)
+
+  const assignedCar = cars.find(c => String(c.id) === String(driver.car_id) || String(c.driver_id) === String(driver.id))
+
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }
+  const modal   = { background: C.surface, borderRadius: 16, width: '100%', maxWidth: 720, boxShadow: '0 24px 80px rgba(0,0,0,0.25)', position: 'relative', direction: rtl ? 'rtl' : 'ltr' }
+  const hdr     = { background: C.navBg, borderRadius: '16px 16px 0 0', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }
+  const tabBar  = { display: 'flex', background: C.bg, borderBottom: `1px solid ${C.border}`, padding: '0 24px' }
+  const tabBtn  = active => ({ padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', borderBottom: active ? `2px solid ${C.primary}` : '2px solid transparent', color: active ? C.primary : C.textMuted, transition: 'color 0.15s' })
+  const sTitle  = { fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10, marginTop: 20 }
+  const infoRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: `1px solid ${C.borderLight}`, fontSize: 13 }
+  const card    = { background: C.bg, borderRadius: 10, padding: 14, marginBottom: 10, border: `1px solid ${C.border}` }
+  const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
+
+  return (
+    <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={modal}>
+        {/* Header */}
+        <div style={hdr}>
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: C.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
+            {driver.name?.charAt(0)?.toUpperCase() || '?'}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{driver.name}</span>
+              <Badge label={t[DRIVER_STATUS_KEY[driver.status]] || driver.status} color={statusColor} />
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+              {[driver.license, driver.phone, getBranchName(driver.branch_id) !== '—' && getBranchName(driver.branch_id)].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        </div>
+
+        {/* Tab bar */}
+        <div style={tabBar}>
+          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+            <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ padding: '0 0 24px' }}>
+
+          {/* ── OVERVIEW ── */}
+          {tab === 'overview' && (
+            <>
+              <div style={{ padding: '0 24px 20px' }}>
+                <div style={sTitle}>{rtl ? 'פרטי נהג' : 'Driver Details'}</div>
+                {[
+                  [rtl ? 'שם' : 'Name',                       driver.name],
+                  [rtl ? 'רישיון' : 'License',                driver.license],
+                  [rtl ? 'טלפון' : 'Phone',                   driver.phone],
+                  [rtl ? 'סטטוס' : 'Status',                  t[DRIVER_STATUS_KEY[driver.status]] || driver.status],
+                  [t.branch,                                    getBranchName(driver.branch_id) !== '—' ? getBranchName(driver.branch_id) : null],
+                  [rtl ? 'רמות רישיון' : 'License Levels',    (driver.license_levels || []).map(l => t[LICENSE_LEVEL_KEY[l]] || l).join(', ') || null],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <div key={label} style={infoRow}>
+                    <span style={{ color: C.textMuted }}>{label}</span>
+                    <span style={{ fontWeight: 600, color: C.textPrimary }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ padding: '0 24px 20px' }}>
+                <div style={sTitle}>{rtl ? 'רכב משויך' : 'Assigned Vehicle'}</div>
+                {assignedCar ? (
+                  <div style={card}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, letterSpacing: 1 }}>{formatPlate(assignedCar.plate)}</span>
+                      <Badge label={t[CAR_STATUS_KEY[assignedCar.status]] || assignedCar.status} color={s => s === 'Available' || s === t.available ? C.success : s === 'In Use' || s === t.inUse ? C.primary : C.warning} />
+                    </div>
+                    <div style={{ fontSize: 13, color: C.textSecondary }}>
+                      {assignedCar.make} {assignedCar.model}{assignedCar.year ? ` · ${assignedCar.year}` : ''} · {t[CAR_FUEL_KEY[assignedCar.fuel]] || assignedCar.fuel}
+                      {assignedCar.mileage ? ` · ${assignedCar.mileage.toLocaleString()} km` : ''}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ color: C.textMuted, fontSize: 13, paddingTop: 8 }}>{rtl ? 'אין רכב משויך' : 'No vehicle assigned'}</div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ── DOCUMENTS ── */}
+          {tab === 'documents' && (
+            <div style={{ padding: '0 24px 20px' }}>
+              <div style={sTitle}>{rtl ? 'מסמכים' : 'Documents'}</div>
+              <DocsPane entityId={driver.id} entityType="driver" companyId={companyId} t={t} rtl={rtl} />
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   )
@@ -1146,7 +1416,6 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
           </button>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
-          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
         </span>
       </td>
     </tr>
@@ -1201,7 +1470,7 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobi
   )
 }
 
-function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onFiles, t, rtl, mobile }) {
+function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onViewDetail, t, rtl, mobile }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl, mobile)
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
@@ -1234,9 +1503,11 @@ function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, on
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
+          <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
+            {rtl ? '👁 פרטים' : '👁 View'}
+          </button>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
-          <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>📎</button>
         </span>
       </td>
     </tr>
@@ -1477,13 +1748,12 @@ function MobileCarCard({ car, getBranchName, getBranchIdx, drivers, selected, on
         </button>
         <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
         <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
-        <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>📎</button>
       </div>
     </div>
   )
 }
 
-function MobileDriverCard({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onFiles, t, rtl }) {
+function MobileDriverCard({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onViewDetail, t, rtl }) {
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
   const branchName  = getBranchName(driver.branch_id)
   const branchIdx   = getBranchIdx(driver.branch_id)
@@ -1506,9 +1776,11 @@ function MobileDriverCard({ driver, getBranchName, getBranchIdx, selected, onSel
         {branchName !== '—' && <Badge label={branchName} color={branchColor(branchIdx)} />}
       </div>
       <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
+          {rtl ? '👁 פרטים' : '👁 View'}
+        </button>
         <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
         <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
-        <button onClick={onFiles} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>📎</button>
       </div>
     </div>
   )
@@ -3680,7 +3952,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [showEntityCsvImport, setShowEntityCsvImport] = useState(null) // 'cars' | 'drivers' | null
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showTerms, setShowTerms]   = useState(false)
-  const [detailCar, setDetailCar]   = useState(null)
+  const [detailCar, setDetailCar]       = useState(null)
+  const [detailDriver, setDetailDriver] = useState(null)
   const realtimeRef = useRef(null)
 
   const t   = T[lang]
@@ -4320,7 +4593,6 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                     <MobileCarCard key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                       selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
                       onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)}
-                      onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
                       onPhotoChange={file => uploadCarPhoto(car.id, file)} onViewDetail={() => setDetailCar(car)} t={t} rtl={rtl} />
                   ))
               )}
@@ -4334,7 +4606,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                     <MobileDriverCard key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
                       selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
                       onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)}
-                      onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} />
+                      onViewDetail={() => setDetailDriver(driver)} t={t} rtl={rtl} />
                   ))
               )}
               {activeTab === 'branches' && (filteredBranches.length === 0
@@ -4439,7 +4711,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={false} customLists={customLists} />
                         : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                             selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
-                            onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)} onFiles={() => setFilesFor({ entity: car, entityType: 'car' })}
+                            onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)}
                             onPhotoChange={file => uploadCarPhoto(car.id, file)} onMileageUpdate={updateMileage} onViewDetail={() => setDetailCar(car)} t={t} rtl={rtl} mobile={false} />
                     )}
                     {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && (
@@ -4458,7 +4730,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={false} customLists={customLists} />
                         : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
                             selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
-                            onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onFiles={() => setFilesFor({ entity: driver, entityType: 'driver' })} t={t} rtl={rtl} mobile={false} />
+                            onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onViewDetail={() => setDetailDriver(driver)} t={t} rtl={rtl} mobile={false} />
                     )}
                     {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && (
                       <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
@@ -4519,9 +4791,23 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           car={detailCar}
           getBranchName={getBranchName}
           drivers={drivers}
+          companyId={activeCompanyId}
           t={t}
           rtl={rtl}
           onClose={() => setDetailCar(null)}
+        />
+      )}
+
+      {/* Driver Detail modal */}
+      {detailDriver && (
+        <DriverDetailModal
+          driver={detailDriver}
+          getBranchName={getBranchName}
+          cars={cars}
+          companyId={activeCompanyId}
+          t={t}
+          rtl={rtl}
+          onClose={() => setDetailDriver(null)}
         />
       )}
 
