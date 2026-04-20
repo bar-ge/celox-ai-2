@@ -28,10 +28,10 @@ const FORM_META = {
 // ── Car Checklist Form ────────────────────────────────────────────────────────
 function CarChecklistForm({ link, onSubmit, submitting }) {
   const [form, setForm] = useState({
-    plate: link.cars?.plate || '',
-    make: link.cars?.make || '',
-    model: link.cars?.model || '',
-    year: link.cars?.year || '',
+    plate: '',
+    make: '',
+    model: '',
+    year: '',
     // Insurance
     insurance_provider: '', insurance_policy: '', insurance_expiry: '',
     // Toll
@@ -391,7 +391,7 @@ export default function PublicForm({ token }) {
     async function load() {
       const { data, error } = await supabase
         .from('form_links')
-        .select('*, cars(plate, make, model, year)')
+        .select('*')
         .eq('token', token)
         .eq('is_active', true)
         .maybeSingle()
