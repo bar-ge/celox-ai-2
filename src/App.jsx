@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
+import PublicForm from './PublicForm'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import './App.css'
@@ -563,6 +564,10 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 export default function App() {
+  // Public form route — no auth needed
+  const formToken = window.location.pathname.match(/^\/form\/([0-9a-f-]{36})$/i)?.[1]
+  if (formToken) return <PublicForm token={formToken} />
+
   const [session, setSession] = useState(undefined) // undefined = still loading
   const [profile, setProfile] = useState(undefined)
   const [lang, setLang]       = useState(() => localStorage.getItem('fleet_lang') || 'en')

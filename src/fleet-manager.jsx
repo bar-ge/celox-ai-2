@@ -3387,6 +3387,257 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
   )
 }
 
+// ── Forms Tab ────────────────────────────────────────────────────────────────
+const FORM_TYPES = [
+  { id: 'car_checklist',    icon: '📋', label: 'רשימת בדיקה לרכב חדש',   labelEn: 'New Car Checklist' },
+  { id: 'driver_car_check', icon: '🚗', label: 'בדיקת רכב על ידי נהג',    labelEn: 'Driver Car Check' },
+  { id: 'yearly_training',  icon: '🎓', label: 'אימות הדרכה שנתית',        labelEn: 'Yearly Training' },
+]
+
+function FormsTab({ companyId, cars, session, t, rtl }) {
+  const [links,       setLinks]       = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [showCreate,  setShowCreate]  = useState(false)
+  const [createType,  setCreateType]  = useState('car_checklist')
+  const [createCar,   setCreateCar]   = useState('')
+  const [createTitle, setCreateTitle] = useState('')
+  const [createExpiry,setCreateExpiry]= useState('')
+  const [creating,    setCreating]    = useState(false)
+  const [copied,      setCopied]      = useState(null)
+  const [viewSubs,    setViewSubs]    = useState(null) // link to view submissions for
+  const [subs,        setSubs]        = useState([])
+  const [subsLoading, setSubsLoading] = useState(false)
+  const [expandSub,   setExpandSub]   = useState(null)
+
+  useEffect(() => { load() }, [companyId])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('form_links')
+      .select('*, cars(plate,make,model)')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+    setLinks(data || [])
+    setLoading(false)
+  }
+
+  async function createLink() {
+    setCreating(true)
+    const typeMeta = FORM_TYPES.find(f => f.id === createType)
+    const { data, error } = await supabase.from('form_links').insert({
+      company_id: companyId,
+      type: createType,
+      car_id: createCar || null,
+      title: createTitle.trim() || (rtl ? typeMeta.label : typeMeta.labelEn),
+      created_by: session.user.id,
+      expires_at: createExpiry || null,
+      is_active: true,
+    }).select()
+    if (!error && data) {
+      setLinks(p => [data[0], ...p])
+      setShowCreate(false)
+      setCreateTitle(''); setCreateCar(''); setCreateExpiry('')
+    }
+    setCreating(false)
+  }
+
+  async function toggleActive(link) {
+    await supabase.from('form_links').update({ is_active: !link.is_active }).eq('id', link.id)
+    setLinks(p => p.map(l => l.id === link.id ? { ...l, is_active: !l.is_active } : l))
+  }
+
+  async function deleteLink(link) {
+    if (!window.confirm(rtl ? 'למחוק קישור זה?' : 'Delete this form link?')) return
+    await supabase.from('form_links').delete().eq('id', link.id)
+    setLinks(p => p.filter(l => l.id !== link.id))
+  }
+
+  async function openSubs(link) {
+    setViewSubs(link)
+    setSubsLoading(true)
+    const { data } = await supabase.from('form_submissions')
+      .select('*').eq('form_link_id', link.id).order('submitted_at', { ascending: false })
+    setSubs(data || [])
+    setSubsLoading(false)
+  }
+
+  function copyLink(token) {
+    const url = `${window.location.origin}/form/${token}`
+    navigator.clipboard.writeText(url)
+    setCopied(token)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const formUrl = token => `${window.location.origin}/form/${token}`
+
+  const pad = { padding: isMobile => isMobile ? 12 : 24 }
+  const card = { background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginBottom: 10, overflow: 'hidden' }
+  const cardHeader = { padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }
+  const btnPrimary = { background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }
+  const btnGhost   = { background: 'transparent', color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }
+
+  const isMobile = window.innerWidth < 640
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
+
+      {/* Submissions drawer */}
+      {viewSubs && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+          <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 700, direction: rtl ? 'rtl' : 'ltr' }}>
+            <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ color: '#f8fafc', fontWeight: 800, fontSize: 16 }}>{viewSubs.title}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>{subs.length} {rtl ? 'תגובות' : 'submissions'}</div>
+              </div>
+              <button onClick={() => setViewSubs(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#f8fafc', fontSize: 18 }}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px 24px' }}>
+              {subsLoading
+                ? <div style={{ textAlign: 'center', padding: 32, color: C.textMuted }}>טוען...</div>
+                : subs.length === 0
+                  ? <div style={{ textAlign: 'center', padding: 32, color: C.textMuted }}>{rtl ? 'אין תגובות עדיין' : 'No submissions yet'}</div>
+                  : subs.map(sub => (
+                    <div key={sub.id} style={{ background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, marginBottom: 10, overflow: 'hidden' }}>
+                      <div style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                        onClick={() => setExpandSub(expandSub === sub.id ? null : sub.id)}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{sub.submitter_name || '—'}</div>
+                          <div style={{ fontSize: 12, color: C.textMuted }}>{new Date(sub.submitted_at).toLocaleString('he-IL')}</div>
+                        </div>
+                        <span style={{ color: C.textMuted, fontSize: 18 }}>{expandSub === sub.id ? '▲' : '▼'}</span>
+                      </div>
+                      {expandSub === sub.id && (
+                        <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px', fontSize: 13 }}>
+                          {Object.entries(sub.data || {}).filter(([k]) => k !== 'submitter_name').map(([k, v]) => v ? (
+                            <div key={k} style={{ display: 'flex', gap: 12, padding: '5px 0', borderBottom: `1px solid ${C.borderLight}` }}>
+                              <span style={{ color: C.textMuted, minWidth: 140, fontWeight: 600 }}>{k.replace(/_/g, ' ')}</span>
+                              <span style={{ color: C.textPrimary, flex: 1 }}>
+                                {Array.isArray(v) ? v.join(', ') : String(v)}
+                              </span>
+                            </div>
+                          ) : null)}
+                        </div>
+                      )}
+                    </div>
+                  ))
+              }
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create link modal */}
+      {showCreate && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 480, direction: rtl ? 'rtl' : 'ltr' }}>
+            <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 15 }}>{rtl ? '➕ יצירת קישור טופס' : '➕ Create Form Link'}</span>
+              <button onClick={() => setShowCreate(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}>✕</button>
+            </div>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'סוג טופס' : 'Form Type'}</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {FORM_TYPES.map(f => (
+                    <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 9, border: `2px solid ${createType === f.id ? C.primary : C.border}`, cursor: 'pointer', background: createType === f.id ? C.primary + '08' : C.bg, transition: 'all 0.15s' }}>
+                      <input type="radio" name="formType" value={f.id} checked={createType === f.id} onChange={() => setCreateType(f.id)} style={{ accentColor: C.primary }} />
+                      <span style={{ fontSize: 18 }}>{f.icon}</span>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{rtl ? f.label : f.labelEn}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {(createType === 'car_checklist' || createType === 'driver_car_check') && (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'רכב (אופציונלי)' : 'Vehicle (optional)'}</label>
+                  <select value={createCar} onChange={e => setCreateCar(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }}>
+                    <option value="">{rtl ? '— ללא שיוך לרכב —' : '— No specific vehicle —'}</option>
+                    {cars.map(c => <option key={c.id} value={c.id}>{c.plate} · {c.make} {c.model}</option>)}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'כותרת (אופציונלי)' : 'Title (optional)'}</label>
+                <input value={createTitle} onChange={e => setCreateTitle(e.target.value)} placeholder={rtl ? 'למשל: בדיקת רכב חדש ינואר 2026' : 'e.g. Fleet check Jan 2026'} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'תאריך תפוגה (אופציונלי)' : 'Expiry date (optional)'}</label>
+                <input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc', boxSizing: 'border-box' }} />
+              </div>
+              <button onClick={createLink} disabled={creating} style={{ ...btnPrimary, padding: '12px', fontSize: 14, opacity: creating ? 0.7 : 1, cursor: creating ? 'not-allowed' : 'pointer' }}>
+                {creating ? '…' : (rtl ? '🔗 צור קישור' : '🔗 Create Link')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: C.textPrimary }}>📋 {rtl ? 'טפסים' : 'Forms'}</div>
+          <div style={{ fontSize: 13, color: C.textMuted, marginTop: 3 }}>{rtl ? 'שלח קישורים לנהגים או לצוות למילוי טפסים' : 'Send links for drivers or staff to fill out forms'}</div>
+        </div>
+        <button onClick={() => setShowCreate(true)} style={btnPrimary}>
+          {rtl ? '+ קישור חדש' : '+ New Link'}
+        </button>
+      </div>
+
+      {/* Links list */}
+      {loading
+        ? <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>טוען...</div>
+        : links.length === 0
+          ? <div style={{ textAlign: 'center', padding: '60px 20px', color: C.textMuted }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{rtl ? 'אין קישורי טפסים עדיין' : 'No form links yet'}</div>
+              <div style={{ fontSize: 13, marginTop: 6 }}>{rtl ? 'לחץ על "+ קישור חדש" ליצירת הראשון' : 'Click "+ New Link" to create the first one'}</div>
+            </div>
+          : links.map(link => {
+              const meta = FORM_TYPES.find(f => f.id === link.type)
+              const expired = link.expires_at && new Date(link.expires_at) < new Date()
+              return (
+                <div key={link.id} style={{ ...card, opacity: !link.is_active ? 0.6 : 1 }}>
+                  <div style={cardHeader}>
+                    <span style={{ fontSize: 24, flexShrink: 0 }}>{meta?.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link.title}</div>
+                      <div style={{ fontSize: 12, color: C.textMuted, display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+                        <span>{rtl ? (meta?.label) : (meta?.labelEn)}</span>
+                        {link.cars && <span>· {link.cars.plate} {link.cars.make}</span>}
+                        {expired && <span style={{ color: C.danger, fontWeight: 700 }}>· {rtl ? 'פג תוקף' : 'Expired'}</span>}
+                        {link.expires_at && !expired && <span>· {rtl ? 'עד' : 'until'} {new Date(link.expires_at).toLocaleDateString('he-IL')}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {/* URL bar */}
+                  <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input readOnly value={formUrl(link.token)} onClick={e => e.target.select()}
+                      style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '7px 10px', fontSize: 12, color: C.textSecondary, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis' }} />
+                    <button onClick={() => copyLink(link.token)} style={{ ...btnPrimary, padding: '7px 14px', fontSize: 12, background: copied === link.token ? C.success : C.primary, flexShrink: 0 }}>
+                      {copied === link.token ? '✓ ' + (rtl ? 'הועתק' : 'Copied') : (rtl ? '📋 העתק' : '📋 Copy')}
+                    </button>
+                  </div>
+                  {/* Actions */}
+                  <div style={{ borderTop: `1px solid ${C.border}`, padding: '10px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button onClick={() => openSubs(link)} style={{ ...btnGhost, color: C.primary, borderColor: C.primary + '40', background: C.primary + '08' }}>
+                      {rtl ? '👁 צפה בתגובות' : '👁 View Submissions'}
+                    </button>
+                    <button onClick={() => toggleActive(link)} style={btnGhost}>
+                      {link.is_active ? (rtl ? '⏸ השבת' : '⏸ Disable') : (rtl ? '▶ הפעל' : '▶ Enable')}
+                    </button>
+                    <button onClick={() => deleteLink(link)} style={{ ...btnGhost, color: C.danger, borderColor: C.danger + '40' }}>
+                      {rtl ? '🗑 מחק' : '🗑 Delete'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })
+      }
+    </div>
+  )
+}
+
 // ── Settings Tab ────────────────────────────────────────────────────────────
 function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl, onCustomListsChange, onPrivacy, onTerms }) {
   const company  = profile?.companies
@@ -4275,6 +4526,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     { id: 'branches',    label: t.branches,       icon: '🏢', count: branches.length },
     { id: 'maintenance', label: t.maintenanceTab, icon: '🔧', count: null },
     { id: 'costs',       label: t.costsTab,       icon: '💰', count: null },
+    { id: 'forms',       label: rtl ? 'טפסים' : 'Forms', icon: '📋', count: null },
     { id: 'settings',    label: t.settings,       icon: '⚙️', count: null },
   ]
 
@@ -4543,6 +4795,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {/* Costs tab */}
         {activeTab === 'costs' && activeCompanyId && (
           <CostsTab key={costsReloadKey} cars={cars} drivers={drivers} companyId={activeCompanyId} t={t} rtl={rtl} />
+        )}
+
+        {/* Forms tab */}
+        {activeTab === 'forms' && activeCompanyId && (
+          <FormsTab companyId={activeCompanyId} cars={cars} session={session} t={t} rtl={rtl} />
         )}
 
         {/* Board */}
