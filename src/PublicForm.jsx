@@ -476,10 +476,7 @@ export default function PublicForm({ token }) {
   useEffect(() => {
     async function load() {
       const { data, error } = await supabase
-        .from('form_links')
-        .select('*')
-        .eq('token', token)
-        .eq('is_active', true)
+        .rpc('get_active_form_link', { p_token: token })
         .maybeSingle()
       if (error || !data) { setError('הטופס לא נמצא או שאינו פעיל.'); setLoading(false); return }
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
