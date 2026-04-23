@@ -1307,7 +1307,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                 {costs.length === 0
                   ? <div style={{ color: C.textMuted, fontSize: 13, textAlign: 'center', padding: '32px 0' }}>{rtl ? 'אין רשומות עלויות' : 'No cost records yet.'}</div>
                   : costs.map(r => {
-                    const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther }
+                    const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther, 'ביטוח': t.catInsurance, 'נתיב תשלום': rtl ? 'נתיב תשלום' : 'Toll' }
                     return (
                       <div key={r.id} style={card}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -2894,8 +2894,8 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
 
   const total = costs.reduce((s, c) => s + parseFloat(c.amount || 0), 0)
   const byCategory = costs.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + parseFloat(c.amount || 0); return acc }, {})
-  const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted }
-  const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther }
+  const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted, 'ביטוח': C.success, 'נתיב תשלום': C.primary }
+  const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther, 'ביטוח': t.catInsurance, 'נתיב תשלום': rtl ? 'נתיב תשלום' : 'Toll' }
   const carName = id => formatPlate(cars.find(c => c.id === parseInt(id, 10))?.plate) || id
 
   return (
@@ -3851,7 +3851,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           : links.map(link => {
               const meta = FORM_TYPES.find(f => f.id === link.type)
               const expired = link.expires_at && new Date(link.expires_at) < new Date()
-              const linkedCar    = link.car_id    ? (cars    || []).find(c => c.id    === link.car_id)    : null
+              const linkedCar    = link.car_id    ? (cars    || []).find(c => String(c.id) === String(link.car_id)) : null
               const linkedDriver = link.driver_id ? (drivers || []).find(d => String(d.id) === String(link.driver_id)) : null
               const subCount = subCounts[link.id] || 0
               const notSubmitted = link.driver_id && subCount === 0
