@@ -1164,7 +1164,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
       setLoading(true)
       const [{ data: m }, { data: c }] = await Promise.all([
         supabase.from('maintenance').select('*').eq('car_id', car.id).order('date', { ascending: false }),
-        supabase.from('cost_records').select('*').eq('car_id', car.id).order('date', { ascending: false }),
+        supabase.from('costs').select('*').eq('car_id', car.id).order('date', { ascending: false }),
       ])
       setMaint(m || [])
       setCosts(c || [])
