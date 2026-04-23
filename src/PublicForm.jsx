@@ -108,7 +108,7 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
     // Insurance
     insurance_provider: '', insurance_policy: '', insurance_expiry: '',
     // Toll
-    has_toll: '', toll_provider: '', toll_tag: '', toll_expiry: '',
+    has_toll: '', toll_providers: [], toll_tag: '',
     // Annual test
     test_date: '', test_next: '', test_passed: '',
     // Registration
@@ -193,24 +193,23 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
         </div>
         {form.has_toll === 'yes' && (
           <>
-            <div style={field}>
-              <label style={lbl}>חברה / כביש</label>
-              <select style={inp} value={form.toll_provider} onChange={e => set('toll_provider', e.target.value)}>
-                <option value="">בחר...</option>
-                {['כביש 6', 'כביש 6 צפון', 'מנהרות הכרמל', 'נתיב המהיר', 'גשר ירדן', 'מנהרת בית קשת', 'אחר'].map(v => (
-                  <option key={v} value={v}>{v}</option>
-                ))}
-              </select>
+            <div style={{ ...field, marginBottom: 14 }}>
+              <label style={lbl}>חברות / כבישים (ניתן לבחור מספר)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6 }}>
+                {['כביש 6', 'כביש 6 צפון', 'מנהרות הכרמל', 'נתיב המהיר', 'גשר ירדן', 'מנהרת בית קשת', 'אחר'].map(v => {
+                  const checked = form.toll_providers.includes(v)
+                  return (
+                    <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: `2px solid ${checked ? C.primary : C.border}`, cursor: 'pointer', background: checked ? C.primary + '10' : '#f8fafc', transition: 'all 0.15s' }}>
+                      <input type="checkbox" checked={checked} onChange={() => set('toll_providers', checked ? form.toll_providers.filter(x => x !== v) : [...form.toll_providers, v])} style={{ accentColor: C.primary, width: 15, height: 15 }} />
+                      <span style={{ fontSize: 13, color: C.text, fontWeight: checked ? 700 : 400 }}>{v}</span>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={field}>
-                <label style={lbl}>מספר תג / חשבון</label>
-                <input style={inp} value={form.toll_tag} onChange={e => set('toll_tag', e.target.value)} placeholder="12345678" />
-              </div>
-              <div style={field}>
-                <label style={lbl}>תפוגה</label>
-                <input style={inp} type="date" value={form.toll_expiry} onChange={e => set('toll_expiry', e.target.value)} />
-              </div>
+            <div style={field}>
+              <label style={lbl}>מספר תג / חשבון</label>
+              <input style={inp} value={form.toll_tag} onChange={e => set('toll_tag', e.target.value)} placeholder="12345678" />
             </div>
           </>
         )}
