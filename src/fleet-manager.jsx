@@ -1726,7 +1726,7 @@ async function lookupPlate(rawPlate, signal) {
 }
 
 function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customLists }) {
-  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', mileage: '', color: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
+  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', mileage: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
   const [lookupState, setLookupState] = useState('idle') // idle | loading | found | notfound
   const abortRef = useRef(null)
   const td = mkTd(rtl, mobile)
@@ -4675,7 +4675,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     switchTab('cars')
   }
 
-  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year, 10) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, mileage: f.mileage ? parseInt(f.mileage, 10) : 0, color: f.color || null, company_id: activeCompanyId } }
+  function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year, 10) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, mileage: f.mileage ? parseInt(f.mileage, 10) : 0, company_id: activeCompanyId } }
   function cleanDriver(f) { return { name: f.name, license: f.license, license_levels: f.license_levels || [], phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
@@ -4720,7 +4720,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       }).catch(() => {})
     }
     setCars(p => p.map(x => x.id === c.id ? { ...x, ...c } : x)); setEditingId(null); setCrudError('')
-    const carDiff = prev ? diffObjects(prev, form, ['plate','make','model','year','status','fuel','mileage','color','branch_id','driver_id']) : null
+    const carDiff = prev ? diffObjects(prev, form, ['plate','make','model','year','status','fuel','mileage','branch_id','driver_id']) : null
     logActivity('update', 'car', `${form.plate} ${form.make}`, carDiff)
   }
   async function deleteCar(id) {
