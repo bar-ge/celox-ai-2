@@ -3489,8 +3489,29 @@ const FORM_TYPES = [
   { id: 'yearly_training',  icon: '🎓', label: 'אימות הדרכה שנתית',        labelEn: 'Yearly Training' },
 ]
 
+const SUB_FIELD_LABELS = {
+  plate: 'לוחית רישוי', make: 'יצרן', model: 'דגם', year: 'שנה',
+  mileage: 'קילומטראז׳', submitter_name: 'שם הממלא',
+  insurance_provider: 'חברת ביטוח', insurance_policy: 'מספר פוליסה', insurance_expiry: 'תפוגת ביטוח',
+  has_toll: 'נתיבי תשלום', toll_providers: 'חברות נתיבי תשלום', toll_tag: 'מספר תג',
+  test_passed: 'טסט שנתי', test_date: 'תאריך טסט אחרון', test_next: 'טסט הבא',
+  registration_expiry: 'תפוגת רישיון רכב', notes: 'הערות',
+  fuel_level: 'רמת דלק', exterior_damage: 'נזקים חיצוניים',
+  damage_desc: 'תיאור הנזק', interior_ok: 'מצב הפנים',
+  driver_license: 'מספר רישיון נהיגה', training_date: 'תאריך הדרכה',
+  trainer_name: 'שם המדריך', topics: 'נושאים שנלמדו', other_topic: 'נושא נוסף',
+  confirmed: 'אישור הצהרה',
+}
+const SUB_VAL = { yes: 'כן', no: 'לא', 'true': 'כן', 'false': 'לא', ok: 'תקין', dirty: 'מלוכלך', damaged: 'פגום' }
+const fmtSubVal = v => {
+  if (Array.isArray(v)) return v.join(', ')
+  const s = String(v)
+  return SUB_VAL[s] || s
+}
+
 function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const [links,         setLinks]         = useState([])
+  const [subCounts,     setSubCounts]     = useState({})
   const [loading,       setLoading]       = useState(true)
   const [showCreate,    setShowCreate]    = useState(false)
   const [createType,    setCreateType]    = useState('car_checklist')
@@ -3498,22 +3519,31 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const [createDriver,  setCreateDriver]  = useState('')
   const [createTitle,   setCreateTitle]   = useState('')
   const [createExpiry,  setCreateExpiry]  = useState('')
+  const [createSingle,  setCreateSingle]  = useState(false)
   const [creating,      setCreating]      = useState(false)
   const [copied,        setCopied]        = useState(null)
+  const [showQr,        setShowQr]        = useState(null)
   const [viewSubs,      setViewSubs]      = useState(null)
   const [subs,          setSubs]          = useState([])
   const [subsLoading,   setSubsLoading]   = useState(false)
   const [expandSub,     setExpandSub]     = useState(null)
+  const [subSearch,     setSubSearch]     = useState('')
+  const [subDateFrom,   setSubDateFrom]   = useState('')
+  const [subDateTo,     setSubDateTo]     = useState('')
+  const [printSub,      setPrintSub]      = useState(null)
 
   useEffect(() => { load() }, [companyId])
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('form_links')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false })
-    setLinks(data || [])
+    const [{ data: linksData }, { data: countsData }] = await Promise.all([
+      supabase.from('form_links').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+      supabase.from('form_submissions').select('form_link_id').eq('company_id', companyId),
+    ])
+    setLinks(linksData || [])
+    const cm = {}
+    ;(countsData || []).forEach(s => { cm[s.form_link_id] = (cm[s.form_link_id] || 0) + 1 })
+    setSubCounts(cm)
     setLoading(false)
   }
 
@@ -3534,13 +3564,13 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       created_by: session.user.id,
       expires_at: createExpiry || null,
       is_active: true,
+      single_use: createSingle,
     }).select()
     if (!error && data) {
-      // attach driver info client-side for instant display
       const row = { ...data[0], _driver: selectedDriver || null }
       setLinks(p => [row, ...p])
       setShowCreate(false)
-      setCreateTitle(''); setCreateCar(''); setCreateDriver(''); setCreateExpiry('')
+      setCreateTitle(''); setCreateCar(''); setCreateDriver(''); setCreateExpiry(''); setCreateSingle(false)
     }
     setCreating(false)
   }
@@ -3557,7 +3587,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   }
 
   async function openSubs(link) {
-    setViewSubs(link)
+    setViewSubs(link); setSubSearch(''); setSubDateFrom(''); setSubDateTo(''); setExpandSub(null)
     setSubsLoading(true)
     const { data } = await supabase.from('form_submissions')
       .select('*').eq('form_link_id', link.id).order('submitted_at', { ascending: false })
@@ -3576,12 +3606,33 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
     const url = `${window.location.origin}/form/${link.token}`
     const linkedDriver = link.driver_id ? (drivers || []).find(d => String(d.id) === String(link.driver_id)) : null
     const driverName = linkedDriver?.name || ''
-    const greeting = driverName ? `שלום ${driverName},\n` : 'שלום,\n'
-    const msg = `${greeting}נשלח אליך קישור למילוי הטופס: ${link.title}\n\n${url}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+    const greeting = rtl
+      ? (driverName ? `שלום ${driverName},\n` : 'שלום,\n')
+      : (driverName ? `Hello ${driverName},\n` : 'Hello,\n')
+    const body = rtl
+      ? `נשלח אליך קישור למילוי הטופס: ${link.title}\n\n${url}`
+      : `You have been sent a form to fill out: ${link.title}\n\n${url}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(greeting + body)}`, '_blank')
+  }
+
+  function exportSubs(subsToExport, link) {
+    const meta = FORM_TYPES.find(f => f.id === link.type)
+    const rows = subsToExport.map(s => {
+      const row = { [rtl ? 'שם' : 'Name']: s.submitter_name, [rtl ? 'תאריך' : 'Date']: new Date(s.submitted_at).toLocaleString('he-IL') }
+      Object.entries(s.data || {}).forEach(([k, v]) => {
+        if (k === 'attachments') return
+        row[SUB_FIELD_LABELS[k] || k] = fmtSubVal(v)
+      })
+      return row
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Submissions')
+    XLSX.writeFile(wb, `${link.title || meta?.labelEn}-submissions.xlsx`)
   }
 
   const formUrl = token => `${window.location.origin}/form/${token}`
+  const qrUrl   = token => `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(formUrl(token))}`
 
   const pad = { padding: isMobile => isMobile ? 12 : 24 }
   const card = { background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginBottom: 10, overflow: 'hidden' }
@@ -3594,23 +3645,91 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
 
+      {/* Print overlay */}
+      {printSub && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div id="print-area" style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', padding: 32, direction: 'rtl' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 20, color: '#0f172a', marginBottom: 4 }}>{viewSubs?.title}</div>
+                <div style={{ fontSize: 13, color: '#64748b' }}>{printSub.submitter_name} · {new Date(printSub.submitted_at).toLocaleString('he-IL')}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => window.print()} style={{ background: '#0891b2', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🖨️ הדפס</button>
+                <button onClick={() => setPrintSub(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>סגור</button>
+              </div>
+            </div>
+            <hr style={{ border: 'none', borderTop: '2px solid #e2e8f0', marginBottom: 20 }} />
+            {Object.entries(printSub.data || {}).filter(([k, v]) => v && k !== 'attachments' && k !== 'submitter_name').map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
+                <span style={{ fontWeight: 700, color: '#475569', minWidth: 160 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g,' ')}</span>
+                <span style={{ color: '#0f172a', textAlign: 'left', flex: 1 }}>{fmtSubVal(v)}</span>
+              </div>
+            ))}
+            {printSub.data?.attachments?.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontWeight: 700, color: '#475569', marginBottom: 8 }}>קבצים מצורפים</div>
+                {printSub.data.attachments.map((a, i) => <div key={i} style={{ fontSize: 13, color: '#0891b2' }}>📎 {a.name}</div>)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* QR code modal */}
+      {showQr && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', maxWidth: 320, width: '100%' }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#0f172a', marginBottom: 4 }}>{showQr.title}</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 20 }}>{rtl ? 'סרוק כדי לפתוח את הטופס' : 'Scan to open the form'}</div>
+            <img src={qrUrl(showQr.token)} alt="QR" style={{ width: 220, height: 220, borderRadius: 10, border: '1px solid #e2e8f0' }} />
+            <div style={{ marginTop: 16, fontSize: 11, color: '#94a3b8', wordBreak: 'break-all', direction: 'ltr' }}>{formUrl(showQr.token)}</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+              <a href={qrUrl(showQr.token)} download={`qr-${showQr.title}.png`} style={{ background: '#0891b2', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>⬇️ {rtl ? 'הורד QR' : 'Download QR'}</a>
+              <button onClick={() => setShowQr(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'סגור' : 'Close'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Submissions drawer */}
-      {viewSubs && (
+      {viewSubs && (() => {
+        const filtered = subs.filter(s => {
+          const matchName = !subSearch || (s.submitter_name || '').toLowerCase().includes(subSearch.toLowerCase())
+          const matchFrom = !subDateFrom || new Date(s.submitted_at) >= new Date(subDateFrom)
+          const matchTo   = !subDateTo   || new Date(s.submitted_at) <= new Date(subDateTo + 'T23:59:59')
+          return matchName && matchFrom && matchTo
+        })
+        return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
-          <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 700, direction: rtl ? 'rtl' : 'ltr' }}>
+          <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 720, direction: rtl ? 'rtl' : 'ltr' }}>
             <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ color: '#f8fafc', fontWeight: 800, fontSize: 16 }}>{viewSubs.title}</div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>{subs.length} {rtl ? 'תגובות' : 'submissions'}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>{filtered.length}/{subs.length} {rtl ? 'תגובות' : 'submissions'}</div>
               </div>
-              <button onClick={() => setViewSubs(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#f8fafc', fontSize: 18 }}>✕</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {subs.length > 0 && (
+                  <button onClick={() => exportSubs(filtered, viewSubs)} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    📊 {rtl ? 'יצא Excel' : 'Export Excel'}
+                  </button>
+                )}
+                <button onClick={() => setViewSubs(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#f8fafc', fontSize: 18 }}>✕</button>
+              </div>
+            </div>
+            {/* Search & filter bar */}
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 8, flexWrap: 'wrap', background: C.bg }}>
+              <input value={subSearch} onChange={e => setSubSearch(e.target.value)} placeholder={rtl ? '🔍 חפש לפי שם...' : '🔍 Search by name...'} style={{ flex: 1, minWidth: 140, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: '#fff' }} />
+              <input type="date" value={subDateFrom} onChange={e => setSubDateFrom(e.target.value)} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: '#fff' }} />
+              <input type="date" value={subDateTo} onChange={e => setSubDateTo(e.target.value)} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: '#fff' }} />
+              {(subSearch || subDateFrom || subDateTo) && <button onClick={() => { setSubSearch(''); setSubDateFrom(''); setSubDateTo('') }} style={{ padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 12, cursor: 'pointer', background: '#fff', color: C.danger }}>✕</button>}
             </div>
             <div style={{ padding: '16px 20px 24px' }}>
               {subsLoading
                 ? <div style={{ textAlign: 'center', padding: 32, color: C.textMuted }}>טוען...</div>
-                : subs.length === 0
-                  ? <div style={{ textAlign: 'center', padding: 32, color: C.textMuted }}>{rtl ? 'אין תגובות עדיין' : 'No submissions yet'}</div>
-                  : subs.map(sub => (
+                : filtered.length === 0
+                  ? <div style={{ textAlign: 'center', padding: 32, color: C.textMuted }}>{subs.length === 0 ? (rtl ? 'אין תגובות עדיין' : 'No submissions yet') : (rtl ? 'אין תוצאות לפילטר' : 'No results match filter')}</div>
+                  : filtered.map(sub => (
                     <div key={sub.id} style={{ background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, marginBottom: 10, overflow: 'hidden' }}>
                       <div style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                         onClick={() => setExpandSub(expandSub === sub.id ? null : sub.id)}>
@@ -3618,18 +3737,26 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                           <div style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{sub.submitter_name || '—'}</div>
                           <div style={{ fontSize: 12, color: C.textMuted }}>{new Date(sub.submitted_at).toLocaleString('he-IL')}</div>
                         </div>
-                        <span style={{ color: C.textMuted, fontSize: 18 }}>{expandSub === sub.id ? '▲' : '▼'}</span>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <button onClick={e => { e.stopPropagation(); setPrintSub(sub) }} style={{ background: '#f1f5f9', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', color: '#475569', fontWeight: 700 }}>🖨️</button>
+                          <span style={{ color: C.textMuted, fontSize: 16 }}>{expandSub === sub.id ? '▲' : '▼'}</span>
+                        </div>
                       </div>
                       {expandSub === sub.id && (
                         <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px', fontSize: 13 }}>
-                          {Object.entries(sub.data || {}).filter(([k]) => k !== 'submitter_name').map(([k, v]) => v ? (
+                          {Object.entries(sub.data || {}).filter(([k, v]) => v && k !== 'submitter_name' && k !== 'attachments').map(([k, v]) => (
                             <div key={k} style={{ display: 'flex', gap: 12, padding: '5px 0', borderBottom: `1px solid ${C.borderLight}` }}>
-                              <span style={{ color: C.textMuted, minWidth: 140, fontWeight: 600 }}>{k.replace(/_/g, ' ')}</span>
-                              <span style={{ color: C.textPrimary, flex: 1 }}>
-                                {Array.isArray(v) ? v.join(', ') : String(v)}
-                              </span>
+                              <span style={{ color: C.textMuted, minWidth: 150, fontWeight: 600 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g,' ')}</span>
+                              <span style={{ color: C.textPrimary, flex: 1 }}>{fmtSubVal(v)}</span>
                             </div>
-                          ) : null)}
+                          ))}
+                          {sub.data?.attachments?.length > 0 && (
+                            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {sub.data.attachments.map((a, i) => (
+                                <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" style={{ background: C.primary, color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}>📎 {a.name}</a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -3638,7 +3765,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Create link modal */}
       {showCreate && (
@@ -3685,6 +3813,13 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'תאריך תפוגה (אופציונלי)' : 'Expiry date (optional)'}</label>
                 <input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc', boxSizing: 'border-box' }} />
               </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 9, border: `2px solid ${createSingle ? '#f59e0b' : C.border}`, cursor: 'pointer', background: createSingle ? '#fef3c708' : C.bg, transition: 'all 0.15s' }}>
+                <input type="checkbox" checked={createSingle} onChange={e => setCreateSingle(e.target.checked)} style={{ accentColor: '#f59e0b', width: 16, height: 16 }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{rtl ? '🔒 טופס חד-פעמי' : '🔒 Single-use form'}</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>{rtl ? 'לא ניתן למלא יותר מפעם אחת' : 'Cannot be filled more than once'}</div>
+                </div>
+              </label>
               <button onClick={createLink} disabled={creating} style={{ ...btnPrimary, padding: '12px', fontSize: 14, opacity: creating ? 0.7 : 1, cursor: creating ? 'not-allowed' : 'pointer' }}>
                 {creating ? '…' : (rtl ? '🔗 צור קישור' : '🔗 Create Link')}
               </button>
@@ -3718,18 +3853,25 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               const expired = link.expires_at && new Date(link.expires_at) < new Date()
               const linkedCar    = link.car_id    ? (cars    || []).find(c => c.id    === link.car_id)    : null
               const linkedDriver = link.driver_id ? (drivers || []).find(d => String(d.id) === String(link.driver_id)) : null
+              const subCount = subCounts[link.id] || 0
+              const notSubmitted = link.driver_id && subCount === 0
               return (
                 <div key={link.id} style={{ ...card, opacity: !link.is_active ? 0.6 : 1 }}>
                   <div style={cardHeader}>
                     <span style={{ fontSize: 24, flexShrink: 0 }}>{meta?.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link.title}</div>
-                      <div style={{ fontSize: 12, color: C.textMuted, display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {link.title}
+                        {link.single_use && <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', borderRadius: 5, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>🔒 {rtl ? 'חד-פעמי' : 'single-use'}</span>}
+                      </div>
+                      <div style={{ fontSize: 12, color: C.textMuted, display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2, alignItems: 'center' }}>
                         <span>{rtl ? (meta?.label) : (meta?.labelEn)}</span>
                         {linkedDriver && <span>· 👤 {linkedDriver.name}</span>}
                         {linkedCar    && <span>· 🚗 {linkedCar.plate} {linkedCar.make}</span>}
                         {expired && <span style={{ color: C.danger, fontWeight: 700 }}>· {rtl ? 'פג תוקף' : 'Expired'}</span>}
                         {link.expires_at && !expired && <span>· {rtl ? 'עד' : 'until'} {new Date(link.expires_at).toLocaleDateString('he-IL')}</span>}
+                        {subCount > 0 && <span style={{ background: C.primary + '18', color: C.primary, borderRadius: 5, padding: '1px 7px', fontWeight: 700, fontSize: 11 }}>{subCount} {rtl ? 'תגובות' : 'submissions'}</span>}
+                        {notSubmitted && <span style={{ background: '#fee2e2', color: C.danger, borderRadius: 5, padding: '1px 7px', fontWeight: 700, fontSize: 11 }}>⚠ {rtl ? 'לא הוגש' : 'not submitted'}</span>}
                       </div>
                     </div>
                   </div>
@@ -3747,7 +3889,10 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       📲 {rtl ? 'שלח ב-WhatsApp' : 'Send via WhatsApp'}
                     </button>
                     <button onClick={() => openSubs(link)} style={{ ...btnGhost, color: C.primary, borderColor: C.primary + '40', background: C.primary + '08' }}>
-                      {rtl ? '👁 תגובות' : '👁 Submissions'}
+                      {rtl ? '👁 תגובות' : '👁 Submissions'}{subCount > 0 ? ` (${subCount})` : ''}
+                    </button>
+                    <button onClick={() => setShowQr(link)} style={{ ...btnGhost, color: '#6366f1', borderColor: '#6366f140', background: '#6366f108' }}>
+                      ◼ {rtl ? 'QR קוד' : 'QR Code'}
                     </button>
                     <button onClick={() => toggleActive(link)} style={btnGhost}>
                       {link.is_active ? (rtl ? '⏸ השבת' : '⏸ Disable') : (rtl ? '▶ הפעל' : '▶ Enable')}

@@ -487,6 +487,9 @@ export default function PublicForm({ token }) {
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
         setError('תוקף הטופס פג.'); setLoading(false); return
       }
+      if (data.single_use && data.sub_count > 0) {
+        setError('הטופס כבר מולא ואינו זמין למילוי חוזר.'); setLoading(false); return
+      }
       setLink(data)
       setLoading(false)
     }
