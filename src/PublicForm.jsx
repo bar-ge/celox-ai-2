@@ -512,6 +512,19 @@ export default function PublicForm({ token }) {
       await supabase.rpc('create_costs_from_checklist', { p_submission_id: inserted.id })
     }
 
+    // Notify admin of new submission (fire-and-forget)
+    supabase.functions.invoke('send-notification', {
+      body: {
+        type: 'form_submitted',
+        payload: {
+          company_id: link.company_id,
+          form_title: link.title,
+          submitter_name: data.submitter_name || 'לא ידוע',
+          form_type: link.type,
+        },
+      },
+    }).catch(() => {})
+
     setDone(true)
     setSubmitting(false)
   }

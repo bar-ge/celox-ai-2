@@ -2,8 +2,6 @@ import { supabase } from './supabaseClient'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 // ── Date input (DD/MM/YY format) ───────────────────────────────────────────
 function DateInput({ value, onChange, style, required, placeholder }) {
@@ -206,7 +204,7 @@ const T = {
     customLists:'Custom Lists', defaults:'Defaults',
     listCarStatus:'Vehicle Status', listDriverStatus:'Driver Status',
     listFuelType:'Fuel Types', listFileType:'Document Types', listMaintenanceType:'Maintenance Types',
-    listLicenseLevel:'License Levels', licenseLevel:'License Level',
+    listLicenseLevel:'License Levels', licenseLevel:'License Level', licenseExpiry:'License Expiry',
     addValue:'Add value…', noCustomValues:'No custom values yet.', docType:'Document Type',
     customListsHint:'Add custom options to the dropdowns used across the app. Built-in defaults cannot be removed.',
     // maintenance
@@ -378,7 +376,7 @@ const T = {
     customLists:'רשימות מותאמות', defaults:'ברירות מחדל',
     listCarStatus:'סטטוס רכב', listDriverStatus:'סטטוס נהג',
     listFuelType:'סוגי דלק', listFileType:'סוגי מסמכים', listMaintenanceType:'סוגי תחזוקה',
-    listLicenseLevel:'רמות רישיון', licenseLevel:'רמת רישיון',
+    listLicenseLevel:'רמות רישיון', licenseLevel:'רמת רישיון', licenseExpiry:'תפוגת רישיון',
     addValue:'הוסף ערך…', noCustomValues:'אין ערכים מותאמים עדיין.', docType:'סוג מסמך',
     customListsHint:'הוסף אפשרויות מותאמות לרשימות הנפתחות בכל האפליקציה. ערכי ברירת המחדל לא ניתנים למחיקה.',
     // maintenance
@@ -1407,6 +1405,19 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
                     <span style={{ fontWeight: 600, color: C.textPrimary }}>{value}</span>
                   </div>
                 ))}
+                {driver.license_expiry && (() => {
+                  const daysLeft = Math.ceil((new Date(driver.license_expiry) - new Date()) / 86400000)
+                  const color = daysLeft < 0 ? C.danger : daysLeft <= 30 ? C.warning : C.success
+                  const label = daysLeft < 0 ? (rtl ? 'פג תוקף' : 'Expired') : daysLeft <= 30 ? (rtl ? `פוקע בעוד ${daysLeft} ימים` : `Expires in ${daysLeft} days`) : (rtl ? 'בתוקף' : 'Valid')
+                  return (
+                    <div style={infoRow}>
+                      <span style={{ color: C.textMuted }}>{t.licenseExpiry || (rtl ? 'תפוגת רישיון' : 'License Expiry')}</span>
+                      <span style={{ fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {fmtDate(driver.license_expiry)} <span style={{ fontSize: 11, background: color + '18', padding: '2px 7px', borderRadius: 4 }}>{label}</span>
+                      </span>
+                    </div>
+                  )
+                })()}
               </div>
 
               <div style={{ padding: '0 24px 20px' }}>
@@ -2015,6 +2026,10 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
                 {getMergedOptions('driver_status',customLists).map(v=><option key={v} value={v}>{t[DRIVER_STATUS_KEY[v]]||v}</option>)}
               </select>
             </div>
+            <div style={fw}>
+              <label style={lbl}>{t.licenseExpiry || (t.rtl ? 'תפוגת רישיון' : 'License Expiry')}</label>
+              <DateInput value={form.license_expiry||''} onChange={e=>setForm({...form,license_expiry:e.target.value})} style={inp} placeholder="DD/MM/YY" />
+            </div>
             <div style={fw}><label style={lbl}>{t.branch}</label>
               <select value={form.branch_id||''} onChange={e=>setForm({...form,branch_id:e.target.value})} style={inp}>
                 <option value="">{t.noBranch}</option>
@@ -2351,7 +2366,29 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
                     <td style={mkTd(rtl, isMobile)}>
                       {nextDate ? <span style={{ color: isDateDue ? C.danger : C.textPrimary, fontWeight: isDateDue ? 700 : 400 }}>{fmtDate(nextDate)} {isDateDue ? '⚠️' : ''}</span> : '—'}
                     </td>
-                    <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => delPlan(pl.id)}>{t.delete}</ActionBtn></td>
+                    <td style={mkTd(rtl, isMobile)}>
+                      <span style={{ display: 'flex', gap: 6 }}>
+                        {isDue && (
+                          <button onClick={async () => {
+                            const today = new Date().toISOString().split('T')[0]
+                            const { data: rec } = await supabase.from('maintenance').insert([{
+                              company_id: companyId, car_id: parseInt(pl.car_id, 10),
+                              type: pl.type, date: today, status: 'done', cost: 0,
+                            }]).select()
+                            if (rec?.[0]) {
+                              // Update plan's last_date and last_km
+                              const updPlan = { last_date: today }
+                              if (car?.mileage) updPlan.last_km = car.mileage
+                              await supabase.from('maintenance_plans').update(updPlan).eq('id', pl.id)
+                              setPlans(p => p.map(x => x.id === pl.id ? { ...x, ...updPlan } : x))
+                            }
+                          }} style={{ background: C.success, color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            ✓ {rtl ? 'בוצע' : 'Done'}
+                          </button>
+                        )}
+                        <ActionBtn variant="delete" onClick={() => delPlan(pl.id)}>{t.delete}</ActionBtn>
+                      </span>
+                    </td>
                   </tr>
                 )
               })}
@@ -3029,6 +3066,58 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   )
 }
 
+// ── Expiry Alerts Panel ───────────────────────────────────────────────────────
+function AlertsPanel({ rtl }) {
+  const [alerts, setAlerts] = useState([])
+  const [open,   setOpen]   = useState(true)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase.rpc('get_expiry_alerts').then(({ data }) => {
+      setAlerts(data || [])
+      setLoaded(true)
+    })
+  }, [])
+
+  if (!loaded || alerts.length === 0) return null
+
+  const overdue = alerts.filter(a => a.severity === 'overdue').length
+  const typeIcon = { maintenance: '🔧', document: '📎', license: '🪪' }
+
+  return (
+    <div style={{ background: overdue > 0 ? '#fef2f2' : '#fffbeb', border: `1px solid ${overdue > 0 ? '#fecaca' : '#fde68a'}`, borderRadius: 12, marginBottom: 20, overflow: 'hidden' }}>
+      <div onClick={() => setOpen(p => !p)} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+        <span style={{ fontSize: 20 }}>{overdue > 0 ? '🔴' : '🟡'}</span>
+        <div style={{ flex: 1 }}>
+          <span style={{ fontWeight: 800, fontSize: 14, color: overdue > 0 ? C.danger : '#92400e' }}>
+            {overdue > 0
+              ? (rtl ? `${overdue} פריטים באיחור · ${alerts.length} התראות סה"כ` : `${overdue} overdue · ${alerts.length} total alerts`)
+              : (rtl ? `${alerts.length} פריטים מתקרבים לתפוגה` : `${alerts.length} items expiring soon`)}
+          </span>
+        </div>
+        <span style={{ fontSize: 12, color: '#92400e' }}>{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div style={{ borderTop: `1px solid ${overdue > 0 ? '#fecaca' : '#fde68a'}`, padding: '8px 16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {alerts.map((a, i) => {
+            const daysLeft = Math.ceil((new Date(a.date) - new Date()) / 86400000)
+            const isOverdue = a.severity === 'overdue'
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', background: isOverdue ? '#fee2e2' : '#fef9c3', borderRadius: 7, fontSize: 13 }}>
+                <span>{typeIcon[a.type] || '⚠'}</span>
+                <span style={{ flex: 1, fontWeight: 600, color: isOverdue ? C.danger : '#92400e' }}>{a.label}</span>
+                <span style={{ fontSize: 11, color: isOverdue ? C.danger : '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  {fmtDate(a.date)} {isOverdue ? (rtl ? '(באיחור)' : '(overdue)') : (rtl ? `(${daysLeft} ימים)` : `(${daysLeft}d)`)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Activity Log section ─────────────────────────────────────────────────────
 function ActivityLogSection({ companyId, t }) {
   const [logs, setLogs] = useState([])
@@ -3046,9 +3135,23 @@ function ActivityLogSection({ companyId, t }) {
     const rows = data || []
     setLogs(prev => p === 0 ? rows : [...prev, ...rows])
     setHasMore(rows.length === PAGE + 1)
-    if (rows.length === PAGE + 1) rows.pop() // remove sentinel
+    if (rows.length === PAGE + 1) rows.pop()
     setPage(p)
     setLoading(false)
+  }
+
+  function exportLogs() {
+    const rows = logs.map(l => ({
+      [t.actionAdd ? 'Action' : 'פעולה']: l.action,
+      'Entity': l.entity_type,
+      'Name': l.entity_name || '',
+      'User': l.user_email,
+      'Date': new Date(l.created_at).toLocaleString('he-IL'),
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Activity Log')
+    XLSX.writeFile(wb, `activity-log-${new Date().toISOString().slice(0,10)}.xlsx`)
   }
 
   const actionLabel = { add: t.actionAdd, update: t.actionUpdate, delete: t.actionDelete }
@@ -3056,7 +3159,10 @@ function ActivityLogSection({ companyId, t }) {
 
   return (
     <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-      <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📋 {t.activityLog}</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📋 {t.activityLog}</h3>
+        {logs.length > 0 && <button onClick={exportLogs} style={{ background: C.success, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>📊 {t.exportExcel}</button>}
+      </div>
       {logs.length === 0 && !loading ? (
         <p style={{ color: C.textMuted, fontSize: 14 }}>{t.noActivity}</p>
       ) : (
@@ -3141,8 +3247,22 @@ function filterByDate(items, filter) {
   })
 }
 
-function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter, onExport }) {
+function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, setDashFilter, onExport }) {
   const isMobile = useIsMobile()
+  const [monthlyBudget, setMonthlyBudget] = useState(null)
+  const [monthCostsTotal, setMonthCostsTotal] = useState(0)
+
+  useEffect(() => {
+    if (!companyId) return
+    const thisMonth = new Date().toISOString().slice(0, 7)
+    Promise.all([
+      supabase.from('companies').select('monthly_budget').eq('id', companyId).single(),
+      supabase.from('costs').select('amount').eq('company_id', companyId).gte('date', `${thisMonth}-01`),
+    ]).then(([{ data: co }, { data: cs }]) => {
+      setMonthlyBudget(co?.monthly_budget || null)
+      setMonthCostsTotal((cs || []).reduce((s, c) => s + parseFloat(c.amount || 0), 0))
+    })
+  }, [companyId])
   const filtCars     = filterByDate(cars,     dashFilter)
   const filtDrivers  = filterByDate(drivers,  dashFilter)
   const filtBranches = filterByDate(branches, dashFilter)
@@ -3224,8 +3344,14 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
     </div>
   )
 
+  const budgetPct  = monthlyBudget > 0 ? Math.min((monthCostsTotal / monthlyBudget) * 100, 100) : null
+  const budgetColor = budgetPct === null ? C.primary : budgetPct >= 90 ? C.danger : budgetPct >= 70 ? C.warning : C.success
+
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
+
+      {/* Expiry alerts panel */}
+      <AlertsPanel rtl={rtl} />
 
       {/* Dashboard toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -3251,6 +3377,22 @@ function Dashboard({ cars, drivers, branches, t, rtl, dashFilter, setDashFilter,
         {unassigned > 0 && card('⚠️', unassigned, t.unassigned, C.warning)}
       </div>
 
+
+      {/* Monthly budget bar */}
+      {monthlyBudget > 0 && (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: '14px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>💰 {rtl ? 'תקציב חודשי' : 'Monthly Budget'}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: budgetColor }}>
+              ₪{monthCostsTotal.toLocaleString()} / ₪{monthlyBudget.toLocaleString()} ({Math.round(budgetPct ?? 0)}%)
+            </span>
+          </div>
+          <div style={{ height: 10, borderRadius: 5, background: C.border }}>
+            <div style={{ height: 10, borderRadius: 5, background: budgetColor, width: `${budgetPct ?? 0}%`, transition: 'width 0.6s ease' }} />
+          </div>
+          {budgetPct >= 90 && <div style={{ fontSize: 11, color: C.danger, fontWeight: 700, marginTop: 6 }}>⚠ {rtl ? 'קרוב לגבול התקציב!' : 'Approaching budget limit!'}</div>}
+        </div>
+      )}
 
       {/* Fleet status donut + bar charts */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
@@ -3909,6 +4051,40 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   )
 }
 
+// ── Budget Settings ──────────────────────────────────────────────────────────
+function BudgetSettings({ companyId, t, rtl }) {
+  const [budget, setBudget] = useState('')
+  const [saved,  setSaved]  = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
+
+  useEffect(() => {
+    supabase.from('companies').select('monthly_budget').eq('id', companyId).single()
+      .then(({ data }) => { setBudget(data?.monthly_budget ?? ''); setLoaded(true) })
+  }, [companyId])
+
+  async function save() {
+    await supabase.from('companies').update({ monthly_budget: budget ? parseFloat(budget) : null }).eq('id', companyId)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (!loaded) return null
+  return (
+    <div style={card}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>💰 {rtl ? 'תקציב חודשי' : 'Monthly Budget'}</h3>
+      <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>{rtl ? 'הגדר תקציב חודשי כולל. יוצג כסרגל בלוח הבקרה.' : 'Set a monthly spend cap. Shown as a progress bar on the dashboard.'}</p>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: C.textSecondary }}>₪</span>
+        <input type="number" value={budget} onChange={e => setBudget(e.target.value)} min={0} placeholder={rtl ? 'ללא מגבלה' : 'No limit'}
+          style={{ flex: 1, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }} />
+        <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
+          {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור' : 'Save')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Settings Tab ────────────────────────────────────────────────────────────
 function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t, rtl, onCustomListsChange, onPrivacy, onTerms }) {
   const company  = profile?.companies
@@ -4183,6 +4359,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
               <p style={{ margin: '8px 0 0', fontSize: 12, color: C.textSecondary }}>{t.shareCodeHint}</p>
             </div>
           </div>
+
+          {/* Monthly budget — admin only */}
+          {isAdmin && companyId && (
+            <BudgetSettings companyId={companyId} t={t} rtl={rtl} />
+          )}
 
           {/* Custom Lists — admin only */}
           {isAdmin && companyId && (
@@ -4585,7 +4766,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
 
   // ── Export to PDF ─────────────────────────────────────────────────────────
-  function exportPDF(tab) {
+  async function exportPDF(tab) {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'), import('jspdf-autotable'),
+    ])
     const doc = new jsPDF({ orientation: 'landscape' })
     const date = new Date().toLocaleDateString()
     const title = tab === 'cars' ? t.cars : tab === 'drivers' ? t.drivers : tab === 'branches' ? t.branches : 'Fleet'
@@ -4676,7 +4860,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
 
   function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year, 10) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, mileage: f.mileage ? parseInt(f.mileage, 10) : 0, company_id: activeCompanyId } }
-  function cleanDriver(f) { return { name: f.name, license: f.license, license_levels: f.license_levels || [], phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
+  function cleanDriver(f) { return { name: f.name, license: f.license, license_expiry: f.license_expiry || null, license_levels: f.license_levels || [], phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
   const [crudError, setCrudError] = useState('')
@@ -5050,7 +5234,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Dashboard view */}
         {activeTab === 'dashboard' && (
-          <Dashboard cars={cars} drivers={drivers} branches={branches} t={t} rtl={rtl} dashFilter={dashFilter} setDashFilter={setDashFilter} onExport={exportExcel} />
+          <Dashboard cars={cars} drivers={drivers} branches={branches} companyId={activeCompanyId} t={t} rtl={rtl} dashFilter={dashFilter} setDashFilter={setDashFilter} onExport={exportExcel} />
         )}
 
         {/* Settings view */}
@@ -5098,7 +5282,23 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
                 <div style={{ flex: 1 }} />
                 {selectedIds.length > 0 && (
-                  <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '4px 10px', fontSize: 11 }}>🗑 {selectedIds.length}</button>
+                  <>
+                    {(activeTab === 'cars' || activeTab === 'drivers') && branches.length > 0 && (
+                      <select onChange={async e => {
+                        const branchId = e.target.value; if (!branchId) return
+                        const table = activeTab === 'cars' ? 'cars' : 'drivers'
+                        await supabase.from(table).update({ branch_id: branchId }).in('id', selectedIds)
+                        if (activeTab === 'cars') setCars(p => p.map(x => selectedIds.includes(x.id) ? { ...x, branch_id: branchId } : x))
+                        else setDrivers(p => p.map(x => selectedIds.includes(x.id) ? { ...x, branch_id: branchId } : x))
+                        setSelectedIds([])
+                        e.target.value = ''
+                      }} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', fontSize: 11, cursor: 'pointer', background: 'rgba(255,255,255,0.9)', color: C.textPrimary }}>
+                        <option value="">🏢 {t.bulkAssign}</option>
+                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    )}
+                    <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '4px 10px', fontSize: 11 }}>🗑 {selectedIds.length}</button>
+                  </>
                 )}
               </div>
 
