@@ -2942,9 +2942,8 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
         <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ height: 3, background: gradient }} />
           <div style={{ padding: '14px 16px' }}>
-            <span style={{ fontSize: 20 }}>💰</span>
-            <p style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 800, color: C.primary, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>₪{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textSecondary }}>{t.totalCost}</p>
+            <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: C.primary, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>₪{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style={{ margin: 0, fontSize: 12, color: C.textSecondary }}>{t.totalCost}</p>
           </div>
         </div>
         {Object.entries(byCategory).sort((a,b) => b[1]-a[1]).slice(0,4).map(([cat, amt]) => (
