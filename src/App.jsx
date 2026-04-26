@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
 import PublicForm from './PublicForm'
@@ -55,6 +55,23 @@ const L = {
     consentRequired: 'You must agree to the Privacy Policy to create an account.',
     consentLabel: 'I have read and agree to the',
     consentLink: 'Privacy Policy',
+    forgotPassword: 'Forgot password?',
+    forgotPasswordSub: 'Enter your email and we\'ll send a reset link.',
+    sendResetLink: 'Send Reset Link',
+    resetLinkSent: 'Reset link sent! Check your inbox.',
+    backToSignIn: '← Back to Sign In',
+    resetPassword: 'Set New Password',
+    resetPasswordSub: 'Enter your new password below.',
+    newPassword: 'New Password',
+    confirmPassword: 'Confirm Password',
+    passwordsNoMatch: 'Passwords do not match.',
+    passwordUpdated: 'Password updated! Please sign in.',
+    verifyEmail: 'Verify Your Email',
+    verifyEmailSub: 'We sent a confirmation link to',
+    verifyEmailHint: 'Click the link in the email to activate your account.',
+    resendEmail: 'Resend Email',
+    emailResent: 'Email resent!',
+    sessionTimedOut: 'Session expired due to inactivity.',
   },
   he: {
     signIn: 'כניסה', signUp: 'הרשמה',
@@ -87,6 +104,23 @@ const L = {
     consentRequired: 'עליך להסכים למדיניות הפרטיות כדי ליצור חשבון.',
     consentLabel: 'קראתי ואני מסכים/ה ל',
     consentLink: 'מדיניות הפרטיות',
+    forgotPassword: 'שכחת סיסמה?',
+    forgotPasswordSub: 'הזן את האימייל שלך ונשלח קישור לאיפוס.',
+    sendResetLink: 'שלח קישור איפוס',
+    resetLinkSent: 'קישור נשלח! בדוק את תיבת הדואר.',
+    backToSignIn: '→ חזרה לכניסה',
+    resetPassword: 'הגדר סיסמה חדשה',
+    resetPasswordSub: 'הזן את הסיסמה החדשה שלך.',
+    newPassword: 'סיסמה חדשה',
+    confirmPassword: 'אימות סיסמה',
+    passwordsNoMatch: 'הסיסמאות אינן תואמות.',
+    passwordUpdated: 'הסיסמה עודכנה! אנא התחבר.',
+    verifyEmail: 'אמת את האימייל שלך',
+    verifyEmailSub: 'שלחנו קישור אימות ל',
+    verifyEmailHint: 'לחץ על הקישור שבאימייל להפעלת החשבון.',
+    resendEmail: 'שלח שנית',
+    emailResent: 'אימייל נשלח שוב!',
+    sessionTimedOut: 'הסשן פג עקב חוסר פעילות.',
   },
 }
 
@@ -109,6 +143,24 @@ const primaryBtn = (loading) => ({
   transition: 'opacity 0.15s', letterSpacing: '0.01em',
   boxShadow: '0 2px 10px rgba(8,145,178,0.35)',
 })
+
+// ── Idle timeout hook ─────────────────────────────────────────────────────
+function useIdleTimeout(onTimeout, minutes = 480) {
+  const timer = useRef(null)
+  const reset = useCallback(() => {
+    clearTimeout(timer.current)
+    timer.current = setTimeout(onTimeout, minutes * 60 * 1000)
+  }, [onTimeout, minutes])
+  useEffect(() => {
+    const events = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll']
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }))
+    reset()
+    return () => {
+      events.forEach(e => window.removeEventListener(e, reset))
+      clearTimeout(timer.current)
+    }
+  }, [reset])
+}
 
 // ── Language toggle (floating pill) ───────────────────────────────────────
 function LangToggle({ lang, setLang }) {
@@ -284,8 +336,97 @@ function PasswordStrengthMeter({ password, t, rtl }) {
   )
 }
 
+// ── Unverified email screen ────────────────────────────────────────────────
+function UnverifiedScreen({ email, lang, setLang, onResend, onSignOut }) {
+  const t = L[lang]
+  const rtl = lang === 'he'
+  const [resent, setResent] = useState(false)
+  async function handleResend() {
+    await onResend()
+    setResent(true)
+    setTimeout(() => setResent(false), 4000)
+  }
+  return (
+    <Page lang={lang} setLang={setLang}>
+      <Logo />
+      <Card>
+        <div style={{ textAlign: 'center', padding: '8px 0 24px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: C.text }}>{t.verifyEmail}</h2>
+          <p style={{ margin: '0 0 4px', fontSize: 14, color: C.textSub }}>{t.verifyEmailSub}</p>
+          <p style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: C.text }}>{email}</p>
+          <p style={{ margin: '0 0 24px', fontSize: 13, color: C.textSub }}>{t.verifyEmailHint}</p>
+          {resent && <Succ msg={t.emailResent} />}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+            <button onClick={handleResend} style={{ ...primaryBtn(false), background: C.primary }}>
+              {t.resendEmail}
+            </button>
+            <button onClick={onSignOut} style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px', fontSize: 14, fontWeight: 600, color: C.textSub, cursor: 'pointer' }}>
+              {rtl ? 'התנתק' : 'Sign Out'}
+            </button>
+          </div>
+        </div>
+      </Card>
+    </Page>
+  )
+}
+
+// ── Password reset screen (after clicking reset email link) ────────────────
+function PasswordResetScreen({ lang, setLang, onDone }) {
+  const t = L[lang]
+  const rtl = lang === 'he'
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm]   = useState('')
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
+  const { score } = getPasswordStrength(password)
+  const isStrong = score >= 4
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    if (password !== confirm) { setError(t.passwordsNoMatch); return }
+    if (!isStrong) { setError(t.pwTooWeak); return }
+    setLoading(true)
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) { setError(error.message); setLoading(false); return }
+    onDone()
+  }
+
+  return (
+    <Page lang={lang} setLang={setLang}>
+      <Logo />
+      <Card>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: C.text }}>{t.resetPassword}</h2>
+          <p style={{ margin: 0, fontSize: 13, color: C.textSub }}>{t.resetPasswordSub}</p>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div>
+            <label style={labelStyle}>{t.newPassword}</label>
+            <input type="password" value={password} required autoFocus
+              onChange={e => setPassword(e.target.value)}
+              placeholder={t.passwordPlaceholder} style={inputStyle} />
+            <PasswordStrengthMeter password={password} t={t} rtl={rtl} />
+          </div>
+          <div>
+            <label style={labelStyle}>{t.confirmPassword}</label>
+            <input type="password" value={confirm} required
+              onChange={e => setConfirm(e.target.value)}
+              placeholder={t.passwordPlaceholder} style={inputStyle} />
+          </div>
+          <Err msg={error} />
+          <button type="submit" disabled={loading || !isStrong} style={primaryBtn(loading || !isStrong)}>
+            {loading ? '…' : t.resetPassword}
+          </button>
+        </form>
+      </Card>
+    </Page>
+  )
+}
+
 // ── Login / Sign-up screen ─────────────────────────────────────────────────
-function LoginScreen({ lang, setLang }) {
+function LoginScreen({ lang, setLang, notice }) {
   const t = L[lang]
   const [mode, setMode]         = useState('login')
   const [email, setEmail]       = useState('')
@@ -296,6 +437,7 @@ function LoginScreen({ lang, setLang }) {
   const [captchaToken, setCaptchaToken] = useState('')
   const [consentChecked, setConsentChecked] = useState(false)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [forgotMode, setForgotMode] = useState(false)
   const captchaRef = useRef(null)
 
   const rtl = lang === 'he'
@@ -307,10 +449,7 @@ function LoginScreen({ lang, setLang }) {
     setError(''); setSuccess('')
     if (!captchaToken) { setError(t.captchaRequired); return }
     if (mode === 'signup' && !consentChecked) { setError(t.consentRequired); return }
-    // Enforce strong password on signup
-    if (mode === 'signup' && !isStrongEnough) {
-      setError(t.pwTooWeak); return
-    }
+    if (mode === 'signup' && !isStrongEnough) { setError(t.pwTooWeak); return }
     setLoading(true)
 
     if (mode === 'login') {
@@ -319,83 +458,113 @@ function LoginScreen({ lang, setLang }) {
     } else {
       const { error } = await supabase.auth.signUp({ email, password, options: { captchaToken } })
       if (error) setError(error.message)
-      else {
-        setEmail(''); setPassword('')
-        setMode('login')
-        setSuccess(t.accountCreated)
-      }
+      else { setEmail(''); setPassword(''); setMode('login'); setSuccess(t.accountCreated) }
     }
     captchaRef.current?.resetCaptcha()
     setCaptchaToken('')
     setLoading(false)
   }
 
-  function switchMode(m) { setMode(m); setError(''); setSuccess(''); setCaptchaToken(''); setConsentChecked(false); captchaRef.current?.resetCaptcha() }
+  async function handleForgot(e) {
+    e.preventDefault()
+    setError(''); setSuccess(''); setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/?reset=1',
+    })
+    setLoading(false)
+    if (error) setError(error.message)
+    else setSuccess(t.resetLinkSent)
+  }
+
+  function switchMode(m) { setMode(m); setForgotMode(false); setError(''); setSuccess(''); setCaptchaToken(''); setConsentChecked(false); captchaRef.current?.resetCaptcha() }
 
   return (
     <Page lang={lang} setLang={setLang}>
       <Logo />
       <Card>
-        <Tabs
-          options={[['login', t.signIn], ['signup', t.signUp]]}
-          value={mode}
-          onChange={switchMode}
-        />
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div>
-            <label style={labelStyle}>{t.email}</label>
-            <input type="email" value={email} required autoFocus
-              onChange={e => setEmail(e.target.value)}
-              placeholder={t.emailPlaceholder} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>{t.password}</label>
-            <input type="password" value={password} required
-              onChange={e => setPassword(e.target.value)}
-              placeholder={t.passwordPlaceholder} style={inputStyle} />
-            {mode === 'signup' && (
-              <PasswordStrengthMeter password={password} t={t} rtl={rtl} />
-            )}
-          </div>
-          {mode === 'signup' && (
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', direction: rtl ? 'rtl' : 'ltr' }}>
-              <input
-                type="checkbox"
-                checked={consentChecked}
-                onChange={e => setConsentChecked(e.target.checked)}
-                style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', accentColor: C.primary, flexShrink: 0 }}
-              />
-              <span style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5 }}>
-                {t.consentLabel}{' '}
-                <button type="button" onClick={() => setShowPrivacyModal(true)} style={{
-                  background: 'none', border: 'none', color: C.primary, fontWeight: 700,
-                  fontSize: 13, cursor: 'pointer', padding: 0, textDecoration: 'underline',
-                }}>
-                  {t.consentLink}
-                </button>
-              </span>
-            </label>
-          )}
-          <Err  msg={error} />
-          <Succ msg={success} />
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <HCaptcha
-              sitekey={HCAPTCHA_SITE_KEY}
-              onVerify={token => setCaptchaToken(token)}
-              onExpire={() => setCaptchaToken('')}
-              ref={captchaRef}
-              theme="light"
+        {forgotMode ? (
+          <>
+            <div style={{ marginBottom: 24 }}>
+              <button onClick={() => { setForgotMode(false); setError(''); setSuccess('') }}
+                style={{ background: 'none', border: 'none', color: C.primary, fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0 }}>
+                {t.backToSignIn}
+              </button>
+              <h2 style={{ margin: '12px 0 4px', fontSize: 18, fontWeight: 800, color: C.text }}>{t.forgotPassword}</h2>
+              <p style={{ margin: 0, fontSize: 13, color: C.textSub }}>{t.forgotPasswordSub}</p>
+            </div>
+            <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={labelStyle}>{t.email}</label>
+                <input type="email" value={email} required autoFocus
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder={t.emailPlaceholder} style={inputStyle} />
+              </div>
+              <Err msg={error} />
+              <Succ msg={success} />
+              <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+                {loading ? '…' : t.sendResetLink}
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <Tabs
+              options={[['login', t.signIn], ['signup', t.signUp]]}
+              value={mode}
+              onChange={switchMode}
             />
-          </div>
-          <button
-            type="submit"
-            disabled={loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough)))}
-            style={primaryBtn(loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough))))}>
-            {loading ? '…' : mode === 'login' ? t.submitSignIn : t.submitSignUp}
-          </button>
-        </form>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <label style={labelStyle}>{t.email}</label>
+                <input type="email" value={email} required autoFocus
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder={t.emailPlaceholder} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>{t.password}</label>
+                <input type="password" value={password} required
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder={t.passwordPlaceholder} style={inputStyle} />
+                {mode === 'signup' && <PasswordStrengthMeter password={password} t={t} rtl={rtl} />}
+              </div>
+              {mode === 'login' && (
+                <div style={{ textAlign: rtl ? 'left' : 'right', marginTop: -8 }}>
+                  <button type="button" onClick={() => { setForgotMode(true); setError(''); setSuccess('') }}
+                    style={{ background: 'none', border: 'none', color: C.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                    {t.forgotPassword}
+                  </button>
+                </div>
+              )}
+              {mode === 'signup' && (
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', direction: rtl ? 'rtl' : 'ltr' }}>
+                  <input type="checkbox" checked={consentChecked} onChange={e => setConsentChecked(e.target.checked)}
+                    style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', accentColor: C.primary, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5 }}>
+                    {t.consentLabel}{' '}
+                    <button type="button" onClick={() => setShowPrivacyModal(true)} style={{
+                      background: 'none', border: 'none', color: C.primary, fontWeight: 700,
+                      fontSize: 13, cursor: 'pointer', padding: 0, textDecoration: 'underline',
+                    }}>{t.consentLink}</button>
+                  </span>
+                </label>
+              )}
+              <Err  msg={error} />
+              <Succ msg={success} />
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <HCaptcha sitekey={HCAPTCHA_SITE_KEY} onVerify={token => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken('')} ref={captchaRef} theme="light" />
+              </div>
+              <button type="submit"
+                disabled={loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough)))}
+                style={primaryBtn(loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough))))}>
+                {loading ? '…' : mode === 'login' ? t.submitSignIn : t.submitSignUp}
+              </button>
+            </form>
+          </>
+        )}
       </Card>
-      <p style={{ marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t.securedBy}</p>
+      {notice && <div style={{ marginTop: 16, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 8, padding: '10px 16px', fontSize: 13, color: '#fca5a5', maxWidth: 400, textAlign: 'center' }}>{notice}</div>}
+      <p style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t.securedBy}</p>
 
       {/* Privacy Policy Modal (inline, no fleet-manager dep) */}
       {showPrivacyModal && (
@@ -469,14 +638,9 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
   async function joinByCode(e) {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { data: company, error: ce } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('invite_code', inviteCode.trim().toUpperCase())
-      .eq('is_active', true)
-      .maybeSingle()
-    if (!company) { setError(ce?.message || t.codeNotFound); setLoading(false); return }
-    await assignToCompany(company.id, 'member')
+    const { data: companyId, error: ce } = await supabase.rpc('verify_invite_code', { p_code: inviteCode.trim() })
+    if (ce || !companyId) { setError(ce?.message || t.codeNotFound); setLoading(false); return }
+    await assignToCompany(companyId, 'member')
   }
 
   async function acceptInvite(inv) {
@@ -568,19 +732,34 @@ export default function App() {
   const formToken = window.location.pathname.match(/^\/form\/([0-9a-f-]{36})$/i)?.[1]
   if (formToken) return <PublicForm token={formToken} />
 
-  const [session, setSession] = useState(undefined) // undefined = still loading
-  const [profile, setProfile] = useState(undefined)
-  const [lang, setLang]       = useState(() => localStorage.getItem('fleet_lang') || 'en')
+  const [session, setSession]         = useState(undefined)
+  const [profile, setProfile]         = useState(undefined)
+  const [lang, setLang]               = useState(() => localStorage.getItem('fleet_lang') || 'en')
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [timedOut, setTimedOut]       = useState(false)
+  const t = L[lang]
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session ?? null)
       if (session) fetchProfile(session)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true)
+        setSession(session)
+        return
+      }
       setSession(session ?? null)
-      if (session) fetchProfile(session)
-      else setProfile(null)
+      if (session) {
+        fetchProfile(session)
+        // Log sign-in event (fire and forget)
+        if (event === 'SIGNED_IN') {
+          supabase.rpc('log_auth_event', { p_event: 'sign_in', p_email: session.user.email }).catch(() => {})
+        }
+      } else {
+        setProfile(null)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -593,24 +772,57 @@ export default function App() {
       .maybeSingle()
 
     if (!data) {
-      // First login — create profile
-      await supabase.from('profiles').insert({
-        id: s.user.id, email: s.user.email, role: 'member',
-      })
+      await supabase.from('profiles').insert({ id: s.user.id, email: s.user.email, role: 'member' })
       setProfile({ id: s.user.id, email: s.user.email, company_id: null, role: 'member', companies: null })
     } else {
       setProfile(data)
     }
   }
 
-  // Still loading
-  if (session === undefined || (session && profile === undefined)) return null
+  async function handleSignOut() {
+    if (session) {
+      supabase.rpc('log_auth_event', { p_event: 'sign_out', p_email: session.user.email }).catch(() => {})
+    }
+    await supabase.auth.signOut()
+  }
 
-  if (!session) return <LoginScreen lang={lang} setLang={setLang} />
+  // Idle timeout — 8 hours, only when logged in
+  useIdleTimeout(useCallback(async () => {
+    if (!session) return
+    setTimedOut(true)
+    await supabase.auth.signOut()
+  }, [session]), 480)
+
+  // Still loading
+  if (session === undefined || (session && !passwordRecovery && profile === undefined)) return null
+
+  // Password recovery flow
+  if (passwordRecovery) {
+    return <PasswordResetScreen lang={lang} setLang={setLang} onDone={async () => {
+      setPasswordRecovery(false)
+      await supabase.auth.signOut()
+    }} />
+  }
+
+  if (!session) {
+    return <LoginScreen lang={lang} setLang={setLang} notice={timedOut ? t.sessionTimedOut : null} />
+  }
+
+  // Email not verified
+  if (!session.user.email_confirmed_at) {
+    return (
+      <UnverifiedScreen
+        email={session.user.email}
+        lang={lang}
+        setLang={setLang}
+        onResend={() => supabase.auth.resend({ type: 'signup', email: session.user.email })}
+        onSignOut={handleSignOut}
+      />
+    )
+  }
 
   const isMaster = session.user.email === MASTER_EMAIL
 
-  // Regular users with no company → join screen
   if (!isMaster && !profile?.company_id) {
     return <JoinCompanyScreen session={session} onDone={fetchProfile} lang={lang} setLang={setLang} />
   }
@@ -622,7 +834,7 @@ export default function App() {
         profile={profile}
         isMaster={isMaster}
         companyId={profile?.company_id ?? null}
-        onSignOut={() => supabase.auth.signOut()}
+        onSignOut={handleSignOut}
         initialLang={lang}
       />
       <SpeedInsights />

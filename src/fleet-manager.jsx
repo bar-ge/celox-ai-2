@@ -190,6 +190,8 @@ const T = {
     companyCreated:(name, code) => `Company "${name}" created with code ${code}`,
     alreadyInvited:'This email was already invited.',
     inviteSent:(email) => `Invite sent to ${email}`,
+    exportAllData:'Export All Data', exportAllDataDesc:'Download all company data as an Excel file (vehicles, drivers, costs, maintenance, documents, activity log).',
+    exporting:'Exporting…',
     inviteByEmail:'Invite by Email', sendInvite:'Send Invite',
     shareCodeHint:'Share this code with teammates so they can join your company.',
     selectCompanyPrompt:'Select a company to manage',
@@ -362,6 +364,8 @@ const T = {
     companyCreated:(name, code) => `חברה "${name}" נוצרה עם קוד ${code}`,
     alreadyInvited:'האימייל הזה כבר הוזמן.',
     inviteSent:(email) => `הזמנה נשלחה אל ${email}`,
+    exportAllData:'ייצוא כל הנתונים', exportAllDataDesc:'הורד את כל נתוני החברה כקובץ Excel (רכבים, נהגים, עלויות, תחזוקה, מסמכים, יומן פעילות).',
+    exporting:'מייצא…',
     inviteByEmail:'הזמן באימייל', sendInvite:'שלח הזמנה',
     shareCodeHint:'שתף קוד זה עם עמיתים כדי שיוכלו להצטרף לחברה שלך.',
     selectCompanyPrompt:'בחר חברה לניהול',
@@ -4201,6 +4205,37 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     setEditingLimits(null)
   }
 
+  const [exporting, setExporting] = useState(false)
+
+  async function exportAllData() {
+    setExporting(true)
+    const [carsRes, driversRes, costsRes, maintRes, docsRes, logsRes] = await Promise.all([
+      supabase.from('cars').select('*').eq('company_id', companyId),
+      supabase.from('drivers').select('*').eq('company_id', companyId),
+      supabase.from('costs').select('*').eq('company_id', companyId),
+      supabase.from('maintenance').select('*').eq('company_id', companyId),
+      supabase.from('documents').select('id, name, entity_type, entity_id, expires_at, created_at').eq('company_id', companyId),
+      supabase.from('activity_log').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(1000),
+    ])
+
+    const wb = XLSX.utils.book_new()
+    const addSheet = (name, rows) => {
+      if (!rows?.length) return
+      const ws = XLSX.utils.json_to_sheet(rows)
+      XLSX.utils.book_append_sheet(wb, ws, name)
+    }
+    addSheet('Cars', carsRes.data || [])
+    addSheet('Drivers', driversRes.data || [])
+    addSheet('Costs', costsRes.data || [])
+    addSheet('Maintenance', maintRes.data || [])
+    addSheet('Documents', docsRes.data || [])
+    addSheet('Activity Log', logsRes.data || [])
+
+    const date = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `fleet-export-${date}.xlsx`)
+    setExporting(false)
+  }
+
   const row   = { padding: '14px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }
   const lbl   = { fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
   const card  = { background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }
@@ -4362,6 +4397,21 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Monthly budget — admin only */}
           {isAdmin && companyId && (
             <BudgetSettings companyId={companyId} t={t} rtl={rtl} />
+          )}
+
+          {/* Export all data — admin only */}
+          {isAdmin && companyId && (
+            <div style={card}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📦 {t.exportAllData}</h3>
+              <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{t.exportAllDataDesc}</p>
+              <button
+                onClick={exportAllData}
+                disabled={exporting}
+                style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 700, cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.7 : 1 }}
+              >
+                {exporting ? t.exporting : `⬇️ ${t.exportAllData}`}
+              </button>
+            </div>
           )}
 
           {/* Custom Lists — admin only */}
