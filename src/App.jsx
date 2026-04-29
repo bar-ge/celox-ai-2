@@ -780,13 +780,15 @@ export default function App() {
   }
 
   async function handleSignOut() {
-    if (session) {
-      supabase.rpc('log_auth_event', { p_event: 'sign_out', p_email: session.user.email }).catch(() => {})
+    try {
+      if (session) {
+        supabase.rpc('log_auth_event', { p_event: 'sign_out', p_email: session.user.email }).catch(() => {})
+      }
+      await supabase.auth.signOut()
+    } catch {
+      // ignore — reload clears the session from localStorage anyway
     }
-    await supabase.auth.signOut().catch(() => {})
-    // Force state clear in case onAuthStateChange doesn't fire
-    setSession(null)
-    setProfile(null)
+    window.location.href = '/'
   }
 
   // Idle timeout — 8 hours, only when logged in
