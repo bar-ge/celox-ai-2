@@ -786,8 +786,10 @@ export default function App() {
       }
       await supabase.auth.signOut()
     } catch {
-      // ignore — reload clears the session from localStorage anyway
+      // ignore
     }
+    // Wipe Supabase session from localStorage regardless of whether signOut succeeded
+    Object.keys(localStorage).forEach(k => { if (k.startsWith('sb-')) localStorage.removeItem(k) })
     window.location.href = '/'
   }
 
