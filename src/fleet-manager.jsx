@@ -3647,6 +3647,19 @@ const FORM_TYPES = [
   { id: 'car_checklist',    icon: '📋', label: 'רשימת בדיקה לרכב חדש',   labelEn: 'New Car Checklist' },
   { id: 'driver_car_check', icon: '🚗', label: 'בדיקת רכב על ידי נהג',    labelEn: 'Driver Car Check' },
   { id: 'yearly_training',  icon: '🎓', label: 'אימות הדרכה שנתית',        labelEn: 'Yearly Training' },
+  { id: 'custom',           icon: '🛠️', label: 'טופס מותאם אישית',         labelEn: 'Custom Form' },
+]
+
+const PRESET_FIELDS = [
+  { preset: 'submitter_name', label: 'שם הממלא',        labelEn: 'Full Name',       icon: '👤' },
+  { preset: 'plate',          label: 'לוחית רישוי',      labelEn: 'License Plate',   icon: '🚗' },
+  { preset: 'driver_license', label: 'רישיון נהיגה',     labelEn: 'Driver License',  icon: '📄' },
+  { preset: 'phone',          label: 'טלפון',            labelEn: 'Phone',           icon: '📞' },
+  { preset: 'mileage',        label: 'קילומטראז׳',       labelEn: 'Mileage',         icon: '🔢' },
+  { preset: 'date',           label: 'תאריך',            labelEn: 'Date',            icon: '📅' },
+  { preset: 'fuel_level',     label: 'רמת דלק',          labelEn: 'Fuel Level',      icon: '⛽' },
+  { preset: 'notes',          label: 'הערות',            labelEn: 'Notes',           icon: '📝' },
+  { preset: 'signature',      label: 'חתימה / אישור',    labelEn: 'Signature / Confirm', icon: '✅' },
 ]
 
 const SUB_FIELD_LABELS = {
@@ -3691,8 +3704,34 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const [subDateFrom,   setSubDateFrom]   = useState('')
   const [subDateTo,     setSubDateTo]     = useState('')
   const [printSub,      setPrintSub]      = useState(null)
+  const [customFields,  setCustomFields]  = useState([])
+  const [customFldType, setCustomFldType] = useState('text')
 
   useEffect(() => { load() }, [companyId])
+
+  function cfAddPreset(preset) {
+    if (customFields.some(f => f.preset === preset)) return
+    const p = PRESET_FIELDS.find(x => x.preset === preset)
+    if (!p) return
+    setCustomFields(prev => [...prev, { id: crypto.randomUUID(), type: 'preset', preset: p.preset, label: p.label, labelEn: p.labelEn, required: preset === 'submitter_name', options: [] }])
+  }
+  function cfAddFree(type) {
+    const labels = { text: 'שדה טקסט', textarea: 'טקסט ארוך', number: 'מספר', date: 'תאריך', select: 'בחירה מרשימה', yesno: 'כן / לא', checkbox: 'תיבת סימון' }
+    const labelsEn = { text: 'Text Field', textarea: 'Long Text', number: 'Number', date: 'Date', select: 'Dropdown', yesno: 'Yes / No', checkbox: 'Checkbox' }
+    setCustomFields(prev => [...prev, { id: crypto.randomUUID(), type, label: labels[type], labelEn: labelsEn[type], required: false, options: type === 'select' ? [''] : [] }])
+  }
+  function cfUpdate(id, updates) { setCustomFields(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f)) }
+  function cfRemove(id) { setCustomFields(prev => prev.filter(f => f.id !== id)) }
+  function cfMove(id, dir) {
+    setCustomFields(prev => {
+      const idx = prev.findIndex(f => f.id === id)
+      const next = [...prev]
+      const t = idx + dir
+      if (t < 0 || t >= next.length) return prev
+      ;[next[idx], next[t]] = [next[t], next[idx]]
+      return next
+    })
+  }
 
   async function load() {
     setLoading(true)
@@ -3725,12 +3764,13 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       expires_at: createExpiry || null,
       is_active: true,
       single_use: createSingle,
+      fields: createType === 'custom' ? (customFields.length > 0 ? customFields : null) : null,
     }).select()
     if (!error && data) {
       const row = { ...data[0], _driver: selectedDriver || null }
       setLinks(p => [row, ...p])
       setShowCreate(false)
-      setCreateTitle(''); setCreateCar(''); setCreateDriver(''); setCreateExpiry(''); setCreateSingle(false)
+      setCreateTitle(''); setCreateCar(''); setCreateDriver(''); setCreateExpiry(''); setCreateSingle(false); setCustomFields([])
     }
     setCreating(false)
   }
@@ -3931,24 +3971,121 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       {/* Create link modal */}
       {showCreate && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 480, direction: rtl ? 'rtl' : 'ltr' }}>
+          <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: createType === 'custom' ? 580 : 480, direction: rtl ? 'rtl' : 'ltr', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 15 }}>{rtl ? '➕ יצירת קישור טופס' : '➕ Create Form Link'}</span>
               <button onClick={() => setShowCreate(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}>✕</button>
             </div>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
+              {/* Form type selector */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'סוג טופס' : 'Form Type'}</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {FORM_TYPES.map(f => (
-                    <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 9, border: `2px solid ${createType === f.id ? C.primary : C.border}`, cursor: 'pointer', background: createType === f.id ? C.primary + '08' : C.bg, transition: 'all 0.15s' }}>
-                      <input type="radio" name="formType" value={f.id} checked={createType === f.id} onChange={() => setCreateType(f.id)} style={{ accentColor: C.primary }} />
-                      <span style={{ fontSize: 18 }}>{f.icon}</span>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{rtl ? f.label : f.labelEn}</span>
+                    <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 9, border: `2px solid ${createType === f.id ? C.primary : C.border}`, cursor: 'pointer', background: createType === f.id ? C.primary + '08' : C.bg, transition: 'all 0.15s' }}>
+                      <input type="radio" name="formType" value={f.id} checked={createType === f.id} onChange={() => { setCreateType(f.id); setCustomFields([]) }} style={{ accentColor: C.primary }} />
+                      <span style={{ fontSize: 16 }}>{f.icon}</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{rtl ? f.label : f.labelEn}</span>
                     </label>
                   ))}
                 </div>
               </div>
+
+              {/* Custom form builder */}
+              {createType === 'custom' && (
+                <div style={{ background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, padding: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}>{rtl ? '🛠 בנה את שדות הטופס' : '🛠 Build Form Fields'}</div>
+
+                  {/* Preset field pills */}
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6 }}>{rtl ? 'שדות מוכנים מראש — לחץ להוסיף:' : 'Preset fields — click to add:'}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {PRESET_FIELDS.map(p => {
+                        const added = customFields.some(f => f.preset === p.preset)
+                        return (
+                          <button key={p.preset} type="button" onClick={() => cfAddPreset(p.preset)} disabled={added}
+                            style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, border: `1px solid ${added ? C.success : C.border}`, background: added ? C.success + '18' : '#fff', color: added ? C.success : C.textPrimary, cursor: added ? 'default' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {p.icon} {rtl ? p.label : p.labelEn} {added ? '✓' : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Free field adder */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    <select value={customFldType} onChange={e => setCustomFldType(e.target.value)}
+                      style={{ flex: 1, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, background: '#fff', color: C.textPrimary }}>
+                      <option value="text">{rtl ? 'טקסט קצר' : 'Short Text'}</option>
+                      <option value="textarea">{rtl ? 'טקסט ארוך' : 'Long Text'}</option>
+                      <option value="number">{rtl ? 'מספר' : 'Number'}</option>
+                      <option value="date">{rtl ? 'תאריך' : 'Date'}</option>
+                      <option value="select">{rtl ? 'בחירה מרשימה' : 'Dropdown'}</option>
+                      <option value="yesno">{rtl ? 'כן / לא' : 'Yes / No'}</option>
+                      <option value="checkbox">{rtl ? 'תיבת סימון' : 'Checkbox'}</option>
+                    </select>
+                    <button type="button" onClick={() => cfAddFree(customFldType)}
+                      style={{ padding: '7px 14px', borderRadius: 8, background: C.primary, color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {rtl ? '+ הוסף שדה' : '+ Add Field'}
+                    </button>
+                  </div>
+
+                  {/* Field list */}
+                  {customFields.length === 0
+                    ? <div style={{ textAlign: 'center', padding: '14px', border: `2px dashed ${C.border}`, borderRadius: 8, color: C.textMuted, fontSize: 12 }}>
+                        {rtl ? 'הוסף שדות לטופס מהאפשרויות למעלה' : 'Add fields to your form using the options above'}
+                      </div>
+                    : customFields.map((f, idx) => (
+                      <div key={f.id} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 10px', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {/* Up/down */}
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <button type="button" onClick={() => cfMove(f.id, -1)} disabled={idx === 0}
+                              style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', fontSize: 9, color: idx === 0 ? C.border : C.textMuted, padding: 0, lineHeight: 1 }}>▲</button>
+                            <button type="button" onClick={() => cfMove(f.id, 1)} disabled={idx === customFields.length - 1}
+                              style={{ background: 'none', border: 'none', cursor: idx === customFields.length - 1 ? 'default' : 'pointer', fontSize: 9, color: idx === customFields.length - 1 ? C.border : C.textMuted, padding: 0, lineHeight: 1 }}>▼</button>
+                          </div>
+                          {/* Type badge */}
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: C.primary + '18', color: C.primary, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            {f.type === 'preset' ? (f.preset) : (rtl ? { text:'טקסט', textarea:'ארוך', number:'מספר', date:'תאריך', select:'רשימה', yesno:'כן/לא', checkbox:'סימון' }[f.type] : f.type)}
+                          </span>
+                          {/* Label */}
+                          <input value={f.label} onChange={e => cfUpdate(f.id, { label: e.target.value })}
+                            style={{ flex: 1, padding: '4px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, minWidth: 0 }} />
+                          {/* Required */}
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: C.textSub, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <input type="checkbox" checked={!!f.required} onChange={e => cfUpdate(f.id, { required: e.target.checked })} style={{ accentColor: C.primary }} />
+                            {rtl ? 'חובה' : 'Req.'}
+                          </label>
+                          {/* Remove */}
+                          <button type="button" onClick={() => cfRemove(f.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, fontSize: 15, padding: 0, lineHeight: 1, flexShrink: 0 }}>×</button>
+                        </div>
+                        {/* Options editor for select type */}
+                        {f.type === 'select' && (
+                          <div style={{ marginTop: 6, paddingRight: rtl ? 0 : 26, paddingLeft: rtl ? 26 : 0 }}>
+                            {(f.options || []).map((opt, oi) => (
+                              <div key={oi} style={{ display: 'flex', gap: 5, marginBottom: 4 }}>
+                                <input value={opt} onChange={e => { const o = [...(f.options||[])]; o[oi] = e.target.value; cfUpdate(f.id, { options: o }) }}
+                                  placeholder={rtl ? `אפשרות ${oi + 1}` : `Option ${oi + 1}`}
+                                  style={{ flex: 1, padding: '3px 7px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11 }} />
+                                <button type="button" onClick={() => cfUpdate(f.id, { options: (f.options||[]).filter((_,i) => i !== oi) })}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, fontSize: 13 }}>×</button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => cfUpdate(f.id, { options: [...(f.options||[]), ''] })}
+                              style={{ fontSize: 11, color: C.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 700 }}>
+                              {rtl ? '+ הוסף אפשרות' : '+ Add option'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+
+              {/* Worker/driver */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'עובד / נהג (אופציונלי)' : 'Worker / Driver (optional)'}</label>
                 <select value={createDriver} onChange={e => setCreateDriver(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }}>

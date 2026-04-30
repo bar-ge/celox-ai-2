@@ -23,6 +23,7 @@ const FORM_META = {
   car_checklist:    { icon: '📋', title: 'רשימת בדיקה לרכב חדש', en: 'New Company Car Checklist' },
   driver_car_check: { icon: '🚗', title: 'בדיקת רכב על ידי נהג', en: 'Driver Vehicle Check' },
   yearly_training:  { icon: '🎓', title: 'אימות הדרכה שנתית', en: 'Yearly Training Acknowledgment' },
+  custom:           { icon: '📝', title: 'טופס מותאם אישית', en: 'Custom Form' },
 }
 
 // ── File upload helper ────────────────────────────────────────────────────────
@@ -478,6 +479,146 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
   )
 }
 
+// ── Custom Form (dynamic field renderer) ─────────────────────────────────────
+function CustomForm({ link, onSubmit, submitting }) {
+  const fields = link.fields || []
+  const [values, setValues] = useState(() => {
+    const init = {}
+    fields.forEach(f => {
+      const key = f.type === 'preset' ? f.preset : f.id
+      init[key] = f.type === 'checkbox' || (f.type === 'preset' && f.preset === 'signature') ? false : ''
+    })
+    return init
+  })
+  const [files, setFiles] = useState([])
+  const [formError, setFormError] = useState('')
+  const set = (key, v) => setValues(p => ({ ...p, [key]: v }))
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setFormError('')
+    for (const f of fields) {
+      const key = f.type === 'preset' ? f.preset : f.id
+      const val = values[key]
+      if (f.required && (val === '' || val === false || val == null)) {
+        setFormError(`שדה "${f.label}" הוא חובה`)
+        return
+      }
+    }
+    const attachments = await uploadFiles(files, link.company_id, link.id)
+    const data = {}
+    fields.forEach(f => {
+      const key = f.type === 'preset' ? f.preset : f.id
+      const storageKey = f.type === 'preset' ? f.preset : f.label
+      data[storageKey] = values[key]
+    })
+    data.attachments = attachments
+    onSubmit({ ...data, submitter_name: data.submitter_name || data['שם הממלא'] || data['Full Name'] || '' })
+  }
+
+  function renderInput(f) {
+    const key = f.type === 'preset' ? f.preset : f.id
+    const val = values[key]
+
+    if (f.type === 'preset') {
+      switch (f.preset) {
+        case 'submitter_name': return <input style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required} placeholder="ישראל ישראלי" />
+        case 'plate':          return <input style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required} placeholder="123-456-78" dir="ltr" />
+        case 'driver_license': return <input style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required} placeholder="1234567" />
+        case 'phone':          return <input style={{ ...inp, direction: 'ltr' }} type="tel" value={val} onChange={e => set(key, e.target.value)} required={f.required} placeholder="050-1234567" />
+        case 'mileage':        return <input style={inp} type="number" value={val} onChange={e => set(key, e.target.value)} required={f.required} placeholder="0" min="0" />
+        case 'date':           return <input style={inp} type="date" value={val} onChange={e => set(key, e.target.value)} required={f.required} />
+        case 'fuel_level':
+          return (
+            <select style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required}>
+              <option value="">— בחר —</option>
+              {['ריק','רבע','חצי','שלושה רבעים','מלא'].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          )
+        case 'notes':
+          return <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }} value={val} onChange={e => set(key, e.target.value)} />
+        case 'signature':
+          return (
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '6px 0' }}>
+              <input type="checkbox" checked={!!val} onChange={e => set(key, e.target.checked)} style={{ width: 18, height: 18, marginTop: 2, accentColor: C.primary, flexShrink: 0 }} required={f.required} />
+              <span style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5 }}>{f.label}</span>
+            </label>
+          )
+        default: return <input style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required} />
+      }
+    }
+
+    switch (f.type) {
+      case 'text':     return <input style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required} />
+      case 'textarea': return <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }} value={val} onChange={e => set(key, e.target.value)} required={f.required} />
+      case 'number':   return <input style={inp} type="number" value={val} onChange={e => set(key, e.target.value)} required={f.required} />
+      case 'date':     return <input style={inp} type="date" value={val} onChange={e => set(key, e.target.value)} required={f.required} />
+      case 'select':
+        return (
+          <select style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required}>
+            <option value="">— בחר —</option>
+            {(f.options || []).filter(Boolean).map((o, i) => <option key={i} value={o}>{o}</option>)}
+          </select>
+        )
+      case 'yesno':
+        return (
+          <div style={{ display: 'flex', gap: 20, paddingTop: 4 }}>
+            {['כן', 'לא'].map(opt => (
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="radio" name={`field_${key}`} value={opt} checked={val === opt} onChange={() => set(key, opt)} required={f.required} style={{ accentColor: C.primary, width: 16, height: 16 }} />
+                <span style={{ fontSize: 15, fontWeight: 700 }}>{opt}</span>
+              </label>
+            ))}
+          </div>
+        )
+      case 'checkbox':
+        return (
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '6px 0' }}>
+            <input type="checkbox" checked={!!val} onChange={e => set(key, e.target.checked)} style={{ width: 18, height: 18, marginTop: 2, accentColor: C.primary, flexShrink: 0 }} required={f.required} />
+            <span style={{ fontSize: 13, color: C.textSub, lineHeight: 1.5 }}>{f.label}</span>
+          </label>
+        )
+      default: return <input style={inp} value={val} onChange={e => set(key, e.target.value)} required={f.required} />
+    }
+  }
+
+  if (!fields.length) return (
+    <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textMuted }}>
+      <div style={{ fontSize: 36, marginBottom: 10 }}>📝</div>
+      <div style={{ fontSize: 15, fontWeight: 700 }}>הטופס אינו מכיל שדות</div>
+    </div>
+  )
+
+  const isCheckboxLike = f => (f.type === 'checkbox') || (f.type === 'preset' && f.preset === 'signature')
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={section}>
+        {fields.map(f => (
+          <div key={f.id} style={isCheckboxLike(f) ? { marginBottom: 10, paddingTop: 4 } : field}>
+            {!isCheckboxLike(f) && (
+              <label style={lbl}>{f.label}{f.required ? ' *' : ''}</label>
+            )}
+            {renderInput(f)}
+          </div>
+        ))}
+      </div>
+
+      <FileAttachments files={files} onAdd={picked => setFiles(p => [...p, ...picked])} onRemove={i => setFiles(p => p.filter((_, j) => j !== i))} />
+
+      {formError && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 8, color: '#dc2626', fontSize: 14, fontWeight: 600, textAlign: 'right' }}>
+          ⚠ {formError}
+        </div>
+      )}
+
+      <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#0891b2,#6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
+        {submitting ? '…שולח' : '✅ שלח טופס'}
+      </button>
+    </form>
+  )
+}
+
 // ── Public Form Page (root) ───────────────────────────────────────────────────
 export default function PublicForm({ token }) {
   const [link,        setLink]        = useState(null)
@@ -587,6 +728,7 @@ export default function PublicForm({ token }) {
             {link.type === 'car_checklist'    && <CarChecklistForm    link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'driver_car_check' && <DriverCarCheckForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'yearly_training'  && <YearlyTrainingForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'custom'           && <CustomForm          link={link} onSubmit={handleSubmit} submitting={submitting} />}
           </>
         )}
       </div>
