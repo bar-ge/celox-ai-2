@@ -3718,7 +3718,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   function cfAddFree(type) {
     const labels = { text: 'שדה טקסט', textarea: 'טקסט ארוך', number: 'מספר', date: 'תאריך', select: 'בחירה מרשימה', yesno: 'כן / לא', checkbox: 'תיבת סימון' }
     const labelsEn = { text: 'Text Field', textarea: 'Long Text', number: 'Number', date: 'Date', select: 'Dropdown', yesno: 'Yes / No', checkbox: 'Checkbox' }
-    setCustomFields(prev => [...prev, { id: crypto.randomUUID(), type, label: labels[type], labelEn: labelsEn[type], required: false, options: type === 'select' ? [''] : [] }])
+    setCustomFields(prev => [...prev, { id: crypto.randomUUID(), type, label: labels[type], labelEn: labelsEn[type], required: false, options: [] }])
   }
   function cfUpdate(id, updates) { setCustomFields(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f)) }
   function cfRemove(id) { setCustomFields(prev => prev.filter(f => f.id !== id)) }
@@ -3754,6 +3754,20 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       rtl ? typeMeta.label : typeMeta.labelEn,
       selectedDriver ? `· ${selectedDriver.name}` : '',
     ].filter(Boolean).join(' ')
+    if (createType === 'custom') {
+      if (customFields.length === 0) {
+        alert(rtl ? 'יש להוסיף לפחות שדה אחד לטופס המותאם.' : 'Please add at least one field to the custom form.')
+        setCreating(false); return
+      }
+      const badSelect = customFields.find(f => f.type === 'select' && !(f.options || []).some(Boolean))
+      if (badSelect) {
+        alert(rtl ? `שדה הרשימה "${badSelect.label}" חייב לכלול לפחות אפשרות אחת.` : `Dropdown "${badSelect.label}" must have at least one option.`)
+        setCreating(false); return
+      }
+    }
+    const cleanedFields = createType === 'custom'
+      ? customFields.map(f => f.type === 'select' ? { ...f, options: (f.options || []).filter(Boolean) } : f)
+      : null
     const { data, error } = await supabase.from('form_links').insert({
       company_id: companyId,
       type: createType,
@@ -3764,7 +3778,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       expires_at: createExpiry || null,
       is_active: true,
       single_use: createSingle,
-      fields: createType === 'custom' ? (customFields.length > 0 ? customFields : null) : null,
+      fields: cleanedFields,
     }).select()
     if (!error && data) {
       const row = { ...data[0], _driver: selectedDriver || null }
@@ -3974,7 +3988,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: createType === 'custom' ? 580 : 480, direction: rtl ? 'rtl' : 'ltr', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 15 }}>{rtl ? '➕ יצירת קישור טופס' : '➕ Create Form Link'}</span>
-              <button onClick={() => setShowCreate(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}>✕</button>
+              <button onClick={() => { setShowCreate(false); setCustomFields([]) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}>✕</button>
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
               {/* Form type selector */}
