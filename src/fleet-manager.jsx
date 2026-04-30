@@ -4241,15 +4241,39 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
 
 // ── Budget Settings ──────────────────────────────────────────────────────────
 function EmailNotifSettings({ companyId, company, t, rtl }) {
-  const [alertsOn, setAlertsOn] = useState(company?.email_alerts_enabled !== false)
-  const [lang,     setLang]     = useState(company?.email_lang ?? 'he')
-  const [saved,    setSaved]    = useState(false)
+  const [alertsOn,    setAlertsOn]    = useState(company?.email_alerts_enabled !== false)
+  const [lang,        setLang]        = useState(company?.email_lang ?? 'he')
+  const [saved,       setSaved]       = useState(false)
+  const [sending,     setSending]     = useState(false)
+  const [sendResult,  setSendResult]  = useState(null) // { ok, alerts_sent, reason }
   const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
 
   async function save() {
     await supabase.from('companies').update({ email_alerts_enabled: alertsOn, email_lang: lang }).eq('id', companyId)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
+
+  async function sendNow() {
+    setSending(true); setSendResult(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('trigger-alerts', { body: {} })
+      if (error) { setSendResult({ ok: false, reason: 'error' }); return }
+      setSendResult(data)
+    } finally {
+      setSending(false)
+      setTimeout(() => setSendResult(null), 6000)
+    }
+  }
+
+  const sendLabel = () => {
+    if (sending) return rtl ? '⏳ שולח...' : '⏳ Sending...'
+    if (sendResult?.ok === false) return rtl ? '✗ שגיאה' : '✗ Error'
+    if (sendResult?.ok && sendResult.alerts_sent === 0) return rtl ? '✓ אין התראות פתוחות' : '✓ No open alerts'
+    if (sendResult?.ok) return rtl ? `✓ נשלח (${sendResult.alerts_sent})` : `✓ Sent (${sendResult.alerts_sent})`
+    return rtl ? '📤 שלח עכשיו' : '📤 Send Now'
+  }
+
+  const sendBg = sendResult?.ok === false ? C.danger : sendResult?.ok ? C.success : '#475569'
 
   return (
     <div style={card}>
@@ -4271,7 +4295,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
       </label>
 
       {/* Language */}
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
           {rtl ? 'שפת האימייל' : 'Email language'}
         </label>
@@ -4285,9 +4309,19 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
         </div>
       </div>
 
-      <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
-        {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור' : 'Save')}
-      </button>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
+          {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור' : 'Save')}
+        </button>
+        <button onClick={sendNow} disabled={sending} style={{ background: sending || sendResult ? sendBg : '#475569', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', transition: 'background 0.2s', opacity: sending ? 0.8 : 1 }}>
+          {sendLabel()}
+        </button>
+      </div>
+      {sendResult?.ok === false && (
+        <div style={{ marginTop: 8, fontSize: 12, color: C.danger }}>
+          {rtl ? 'שגיאה בשליחה, נסה שוב' : 'Failed to send, please try again'}
+        </div>
+      )}
     </div>
   )
 }
