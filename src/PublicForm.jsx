@@ -383,6 +383,7 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
     trainer_name: '', topics: [], other_topic: '', confirmed: false,
   })
   const [files, setFiles] = useState([])
+  const [formError, setFormError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   function toggleTopic(t) {
@@ -394,7 +395,8 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.confirmed) { alert('יש לאשר קריאת ההצהרה'); return }
+    setFormError('')
+    if (!form.confirmed) { setFormError('יש לאשר קריאת ההצהרה לפני השליחה'); return }
     const attachments = await uploadFiles(files, link.company_id, link.id)
     onSubmit({ ...form, attachments })
   }
@@ -464,6 +466,11 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
         onRemove={i => setFiles(p => p.filter((_, j) => j !== i))}
       />
 
+      {formError && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 8, color: '#dc2626', fontSize: 14, fontWeight: 600, textAlign: 'right' }}>
+          ⚠ {formError}
+        </div>
+      )}
       <button type="submit" disabled={submitting || !form.confirmed} style={{ width: '100%', background: form.confirmed ? 'linear-gradient(135deg,#0891b2,#6366f1)' : C.border, color: form.confirmed ? '#fff' : C.textMuted, border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: (!submitting && form.confirmed) ? 'pointer' : 'not-allowed', marginTop: 4, transition: 'all 0.2s' }}>
         {submitting ? '…שולח' : '✅ אשר וחתום'}
       </button>
@@ -473,11 +480,12 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
 
 // ── Public Form Page (root) ───────────────────────────────────────────────────
 export default function PublicForm({ token }) {
-  const [link,       setLink]       = useState(null)
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [done,       setDone]       = useState(false)
+  const [link,        setLink]        = useState(null)
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [submitting,  setSubmitting]  = useState(false)
+  const [done,        setDone]        = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -507,7 +515,7 @@ export default function PublicForm({ token }) {
       submitter_name: data.submitter_name || '',
       data,
     })
-    if (error) { alert('שגיאה בשליחה: ' + error.message); setSubmitting(false); return }
+    if (error) { setSubmitError('שגיאה בשליחה: ' + error.message); setSubmitting(false); return }
 
     // Auto-create cost records for insurance / toll from car checklist
     if (link.type === 'car_checklist' && link.car_id) {
@@ -571,6 +579,11 @@ export default function PublicForm({ token }) {
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 4 }}>{link.title || meta?.title}</div>
             </div>
 
+            {submitError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 16px', marginBottom: 12, color: '#dc2626', fontSize: 14, fontWeight: 600, textAlign: 'right' }}>
+                ⚠ {submitError}
+              </div>
+            )}
             {link.type === 'car_checklist'    && <CarChecklistForm    link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'driver_car_check' && <DriverCarCheckForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'yearly_training'  && <YearlyTrainingForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}

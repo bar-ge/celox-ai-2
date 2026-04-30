@@ -179,6 +179,8 @@ const T = {
     noCars:'No vehicles found. Click + New Item to add one.',
     noDrivers:'No drivers found. Click + New Item to add one.',
     noBranches:'No branches found. Click + New Item to add one.',
+    noMatches:'No matches found', noVehiclesYet:'No vehicles yet', noDriversYet:'No drivers yet', noBranchesYet:'No branches yet',
+    tryDifferentSearch:'Try a different search term',
     loading:'Loading your workspace…',
     settings:'Settings', companyName:'Company Name', inviteCode:'Invite Code',
     copyCode:'Copy', codeCopied:'Copied!', members:'Team Members', removeMember:'Remove',
@@ -353,6 +355,8 @@ const T = {
     noCars:'לא נמצאו רכבים. לחץ על + פריט חדש להוספה.',
     noDrivers:'לא נמצאו נהגים. לחץ על + פריט חדש להוספה.',
     noBranches:'לא נמצאו סניפים. לחץ על + פריט חדש להוספה.',
+    noMatches:'אין תוצאות', noVehiclesYet:'אין רכבים עדיין', noDriversYet:'אין נהגים עדיין', noBranchesYet:'אין סניפים עדיין',
+    tryDifferentSearch:'נסה מונח חיפוש אחר',
     loading:'טוען את סביבת העבודה…',
     settings:'הגדרות', companyName:'שם חברה', inviteCode:'קוד הזמנה',
     copyCode:'העתק', codeCopied:'הועתק!', members:'חברי צוות', removeMember:'הסר',
@@ -2133,6 +2137,10 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
 
   async function addPlan(e) {
     e.preventDefault()
+    if (!planForm.km_interval && !planForm.month_interval) {
+      alert(rtl ? 'יש להגדיר מרווח ק"מ או מרווח חודשים' : 'Please set a km interval or a month interval.')
+      return
+    }
     const payload = {
       company_id: companyId,
       car_id: planForm.car_id ? parseInt(planForm.car_id, 10) : null,
@@ -2143,7 +2151,8 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
       last_date: planForm.last_date || null,
     }
     const { data, error } = await supabase.from('maintenance_plans').insert([payload]).select()
-    if (!error && data) {
+    if (error) { alert(error.message); return }
+    if (data) {
       setPlans(p => [data[0], ...p])
       setShowPlanAdd(false)
       setPlanForm({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '' })
@@ -2542,7 +2551,10 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
 
     // Update existing rows (driver_id + branch_id only)
     for (const r of toUpdate) {
-      const car = existingCars.find(c => c.plate?.trim().toLowerCase() === r.plate.trim().toLowerCase())
+      const car = existingCars.find(c =>
+        c.plate?.trim().toLowerCase() === r.plate.trim().toLowerCase() &&
+        c.company_id === companyId
+      )
       if (!car) continue
       const driverId = safeDriverId(r.driver_id)
       const branchId = branchByName(r.branch) || car.branch_id || null
@@ -3070,17 +3082,19 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
 }
 
 // ── Expiry Alerts Panel ───────────────────────────────────────────────────────
-function AlertsPanel({ rtl }) {
+function AlertsPanel({ rtl, companyId }) {
   const [alerts, setAlerts] = useState([])
   const [open,   setOpen]   = useState(true)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    supabase.rpc('get_expiry_alerts').then(({ data }) => {
+    if (!companyId) return
+    supabase.rpc('get_expiry_alerts').then(({ data, error }) => {
+      if (error) console.error('get_expiry_alerts failed:', error.message)
       setAlerts(data || [])
       setLoaded(true)
     })
-  }, [])
+  }, [companyId])
 
   if (!loaded || alerts.length === 0) return null
 
@@ -3129,9 +3143,10 @@ function ActivityLogSection({ companyId, t }) {
   const [hasMore, setHasMore] = useState(false)
   const PAGE = 50
 
-  useEffect(() => { loadPage(0) }, [companyId])
+  useEffect(() => { if (companyId) loadPage(0) }, [companyId])
 
   async function loadPage(p) {
+    if (!companyId) return
     setLoading(true)
     const { data } = await supabase.from('activity_log').select('*').eq('company_id', companyId)
       .order('created_at', { ascending: false }).range(p * PAGE, p * PAGE + PAGE)
@@ -3145,7 +3160,7 @@ function ActivityLogSection({ companyId, t }) {
 
   function exportLogs() {
     const rows = logs.map(l => ({
-      [t.actionAdd ? 'Action' : 'פעולה']: l.action,
+      [t.actionAdd === 'נוסף' ? 'פעולה' : 'Action']: l.action,
       'Entity': l.entity_type,
       'Name': l.entity_name || '',
       'User': l.user_email,
@@ -3354,7 +3369,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
 
       {/* Expiry alerts panel */}
-      <AlertsPanel rtl={rtl} />
+      <AlertsPanel rtl={rtl} companyId={companyId} />
 
       {/* Dashboard toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -4729,7 +4744,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   async function loadAll() {
     setLoading(true)
-    if (!activeCompanyId) { setBranches([]); setDrivers([]); setCars([]); setLoading(false); return }
+    setBranches([]); setDrivers([]); setCars([])
+    if (!activeCompanyId) { setLoading(false); return }
     const [{ data: b }, { data: d }, { data: c }, { data: co }, { data: cl }] = await Promise.all([
       supabase.from('branches').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('drivers').select('*').eq('company_id', activeCompanyId).order('created_at'),
@@ -4932,12 +4948,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     // Log driver assignment change for history
     const prev = cars.find(x => x.id === form.id)
     if (prev && prev.driver_id !== form.driver_id) {
-      await supabase.from('driver_car_history').insert([{
+      const { error: histErr } = await supabase.from('driver_car_history').insert([{
         company_id: activeCompanyId, car_id: form.id,
         driver_id: form.driver_id || null,
         driver_name: drivers.find(d => d.id === form.driver_id)?.name || null,
         assigned_at: new Date().toISOString(),
       }])
+      if (histErr) console.error('driver_car_history insert failed:', histErr.message)
       // Sync drivers.car_id — clear old driver's car_id, set new driver's car_id
       if (prev.driver_id) await supabase.from('drivers').update({ car_id: null }).eq('id', prev.driver_id)
       if (form.driver_id) await supabase.from('drivers').update({ car_id: String(form.id) }).eq('id', form.driver_id)
@@ -5495,12 +5512,12 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                       <tr><td colSpan={9} style={{ padding: '52px 24px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                           <span style={{ fontSize: 44, opacity: 0.18 }}>🚗</span>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches found' : 'No vehicles yet'}</div>
-                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? 'Try a different search term' : t.noCars}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? t.noMatches : t.noVehiclesYet}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? t.tryDifferentSearch : t.noCars}</div>
                         </div>
                       </td></tr>
                     )}
-                    {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
+                    {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => { setShowAdd(false); setEditingId(null) }} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
 
                     {activeTab === 'drivers' && filteredDrivers.map(driver =>
                       editingId === driver.id
@@ -5513,12 +5530,12 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                       <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                           <span style={{ fontSize: 44, opacity: 0.18 }}>👤</span>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches found' : 'No drivers yet'}</div>
-                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? 'Try a different search term' : t.noDrivers}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? t.noMatches : t.noDriversYet}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? t.tryDifferentSearch : t.noDrivers}</div>
                         </div>
                       </td></tr>
                     )}
-                    {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
+                    {activeTab === 'drivers' && showAdd && <AddDriverRow branches={branches} onAdd={addDriver} onCancel={() => { setShowAdd(false); setEditingId(null) }} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
 
                     {activeTab === 'branches' && filteredBranches.map((branch, i) =>
                       editingId === branch.id
@@ -5531,12 +5548,12 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                       <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                           <span style={{ fontSize: 44, opacity: 0.18 }}>🏢</span>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches found' : 'No branches yet'}</div>
-                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? 'Try a different search term' : t.noBranches}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? t.noMatches : t.noBranchesYet}</div>
+                          <div style={{ fontSize: 13, color: C.textMuted }}>{search ? t.tryDifferentSearch : t.noBranches}</div>
                         </div>
                       </td></tr>
                     )}
-                    {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => setShowAdd(false)} t={t} rtl={rtl} mobile={false} />}
+                    {activeTab === 'branches' && showAdd && <AddBranchRow onAdd={addBranch} onCancel={() => { setShowAdd(false); setEditingId(null) }} t={t} rtl={rtl} mobile={false} />}
                   </tbody>
                 </table>
                 </div>

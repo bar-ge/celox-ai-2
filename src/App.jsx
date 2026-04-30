@@ -661,7 +661,8 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
     supabase.functions.invoke('send-notification', {
       body: { type: 'member_joined', payload: { new_member_email: session.user.email, company_id: companyId } },
     }).catch(() => {})
-    onDone(session)
+    // Refresh profile before advancing so downstream code sees the new company_id
+    await onDone(session)
   }
 
   return (
@@ -772,7 +773,12 @@ export default function App() {
       .maybeSingle()
 
     if (!data) {
-      await supabase.from('profiles').insert({ id: s.user.id, email: s.user.email, role: 'member' })
+      const { error: insertErr } = await supabase
+        .from('profiles')
+        .insert({ id: s.user.id, email: s.user.email, role: 'member' })
+      if (insertErr) {
+        console.error('Failed to create profile:', insertErr.message)
+      }
       setProfile({ id: s.user.id, email: s.user.email, company_id: null, role: 'member', companies: null })
     } else {
       setProfile(data)
