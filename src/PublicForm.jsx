@@ -663,7 +663,8 @@ export default function PublicForm({ token }) {
       await supabase.rpc('create_costs_from_checklist', { p_submission_id: submissionId })
     }
 
-    // Notify admin of new submission (fire-and-forget)
+    // Notify admin of new submission (fire-and-forget) — strip attachments from email payload
+    const { attachments: _att, ...formDataForEmail } = data
     supabase.functions.invoke('send-notification', {
       body: {
         type: 'form_submitted',
@@ -672,6 +673,7 @@ export default function PublicForm({ token }) {
           form_title: link.title,
           submitter_name: data.submitter_name || 'לא ידוע',
           form_type: link.type,
+          form_data: formDataForEmail,
         },
       },
     }).catch(() => {})

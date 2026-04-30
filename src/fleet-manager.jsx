@@ -4240,6 +4240,58 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
 }
 
 // ── Budget Settings ──────────────────────────────────────────────────────────
+function EmailNotifSettings({ companyId, company, t, rtl }) {
+  const [alertsOn, setAlertsOn] = useState(company?.email_alerts_enabled !== false)
+  const [lang,     setLang]     = useState(company?.email_lang ?? 'he')
+  const [saved,    setSaved]    = useState(false)
+  const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
+
+  async function save() {
+    await supabase.from('companies').update({ email_alerts_enabled: alertsOn, email_lang: lang }).eq('id', companyId)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div style={card}>
+      <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
+        📧 {rtl ? 'הגדרות התראות אימייל' : 'Email Notifications'}
+      </h3>
+
+      {/* Toggle */}
+      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{rtl ? 'שלח התראות יומיות' : 'Send daily alerts'}</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'תחזוקה, מסמכים ורישיונות שפג תוקפם' : 'Maintenance, documents and expiring licenses'}</div>
+        </div>
+        <div
+          onClick={() => setAlertsOn(p => !p)}
+          style={{ width: 44, height: 24, borderRadius: 12, background: alertsOn ? C.primary : C.border, position: 'relative', transition: 'background 0.2s', flexShrink: 0, cursor: 'pointer' }}>
+          <div style={{ position: 'absolute', top: 3, left: alertsOn ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+        </div>
+      </label>
+
+      {/* Language */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
+          {rtl ? 'שפת האימייל' : 'Email language'}
+        </label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[{ val: 'he', label: '🇮🇱 עברית' }, { val: 'en', label: '🇬🇧 English' }].map(opt => (
+            <label key={opt.val} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `2px solid ${lang === opt.val ? C.primary : C.border}`, cursor: 'pointer', background: lang === opt.val ? C.primary + '08' : '#f8fafc', fontSize: 13, fontWeight: 600 }}>
+              <input type="radio" name="emailLang" value={opt.val} checked={lang === opt.val} onChange={() => setLang(opt.val)} style={{ accentColor: C.primary }} />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
+        {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור' : 'Save')}
+      </button>
+    </div>
+  )
+}
+
 function BudgetSettings({ companyId, t, rtl }) {
   const [budget, setBudget] = useState('')
   const [saved,  setSaved]  = useState(false)
@@ -4582,6 +4634,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Monthly budget — admin only */}
           {isAdmin && companyId && (
             <BudgetSettings companyId={companyId} t={t} rtl={rtl} />
+          )}
+
+          {/* Email notifications — admin only */}
+          {isAdmin && companyId && (
+            <EmailNotifSettings companyId={companyId} company={company} t={t} rtl={rtl} />
           )}
 
           {/* Export all data — admin only */}
