@@ -2905,6 +2905,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const [costs, setCosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [addError, setAddError] = useState('')
   const [selectedCostIds, setSelectedCostIds] = useState([])
   const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' })
   const inp = inlineInput(rtl)
@@ -2913,32 +2914,45 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   useEffect(() => { load() }, [companyId])
   async function load() {
     setLoading(true)
+    if (!companyId) { setCosts([]); setLoading(false); return }
     const { data } = await supabase.from('costs').select('*').eq('company_id', companyId).order('date', { ascending: false })
     setCosts(data || [])
     setLoading(false)
   }
   async function add(e) {
     e.preventDefault()
+    setAddError('')
+    if (!companyId) return
+    const amount = parseFloat(form.amount)
+    if (!form.date || isNaN(amount) || amount <= 0) {
+      setAddError(rtl ? 'סכום ותאריך הם שדות חובה.' : 'Amount and date are required.')
+      return
+    }
     const { data, error } = await supabase.from('costs').insert([{
       company_id: companyId,
       car_id: form.car_id ? parseInt(form.car_id, 10) : null,
       driver_id: form.driver_id || null,
-      category: form.category, amount: parseFloat(form.amount),
+      category: form.category, amount,
       description: form.description || null, date: form.date,
     }]).select()
-    if (!error && data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' }) }
+    if (error) { setAddError(error.message); return }
+    if (data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setAddError(''); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' }) }
   }
   async function del(id) {
     if (!window.confirm(t.confirmDelete)) return
-    await supabase.from('costs').delete().eq('id', id)
-    setCosts(p => p.filter(c => c.id !== id))
-    setSelectedCostIds(p => p.filter(x => x !== id))
+    const { error } = await supabase.from('costs').delete().eq('id', id).eq('company_id', companyId)
+    if (!error) {
+      setCosts(p => p.filter(c => c.id !== id))
+      setSelectedCostIds(p => p.filter(x => x !== id))
+    }
   }
   async function bulkDelCosts() {
     if (!selectedCostIds.length || !window.confirm(t.confirmDelete)) return
-    await supabase.from('costs').delete().in('id', selectedCostIds)
-    setCosts(p => p.filter(c => !selectedCostIds.includes(c.id)))
-    setSelectedCostIds([])
+    const { error } = await supabase.from('costs').delete().in('id', selectedCostIds).eq('company_id', companyId)
+    if (!error) {
+      setCosts(p => p.filter(c => !selectedCostIds.includes(c.id)))
+      setSelectedCostIds([])
+    }
   }
   function toggleCost(id) { setSelectedCostIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]) }
   function toggleAllCosts() {
@@ -3023,6 +3037,11 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button type="submit" style={{ ...btnPrimary, padding: '8px 18px', fontSize: 13, width: '100%' }}>{t.add}</button>
             </div>
+            {addError && (
+              <div style={{ gridColumn: '1 / -1', padding: '8px 12px', background: C.danger + '10', border: `1px solid ${C.danger}30`, borderRadius: 8, fontSize: 13, color: C.danger, fontWeight: 600 }}>
+                ⚠ {addError}
+              </div>
+            )}
           </form>
         )}
       </div>
@@ -3067,7 +3086,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                   </td>
                   <td style={mkTd(rtl, isMobile)}>{fmtDate(c.date)}</td>
                   <td style={mkTd(rtl, isMobile)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
-                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>₪{parseFloat(c.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>₪{parseFloat(c.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.car_id ? carName(c.car_id) : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
