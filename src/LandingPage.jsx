@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+const Car3D = lazy(() => import('./Car3D.jsx'))
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
@@ -728,6 +729,7 @@ export default function LandingPage() {
 
   return (
     <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+      <Suspense fallback={null}><Car3D scrollY={scrollY} /></Suspense>
       <Nav t={t} lang={lang} setLang={setLang} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
       <Hero t={t} scrollY={scrollY} />
       <Stats t={t} />
