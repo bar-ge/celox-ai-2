@@ -144,8 +144,10 @@ const CSS = `
   .lp-d8{transition-delay:.63s}
 
   /* ── Nav ── */
-  .lp-nav-link { transition:color .18s; cursor:pointer }
-  .lp-nav-link:hover { color:#2563eb !important }
+  .lp-nav-link { transition:color .18s, opacity .18s; cursor:pointer }
+  .lp-nav-link:hover { opacity:1 !important; color:#60a5fa !important }
+
+  .lp-nav-pill { transition:background .4s, box-shadow .4s, border-color .4s }
 
   /* ── Buttons ── */
   .lp-btn-primary { transition:transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s !important }
@@ -166,8 +168,8 @@ const CSS = `
   .lp-icon { display:flex; align-items:center; justify-content:center; transition:transform .38s cubic-bezier(.22,1,.36,1) }
 
   /* ── Lang btn ── */
-  .lp-lang-btn { transition:background .18s, border-color .18s, color .18s }
-  .lp-lang-btn:hover { background:#f1f5f9 !important; border-color:#94a3b8 !important }
+  .lp-lang-btn { transition:color .18s }
+  .lp-lang-btn:hover { color:rgba(255,255,255,.9) !important }
 
   /* ── Stat counter ── */
   .lp-stat-item { transition:transform .38s cubic-bezier(.22,1,.36,1) }
@@ -269,65 +271,84 @@ function SectionHead({ chip, h, sub, light, dir }) {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
-  const nav = {
-    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '0 64px', height: 66,
-    background: solid ? 'rgba(255,255,255,.96)' : 'transparent',
-    backdropFilter: solid ? 'blur(20px)' : 'none',
-    borderBottom: solid ? `1px solid ${P.border}` : 'none',
-    transition: 'background .4s, border-color .4s, backdrop-filter .4s',
-    direction: t.dir,
-  }
-  const linkColor = solid ? P.sub : 'rgba(255,255,255,.75)'
-  const linkStyle = { fontSize: 14, fontWeight: 500, color: linkColor, textDecoration: 'none', padding: '4px 0' }
+  const sep = <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,.12)', flexShrink: 0 }} />
+  const linkStyle = { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.65)', cursor: 'pointer', padding: '4px 2px', letterSpacing: .1 }
 
   return (
     <>
-      <nav style={nav}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}
+      {/* ── Floating pill ── */}
+      <nav className="lp-nav-pill" style={{
+        position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 1000, display: 'flex', alignItems: 'center', gap: 20,
+        padding: '0 8px 0 20px',
+        height: 50,
+        background: solid ? 'rgba(8,14,28,.88)' : 'rgba(8,14,28,.6)',
+        backdropFilter: 'blur(28px)',
+        border: '1px solid rgba(255,255,255,.1)',
+        borderRadius: 100,
+        boxShadow: solid ? '0 8px 40px rgba(0,0,0,.35)' : '0 4px 24px rgba(0,0,0,.2)',
+        direction: t.dir,
+        whiteSpace: 'nowrap',
+      }}>
+
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#2563eb,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>🚗</div>
-          <span style={{ fontSize: 17, fontWeight: 800, color: solid ? P.text : '#fff', letterSpacing: -.3 }}>
-            Celox <span style={{ color: P.blue }}>AI</span>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg,#2563eb,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>🚗</div>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: -.3 }}>
+            Celox <span style={{ color: '#60a5fa' }}>AI</span>
           </span>
         </div>
 
-        <div className="lp-nav-links" style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
+        {sep}
+
+        {/* Links */}
+        <div className="lp-nav-links" style={{ display: 'flex', gap: 26, alignItems: 'center' }}>
           {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
             <span key={id} className="lp-nav-link" style={linkStyle} onClick={() => scrollTo(id)}>{t.nav[k]}</span>
           ))}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {sep}
+
+        {/* Right: lang + CTA */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button className="lp-lang-btn" onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
-            style={{ background: 'transparent', border: `1px solid ${solid ? P.border : 'rgba(255,255,255,.25)'}`, color: solid ? P.sub : 'rgba(255,255,255,.75)', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: .5 }}>
+            style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: .8, padding: '4px 8px' }}>
             {t.langBtn}
           </button>
           <a href="/app" className="lp-btn-primary"
-            style={{ display: 'inline-block', background: P.blue, color: '#fff', textDecoration: 'none', padding: '9px 22px', borderRadius: 10, fontSize: 13, fontWeight: 700, boxShadow: '0 4px 16px rgba(37,99,235,.3)', whiteSpace: 'nowrap' }}>
+            style={{ display: 'inline-block', background: P.blue, color: '#fff', textDecoration: 'none', padding: '9px 20px', borderRadius: 100, fontSize: 12, fontWeight: 700, boxShadow: '0 2px 14px rgba(37,99,235,.4)', letterSpacing: .1 }}>
             {t.nav.enter}
           </a>
           <button className="lp-hamburger" onClick={() => setMobileOpen(p => !p)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, flexDirection: 'column', gap: 5, color: solid ? P.text : '#fff' }}>
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px', flexDirection: 'column', gap: 5, color: '#fff' }}>
             {[0,1,2].map(i => (
-              <span key={i} style={{ display: 'block', width: 22, height: 2, background: 'currentColor', borderRadius: 2, transition: 'all .25s',
-                transform: mobileOpen ? (i===0?'rotate(45deg) translateY(7px)':i===2?'rotate(-45deg) translateY(-7px)':'none') : 'none',
+              <span key={i} style={{ display: 'block', width: 20, height: 1.5, background: 'currentColor', borderRadius: 2, transition: 'all .25s',
+                transform: mobileOpen ? (i===0?'rotate(45deg) translateY(6.5px)':i===2?'rotate(-45deg) translateY(-6.5px)':'none') : 'none',
                 opacity: mobileOpen && i===1 ? 0 : 1 }} />
             ))}
           </button>
         </div>
       </nav>
 
+      {/* ── Mobile dropdown ── */}
       {mobileOpen && (
-        <div style={{ position: 'fixed', top: 66, left: 0, right: 0, zIndex: 999, background: 'rgba(255,255,255,.98)', backdropFilter: 'blur(20px)', borderBottom: `1px solid ${P.border}`, padding: '16px 24px 24px', direction: t.dir }}>
+        <div style={{
+          position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 999, width: 'calc(100vw - 40px)', maxWidth: 400,
+          background: 'rgba(8,14,28,.95)', backdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255,255,255,.1)', borderRadius: 20,
+          padding: '12px 20px 20px', direction: t.dir,
+          boxShadow: '0 12px 48px rgba(0,0,0,.4)',
+        }}>
           {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
             <div key={id} onClick={() => scrollTo(id)}
-              style={{ padding: '13px 0', borderBottom: `1px solid ${P.border}`, fontSize: 15, fontWeight: 600, color: P.text, cursor: 'pointer' }}>
+              style={{ padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.07)', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.8)', cursor: 'pointer' }}>
               {t.nav[k]}
             </div>
           ))}
-          <a href="/app" style={{ display: 'block', marginTop: 18, background: P.blue, color: '#fff', textDecoration: 'none', padding: '14px', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center' }}>
+          <a href="/app" style={{ display: 'block', marginTop: 16, background: P.blue, color: '#fff', textDecoration: 'none', padding: '14px', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center' }}>
             {t.nav.enter}
           </a>
         </div>
