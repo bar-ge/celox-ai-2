@@ -62,6 +62,20 @@ const T = {
       sub: 'הצטרף לעסקים שכבר משתמשים ב‑Celox AI',
       btn: 'כניסה למערכת',
     },
+    contact: {
+      badge: 'צור קשר',
+      h: 'נשמח לשמוע ממך',
+      sub: 'מלא את הטופס ונחזור אליך בהקדם האפשרי',
+      name: 'שם מלא', namePh: 'ישראל ישראלי',
+      company: 'שם חברה', companyPh: 'אופציונלי',
+      phone: 'טלפון', phonePh: '050-0000000',
+      email: 'אימייל', emailPh: 'you@example.com',
+      message: 'הערות', messagePh: 'ספר לנו על הצי שלך...',
+      send: 'שלח הודעה',
+      sending: 'שולח...',
+      success: '✓ ההודעה נשלחה! נחזור אליך בקרוב.',
+      error: 'אירעה שגיאה. נסה שוב.',
+    },
     footer: '© 2025 Celox AI · כל הזכויות שמורות',
   },
   en: {
@@ -107,6 +121,20 @@ const T = {
       h: 'Take Your Fleet Management to the Next Level',
       sub: 'Join businesses already using Celox AI',
       btn: 'Enter System',
+    },
+    contact: {
+      badge: 'Contact Us',
+      h: "We'd love to hear from you",
+      sub: 'Fill in the form and we\'ll get back to you as soon as possible',
+      name: 'Full Name', namePh: 'John Smith',
+      company: 'Company Name', companyPh: 'Optional',
+      phone: 'Phone', phonePh: '+1 555 000 0000',
+      email: 'Email', emailPh: 'you@example.com',
+      message: 'Comments', messagePh: 'Tell us about your fleet...',
+      send: 'Send Message',
+      sending: 'Sending...',
+      success: '✓ Message sent! We\'ll be in touch soon.',
+      error: 'Something went wrong. Please try again.',
     },
     footer: '© 2025 Celox AI · All rights reserved',
   },
@@ -201,6 +229,19 @@ const CSS = `
     .lp-hero-ctas{ flex-direction:column !important }
     .lp-hero-ctas a,.lp-hero-ctas span{ width:100% !important; text-align:center !important }
   }
+
+  /* ── Contact form ── */
+  .lp-input {
+    width:100%; box-sizing:border-box;
+    background:#fff; border:1.5px solid #e2e8f0; border-radius:12px;
+    padding:13px 16px; font-size:14px; color:#0f172a;
+    outline:none; transition:border-color .2s, box-shadow .2s;
+    font-family:inherit;
+  }
+  .lp-input::placeholder { color:#94a3b8 }
+  .lp-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1) }
+  .lp-input:hover:not(:focus) { border-color:#94a3b8 }
+  textarea.lp-input { resize:vertical; min-height:120px; line-height:1.6 }
 
   html, body { margin:0; padding:0; overflow-x:hidden; width:100% }
 
@@ -468,7 +509,7 @@ function Features({ t }) {
 // ── CTA ───────────────────────────────────────────────────────────────────────
 function CTASection({ t }) {
   return (
-    <section id="contact" style={{ background: P.dark, padding: '140px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+    <section style={{ background: P.dark, padding: '140px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%)', filter: 'blur(70px)', animation: 'lp-pulse 8s ease-in-out infinite' }} />
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px)', backgroundSize: '44px 44px' }} />
 
@@ -486,6 +527,93 @@ function CTASection({ t }) {
           {['🔒 מאובטח', '☁️ ענן', '📱 כל מכשיר', '⚡ 24/7'].map((x,i) => (
             <span key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', fontWeight: 500 }}>{x}</span>
           ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Contact ───────────────────────────────────────────────────────────────────
+function ContactSection({ t }) {
+  const c = t.contact
+  const [form, setForm]     = useState({ name: '', company: '', phone: '', email: '', message: '' })
+  const [sending, setSending] = useState(false)
+  const [done, setDone]     = useState(false)
+  const [err, setErr]       = useState(null)
+
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  const submit = async e => {
+    e.preventDefault()
+    setSending(true); setErr(null)
+    try {
+      const r = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (r.ok) setDone(true)
+      else setErr(c.error)
+    } catch { setErr(c.error) }
+    finally { setSending(false) }
+  }
+
+  const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: P.text, marginBottom: 6 }
+  const optStyle   = { fontSize: 12, color: P.muted, fontWeight: 400 }
+
+  return (
+    <section id="contact" style={{ background: P.light, padding: '120px 64px', direction: t.dir }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+        <SectionHead chip={c.badge} h={c.h} sub={c.sub} dir={t.dir} />
+
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          {done ? (
+            <div className="lp-rs lp-visible" style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 16, padding: '32px', textAlign: 'center', fontSize: 17, fontWeight: 700, color: '#15803d' }}>
+              {c.success}
+            </div>
+          ) : (
+            <form onSubmit={submit}>
+              <div style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 24, padding: '40px 44px', boxShadow: '0 4px 32px rgba(0,0,0,.05)' }}>
+
+                {/* Row: name + company */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <label style={labelStyle}>{c.name}</label>
+                    <input className="lp-input" required value={form.name} onChange={set('name')} placeholder={c.namePh} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{c.company} <span style={optStyle}>({t.dir === 'rtl' ? 'אופציונלי' : 'optional'})</span></label>
+                    <input className="lp-input" value={form.company} onChange={set('company')} placeholder={c.companyPh} />
+                  </div>
+                </div>
+
+                {/* Row: phone + email */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <label style={labelStyle}>{c.phone}</label>
+                    <input className="lp-input" required type="tel" value={form.phone} onChange={set('phone')} placeholder={c.phonePh} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{c.email}</label>
+                    <input className="lp-input" required type="email" value={form.email} onChange={set('email')} placeholder={c.emailPh} />
+                  </div>
+                </div>
+
+                {/* Comments */}
+                <div style={{ marginBottom: 24 }}>
+                  <label style={labelStyle}>{c.message}</label>
+                  <textarea className="lp-input" value={form.message} onChange={set('message')} placeholder={c.messagePh} />
+                </div>
+
+                {err && <div style={{ marginBottom: 16, padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 13, color: '#dc2626' }}>{err}</div>}
+
+                <button type="submit" disabled={sending} className="lp-btn-primary"
+                  style={{ width: '100%', background: P.blue, color: '#fff', border: 'none', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? .7 : 1, boxShadow: '0 8px 28px rgba(37,99,235,.35)', fontFamily: 'inherit' }}>
+                  {sending ? c.sending : c.send}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </section>
@@ -578,6 +706,7 @@ export default function LandingPage() {
       <About t={t} />
       <Features t={t} />
       <CTASection t={t} />
+      <ContactSection t={t} />
       <Footer t={t} />
     </div>
   )
