@@ -370,35 +370,10 @@ function About({ t }) {
         </div>
 
         {/* 2-col: image + cards */}
-        <div className="lp-about-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
-
-          {/* Image frame — hidden on mobile via CSS */}
-          <div className={`lp-about-img lp-reveal lp-d2 lp-img-frame`}
-            style={{
-              order: isRtl ? 2 : 1,
-              position: 'relative',
-              borderRadius: 24,
-              overflow: 'hidden',
-              boxShadow: '0 40px 90px rgba(0,0,0,.65), 0 0 0 1px rgba(37,99,235,.18)',
-              transform: `perspective(1200px) rotateY(${isRtl ? '6deg' : '-6deg'}) rotateX(3deg)`,
-            }}>
-            <div style={{ width: '100%', aspectRatio: '700/520', backgroundImage: 'url(https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(.82) saturate(.72)' }} />
-            {/* Gradient overlay */}
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(3,7,15,.55) 0%, transparent 50%)' }} />
-            {/* Floating badge on image */}
-            <div style={{ position: 'absolute', bottom: 24, left: 24, right: 24, background: 'rgba(3,7,15,.82)', backdropFilter: 'blur(16px)', borderRadius: 14, padding: '14px 18px', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🚗</div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Celox AI Fleet</div>
-                <div style={{ fontSize: 11, color: P.sub, marginTop: 1 }}>{isRtl ? 'מערכת ניהול צי בזמן אמת' : 'Real-time fleet management'}</div>
-              </div>
-              <div style={{ marginRight: 'auto', marginLeft: 'auto' }} />
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,.1)', padding: '3px 10px', borderRadius: 20 }}>● LIVE</div>
-            </div>
-          </div>
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
 
           {/* Pillar cards */}
-          <div style={{ order: isRtl ? 1 : 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {t.about.cards.map((c, i) => (
               <div key={i} className={`lp-pillar lp-reveal lp-d${i + 2}`}
                 style={{ display: 'flex', gap: 18, alignItems: 'flex-start', background: P.card, border: `1px solid ${P.border}`, borderRadius: 18, padding: '22px 24px', backdropFilter: 'blur(10px)' }}>
