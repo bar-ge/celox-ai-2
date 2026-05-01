@@ -382,10 +382,9 @@ function About({ t }) {
               boxShadow: '0 40px 90px rgba(0,0,0,.65), 0 0 0 1px rgba(37,99,235,.18)',
               transform: `perspective(1200px) rotateY(${isRtl ? '6deg' : '-6deg'}) rotateX(3deg)`,
             }}>
-            <img src="https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=700&q=80" alt="fleet vehicles"
-              style={{ display: 'block', width: '100%', filter: 'brightness(.82) saturate(.75)' }} />
-            {/* Gradient overlay on image */}
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(37,99,235,.12), rgba(6,182,212,.08))' }} />
+            <div style={{ width: '100%', aspectRatio: '700/520', backgroundImage: 'url(https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(.82) saturate(.72)' }} />
+            {/* Gradient overlay */}
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(3,7,15,.55) 0%, transparent 50%)' }} />
             {/* Floating badge on image */}
             <div style={{ position: 'absolute', bottom: 24, left: 24, right: 24, background: 'rgba(3,7,15,.82)', backdropFilter: 'blur(16px)', borderRadius: 14, padding: '14px 18px', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🚗</div>
