@@ -1,30 +1,31 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
-  bg:     '#03070f',
-  bg2:    '#060d1a',
-  card:   'rgba(255,255,255,0.03)',
+  dark:   '#04080f',
+  dark2:  '#0a1628',
+  white:  '#ffffff',
+  light:  '#f8fafc',
+  light2: '#f1f5f9',
+  border: '#e2e8f0',
+  text:   '#0f172a',
+  sub:    '#475569',
+  muted:  '#94a3b8',
   blue:   '#2563eb',
   blueL:  '#3b82f6',
-  cyan:   '#06b6d4',
-  purple: '#7c3aed',
-  gold:   '#f59e0b',
-  border: 'rgba(255,255,255,0.07)',
-  sub:    '#94a3b8',
-  muted:  '#475569',
+  cyan:   '#0891b2',
 }
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
   he: {
-    dir: 'rtl', langBtn: 'EN', align: 'right',
+    dir: 'rtl', langBtn: 'EN',
     nav: { what: 'מה אנחנו עושים', features: 'יתרונות', contact: 'צור קשר', enter: 'כניסה למערכת' },
     hero: {
-      badge: 'מערכת ניהול צי מתקדמת',
-      h1: 'ניהול צי רכבים',
-      h2: 'חכם, יעיל ומהיר',
-      sub: 'כל מה שאתה צריך לנהל את הצי שלך — רכבים, נהגים, עלויות ומסמכים — במקום אחד.',
+      badge: 'ניהול צי רכבים',
+      h1: 'שליטה מלאה',
+      h2: 'על כל הצי שלך',
+      sub: 'כל מה שאתה צריך לנהל רכבים, נהגים, עלויות ומסמכים — במקום אחד.',
       cta1: 'כניסה למערכת', cta2: 'גלה עוד',
     },
     stats: [
@@ -35,7 +36,7 @@ const T = {
     ],
     about: {
       badge: 'מה אנחנו עושים',
-      h: 'שליטה מלאה על כל הצי שלך',
+      h: 'ניהול, מעקב וייעול הפעילות הלוגיסטית שלך',
       sub: 'ניהול, מעקב וייעול הפעילות הלוגיסטית שלך — הכל בזמן אמת.',
       cards: [
         { icon: '🚗', t: 'מעקב בזמן אמת',  d: 'ניהול מלא של כל הרכבים, הסטטוס, השיוך והמשימות — בזמן אמת' },
@@ -58,20 +59,20 @@ const T = {
     cta: {
       badge: 'מוכן להתחיל?',
       h: 'קח את ניהול הצי שלך לרמה הבאה',
-      sub: 'הצטרף לעסקים שכבר משתמשים ב‑Celox AI ומנהלים את הצי שלהם בחכמה ויעילות',
+      sub: 'הצטרף לעסקים שכבר משתמשים ב‑Celox AI',
       btn: 'כניסה למערכת',
     },
     footer: '© 2025 Celox AI · כל הזכויות שמורות',
   },
   en: {
-    dir: 'ltr', langBtn: 'עב', align: 'left',
+    dir: 'ltr', langBtn: 'עב',
     nav: { what: 'What We Do', features: 'Features', contact: 'Contact', enter: 'Enter System' },
     hero: {
-      badge: 'Advanced Fleet Management Platform',
-      h1: 'Fleet Management',
-      h2: 'Smart, Efficient & Fast',
-      sub: 'Everything you need to manage your fleet — vehicles, drivers, costs and documents — all in one place.',
-      cta1: 'Enter System', cta2: 'Discover More',
+      badge: 'Fleet Management',
+      h1: 'Full Control',
+      h2: 'Over Your Fleet',
+      sub: 'Everything you need to manage vehicles, drivers, costs and documents — all in one place.',
+      cta1: 'Enter System', cta2: 'Learn More',
     },
     stats: [
       { n: '500+', l: 'Vehicles Managed' },
@@ -81,7 +82,7 @@ const T = {
     ],
     about: {
       badge: 'What We Do',
-      h: 'Full Control Over Your Entire Fleet',
+      h: 'Manage, track and optimize your logistics',
       sub: 'Manage, track and optimize your logistics operations — all in real time.',
       cards: [
         { icon: '🚗', t: 'Real-Time Tracking',  d: 'Full management of all vehicles, status, assignments and tasks — in real time' },
@@ -104,138 +105,130 @@ const T = {
     cta: {
       badge: 'Ready to Start?',
       h: 'Take Your Fleet Management to the Next Level',
-      sub: 'Join businesses already using Celox AI to manage their fleet smarter and more efficiently',
+      sub: 'Join businesses already using Celox AI',
       btn: 'Enter System',
     },
     footer: '© 2025 Celox AI · All rights reserved',
   },
 }
 
-// ── Injected CSS ──────────────────────────────────────────────────────────────
-const GLOBAL_CSS = `
-  @keyframes lp-fadeUp   { from { opacity:0; transform:translateY(36px) } to { opacity:1; transform:translateY(0) } }
-  @keyframes lp-float    { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-18px) } }
-  @keyframes lp-pulse    { 0%,100% { opacity:.55; transform:scale(1) } 50% { opacity:1; transform:scale(1.06) } }
-  @keyframes lp-drift    { 0% { transform:translateX(0) translateY(0) } 33% { transform:translateX(18px) translateY(-12px) } 66% { transform:translateX(-14px) translateY(8px) } 100% { transform:translateX(0) translateY(0) } }
-  @keyframes lp-spin     { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
-  @keyframes lp-shimmer  { 0% { background-position:-400% center } 100% { background-position:400% center } }
-  @keyframes lp-scroll   { 0%,100% { opacity:1; transform:translateY(0) } 50% { opacity:.3; transform:translateY(8px) } }
-  @keyframes lp-particle { 0% { transform:translateY(0) scale(1); opacity:.7 } 100% { transform:translateY(-120px) scale(0); opacity:0 } }
+// ── CSS ───────────────────────────────────────────────────────────────────────
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
 
-  .lp-reveal { opacity:0; transform:translateY(28px); transition:opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1) }
-  .lp-reveal.lp-visible { opacity:1; transform:translateY(0) }
-  .lp-d1{transition-delay:.05s} .lp-d2{transition-delay:.12s} .lp-d3{transition-delay:.19s}
-  .lp-d4{transition-delay:.26s} .lp-d5{transition-delay:.33s} .lp-d6{transition-delay:.40s}
+  @keyframes lp-up    { from { opacity:0; transform:translateY(32px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes lp-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+  @keyframes lp-pulse { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)} }
+  @keyframes lp-drift { 0%{transform:translate(0,0)} 33%{transform:translate(20px,-14px)} 66%{transform:translate(-16px,10px)} 100%{transform:translate(0,0)} }
+  @keyframes lp-scroll{ 0%,100%{opacity:1;transform:translateY(0)} 50%{opacity:.3;transform:translateY(8px)} }
 
-  .lp-nav-link { transition:color .2s ease; cursor:pointer }
-  .lp-nav-link:hover { color:#60a5fa !important }
+  .lp-reveal { opacity:0; transform:translateY(24px); transition:opacity .85s cubic-bezier(.16,1,.3,1), transform .85s cubic-bezier(.16,1,.3,1) }
+  .lp-visible { opacity:1 !important; transform:translateY(0) !important }
+  .lp-d1{transition-delay:.04s}.lp-d2{transition-delay:.1s}.lp-d3{transition-delay:.16s}
+  .lp-d4{transition-delay:.22s}.lp-d5{transition-delay:.28s}.lp-d6{transition-delay:.34s}
 
-  .lp-cta-btn { transition:transform .25s ease, box-shadow .25s ease !important }
-  .lp-cta-btn:hover { transform:translateY(-3px) !important; box-shadow:0 20px 52px rgba(37,99,235,.55) !important }
+  .lp-nav-link { transition:color .18s; cursor:pointer }
+  .lp-nav-link:hover { color:#2563eb !important }
 
-  .lp-ghost-btn { transition:background .25s, border-color .25s !important }
-  .lp-ghost-btn:hover { background:rgba(255,255,255,.09) !important; border-color:rgba(255,255,255,.28) !important }
+  .lp-btn-primary { transition:transform .22s ease, box-shadow .22s ease !important }
+  .lp-btn-primary:hover { transform:translateY(-2px) !important; box-shadow:0 16px 44px rgba(37,99,235,.45) !important }
 
-  .lp-feat-card { transition:transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s, border-color .35s }
-  .lp-feat-card:hover { transform:translateY(-10px) scale(1.01) !important; box-shadow:0 28px 64px rgba(37,99,235,.2) !important; border-color:rgba(37,99,235,.38) !important }
+  .lp-btn-ghost { transition:background .2s, border-color .2s, color .2s !important }
+  .lp-btn-ghost:hover { background:rgba(37,99,235,.06) !important; border-color:#2563eb !important; color:#2563eb !important }
 
-  .lp-pillar { transition:transform .3s ease, box-shadow .3s ease }
-  .lp-pillar:hover { transform:translateY(-6px) !important; box-shadow:0 18px 50px rgba(37,99,235,.14) !important }
+  .lp-feat-card { transition:transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s, border-color .3s }
+  .lp-feat-card:hover { transform:translateY(-6px) !important; box-shadow:0 20px 48px rgba(0,0,0,.09) !important; border-color:#bfdbfe !important }
 
-  .lp-img-frame { transition:transform .5s cubic-bezier(.16,1,.3,1), box-shadow .5s ease }
-  .lp-img-frame:hover { transform:perspective(1200px) rotateY(0deg) rotateX(0deg) scale(1.02) !important; box-shadow:0 48px 100px rgba(0,0,0,.7), 0 0 60px rgba(37,99,235,.25) !important }
+  .lp-pillar { transition:transform .3s ease, box-shadow .3s }
+  .lp-pillar:hover { transform:translateY(-4px) !important; box-shadow:0 12px 36px rgba(0,0,0,.08) !important }
 
-  .lp-lang-btn { transition:background .2s, color .2s, border-color .2s }
-  .lp-lang-btn:hover { background:rgba(255,255,255,.1) !important; border-color:rgba(255,255,255,.25) !important }
+  .lp-lang-btn { transition:background .18s, border-color .18s, color .18s }
+  .lp-lang-btn:hover { background:#f1f5f9 !important; border-color:#94a3b8 !important }
 
-  @media (max-width:1024px) {
-    .lp-about-grid { grid-template-columns:1fr !important }
-    .lp-about-img  { display:none !important }
-  }
+  .lp-hamburger { display:none }
+
   @media (max-width:768px) {
-    .lp-hero-h1   { font-size:50px !important; line-height:1.15 !important }
-    .lp-feat-grid { grid-template-columns:1fr 1fr !important }
+    .lp-hero-h1  { font-size:52px !important }
+    .lp-feat-grid{ grid-template-columns:1fr 1fr !important }
     .lp-stats-grid{ grid-template-columns:1fr 1fr !important }
     .lp-pillar-grid{ grid-template-columns:1fr !important }
-    .lp-nav-links { display:none !important }
-    .lp-hamburger { display:flex !important }
+    .lp-nav-links{ display:none !important }
+    .lp-hamburger{ display:flex !important }
   }
   @media (max-width:520px) {
-    .lp-hero-h1  { font-size:36px !important }
-    .lp-hero-sub { font-size:15px !important }
+    .lp-hero-h1  { font-size:38px !important }
     .lp-feat-grid{ grid-template-columns:1fr !important }
     .lp-hero-ctas{ flex-direction:column !important }
-    .lp-hero-ctas a { width:100% !important; text-align:center !important }
+    .lp-hero-ctas a,.lp-hero-ctas span{ width:100% !important; text-align:center !important }
   }
 
   ::-webkit-scrollbar { width:5px }
-  ::-webkit-scrollbar-track { background:#03070f }
-  ::-webkit-scrollbar-thumb { background:#1e3a5f; border-radius:3px }
+  ::-webkit-scrollbar-track { background:#f8fafc }
+  ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px }
   ::-webkit-scrollbar-thumb:hover { background:#2563eb }
 `
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
-  const isRtl = t.dir === 'rtl'
   const nav = {
     position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '0 40px', height: 68,
-    background: solid ? 'rgba(3,7,15,.92)' : 'transparent',
+    padding: '0 48px', height: 66,
+    background: solid ? 'rgba(255,255,255,.96)' : 'transparent',
     backdropFilter: solid ? 'blur(20px)' : 'none',
-    borderBottom: solid ? '1px solid rgba(255,255,255,.06)' : 'none',
-    transition: 'background .4s ease, backdrop-filter .4s ease, border-color .4s ease',
+    borderBottom: solid ? `1px solid ${P.border}` : 'none',
+    transition: 'background .35s, border-color .35s, backdrop-filter .35s',
     direction: t.dir,
   }
-  const linkStyle = { fontSize: 14, fontWeight: 500, color: '#cbd5e1', textDecoration: 'none', padding: '6px 4px' }
+  const linkColor = solid ? P.sub : 'rgba(255,255,255,.75)'
+  const linkStyle = { fontSize: 14, fontWeight: 500, color: linkColor, textDecoration: 'none', padding: '4px 0' }
 
   return (
     <>
       <nav style={nav}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#2563eb,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🚗</div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: -.3 }}>Celox <span style={{ color: '#3b82f6' }}>AI</span></span>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#2563eb,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>🚗</div>
+          <span style={{ fontSize: 17, fontWeight: 800, color: solid ? P.text : '#fff', letterSpacing: -.3 }}>
+            Celox <span style={{ color: P.blue }}>AI</span>
+          </span>
         </div>
 
-        {/* Desktop links */}
-        <div className="lp-nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
-          {[['what', 'about'], ['features', 'features'], ['contact', 'contact']].map(([key, id]) => (
-            <span key={id} className="lp-nav-link" style={linkStyle} onClick={() => scrollTo(id)}>{t.nav[key]}</span>
+        <div className="lp-nav-links" style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
+          {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
+            <span key={id} className="lp-nav-link" style={linkStyle} onClick={() => scrollTo(id)}>{t.nav[k]}</span>
           ))}
         </div>
 
-        {/* Right side: lang + CTA */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button className="lp-lang-btn" onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
-            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.15)', color: '#94a3b8', borderRadius: 8, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ background: 'transparent', border: `1px solid ${solid ? P.border : 'rgba(255,255,255,.25)'}`, color: solid ? P.sub : 'rgba(255,255,255,.75)', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: .5 }}>
             {t.langBtn}
           </button>
-          <a href="/app" className="lp-cta-btn"
-            style={{ background: 'linear-gradient(135deg,#2563eb,#0891b2)', color: '#fff', textDecoration: 'none', padding: '9px 22px', borderRadius: 10, fontSize: 13, fontWeight: 700, boxShadow: '0 6px 24px rgba(37,99,235,.35)', whiteSpace: 'nowrap' }}>
+          <a href="/app" className="lp-btn-primary"
+            style={{ background: P.blue, color: '#fff', textDecoration: 'none', padding: '9px 22px', borderRadius: 10, fontSize: 13, fontWeight: 700, boxShadow: '0 4px 16px rgba(37,99,235,.3)', whiteSpace: 'nowrap' }}>
             {t.nav.enter}
           </a>
-          {/* Hamburger */}
           <button className="lp-hamburger" onClick={() => setMobileOpen(p => !p)}
-            style={{ display: 'none', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, flexDirection: 'column', gap: 5 }}>
-            <span style={{ display: 'block', width: 22, height: 2, background: '#fff', borderRadius: 2, transition: 'all .3s', transform: mobileOpen ? 'rotate(45deg) translateY(7px)' : 'none' }} />
-            <span style={{ display: 'block', width: 22, height: 2, background: '#fff', borderRadius: 2, transition: 'all .3s', opacity: mobileOpen ? 0 : 1 }} />
-            <span style={{ display: 'block', width: 22, height: 2, background: '#fff', borderRadius: 2, transition: 'all .3s', transform: mobileOpen ? 'rotate(-45deg) translateY(-7px)' : 'none' }} />
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, flexDirection: 'column', gap: 5, color: solid ? P.text : '#fff' }}>
+            {[0,1,2].map(i => (
+              <span key={i} style={{ display: 'block', width: 22, height: 2, background: 'currentColor', borderRadius: 2, transition: 'all .25s',
+                transform: mobileOpen ? (i===0?'rotate(45deg) translateY(7px)':i===2?'rotate(-45deg) translateY(-7px)':'none') : 'none',
+                opacity: mobileOpen && i===1 ? 0 : 1 }} />
+            ))}
           </button>
         </div>
       </nav>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
-        <div style={{ position: 'fixed', top: 68, left: 0, right: 0, zIndex: 999, background: 'rgba(3,7,15,.97)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,.06)', padding: '20px 24px 28px', direction: t.dir }}>
-          {[['what', 'about'], ['features', 'features'], ['contact', 'contact']].map(([key, id]) => (
+        <div style={{ position: 'fixed', top: 66, left: 0, right: 0, zIndex: 999, background: 'rgba(255,255,255,.98)', backdropFilter: 'blur(20px)', borderBottom: `1px solid ${P.border}`, padding: '16px 24px 24px', direction: t.dir }}>
+          {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
             <div key={id} onClick={() => scrollTo(id)}
-              style={{ padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.05)', fontSize: 16, fontWeight: 600, color: '#cbd5e1', cursor: 'pointer' }}>
-              {t.nav[key]}
+              style={{ padding: '13px 0', borderBottom: `1px solid ${P.border}`, fontSize: 15, fontWeight: 600, color: P.text, cursor: 'pointer' }}>
+              {t.nav[k]}
             </div>
           ))}
-          <a href="/app" style={{ display: 'block', marginTop: 20, background: 'linear-gradient(135deg,#2563eb,#0891b2)', color: '#fff', textDecoration: 'none', padding: '14px', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center' }}>
+          <a href="/app" style={{ display: 'block', marginTop: 18, background: P.blue, color: '#fff', textDecoration: 'none', padding: '14px', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center' }}>
             {t.nav.enter}
           </a>
         </div>
@@ -246,92 +239,55 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 function Hero({ t, scrollY }) {
-  const py = (f) => `${scrollY * f}px`
+  const py = f => `${scrollY * f}px`
   return (
-    <section style={{ position: 'relative', height: '100vh', minHeight: 700, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <section style={{ position: 'relative', height: '100vh', minHeight: 680, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 
-      {/* Layer 0: base gradient */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #06102a 0%, #030b1a 45%, #020709 100%)' }} />
+      {/* Base */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(155deg,#050d20 0%,#020810 55%,#04091a 100%)' }} />
 
-      {/* Layer 1: atmospheric photo (slowest) */}
-      <div style={{
-        position: 'absolute', inset: '-10%',
-        backgroundImage: 'url(https://picsum.photos/seed/nightroad/1920/1200)',
-        backgroundSize: 'cover', backgroundPosition: 'center 60%',
-        transform: `translateY(${py(.25)})`,
-        opacity: .09, filter: 'saturate(.4) blur(1px)',
-      }} />
+      {/* Subtle photo layer */}
+      <div style={{ position: 'absolute', inset: '-8%', backgroundImage: 'url(https://picsum.photos/seed/road-night/1920/1080)', backgroundSize: 'cover', backgroundPosition: 'center 55%', transform: `translateY(${py(.22)})`, opacity: .07, filter: 'blur(2px)' }} />
 
-      {/* Layer 2: glow orbs (mid) */}
-      <div style={{ position: 'absolute', inset: 0, transform: `translateY(${py(.12)})` }}>
-        <div style={{ position: 'absolute', top: '8%', left: '8%', width: 560, height: 560, borderRadius: '50%', background: 'radial-gradient(circle, rgba(37,99,235,.28) 0%, transparent 68%)', filter: 'blur(50px)', animation: 'lp-drift 14s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', top: '35%', right: '5%', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,.18) 0%, transparent 65%)', filter: 'blur(60px)', animation: 'lp-drift 18s ease-in-out infinite 3s' }} />
-        <div style={{ position: 'absolute', bottom: '15%', left: '38%', width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,.14) 0%, transparent 68%)', filter: 'blur(55px)', animation: 'lp-pulse 8s ease-in-out infinite 1s' }} />
-      </div>
+      {/* Two glow orbs — subtle */}
+      <div style={{ position: 'absolute', top: '15%', left: '12%', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.22) 0%,transparent 65%)', filter: 'blur(55px)', animation: 'lp-drift 16s ease-in-out infinite' }} />
+      <div style={{ position: 'absolute', bottom: '20%', right: '8%', width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(circle,rgba(8,145,178,.14) 0%,transparent 65%)', filter: 'blur(60px)', animation: 'lp-drift 20s ease-in-out infinite 4s' }} />
 
-      {/* Layer 3: dot grid (very subtle) */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: 'radial-gradient(circle, rgba(37,99,235,.18) 1px, transparent 1px)',
-        backgroundSize: '44px 44px',
-        transform: `translateY(${py(.08)})`,
-        opacity: .55,
-      }} />
-
-      {/* Layer 4: foreground road silhouette (fastest) */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%',
-        backgroundImage: 'url(https://picsum.photos/seed/highway-fg/1920/640)',
-        backgroundSize: 'cover', backgroundPosition: 'center top',
-        transform: `translateY(${py(.55)})`,
-        opacity: .06,
-        maskImage: 'linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 100%)',
-      }} />
+      {/* Subtle grid */}
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px)', backgroundSize: '48px 48px', opacity: .5, transform: `translateY(${py(.06)})` }} />
 
       {/* Content */}
-      <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', padding: '0 24px', maxWidth: 820, direction: t.dir }}>
-        {/* Badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(37,99,235,.12)', border: '1px solid rgba(37,99,235,.3)', borderRadius: 30, padding: '7px 20px', fontSize: 13, color: '#93c5fd', letterSpacing: .8, marginBottom: 28, animation: 'lp-fadeUp .8s .15s both' }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', display: 'inline-block', animation: 'lp-pulse 2s ease-in-out infinite' }} />
+      <div style={{ position: 'relative', zIndex: 5, textAlign: 'center', padding: '0 24px', maxWidth: 780, direction: t.dir }}>
+        <div style={{ display: 'inline-block', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.15)', borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.65)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 28, animation: 'lp-up .7s .1s both' }}>
           {t.hero.badge}
         </div>
 
-        {/* H1 */}
-        <h1 className="lp-hero-h1" style={{ fontSize: 80, fontWeight: 900, lineHeight: 1.1, marginBottom: 22, animation: 'lp-fadeUp .85s .3s both' }}>
-          <span style={{ display: 'block', background: 'linear-gradient(135deg,#fff 0%,#cbd5e1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            {t.hero.h1}
-          </span>
-          <span style={{ display: 'block', background: 'linear-gradient(135deg,#3b82f6 0%,#06b6d4 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            {t.hero.h2}
-          </span>
+        <h1 className="lp-hero-h1" style={{ fontSize: 84, fontWeight: 900, lineHeight: 1.05, marginBottom: 24, animation: 'lp-up .8s .25s both', letterSpacing: -2 }}>
+          <span style={{ display: 'block', color: '#fff' }}>{t.hero.h1}</span>
+          <span style={{ display: 'block', background: 'linear-gradient(135deg,#60a5fa,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{t.hero.h2}</span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="lp-hero-sub" style={{ fontSize: 18, color: P.sub, lineHeight: 1.75, maxWidth: 580, margin: '0 auto 44px', animation: 'lp-fadeUp .85s .5s both' }}>
+        <p style={{ fontSize: 18, color: 'rgba(255,255,255,.55)', lineHeight: 1.75, maxWidth: 520, margin: '0 auto 44px', animation: 'lp-up .8s .4s both' }}>
           {t.hero.sub}
         </p>
 
-        {/* CTAs */}
-        <div className="lp-hero-ctas" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', animation: 'lp-fadeUp .85s .68s both' }}>
-          <a href="/app" className="lp-cta-btn"
-            style={{ display: 'inline-block', background: 'linear-gradient(135deg,#2563eb,#0891b2)', color: '#fff', textDecoration: 'none', padding: '16px 44px', borderRadius: 14, fontSize: 16, fontWeight: 700, boxShadow: '0 10px 36px rgba(37,99,235,.4)', letterSpacing: -.1 }}>
+        <div className="lp-hero-ctas" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', animation: 'lp-up .8s .55s both' }}>
+          <a href="/app" className="lp-btn-primary"
+            style={{ display: 'inline-block', background: P.blue, color: '#fff', textDecoration: 'none', padding: '15px 42px', borderRadius: 12, fontSize: 15, fontWeight: 700, boxShadow: '0 8px 28px rgba(37,99,235,.4)', letterSpacing: -.1 }}>
             {t.hero.cta1}
           </a>
-          <span className="lp-ghost-btn"
-            onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
-            style={{ display: 'inline-block', color: '#94a3b8', padding: '16px 36px', borderRadius: 14, fontSize: 16, fontWeight: 600, border: '1px solid rgba(148,163,184,.2)', cursor: 'pointer', backdropFilter: 'blur(8px)' }}>
+          <span className="lp-btn-ghost" onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
+            style={{ display: 'inline-block', color: 'rgba(255,255,255,.6)', padding: '15px 36px', borderRadius: 12, fontSize: 15, fontWeight: 600, border: '1px solid rgba(255,255,255,.15)', cursor: 'pointer' }}>
             {t.hero.cta2} ↓
           </span>
         </div>
       </div>
 
-      {/* Bottom fade */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, background: `linear-gradient(to top, ${P.bg}, transparent)`, zIndex: 6 }} />
+      {/* Bottom fade to white */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180, background: 'linear-gradient(to top,#ffffff,transparent)', zIndex: 6 }} />
 
-      {/* Scroll indicator */}
-      <div style={{ position: 'absolute', bottom: 36, left: '50%', transform: 'translateX(-50%)', zIndex: 10, opacity: .45 }}>
-        <svg style={{ animation: 'lp-scroll 2.2s ease-in-out infinite' }} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <div style={{ position: 'absolute', bottom: 36, left: '50%', transform: 'translateX(-50%)', zIndex: 8, color: 'rgba(255,255,255,.3)' }}>
+        <svg style={{ animation: 'lp-scroll 2s ease-in-out infinite' }} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M12 5v14M5 12l7 7 7-7"/>
         </svg>
       </div>
@@ -342,11 +298,11 @@ function Hero({ t, scrollY }) {
 // ── Stats ─────────────────────────────────────────────────────────────────────
 function Stats({ t }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,.025)', borderTop: '1px solid rgba(255,255,255,.06)', borderBottom: '1px solid rgba(255,255,255,.06)', padding: '36px 40px', direction: t.dir }}>
-      <div className="lp-stats-grid lp-reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
+    <div style={{ background: P.white, borderBottom: `1px solid ${P.border}`, padding: '0 48px', direction: t.dir }}>
+      <div className="lp-stats-grid lp-reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
         {t.stats.map((s, i) => (
-          <div key={i} className={`lp-d${i + 1}`} style={{ padding: '12px 24px', borderRight: i < 3 ? '1px solid rgba(255,255,255,.07)' : 'none' }}>
-            <div style={{ fontSize: 38, fontWeight: 900, background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', lineHeight: 1.1, marginBottom: 6 }}>{s.n}</div>
+          <div key={i} className={`lp-d${i+1}`} style={{ padding: '40px 16px', borderRight: i < 3 ? `1px solid ${P.border}` : 'none' }}>
+            <div style={{ fontSize: 42, fontWeight: 900, color: P.blue, lineHeight: 1, marginBottom: 8, letterSpacing: -1 }}>{s.n}</div>
             <div style={{ fontSize: 13, color: P.sub, fontWeight: 500 }}>{s.l}</div>
           </div>
         ))}
@@ -357,34 +313,25 @@ function Stats({ t }) {
 
 // ── About ─────────────────────────────────────────────────────────────────────
 function About({ t }) {
-  const isRtl = t.dir === 'rtl'
   return (
-    <section id="about" style={{ padding: '120px 40px', background: P.bg, direction: t.dir }}>
+    <section id="about" style={{ background: P.white, padding: '110px 48px', direction: t.dir }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
-        {/* Header */}
         <div className="lp-reveal" style={{ textAlign: 'center', marginBottom: 72 }}>
-          <Badge>{t.about.badge}</Badge>
-          <h2 style={{ fontSize: 48, fontWeight: 900, color: '#fff', lineHeight: 1.15, marginBottom: 18 }}>{t.about.h}</h2>
-          <p style={{ fontSize: 17, color: P.sub, maxWidth: 580, margin: '0 auto', lineHeight: 1.75 }}>{t.about.sub}</p>
+          <Chip>{t.about.badge}</Chip>
+          <h2 style={{ fontSize: 52, fontWeight: 900, color: P.text, lineHeight: 1.1, marginBottom: 16, letterSpacing: -1.5 }}>{t.about.h}</h2>
+          <p style={{ fontSize: 17, color: P.sub, maxWidth: 520, margin: '0 auto', lineHeight: 1.75 }}>{t.about.sub}</p>
         </div>
 
-        {/* 2-col: image + cards */}
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-
-          {/* Pillar cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {t.about.cards.map((c, i) => (
-              <div key={i} className={`lp-pillar lp-reveal lp-d${i + 2}`}
-                style={{ display: 'flex', gap: 18, alignItems: 'flex-start', background: P.card, border: `1px solid ${P.border}`, borderRadius: 18, padding: '22px 24px', backdropFilter: 'blur(10px)' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg, rgba(37,99,235,.22), rgba(6,182,212,.15))', border: '1px solid rgba(37,99,235,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{c.icon}</div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>{c.t}</div>
-                  <div style={{ fontSize: 14, color: P.sub, lineHeight: 1.65 }}>{c.d}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="lp-pillar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
+          {t.about.cards.map((c, i) => (
+            <div key={i} className={`lp-pillar lp-reveal lp-d${i+1}`}
+              style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 20, padding: '36px 32px', textAlign: t.dir === 'rtl' ? 'right' : 'left' }}>
+              <div style={{ fontSize: 36, marginBottom: 20 }}>{c.icon}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: P.text, marginBottom: 10, letterSpacing: -.3 }}>{c.t}</div>
+              <div style={{ fontSize: 15, color: P.sub, lineHeight: 1.7 }}>{c.d}</div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -393,29 +340,22 @@ function About({ t }) {
 
 // ── Features ──────────────────────────────────────────────────────────────────
 function Features({ t }) {
-  const gradients = [
-    'linear-gradient(135deg,#1d4ed8,#0891b2)',
-    'linear-gradient(135deg,#7c3aed,#2563eb)',
-    'linear-gradient(135deg,#059669,#0891b2)',
-    'linear-gradient(135deg,#d97706,#dc2626)',
-    'linear-gradient(135deg,#0891b2,#7c3aed)',
-    'linear-gradient(135deg,#2563eb,#059669)',
-  ]
+  const accents = ['#2563eb','#7c3aed','#059669','#d97706','#0891b2','#dc2626']
   return (
-    <section id="features" style={{ padding: '120px 40px', background: `linear-gradient(180deg,${P.bg} 0%,${P.bg2} 100%)`, direction: t.dir }}>
+    <section id="features" style={{ background: P.light, padding: '110px 48px', direction: t.dir }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
         <div className="lp-reveal" style={{ textAlign: 'center', marginBottom: 64 }}>
-          <Badge>{t.features.badge}</Badge>
-          <h2 style={{ fontSize: 48, fontWeight: 900, color: '#fff', lineHeight: 1.15 }}>{t.features.h}</h2>
+          <Chip>{t.features.badge}</Chip>
+          <h2 style={{ fontSize: 52, fontWeight: 900, color: P.text, lineHeight: 1.1, letterSpacing: -1.5 }}>{t.features.h}</h2>
         </div>
+
         <div className="lp-feat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
           {t.features.items.map((f, i) => (
-            <div key={i} className={`lp-feat-card lp-reveal lp-d${(i % 3) + 1}`}
-              style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 20, padding: '28px 26px', backdropFilter: 'blur(12px)', position: 'relative', overflow: 'hidden' }}>
-              {/* Subtle glow on card top */}
-              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '70%', height: 1, background: `linear-gradient(90deg, transparent, rgba(37,99,235,.4), transparent)` }} />
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: gradients[i], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 18, boxShadow: '0 8px 24px rgba(0,0,0,.35)' }}>{f.e}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 10 }}>{f.t}</div>
+            <div key={i} className={`lp-feat-card lp-reveal lp-d${(i%3)+1}`}
+              style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 18, padding: '32px 28px', textAlign: t.dir === 'rtl' ? 'right' : 'left' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: `${accents[i]}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 20 }}>{f.e}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: P.text, marginBottom: 8, letterSpacing: -.2 }}>{f.t}</div>
               <div style={{ fontSize: 14, color: P.sub, lineHeight: 1.7 }}>{f.d}</div>
             </div>
           ))}
@@ -425,31 +365,24 @@ function Features({ t }) {
   )
 }
 
-// ── CTA Section ───────────────────────────────────────────────────────────────
+// ── CTA ───────────────────────────────────────────────────────────────────────
 function CTASection({ t }) {
   return (
-    <section id="contact" style={{ padding: '140px 40px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
-      {/* Background */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,#060e22 0%,#030a16 100%)' }} />
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.18) 0%,transparent 65%)', filter: 'blur(60px)', animation: 'lp-pulse 7s ease-in-out infinite' }} />
-      <div style={{ position: 'absolute', top: '30%', right: '10%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(circle,rgba(6,182,212,.1) 0%,transparent 65%)', filter: 'blur(50px)' }} />
+    <section id="contact" style={{ background: P.dark, padding: '130px 48px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%)', filter: 'blur(70px)', animation: 'lp-pulse 8s ease-in-out infinite' }} />
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px)', backgroundSize: '44px 44px' }} />
 
-      {/* Grid lines */}
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(37,99,235,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.04) 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
-
-      <div className="lp-reveal" style={{ position: 'relative', zIndex: 2, maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
-        <Badge gold>{t.cta.badge}</Badge>
-        <h2 style={{ fontSize: 52, fontWeight: 900, color: '#fff', lineHeight: 1.15, marginBottom: 20, marginTop: 8 }}>{t.cta.h}</h2>
-        <p style={{ fontSize: 17, color: P.sub, lineHeight: 1.75, marginBottom: 44 }}>{t.cta.sub}</p>
-        <a href="/app" className="lp-cta-btn"
-          style={{ display: 'inline-block', background: 'linear-gradient(135deg,#2563eb,#0891b2)', color: '#fff', textDecoration: 'none', padding: '18px 56px', borderRadius: 16, fontSize: 18, fontWeight: 800, boxShadow: '0 12px 40px rgba(37,99,235,.45)', letterSpacing: -.2 }}>
+      <div className="lp-reveal" style={{ position: 'relative', zIndex: 2, maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
+        <Chip light>{t.cta.badge}</Chip>
+        <h2 style={{ fontSize: 52, fontWeight: 900, color: '#fff', lineHeight: 1.1, marginBottom: 20, marginTop: 6, letterSpacing: -1.5 }}>{t.cta.h}</h2>
+        <p style={{ fontSize: 17, color: 'rgba(255,255,255,.5)', lineHeight: 1.75, marginBottom: 44 }}>{t.cta.sub}</p>
+        <a href="/app" className="lp-btn-primary"
+          style={{ display: 'inline-block', background: P.blue, color: '#fff', textDecoration: 'none', padding: '17px 54px', borderRadius: 14, fontSize: 17, fontWeight: 800, boxShadow: '0 10px 36px rgba(37,99,235,.45)', letterSpacing: -.2 }}>
           {t.cta.btn} →
         </a>
-
-        {/* Trust row */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, marginTop: 48, flexWrap: 'wrap' }}>
-          {['🔒 אבטחה מלאה', '☁️ ענן מאובטח', '📱 כל מכשיר', '⚡ זמין 24/7'].map((item, i) => (
-            <div key={i} style={{ fontSize: 13, color: P.muted, fontWeight: 500 }}>{item}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 48, flexWrap: 'wrap' }}>
+          {['🔒 מאובטח', '☁️ ענן', '📱 כל מכשיר', '⚡ 24/7'].map((x,i) => (
+            <span key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', fontWeight: 500 }}>{x}</span>
           ))}
         </div>
       </div>
@@ -459,21 +392,19 @@ function CTASection({ t }) {
 
 // ── Footer ────────────────────────────────────────────────────────────────────
 function Footer({ t }) {
-  const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  const scrollTo = id => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   return (
-    <footer style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '36px 40px', background: P.bg, direction: t.dir }}>
+    <footer style={{ background: P.white, borderTop: `1px solid ${P.border}`, padding: '32px 48px', direction: t.dir }}>
       <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg,#2563eb,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🚗</div>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>Celox <span style={{ color: '#3b82f6' }}>AI</span></span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'linear-gradient(135deg,#2563eb,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>🚗</div>
+          <span style={{ fontSize: 15, fontWeight: 800, color: P.text }}>Celox <span style={{ color: P.blue }}>AI</span></span>
         </div>
         <div style={{ fontSize: 13, color: P.muted }}>{t.footer}</div>
         <div style={{ display: 'flex', gap: 24 }}>
-          {[['what', 'about'], ['features', 'features'], ['contact', 'contact']].map(([key, id]) => (
-            <span key={id} onClick={() => scrollTo(id)} style={{ fontSize: 13, color: P.muted, cursor: 'pointer', transition: 'color .2s' }}
-              onMouseEnter={e => e.target.style.color = '#94a3b8'} onMouseLeave={e => e.target.style.color = P.muted}>
-              {t.nav[key]}
-            </span>
+          {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
+            <span key={id} onClick={() => scrollTo(id)} className="lp-nav-link"
+              style={{ fontSize: 13, color: P.muted, cursor: 'pointer' }}>{t.nav[k]}</span>
           ))}
         </div>
       </div>
@@ -481,16 +412,16 @@ function Footer({ t }) {
   )
 }
 
-// ── Badge helper ──────────────────────────────────────────────────────────────
-function Badge({ children, gold }) {
+// ── Chip label ────────────────────────────────────────────────────────────────
+function Chip({ children, light }) {
   return (
-    <div style={{ display: 'inline-block', background: gold ? 'rgba(245,158,11,.1)' : 'rgba(37,99,235,.1)', border: `1px solid ${gold ? 'rgba(245,158,11,.3)' : 'rgba(37,99,235,.28)'}`, borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: gold ? '#fbbf24' : '#93c5fd', letterSpacing: .8, textTransform: 'uppercase', marginBottom: 18 }}>
+    <div style={{ display: 'inline-block', background: light ? 'rgba(255,255,255,.08)' : '#eff6ff', border: `1px solid ${light ? 'rgba(255,255,255,.15)' : '#bfdbfe'}`, borderRadius: 30, padding: '5px 16px', fontSize: 11, fontWeight: 700, color: light ? '#93c5fd' : P.blue, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 16 }}>
       {children}
     </div>
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Root ──────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const [lang, setLang]         = useState('he')
   const [scrollY, setScrollY]   = useState(0)
@@ -498,56 +429,33 @@ export default function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = T[lang]
 
-  // Inject font + global CSS
   useEffect(() => {
-    const font = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap' })
-    document.head.appendChild(font)
-    const style = Object.assign(document.createElement('style'), { id: 'lp-css', textContent: GLOBAL_CSS })
+    const style = Object.assign(document.createElement('style'), { id: 'lp-css', textContent: CSS })
     document.head.appendChild(style)
-    const prev = document.body.style.cssText
-    document.body.style.background = P.bg
-    document.body.style.overflowX = 'hidden'
-    return () => {
-      document.head.removeChild(font)
-      document.getElementById('lp-css')?.remove()
-      document.body.style.cssText = prev
-    }
+    document.body.style.cssText = 'background:#fff;overflow-x:hidden;margin:0'
+    return () => { document.getElementById('lp-css')?.remove(); document.body.style.cssText = '' }
   }, [])
 
-  // Scroll → parallax + nav
   useEffect(() => {
-    let ticking = false
-    const onScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          setScrollY(window.scrollY)
-          setNavSolid(window.scrollY > 72)
-          ticking = false
-        })
-        ticking = true
-      }
-    }
+    let tick = false
+    const onScroll = () => { if (!tick) { requestAnimationFrame(() => { setScrollY(window.scrollY); setNavSolid(window.scrollY > 60); tick = false }); tick = true } }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Intersection Observer for reveals
   useEffect(() => {
     const obs = new IntersectionObserver(
-      entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('lp-visible') }),
-      { threshold: 0.1, rootMargin: '0px 0px -48px 0px' }
+      es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('lp-visible') }),
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
     )
     document.querySelectorAll('.lp-reveal').forEach(el => obs.observe(el))
     return () => obs.disconnect()
   }, [lang])
 
-  const scrollTo = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-    setMobileOpen(false)
-  }
+  const scrollTo = id => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); setMobileOpen(false) }
 
   return (
-    <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.bg, color: '#fff', overflowX: 'hidden', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden' }}>
       <Nav t={t} lang={lang} setLang={setLang} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
       <Hero t={t} scrollY={scrollY} />
       <Stats t={t} />
