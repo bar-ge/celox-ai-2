@@ -547,7 +547,7 @@ function ContactSection({ t }) {
     e.preventDefault()
     setSending(true); setErr(null)
     try {
-      const r = await fetch('/api/contact', {
+      const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/contact-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
