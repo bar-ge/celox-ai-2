@@ -204,6 +204,7 @@ const T = {
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
     requiredFields:'Plate, make and model are required.',
+    yearRange:'Year must be between 1900 and 2099.',
     signOut:'Sign Out', loadingShort:'Loading…', emailPlaceholder:'colleague@example.com',
     confirmDelete:'Are you sure you want to delete this item?',
     customLists:'Custom Lists', defaults:'Defaults',
@@ -381,6 +382,7 @@ const T = {
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
     requiredFields:'לוחית, יצרן ודגם הם שדות חובה.',
+    yearRange:'שנת הייצור חייבת להיות בין 1900 ל-2099.',
     signOut:'התנתק', loadingShort:'טוען…', emailPlaceholder:'עמית@example.com',
     confirmDelete:'האם אתה בטוח שברצונך למחוק פריט זה?',
     customLists:'רשימות מותאמות', defaults:'ברירות מחדל',
@@ -5198,6 +5200,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (companyLimits.max_cars != null && cars.length >= companyLimits.max_cars) {
       setCrudError(t.limitReachedCars); return
     }
+    if (form.year && (parseInt(form.year, 10) < 1900 || parseInt(form.year, 10) > 2099)) { setCrudError(t.yearRange || 'Year must be between 1900 and 2099'); return }
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
     if (error || !data?.[0]) { setCrudError(error?.message || 'Insert failed'); return }
     setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
@@ -5206,6 +5209,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
   async function updateCar(form) {
     if (!form.plate?.trim() || !form.make?.trim() || !form.model?.trim()) { setCrudError(t.requiredFields || 'Plate, make and model are required'); return }
+    if (form.year && (parseInt(form.year, 10) < 1900 || parseInt(form.year, 10) > 2099)) { setCrudError(t.yearRange || 'Year must be between 1900 and 2099'); return }
     const { id: carId, ...carData } = { ...cleanCar(form), id: form.id }
     const { error } = await supabase.from('cars').update(carData).eq('id', carId).eq('company_id', activeCompanyId)
     const c = { ...carData, id: carId }
@@ -5243,7 +5247,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const car = cars.find(c => c.id === id)
     const { error } = await supabase.from('cars').delete().eq('id', id).eq('company_id', activeCompanyId)
     if (error) { setCrudError(error.message); return }
-    setCars(p => p.filter(c => c.id !== id))
+    setCars(p => p.filter(c => c.id !== id)); setEditingId(null); setCrudError('')
     logActivity('delete', 'car', `${car?.plate} ${car?.make}`)
   }
   async function addDriver(form) {
@@ -5301,7 +5305,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   function switchTab(tab)    { setActiveTab(tab); setEditingId(null); setShowAdd(false); setSearch(''); setSelectedIds([]); setCrudError('') }
 
   const q = search.toLowerCase()
-  const filteredCars     = cars.filter(c     => c.plate?.toLowerCase().includes(q) || c.make?.toLowerCase().includes(q) || c.model?.toLowerCase().includes(q) || getBranchName(c.branch_id).toLowerCase().includes(q))
+  const filteredCars     = cars.filter(c     => c.plate?.toLowerCase().includes(q) || c.make?.toLowerCase().includes(q) || c.model?.toLowerCase().includes(q) || getBranchName(c.branch_id).toLowerCase().includes(q) || drivers.find(d => String(d.id) === String(c.driver_id))?.name?.toLowerCase().includes(q))
   const filteredDrivers  = drivers.filter(d  => d.name?.toLowerCase().includes(q)  || d.license?.toLowerCase().includes(q) || d.phone?.toLowerCase().includes(q) || getBranchName(d.branch_id).toLowerCase().includes(q))
   const filteredBranches = branches.filter(b => b.name?.toLowerCase().includes(q)  || b.city?.toLowerCase().includes(q) || b.manager?.toLowerCase().includes(q))
 
@@ -5767,7 +5771,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   <tbody>
                     {activeTab === 'cars' && filteredCars.map(car =>
                       editingId === car.id
-                        ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={false} customLists={customLists} />
+                        ? <EditableCarRow key={car.id} car={car} branches={branches} drivers={drivers} onSave={updateCar} onCancel={() => { setEditingId(null); setCrudError('') }} t={t} rtl={rtl} mobile={false} customLists={customLists} />
                         : <CarRow key={car.id} car={car} getBranchName={getBranchName} getBranchIdx={getBranchIdx} drivers={drivers}
                             selected={selectedIds.includes(car.id)} onSelect={() => toggleSelect(car.id)}
                             onEdit={() => setEditingId(car.id)} onDelete={() => deleteCar(car.id)}
@@ -5782,7 +5786,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         </div>
                       </td></tr>
                     )}
-                    {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => { setShowAdd(false); setEditingId(null) }} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
+                    {activeTab === 'cars' && showAdd && <AddCarRow branches={branches} drivers={drivers} onAdd={addCar} onCancel={() => { setShowAdd(false); setEditingId(null); setCrudError('') }} t={t} rtl={rtl} mobile={false} customLists={customLists} />}
 
                     {activeTab === 'drivers' && filteredDrivers.map(driver =>
                       editingId === driver.id
