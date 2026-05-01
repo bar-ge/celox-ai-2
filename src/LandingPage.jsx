@@ -37,7 +37,7 @@ const T = {
     about: {
       badge: 'מה אנחנו עושים',
       h: 'ניהול, מעקב וייעול הפעילות הלוגיסטית שלך',
-      sub: 'ניהול, מעקב וייעול הפעילות הלוגיסטית שלך — הכל בזמן אמת.',
+      sub: 'מהרכב הראשון ועד ציים גדולים — אנחנו כאן לתת לך שקט נפשי ושליטה מלאה.',
       cards: [
         { icon: '🚗', t: 'מעקב בזמן אמת',  d: 'ניהול מלא של כל הרכבים, הסטטוס, השיוך והמשימות — בזמן אמת' },
         { icon: '📊', t: 'דוחות וניתוח',   d: 'דוחות מפורטים של עלויות, תקציב ותחזוקה לכל רכב ולכל הצי' },
@@ -61,6 +61,7 @@ const T = {
       h: 'קח את ניהול הצי שלך לרמה הבאה',
       sub: 'הצטרף לעסקים שכבר משתמשים ב‑Celox AI',
       btn: 'כניסה למערכת',
+      trust: ['🔒 מאובטח', '☁️ ענן', '📱 כל מכשיר', '⚡ 24/7'],
     },
     contact: {
       badge: 'צור קשר',
@@ -97,7 +98,7 @@ const T = {
     about: {
       badge: 'What We Do',
       h: 'Manage, track and optimize your logistics',
-      sub: 'Manage, track and optimize your logistics operations — all in real time.',
+      sub: 'From the first vehicle to a full fleet — built for businesses that need clarity and control.',
       cards: [
         { icon: '🚗', t: 'Real-Time Tracking',  d: 'Full management of all vehicles, status, assignments and tasks — in real time' },
         { icon: '📊', t: 'Reports & Analytics',  d: 'Detailed cost, budget and maintenance reports per vehicle and fleet-wide' },
@@ -121,6 +122,7 @@ const T = {
       h: 'Take Your Fleet Management to the Next Level',
       sub: 'Join businesses already using Celox AI',
       btn: 'Enter System',
+      trust: ['🔒 Secure', '☁️ Cloud', '📱 Any Device', '⚡ 24/7'],
     },
     contact: {
       badge: 'Contact Us',
@@ -205,8 +207,8 @@ const CSS = `
 
   /* ── Divider line reveal ── */
   .lp-line-reveal {
-    display:block; height:3px; border-radius:3px;
-    background:linear-gradient(90deg,#2563eb,#0891b2);
+    display:block; height:2px; border-radius:2px;
+    background:#2563eb;
     transform:scaleX(0); transform-origin:left;
     transition:transform .9s cubic-bezier(.22,1,.36,1);
   }
@@ -231,6 +233,19 @@ const CSS = `
   }
 
   /* ── Contact form ── */
+  .lp-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px }
+
+  @media (max-width:600px) {
+    .lp-form-grid { grid-template-columns:1fr !important }
+    .lp-contact-card { padding:28px 20px !important }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lp-r, .lp-rl, .lp-rr, .lp-rs { transition:opacity .3s linear !important; transform:none !important }
+    .lp-line-reveal { transition:transform .3s linear !important }
+    * { animation-duration:.01ms !important; animation-iteration-count:1 !important }
+  }
+
   .lp-input {
     width:100%; box-sizing:border-box;
     background:#fff; border:1.5px solid #e2e8f0; border-radius:12px;
@@ -255,7 +270,7 @@ const CSS = `
 // ── CountUp stat item ─────────────────────────────────────────────────────────
 function StatItem({ stat, index, borderRight }) {
   const ref    = useRef(null)
-  const [display, setDisplay] = useState('0')
+  const [display, setDisplay] = useState(parsed ? '0' : stat.n)
 
   // parse e.g. "500+" → {num:500, suffix:"+"}, "100%" → {num:100, suffix:"%"}, "24/7" → null
   const parsed = (() => {
@@ -301,10 +316,10 @@ function SectionHead({ chip, h, sub, light, dir }) {
   return (
     <div style={{ textAlign: 'center', marginBottom: 72 }}>
       <div className="lp-rs lp-d0"><Chip light={light}>{chip}</Chip></div>
-      <h2 className="lp-r lp-d1" style={{ fontSize: 52, fontWeight: 900, color: light ? '#fff' : P.text, lineHeight: 1.1, marginBottom: 16, letterSpacing: -1.5, margin: '0 0 16px' }}>
+      <h2 className="lp-r lp-d1" style={{ fontSize: 52, fontWeight: 900, color: light ? '#fff' : P.text, lineHeight: 1.1, margin: '0 0 16px', letterSpacing: -1.5 }}>
         {h}
       </h2>
-      {sub && <p className="lp-r lp-d2" style={{ fontSize: 17, color: light ? 'rgba(255,255,255,.5)' : P.sub, maxWidth: 520, margin: '0 auto', lineHeight: 1.75 }}>{sub}</p>}
+      {sub && <p className="lp-r lp-d2" style={{ fontSize: 17, color: light ? 'rgba(255,255,255,.5)' : P.sub, maxWidth: 560, margin: '16px auto 0', lineHeight: 1.75 }}>{sub}</p>}
       <span className="lp-line-reveal lp-d2" style={{ width: 52, margin: dir === 'rtl' ? '20px auto 0 auto' : '20px auto 0 auto' }} />
     </div>
   )
@@ -318,7 +333,7 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
   return (
     <>
       {/* ── Floating pill ── */}
-      <nav className="lp-nav-pill" style={{
+      <nav role="navigation" aria-label="Main navigation" className="lp-nav-pill" style={{
         position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
         zIndex: 1000, display: 'flex', alignItems: 'center', gap: 20,
         padding: '0 8px 0 20px',
@@ -416,7 +431,7 @@ function Hero({ t, scrollY }) {
 
         <h1 className="lp-hero-h1" style={{ fontSize: 84, fontWeight: 900, lineHeight: 1.05, marginBottom: 24, letterSpacing: -2 }}>
           <span style={{ display: 'block', color: '#fff', animation: 'lp-up .75s .2s both' }}>{t.hero.h1}</span>
-          <span style={{ display: 'block', background: 'linear-gradient(135deg,#60a5fa,#06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'lp-up .75s .32s both' }}>{t.hero.h2}</span>
+          <span style={{ display: 'block', color: '#7dd3fc', animation: 'lp-up .75s .32s both' }}>{t.hero.h2}</span>
         </h1>
 
         <p style={{ fontSize: 18, color: 'rgba(255,255,255,.55)', lineHeight: 1.75, maxWidth: 520, margin: '0 auto 44px', animation: 'lp-up .75s .46s both' }}>
@@ -436,11 +451,6 @@ function Hero({ t, scrollY }) {
       </div>
 
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180, background: 'linear-gradient(to top,#ffffff,transparent)', zIndex: 6 }} />
-      <div style={{ position: 'absolute', bottom: 36, left: '50%', transform: 'translateX(-50%)', zIndex: 8, color: 'rgba(255,255,255,.3)' }}>
-        <svg style={{ animation: 'lp-scroll 2s ease-in-out infinite' }} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M12 5v14M5 12l7 7 7-7"/>
-        </svg>
-      </div>
     </section>
   )
 }
@@ -524,8 +534,8 @@ function CTASection({ t }) {
           </a>
         </div>
         <div className="lp-r lp-d4" style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 48, flexWrap: 'wrap' }}>
-          {['🔒 מאובטח', '☁️ ענן', '📱 כל מכשיר', '⚡ 24/7'].map((x,i) => (
-            <span key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', fontWeight: 500 }}>{x}</span>
+          {t.cta.trust.map((x,i) => (
+            <span key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', fontWeight: 500 }}>{x}</span>
           ))}
         </div>
       </div>
@@ -573,39 +583,36 @@ function ContactSection({ t }) {
             </div>
           ) : (
             <form onSubmit={submit}>
-              <div style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 24, padding: '40px 44px', boxShadow: '0 4px 32px rgba(0,0,0,.05)' }}>
+              <div className="lp-contact-card" style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 24, padding: '40px 44px', boxShadow: '0 4px 32px rgba(0,0,0,.05)' }}>
 
-                {/* Row: name + company */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div className="lp-form-grid">
                   <div>
-                    <label style={labelStyle}>{c.name}</label>
-                    <input className="lp-input" required value={form.name} onChange={set('name')} placeholder={c.namePh} />
+                    <label htmlFor="cf-name" style={labelStyle}>{c.name}</label>
+                    <input id="cf-name" className="lp-input" required value={form.name} onChange={set('name')} placeholder={c.namePh} autoComplete="name" />
                   </div>
                   <div>
-                    <label style={labelStyle}>{c.company} <span style={optStyle}>({t.dir === 'rtl' ? 'אופציונלי' : 'optional'})</span></label>
-                    <input className="lp-input" value={form.company} onChange={set('company')} placeholder={c.companyPh} />
+                    <label htmlFor="cf-company" style={labelStyle}>{c.company} <span style={optStyle}>({c.companyPh})</span></label>
+                    <input id="cf-company" className="lp-input" value={form.company} onChange={set('company')} placeholder={c.companyPh} autoComplete="organization" />
                   </div>
                 </div>
 
-                {/* Row: phone + email */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div className="lp-form-grid">
                   <div>
-                    <label style={labelStyle}>{c.phone}</label>
-                    <input className="lp-input" required type="tel" value={form.phone} onChange={set('phone')} placeholder={c.phonePh} />
+                    <label htmlFor="cf-phone" style={labelStyle}>{c.phone}</label>
+                    <input id="cf-phone" className="lp-input" required type="tel" value={form.phone} onChange={set('phone')} placeholder={c.phonePh} autoComplete="tel" />
                   </div>
                   <div>
-                    <label style={labelStyle}>{c.email}</label>
-                    <input className="lp-input" required type="email" value={form.email} onChange={set('email')} placeholder={c.emailPh} />
+                    <label htmlFor="cf-email" style={labelStyle}>{c.email}</label>
+                    <input id="cf-email" className="lp-input" required type="email" value={form.email} onChange={set('email')} placeholder={c.emailPh} autoComplete="email" />
                   </div>
                 </div>
 
-                {/* Comments */}
                 <div style={{ marginBottom: 24 }}>
-                  <label style={labelStyle}>{c.message}</label>
-                  <textarea className="lp-input" value={form.message} onChange={set('message')} placeholder={c.messagePh} />
+                  <label htmlFor="cf-message" style={labelStyle}>{c.message}</label>
+                  <textarea id="cf-message" className="lp-input" value={form.message} onChange={set('message')} placeholder={c.messagePh} />
                 </div>
 
-                {err && <div style={{ marginBottom: 16, padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 13, color: '#dc2626' }}>{err}</div>}
+                {err && <div role="alert" style={{ marginBottom: 16, padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 13, color: '#dc2626' }}>{err}</div>}
 
                 <button type="submit" disabled={sending} className="lp-btn-primary"
                   style={{ width: '100%', background: P.blue, color: '#fff', border: 'none', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? .7 : 1, boxShadow: '0 8px 28px rgba(37,99,235,.35)', fontFamily: 'inherit' }}>
