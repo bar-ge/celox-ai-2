@@ -29,14 +29,14 @@ const T = {
     },
     stats: [
       { n: '500+', l: 'רכבים מנוהלים' },
-      { n: '99%',  l: 'זמינות מערכת' },
+      { n: '100%', l: 'זמינות מערכת' },
       { n: '30%',  l: 'חיסכון בעלויות' },
       { n: '24/7', l: 'מעקב ותמיכה' },
     ],
     about: {
       badge: 'מה אנחנו עושים',
       h: 'שליטה מלאה על כל הצי שלך',
-      sub: 'Celox AI היא פלטפורמת SaaS לניהול צי רכבים. ניהול, מעקב וייעול הפעילות הלוגיסטית שלך — הכל בזמן אמת.',
+      sub: 'ניהול, מעקב וייעול הפעילות הלוגיסטית שלך — הכל בזמן אמת.',
       cards: [
         { icon: '🚗', t: 'מעקב בזמן אמת',  d: 'ניהול מלא של כל הרכבים, הסטטוס, השיוך והמשימות — בזמן אמת' },
         { icon: '📊', t: 'דוחות וניתוח',   d: 'דוחות מפורטים של עלויות, תקציב ותחזוקה לכל רכב ולכל הצי' },
@@ -75,14 +75,14 @@ const T = {
     },
     stats: [
       { n: '500+', l: 'Vehicles Managed' },
-      { n: '99%',  l: 'System Uptime' },
+      { n: '100%', l: 'System Uptime' },
       { n: '30%',  l: 'Cost Savings' },
       { n: '24/7', l: 'Monitoring & Support' },
     ],
     about: {
       badge: 'What We Do',
       h: 'Full Control Over Your Entire Fleet',
-      sub: 'Celox AI is a SaaS fleet management platform. Manage, track and optimize your logistics operations — all in real time.',
+      sub: 'Manage, track and optimize your logistics operations — all in real time.',
       cards: [
         { icon: '🚗', t: 'Real-Time Tracking',  d: 'Full management of all vehicles, status, assignments and tasks — in real time' },
         { icon: '📊', t: 'Reports & Analytics',  d: 'Detailed cost, budget and maintenance reports per vehicle and fleet-wide' },
