@@ -507,7 +507,7 @@ function Features({ t, scrollY }) {
   const accents = ['#2563eb','#7c3aed','#059669','#d97706','#0891b2','#dc2626']
   const rel = scrollY - sectionTopRef.current
   return (
-    <section ref={sectionRef} id="features" style={{ background: P.light, padding: '120px 64px', direction: t.dir, position: 'relative', overflow: 'hidden' }}>
+    <section ref={sectionRef} id="features" style={{ background: P.light, padding: '40px 64px 120px', direction: t.dir, position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '25%', right: t.dir === 'rtl' ? 'auto' : '-120px', left: t.dir === 'rtl' ? '-120px' : 'auto', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(124,58,237,.07) 0%,transparent 65%)', filter: 'blur(90px)', pointerEvents: 'none', transform: `translateY(${rel * .18}px)`, willChange: 'transform' }} />
       <div style={{ position: 'absolute', bottom: '20%', left: t.dir === 'rtl' ? 'auto' : '-80px', right: t.dir === 'rtl' ? '-80px' : 'auto', width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.06) 0%,transparent 65%)', filter: 'blur(65px)', pointerEvents: 'none', transform: `translateY(${rel * -.11}px)`, willChange: 'transform' }} />
       <div style={{ maxWidth: 1400, margin: '0 auto', position: 'relative', zIndex: 1 }}>
@@ -536,7 +536,7 @@ function CTASection({ t, scrollY }) {
   useEffect(() => { if (sectionRef.current) sectionTopRef.current = sectionRef.current.offsetTop }, [])
   const rel = scrollY - sectionTopRef.current
   return (
-    <section ref={sectionRef} style={{ background: P.dark, padding: '140px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+    <section ref={sectionRef} style={{ background: P.dark, padding: '60px 64px 120px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
       {/* wrapper handles parallax; inner div handles pulse animation */}
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, calc(-50% + ${rel * .2}px))`, willChange: 'transform' }}>
         <div style={{ width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%)', filter: 'blur(70px)', animation: 'lp-pulse 8s ease-in-out infinite' }} />
@@ -593,7 +593,7 @@ function ContactSection({ t }) {
   const optStyle   = { fontSize: 12, color: P.muted, fontWeight: 400 }
 
   return (
-    <section id="contact" style={{ background: P.light, padding: '120px 64px', direction: t.dir }}>
+    <section id="contact" style={{ background: P.light, padding: '40px 64px 100px', direction: t.dir }}>
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
         <SectionHead chip={c.badge} h={c.h} sub={c.sub} dir={t.dir} />
 
@@ -732,9 +732,13 @@ export default function LandingPage() {
       <Hero t={t} scrollY={scrollY} />
       <Stats t={t} />
       <About t={t} scrollY={scrollY} />
+      <div style={{ height: 100, background: `linear-gradient(to bottom, ${P.white}, ${P.light})`, marginTop: -1 }} />
       <Features t={t} scrollY={scrollY} />
+      <div style={{ height: 160, background: `linear-gradient(to bottom, ${P.light}, ${P.dark})`, marginTop: -1 }} />
       <CTASection t={t} scrollY={scrollY} />
+      <div style={{ height: 160, background: `linear-gradient(to bottom, ${P.dark}, ${P.light})`, marginTop: -1 }} />
       <ContactSection t={t} />
+      <div style={{ height: 80, background: `linear-gradient(to bottom, ${P.light}, ${P.white})`, marginTop: -1 }} />
       <Footer t={t} />
     </div>
   )
