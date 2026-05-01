@@ -3,7 +3,6 @@ import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
 import PublicForm from './PublicForm'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
-import { SpeedInsights } from '@vercel/speed-insights/react'
 import './App.css'
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
@@ -850,7 +849,6 @@ export default function App() {
         onSignOut={handleSignOut}
         initialLang={lang}
       />
-      <SpeedInsights />
     </>
   )
 }
