@@ -200,10 +200,13 @@ const CSS = `
     .lp-hero-ctas a,.lp-hero-ctas span{ width:100% !important; text-align:center !important }
   }
 
-  ::-webkit-scrollbar { width:5px }
-  ::-webkit-scrollbar-track { background:#f8fafc }
+  html, body { margin:0; padding:0; overflow-x:hidden; width:100% }
+
+  ::-webkit-scrollbar { width:6px }
+  ::-webkit-scrollbar-track { background:transparent }
   ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px }
   ::-webkit-scrollbar-thumb:hover { background:#2563eb }
+  * { scrollbar-width:thin; scrollbar-color:#cbd5e1 transparent }
 `
 
 // ── CountUp stat item ─────────────────────────────────────────────────────────
@@ -269,7 +272,7 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
   const nav = {
     position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '0 48px', height: 66,
+    padding: '0 64px', height: 66,
     background: solid ? 'rgba(255,255,255,.96)' : 'transparent',
     backdropFilter: solid ? 'blur(20px)' : 'none',
     borderBottom: solid ? `1px solid ${P.border}` : 'none',
@@ -383,8 +386,8 @@ function Hero({ t, scrollY }) {
 // ── Stats ─────────────────────────────────────────────────────────────────────
 function Stats({ t }) {
   return (
-    <div style={{ background: P.white, borderBottom: `1px solid ${P.border}`, padding: '0 48px', direction: t.dir }}>
-      <div className="lp-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ background: P.white, borderBottom: `1px solid ${P.border}`, padding: '0 64px', direction: t.dir }}>
+      <div className="lp-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', maxWidth: 1400, margin: '0 auto' }}>
         {t.stats.map((s, i) => (
           <StatItem key={i} stat={s} index={i} borderRight={i < 3} />
         ))}
@@ -397,8 +400,8 @@ function Stats({ t }) {
 function About({ t }) {
   const revealClass = (i) => i === 0 ? 'lp-rl' : i === 1 ? 'lp-r' : 'lp-rr'
   return (
-    <section id="about" style={{ background: P.white, padding: '110px 48px', direction: t.dir }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <section id="about" style={{ background: P.white, padding: '120px 64px', direction: t.dir }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
         <SectionHead chip={t.about.badge} h={t.about.h} sub={t.about.sub} dir={t.dir} />
         <div className="lp-pillar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
           {t.about.cards.map((c, i) => (
@@ -421,8 +424,8 @@ function About({ t }) {
 function Features({ t }) {
   const accents = ['#2563eb','#7c3aed','#059669','#d97706','#0891b2','#dc2626']
   return (
-    <section id="features" style={{ background: P.light, padding: '110px 48px', direction: t.dir }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <section id="features" style={{ background: P.light, padding: '120px 64px', direction: t.dir }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
         <SectionHead chip={t.features.badge} h={t.features.h} dir={t.dir} />
         <div className="lp-feat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
           {t.features.items.map((f, i) => (
@@ -444,7 +447,7 @@ function Features({ t }) {
 // ── CTA ───────────────────────────────────────────────────────────────────────
 function CTASection({ t }) {
   return (
-    <section id="contact" style={{ background: P.dark, padding: '130px 48px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+    <section id="contact" style={{ background: P.dark, padding: '140px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%)', filter: 'blur(70px)', animation: 'lp-pulse 8s ease-in-out infinite' }} />
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px)', backgroundSize: '44px 44px' }} />
 
@@ -472,8 +475,8 @@ function CTASection({ t }) {
 function Footer({ t }) {
   const scrollTo = id => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   return (
-    <footer style={{ background: P.white, borderTop: `1px solid ${P.border}`, padding: '32px 48px', direction: t.dir }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+    <footer style={{ background: P.white, borderTop: `1px solid ${P.border}`, padding: '32px 64px', direction: t.dir }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: 'linear-gradient(135deg,#2563eb,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>🚗</div>
           <span style={{ fontSize: 15, fontWeight: 800, color: P.text }}>Celox <span style={{ color: P.blue }}>AI</span></span>
@@ -510,8 +513,9 @@ export default function LandingPage() {
   useEffect(() => {
     const style = Object.assign(document.createElement('style'), { id: 'lp-css', textContent: CSS })
     document.head.appendChild(style)
-    document.body.style.cssText = 'background:#fff;overflow-x:hidden;margin:0'
-    return () => { document.getElementById('lp-css')?.remove(); document.body.style.cssText = '' }
+    document.body.style.cssText = 'background:#fff;overflow-x:hidden;margin:0;padding:0;width:100%'
+    document.documentElement.style.cssText = 'overflow-x:hidden;width:100%'
+    return () => { document.getElementById('lp-css')?.remove(); document.body.style.cssText = ''; document.documentElement.style.cssText = '' }
   }, [])
 
   useEffect(() => {
@@ -546,7 +550,7 @@ export default function LandingPage() {
   const scrollTo = id => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); setMobileOpen(false) }
 
   return (
-    <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden' }}>
+    <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
       <Nav t={t} lang={lang} setLang={setLang} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
       <Hero t={t} scrollY={scrollY} />
       <Stats t={t} />
