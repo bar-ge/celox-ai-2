@@ -382,8 +382,8 @@ function About({ t }) {
               boxShadow: '0 40px 90px rgba(0,0,0,.65), 0 0 0 1px rgba(37,99,235,.18)',
               transform: `perspective(1200px) rotateY(${isRtl ? '6deg' : '-6deg'}) rotateX(3deg)`,
             }}>
-            <img src="https://picsum.photos/seed/fleet-dashboard/700/520" alt="fleet dashboard"
-              style={{ display: 'block', width: '100%', filter: 'brightness(.85) saturate(.8)' }} />
+            <img src="https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=700&q=80" alt="fleet vehicles"
+              style={{ display: 'block', width: '100%', filter: 'brightness(.82) saturate(.75)' }} />
             {/* Gradient overlay on image */}
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(37,99,235,.12), rgba(6,182,212,.08))' }} />
             {/* Floating badge on image */}
