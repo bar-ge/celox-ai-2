@@ -420,12 +420,12 @@ function Hero({ t, scrollY }) {
   return (
     <section style={{ position: 'relative', height: '100vh', minHeight: 680, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(155deg,#050d20 0%,#020810 55%,#04091a 100%)' }} />
-      <div style={{ position: 'absolute', inset: '-8%', backgroundImage: 'url(https://picsum.photos/seed/road-night/1920/1080)', backgroundSize: 'cover', backgroundPosition: 'center 55%', transform: `translateY(${py(.22)})`, opacity: .07, filter: 'blur(2px)' }} />
+      <div style={{ position: 'absolute', inset: '-8%', backgroundImage: 'url(https://picsum.photos/seed/road-night/1920/1080)', backgroundSize: 'cover', backgroundPosition: 'center 55%', transform: `translateY(${py(.22)})`, opacity: .07, filter: 'blur(2px)', willChange: 'transform' }} />
       <div style={{ position: 'absolute', top: '15%', left: '12%', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.22) 0%,transparent 65%)', filter: 'blur(55px)', animation: 'lp-drift 16s ease-in-out infinite' }} />
       <div style={{ position: 'absolute', bottom: '20%', right: '8%', width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(circle,rgba(8,145,178,.14) 0%,transparent 65%)', filter: 'blur(60px)', animation: 'lp-drift 20s ease-in-out infinite 4s' }} />
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px)', backgroundSize: '48px 48px', opacity: .5, transform: `translateY(${py(.06)})` }} />
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px)', backgroundSize: '48px 48px', opacity: .5, transform: `translateY(${py(.06)})`, willChange: 'transform' }} />
 
-      <div style={{ position: 'relative', zIndex: 5, textAlign: 'center', padding: '0 24px', maxWidth: 780, direction: t.dir }}>
+      <div style={{ position: 'relative', zIndex: 5, textAlign: 'center', padding: '0 24px', maxWidth: 780, direction: t.dir, transform: `translateY(${py(-.08)})`, willChange: 'transform' }}>
         <div style={{ display: 'inline-block', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.15)', borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.65)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 28, animation: 'lp-up .65s .05s both' }}>
           {t.hero.badge}
         </div>
@@ -470,11 +470,17 @@ function Stats({ t }) {
 }
 
 // ── About ─────────────────────────────────────────────────────────────────────
-function About({ t }) {
+function About({ t, scrollY }) {
+  const sectionRef = useRef(null)
+  const sectionTopRef = useRef(0)
+  useEffect(() => { if (sectionRef.current) sectionTopRef.current = sectionRef.current.offsetTop }, [])
   const revealClass = (i) => i === 0 ? 'lp-rl' : i === 1 ? 'lp-r' : 'lp-rr'
+  const rel = scrollY - sectionTopRef.current
   return (
-    <section id="about" style={{ background: P.white, padding: '120px 64px', direction: t.dir }}>
-      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+    <section ref={sectionRef} id="about" style={{ background: P.white, padding: '120px 64px', direction: t.dir, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: '15%', left: t.dir === 'rtl' ? 'auto' : '-140px', right: t.dir === 'rtl' ? '-140px' : 'auto', width: 560, height: 560, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.07) 0%,transparent 65%)', filter: 'blur(80px)', pointerEvents: 'none', transform: `translateY(${rel * .22}px)`, willChange: 'transform' }} />
+      <div style={{ position: 'absolute', bottom: '10%', right: t.dir === 'rtl' ? 'auto' : '-100px', left: t.dir === 'rtl' ? '-100px' : 'auto', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle,rgba(8,145,178,.06) 0%,transparent 65%)', filter: 'blur(70px)', pointerEvents: 'none', transform: `translateY(${rel * -.14}px)`, willChange: 'transform' }} />
+      <div style={{ maxWidth: 1400, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         <SectionHead chip={t.about.badge} h={t.about.h} sub={t.about.sub} dir={t.dir} />
         <div className="lp-pillar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 24 }}>
           {t.about.cards.map((c, i) => (
@@ -494,11 +500,17 @@ function About({ t }) {
 }
 
 // ── Features ──────────────────────────────────────────────────────────────────
-function Features({ t }) {
+function Features({ t, scrollY }) {
+  const sectionRef = useRef(null)
+  const sectionTopRef = useRef(0)
+  useEffect(() => { if (sectionRef.current) sectionTopRef.current = sectionRef.current.offsetTop }, [])
   const accents = ['#2563eb','#7c3aed','#059669','#d97706','#0891b2','#dc2626']
+  const rel = scrollY - sectionTopRef.current
   return (
-    <section id="features" style={{ background: P.light, padding: '120px 64px', direction: t.dir }}>
-      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+    <section ref={sectionRef} id="features" style={{ background: P.light, padding: '120px 64px', direction: t.dir, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: '25%', right: t.dir === 'rtl' ? 'auto' : '-120px', left: t.dir === 'rtl' ? '-120px' : 'auto', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(124,58,237,.07) 0%,transparent 65%)', filter: 'blur(90px)', pointerEvents: 'none', transform: `translateY(${rel * .18}px)`, willChange: 'transform' }} />
+      <div style={{ position: 'absolute', bottom: '20%', left: t.dir === 'rtl' ? 'auto' : '-80px', right: t.dir === 'rtl' ? '-80px' : 'auto', width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.06) 0%,transparent 65%)', filter: 'blur(65px)', pointerEvents: 'none', transform: `translateY(${rel * -.11}px)`, willChange: 'transform' }} />
+      <div style={{ maxWidth: 1400, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         <SectionHead chip={t.features.badge} h={t.features.h} dir={t.dir} />
         <div className="lp-feat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }}>
           {t.features.items.map((f, i) => (
@@ -518,10 +530,18 @@ function Features({ t }) {
 }
 
 // ── CTA ───────────────────────────────────────────────────────────────────────
-function CTASection({ t }) {
+function CTASection({ t, scrollY }) {
+  const sectionRef = useRef(null)
+  const sectionTopRef = useRef(0)
+  useEffect(() => { if (sectionRef.current) sectionTopRef.current = sectionRef.current.offsetTop }, [])
+  const rel = scrollY - sectionTopRef.current
   return (
-    <section style={{ background: P.dark, padding: '140px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%)', filter: 'blur(70px)', animation: 'lp-pulse 8s ease-in-out infinite' }} />
+    <section ref={sectionRef} style={{ background: P.dark, padding: '140px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+      {/* wrapper handles parallax; inner div handles pulse animation */}
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, calc(-50% + ${rel * .2}px))`, willChange: 'transform' }}>
+        <div style={{ width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%)', filter: 'blur(70px)', animation: 'lp-pulse 8s ease-in-out infinite' }} />
+      </div>
+      <div style={{ position: 'absolute', top: '25%', right: '12%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(124,58,237,.14) 0%,transparent 65%)', filter: 'blur(60px)', pointerEvents: 'none', transform: `translateY(${rel * -.16}px)`, willChange: 'transform' }} />
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px)', backgroundSize: '44px 44px' }} />
 
       <div style={{ position: 'relative', zIndex: 2, maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
@@ -711,9 +731,9 @@ export default function LandingPage() {
       <Nav t={t} lang={lang} setLang={setLang} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
       <Hero t={t} scrollY={scrollY} />
       <Stats t={t} />
-      <About t={t} />
-      <Features t={t} />
-      <CTASection t={t} />
+      <About t={t} scrollY={scrollY} />
+      <Features t={t} scrollY={scrollY} />
+      <CTASection t={t} scrollY={scrollY} />
       <ContactSection t={t} />
       <Footer t={t} />
     </div>
