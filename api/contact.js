@@ -1,6 +1,11 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
+  if (!process.env.RESEND_API_KEY) {
+    console.error('RESEND_API_KEY is not set')
+    return res.status(500).json({ ok: false, reason: 'no_api_key' })
+  }
+
   const { name, company, phone, email, message } = req.body ?? {}
   if (!name || !phone || !email) return res.status(400).json({ ok: false, reason: 'missing_fields' })
 
@@ -27,9 +32,10 @@ export default async function handler(req, res) {
     }),
   })
 
+  const body = await r.text()
   if (!r.ok) {
-    console.error('Resend error:', await r.text())
-    return res.status(500).json({ ok: false })
+    console.error('Resend error', r.status, body)
+    return res.status(500).json({ ok: false, reason: body })
   }
   res.status(200).json({ ok: true })
 }
