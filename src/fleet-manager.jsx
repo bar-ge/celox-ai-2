@@ -203,6 +203,7 @@ const T = {
     maxCars:'Max Vehicles', maxUsers:'Max Users',
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
+    requiredFields:'Plate, make and model are required.',
     signOut:'Sign Out', loadingShort:'Loading…', emailPlaceholder:'colleague@example.com',
     confirmDelete:'Are you sure you want to delete this item?',
     customLists:'Custom Lists', defaults:'Defaults',
@@ -379,6 +380,7 @@ const T = {
     maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים',
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
+    requiredFields:'לוחית, יצרן ודגם הם שדות חובה.',
     signOut:'התנתק', loadingShort:'טוען…', emailPlaceholder:'עמית@example.com',
     confirmDelete:'האם אתה בטוח שברצונך למחוק פריט זה?',
     customLists:'רשימות מותאמות', defaults:'ברירות מחדל',
@@ -5146,7 +5148,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   // ── Vehicle photo upload ──────────────────────────────────────────────────
   async function updateMileage(carId, mileage) {
-    await supabase.from('cars').update({ mileage }).eq('id', carId)
+    await supabase.from('cars').update({ mileage }).eq('id', carId).eq('company_id', activeCompanyId)
     setCars(p => p.map(c => c.id === carId ? { ...c, mileage } : c))
   }
 
@@ -5157,7 +5159,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const path = `${activeCompanyId}/car-photos/${carId}/${Date.now()}_${safeName}`
     const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, file, { upsert: true })
     if (uploadErr) { setCrudError(uploadErr.message); return }
-    const { error: dbErr } = await supabase.from('cars').update({ photo_url: path }).eq('id', carId)
+    const { error: dbErr } = await supabase.from('cars').update({ photo_url: path }).eq('id', carId).eq('company_id', activeCompanyId)
     if (dbErr) { setCrudError(dbErr.message); return }
     setCars(p => p.map(c => c.id === carId ? { ...c, photo_url: path } : c))
   }
@@ -5171,7 +5173,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   async function bulkDelete(tab) {
     if (!selectedIds.length || !window.confirm(t.confirmDelete)) return
     const table = tab === 'cars' ? 'cars' : tab === 'drivers' ? 'drivers' : 'branches'
-    await supabase.from(table).delete().in('id', selectedIds)
+    const { error } = await supabase.from(table).delete().in('id', selectedIds).eq('company_id', activeCompanyId)
+    if (error) { setCrudError(error.message); return }
     if (tab === 'cars')    setCars(p => p.filter(x => !selectedIds.includes(x.id)))
     if (tab === 'drivers') setDrivers(p => p.filter(x => !selectedIds.includes(x.id)))
     if (tab === 'branches') setBranches(p => p.filter(x => !selectedIds.includes(x.id)))
@@ -5196,14 +5199,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       setCrudError(t.limitReachedCars); return
     }
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
-    if (error) { setCrudError(error.message); return }
+    if (error || !data?.[0]) { setCrudError(error?.message || 'Insert failed'); return }
     setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
-    if (form.driver_id) await supabase.from('drivers').update({ car_id: String(data[0].id) }).eq('id', form.driver_id)
+    if (form.driver_id) await supabase.from('drivers').update({ car_id: String(data[0].id) }).eq('id', form.driver_id).eq('company_id', activeCompanyId)
     logActivity('add', 'car', `${form.plate} ${form.make}`)
   }
   async function updateCar(form) {
+    if (!form.plate?.trim() || !form.make?.trim() || !form.model?.trim()) { setCrudError(t.requiredFields || 'Plate, make and model are required'); return }
     const { id: carId, ...carData } = { ...cleanCar(form), id: form.id }
-    const { error } = await supabase.from('cars').update(carData).eq('id', carId)
+    const { error } = await supabase.from('cars').update(carData).eq('id', carId).eq('company_id', activeCompanyId)
     const c = { ...carData, id: carId }
     if (error) { setCrudError(error.message); return }
     // Log driver assignment change for history
@@ -5217,8 +5221,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       }])
       if (histErr) console.error('driver_car_history insert failed:', histErr.message)
       // Sync drivers.car_id — clear old driver's car_id, set new driver's car_id
-      if (prev.driver_id) await supabase.from('drivers').update({ car_id: null }).eq('id', prev.driver_id)
-      if (form.driver_id) await supabase.from('drivers').update({ car_id: String(form.id) }).eq('id', form.driver_id)
+      if (prev.driver_id) await supabase.from('drivers').update({ car_id: null }).eq('id', prev.driver_id).eq('company_id', activeCompanyId)
+      if (form.driver_id) await supabase.from('drivers').update({ car_id: String(form.id) }).eq('id', form.driver_id).eq('company_id', activeCompanyId)
     }
     // Notify admins if status changed
     if (prev && prev.status !== form.status) {
@@ -5237,7 +5241,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   async function deleteCar(id) {
     if (!window.confirm(t.confirmDelete)) return
     const car = cars.find(c => c.id === id)
-    const { error } = await supabase.from('cars').delete().eq('id', id)
+    const { error } = await supabase.from('cars').delete().eq('id', id).eq('company_id', activeCompanyId)
     if (error) { setCrudError(error.message); return }
     setCars(p => p.filter(c => c.id !== id))
     logActivity('delete', 'car', `${car?.plate} ${car?.make}`)
