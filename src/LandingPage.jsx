@@ -270,13 +270,14 @@ const CSS = `
 // ── CountUp stat item ─────────────────────────────────────────────────────────
 function StatItem({ stat, index, borderRight }) {
   const ref    = useRef(null)
-  const [display, setDisplay] = useState(parsed ? '0' : stat.n)
 
   // parse e.g. "500+" → {num:500, suffix:"+"}, "100%" → {num:100, suffix:"%"}, "24/7" → null
   const parsed = (() => {
     const m = stat.n.match(/^(\d+)(.*)$/)
     return m ? { num: parseInt(m[1]), suffix: m[2] } : null
   })()
+
+  const [display, setDisplay] = useState(parsed ? '0' : stat.n)
 
   useEffect(() => {
     const el = ref.current
