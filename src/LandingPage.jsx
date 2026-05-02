@@ -599,9 +599,9 @@ function ContactSection({ t }) {
   return (
     <section id="contact" style={{ background: P.light, padding: '120px 64px 100px', direction: t.dir }}>
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-        <SectionHead align="start" h={c.h} sub={c.sub} dir={t.dir} />
+        <SectionHead h={c.h} sub={c.sub} dir={t.dir} />
 
-        <div style={{ maxWidth: 680 }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
           {done ? (
             <div className="lp-rs lp-visible" style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 16, padding: '32px', textAlign: 'center', fontSize: 17, fontWeight: 700, color: '#15803d' }}>
               {c.success}
