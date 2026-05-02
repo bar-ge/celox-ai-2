@@ -3105,6 +3105,14 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
 }
 
 // ── Expiry Alerts Panel ───────────────────────────────────────────────────────
+const MAINT_HE = {
+  'Oil Change':    'החלפת שמן',
+  'Tire Rotation': 'סיבוב צמיגים',
+  'Inspection':    'בדיקה תקופתית',
+  'Brake Service': 'שירות בלמים',
+  'Other':         'אחר',
+}
+
 function AlertsPanel({ rtl, companyId }) {
   const [alerts, setAlerts] = useState([])
   const [open,   setOpen]   = useState(true)
@@ -3123,6 +3131,13 @@ function AlertsPanel({ rtl, companyId }) {
 
   const overdue = alerts.filter(a => a.severity === 'overdue').length
   const typeIcon = { maintenance: '🔧', document: '📎', license: '🪪' }
+
+  const localizeLabel = (label) => {
+    if (!rtl || !label) return label
+    let out = label
+    Object.entries(MAINT_HE).forEach(([en, he]) => { out = out.replace(en, he) })
+    return out
+  }
 
   return (
     <div style={{ background: overdue > 0 ? '#fef2f2' : '#fffbeb', border: `1px solid ${overdue > 0 ? '#fecaca' : '#fde68a'}`, borderRadius: 12, marginBottom: 20, overflow: 'hidden' }}>
@@ -3145,7 +3160,7 @@ function AlertsPanel({ rtl, companyId }) {
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', background: isOverdue ? '#fee2e2' : '#fef9c3', borderRadius: 7, fontSize: 13 }}>
                 <span>{typeIcon[a.type] || '⚠'}</span>
-                <span style={{ flex: 1, fontWeight: 600, color: isOverdue ? C.danger : '#92400e' }}>{a.label}</span>
+                <span style={{ flex: 1, fontWeight: 600, color: isOverdue ? C.danger : '#92400e' }}>{localizeLabel(a.label)}</span>
                 <span style={{ fontSize: 11, color: isOverdue ? C.danger : '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>
                   {fmtDate(a.date)} {isOverdue ? (rtl ? '(באיחור)' : '(overdue)') : (rtl ? `(${daysLeft} ימים)` : `(${daysLeft}d)`)}
                 </span>
