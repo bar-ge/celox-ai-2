@@ -1,11 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense, Component } from 'react'
-const Car3D = lazy(() => import('./Car3D.jsx'))
-
-class Car3DBoundary extends Component {
-  state = { failed: false }
-  static getDerivedStateFromError() { return { failed: true } }
-  render() { return this.state.failed ? null : this.props.children }
-}
+import { useState, useEffect, useRef } from 'react'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
@@ -735,7 +728,6 @@ export default function LandingPage() {
 
   return (
     <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
-      <Car3DBoundary><Suspense fallback={null}><Car3D scrollY={scrollY} /></Suspense></Car3DBoundary>
       <Nav t={t} lang={lang} setLang={setLang} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
       <Hero t={t} scrollY={scrollY} />
       <Stats t={t} />
