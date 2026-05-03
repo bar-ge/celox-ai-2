@@ -2,6 +2,20 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isDriverLicense, isYear, isPositive } from './validators'
 
+function checkClientRateLimit(key, max, windowMs = 3_600_000) {
+  try {
+    const now    = Date.now()
+    const stored = JSON.parse(localStorage.getItem(key) || 'null')
+    if (stored && now - stored.t < windowMs) {
+      if (stored.n >= max) return false
+      localStorage.setItem(key, JSON.stringify({ t: stored.t, n: stored.n + 1 }))
+    } else {
+      localStorage.setItem(key, JSON.stringify({ t: now, n: 1 }))
+    }
+  } catch { /* localStorage unavailable */ }
+  return true
+}
+
 const C = {
   navBg: '#0f172a', primary: '#0891b2', bg: '#f1f5f9', surface: '#ffffff',
   border: '#e2e8f0', text: '#0f172a', textSub: '#475569', textMuted: '#94a3b8',
@@ -860,6 +874,10 @@ export default function PublicForm({ token }) {
   }, [token])
 
   async function handleSubmit(data) {
+    if (!checkClientRateLimit(`celox_pubform_rl_${token}`, 5)) {
+      setSubmitError('שלחת יותר מדי טפסים. נסה שוב מאוחר יותר.')
+      return
+    }
     setSubmitting(true)
     const submissionId = crypto.randomUUID()
     const { error } = await supabase.from('form_submissions').insert({
@@ -870,7 +888,7 @@ export default function PublicForm({ token }) {
       submitter_name: data.submitter_name || '',
       data,
     })
-    if (error) { setSubmitError('שגיאה בשליחה: ' + error.message); setSubmitting(false); return }
+    if (error) { console.error('[form_submit]', error); setSubmitError('שגיאה בשליחה. נסה שוב.'); setSubmitting(false); return }
 
     // Auto-create cost records for insurance / toll from car checklist
     if (link.type === 'car_checklist' && link.car_id) {

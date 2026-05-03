@@ -132,3 +132,14 @@ export function validateForm(form, requiredFields = [], lang = 'he') {
 
   return errors
 }
+
+// ── Sanitize DB errors for display ───────────────────────────────────────────
+// Logs full error to console, returns a user-friendly localised string.
+export function friendlyDbError(error, rtl = true) {
+  console.error('[DB]', error)
+  const code = error?.code
+  if (code === '23505') return rtl ? 'רשומה זו כבר קיימת במערכת' : 'This record already exists'
+  if (code === '23503') return rtl ? 'לא ניתן למחוק — קיימות רשומות מקושרות' : 'Cannot delete: linked records exist'
+  if (code === '42501' || code === 'PGRST301') return rtl ? 'אין הרשאה לפעולה זו' : 'Permission denied'
+  return rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed. Please try again.'
+}

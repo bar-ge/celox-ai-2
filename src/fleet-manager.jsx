@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import ExcelJS from 'exceljs'
-import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive } from './validators'
+import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, friendlyDbError } from './validators'
 
 async function xlsxDownload(wb, filename) {
   const buffer = await wb.xlsx.writeBuffer()
@@ -743,19 +743,19 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
     const safeName = pendingFile.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
     const path = `${companyId}/${entityType}/${entity.id}/${Date.now()}_${safeName}`
     const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, pendingFile)
-    if (uploadErr) { setError(uploadErr.message); setUploading(false); return }
+    if (uploadErr) { setError(friendlyDbError(uploadErr)); setUploading(false); return }
     const { error: dbErr } = await supabase.from('documents').insert({
       company_id: companyId, entity_type: entityType, entity_id: entity.id,
       name: pendingFile.name, storage_path: path, size: pendingFile.size,
       expires_at: expiryDate || null, doc_type: docType || null,
     })
-    if (dbErr) { setError(dbErr.message) } else { await loadDocs(); setPendingFile(null); setExpiryDate('') }
+    if (dbErr) { setError(friendlyDbError(dbErr)) } else { await loadDocs(); setPendingFile(null); setExpiryDate('') }
     setUploading(false)
   }
 
   async function saveExpiry(doc) {
     const { error } = await supabase.from('documents').update({ expires_at: editExpiryVal || null }).eq('id', doc.id)
-    if (error) { setError(error.message); return }
+    if (error) { setError(friendlyDbError(error)); return }
     setDocs(p => p.map(d => d.id === doc.id ? { ...d, expires_at: editExpiryVal || null } : d))
     setEditingExpiry(null)
   }
@@ -767,7 +767,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
 
   async function deleteFile(doc) {
     const { error: dbErr } = await supabase.from('documents').delete().eq('id', doc.id)
-    if (dbErr) { setError(dbErr.message); return }
+    if (dbErr) { setError(friendlyDbError(dbErr)); return }
     await supabase.storage.from('fleet-documents').remove([doc.storage_path])
     setDocs(p => p.filter(d => d.id !== doc.id))
   }
@@ -1034,13 +1034,13 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
     const safeName = pendingFile.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
     const path = `${companyId}/${entityType}/${entityId}/${Date.now()}_${safeName}`
     const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, pendingFile)
-    if (uploadErr) { setError(uploadErr.message); setUploading(false); return }
+    if (uploadErr) { setError(friendlyDbError(uploadErr, rtl)); setUploading(false); return }
     const { error: dbErr } = await supabase.from('documents').insert({
       company_id: companyId, entity_type: entityType, entity_id: entityId,
       name: pendingFile.name, storage_path: path, size: pendingFile.size,
       expires_at: expiryDate || null,
     })
-    if (dbErr) setError(dbErr.message)
+    if (dbErr) setError(friendlyDbError(dbErr, rtl))
     else { await loadDocs(); setPendingFile(null); setExpiryDate('') }
     setUploading(false)
   }
@@ -2221,7 +2221,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
       last_date: planForm.last_date || null,
     }
     const { data, error } = await supabase.from('maintenance_plans').insert([payload]).select()
-    if (error) { alert(error.message); return }
+    if (error) { console.error('[DB]', error); alert(rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed. Please try again.'); return }
     if (data) {
       setPlans(p => [data[0], ...p])
       setShowPlanAdd(false)
@@ -2627,7 +2627,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
       const { error: insErr } = await supabase
         .from(type === 'cars' ? 'cars' : 'drivers')
         .insert(insertPayload)
-      if (insErr) { setError(insErr.message); setImporting(false); return }
+      if (insErr) { setError(friendlyDbError(insErr, rtl)); setImporting(false); return }
       totalCount += toInsert.length
     }
 
@@ -2643,7 +2643,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
       const { error: updErr } = await supabase.from('cars')
         .update({ driver_id: driverId, branch_id: branchId })
         .eq('id', car.id)
-      if (updErr) { setError(updErr.message); setImporting(false); return }
+      if (updErr) { setError(friendlyDbError(updErr, rtl)); setImporting(false); return }
       totalCount++
     }
 
@@ -2900,7 +2900,7 @@ function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImp
     }))
     const { error: insErr } = await supabase.from('costs').insert(toInsert)
     setImporting(false)
-    if (insErr) { setError(insErr.message); return }
+    if (insErr) { setError(friendlyDbError(insErr, rtl)); return }
     setDone(typeof t.csvImported === 'function' ? t.csvImported(toInsert.length) : `${toInsert.length} imported.`)
     onImported()
   }
@@ -3017,7 +3017,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       category: form.category, amount,
       description: form.description || null, date: form.date,
     }]).select()
-    if (error) { setAddError(error.message); return }
+    if (error) { setAddError(friendlyDbError(error, rtl)); return }
     if (data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setAddError(''); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' }) }
   }
   async function del(id) {
@@ -3866,7 +3866,7 @@ function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose
         const safe = file.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
         const path = `${companyId}/accidents/${Date.now()}_${safe}`
         const { error: upErr } = await supabase.storage.from('fleet-documents').upload(path, file)
-        if (upErr) throw new Error(upErr.message)
+        if (upErr) { console.error('[upload]', upErr); throw new Error(rtl ? 'שגיאה בהעלאת קובץ. נסה שוב.' : 'File upload failed. Please try again.') }
         uploadedPaths.push({ name: file.name, path })
       }
       const { error: dbErr } = await supabase.from('accident_reports').insert({
@@ -3882,7 +3882,7 @@ function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose
         description:        form.description  || null,
         file_paths:         uploadedPaths,
       })
-      if (dbErr) throw new Error(dbErr.message)
+      if (dbErr) { console.error('[DB]', dbErr); throw new Error(rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed. Please try again.') }
       onSaved()
     } catch (err) {
       setError(err.message)
@@ -5151,7 +5151,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
       invited_by: session.user.id,
     })
     if (error) {
-      setInviteErr(error.code === '23505' ? t.alreadyInvited : error.message)
+      console.error('[DB]', error)
+      setInviteErr(error.code === '23505' ? t.alreadyInvited : (rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed. Please try again.'))
     } else {
       setInviteMsg(t.inviteSent(email))
       setInviteEmail('')
@@ -5175,7 +5176,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
       name, invite_code: code, is_active: true,
     }).select().single()
     if (error) {
-      setMasterErr(error.message)
+      console.error('[DB]', error)
+      setMasterErr(friendlyDbError(error, rtl))
     } else {
       setCompanies(p => [data, ...p])
       setNewName('')
@@ -6007,9 +6009,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const safeName = file.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
     const path = `${activeCompanyId}/car-photos/${carId}/${Date.now()}_${safeName}`
     const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, file, { upsert: true })
-    if (uploadErr) { setCrudError(uploadErr.message); return }
+    if (uploadErr) { setCrudError(friendlyDbError(uploadErr, rtl)); return }
     const { error: dbErr } = await supabase.from('cars').update({ photo_url: path }).eq('id', carId).eq('company_id', activeCompanyId)
-    if (dbErr) { setCrudError(dbErr.message); return }
+    if (dbErr) { setCrudError(friendlyDbError(dbErr, rtl)); return }
     setCars(p => p.map(c => c.id === carId ? { ...c, photo_url: path } : c))
   }
 
@@ -6023,7 +6025,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (!selectedIds.length || !window.confirm(t.confirmDelete)) return
     const table = tab === 'cars' ? 'cars' : tab === 'drivers' ? 'drivers' : 'branches'
     const { error } = await supabase.from(table).delete().in('id', selectedIds).eq('company_id', activeCompanyId)
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     if (tab === 'cars')    setCars(p => p.filter(x => !selectedIds.includes(x.id)))
     if (tab === 'drivers') setDrivers(p => p.filter(x => !selectedIds.includes(x.id)))
     if (tab === 'branches') setBranches(p => p.filter(x => !selectedIds.includes(x.id)))
@@ -6052,7 +6054,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (form.year && !isYear(form.year)) { setCrudError(rtl ? 'שנה לא תקינה (1900–2099)' : 'Invalid year (1900–2099)'); return }
     if (form.mileage && !isPositive(form.mileage)) { setCrudError(rtl ? 'קילומטראז׳ חייב להיות מספר חיובי' : 'Mileage must be a positive number'); return }
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
-    if (error || !data?.[0]) { setCrudError(error?.message || 'Insert failed'); return }
+    if (error || !data?.[0]) { setCrudError(error ? friendlyDbError(error, rtl) : (rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed.')); return }
     setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
     if (form.driver_id) await supabase.from('drivers').update({ car_id: String(data[0].id) }).eq('id', form.driver_id).eq('company_id', activeCompanyId)
     logActivity('add', 'car', `${form.plate} ${form.make}`)
@@ -6066,7 +6068,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const { id: carId, ...carData } = { ...cleanCar(form), id: form.id }
     const { error } = await supabase.from('cars').update(carData).eq('id', carId).eq('company_id', activeCompanyId)
     const c = { ...carData, id: carId }
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     // Log driver assignment change for history
     const prev = cars.find(x => x.id === form.id)
     if (prev && prev.driver_id !== form.driver_id) {
@@ -6099,7 +6101,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (!window.confirm(t.confirmDelete)) return
     const car = cars.find(c => c.id === id)
     const { error } = await supabase.from('cars').delete().eq('id', id).eq('company_id', activeCompanyId)
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setCars(p => p.filter(c => c.id !== id)); setEditingId(null); setCrudError('')
     logActivity('delete', 'car', `${car?.plate} ${car?.make}`)
   }
@@ -6110,7 +6112,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הנהג חייב להכיל לפחות 2 תווים' : 'Driver name must be at least 2 characters'); return }
     if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const { data, error } = await supabase.from('drivers').insert([cleanDriver(form)]).select()
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setDrivers(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
     logActivity('add', 'driver', form.name)
   }
@@ -6120,7 +6122,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const prevDrv = drivers.find(x => x.id === form.id)
     const { id: driverId, ...driverData } = { ...cleanDriver(form), id: form.id }
     const { error } = await supabase.from('drivers').update(driverData).eq('id', driverId)
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setDrivers(p => p.map(x => x.id === driverId ? { ...x, ...driverData, id: driverId } : x)); setEditingId(null); setCrudError('')
     const drvDiff = prevDrv ? diffObjects(prevDrv, form, ['name','license','phone','status','branch_id','license_levels']) : null
     logActivity('update', 'driver', form.name, drvDiff)
@@ -6129,7 +6131,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (!window.confirm(t.confirmDelete)) return
     const drv = drivers.find(d => d.id === id)
     const { error } = await supabase.from('drivers').delete().eq('id', id)
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setDrivers(p => p.filter(d => d.id !== id))
     logActivity('delete', 'driver', drv?.name)
   }
@@ -6137,7 +6139,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הסניף חייב להכיל לפחות 2 תווים' : 'Branch name must be at least 2 characters'); return }
     if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const { data, error } = await supabase.from('branches').insert([cleanBranch(form)]).select()
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setBranches(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
     logActivity('add', 'branch', form.name)
   }
@@ -6147,7 +6149,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const prevBrn = branches.find(x => x.id === form.id)
     const { id: branchId, ...branchData } = { ...cleanBranch(form), id: form.id }
     const { error } = await supabase.from('branches').update(branchData).eq('id', branchId)
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setBranches(p => p.map(x => x.id === branchId ? { ...x, ...branchData, id: branchId } : x)); setEditingId(null); setCrudError('')
     const brnDiff = prevBrn ? diffObjects(prevBrn, form, ['name','city','address','manager','phone']) : null
     logActivity('update', 'branch', form.name, brnDiff)
@@ -6156,7 +6158,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (!window.confirm(t.confirmDelete)) return
     const brn = branches.find(b => b.id === id)
     const { error } = await supabase.from('branches').delete().eq('id', id)
-    if (error) { setCrudError(error.message); return }
+    if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setBranches(p => p.filter(b => b.id !== id))
     logActivity('delete', 'branch', brn?.name)
   }

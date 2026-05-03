@@ -2,6 +2,20 @@ import { useState, useEffect, useRef } from 'react'
 import { CeloxIcon } from './LogoIcon'
 import { validateField, isEmail, isIsraeliPhone, isEmpty } from './validators'
 
+function checkClientRateLimit(key, max, windowMs = 3_600_000) {
+  try {
+    const now    = Date.now()
+    const stored = JSON.parse(localStorage.getItem(key) || 'null')
+    if (stored && now - stored.t < windowMs) {
+      if (stored.n >= max) return false
+      localStorage.setItem(key, JSON.stringify({ t: stored.t, n: stored.n + 1 }))
+    } else {
+      localStorage.setItem(key, JSON.stringify({ t: now, n: 1 }))
+    }
+  } catch { /* localStorage unavailable */ }
+  return true
+}
+
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
   dark:   'oklch(8% 0.015 260)',
@@ -607,6 +621,10 @@ function ContactSection({ t }) {
   const submit = async e => {
     e.preventDefault()
     if (!runAll()) return
+    if (!checkClientRateLimit('celox_contact_rl', 3)) {
+      setErr(lang === 'he' ? 'נסית לשלוח יותר מדי פנויות. נסה שוב מאוחר יותר.' : 'Too many submissions. Please try again later.')
+      return
+    }
     setSending(true); setErr(null)
     try {
       const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/contact-form', {

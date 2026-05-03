@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
 import PublicForm from './PublicForm'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
+import { friendlyDbError } from './validators'
 import './App.css'
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
@@ -655,7 +656,7 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
       company_id: companyId,
       role,
     })
-    if (pe) { setError(pe.message); setLoading(false); return }
+    if (pe) { setError(friendlyDbError(pe, lang === 'he')); setLoading(false); return }
     // Notify company admins that a new member joined
     supabase.functions.invoke('send-notification', {
       body: { type: 'member_joined', payload: { new_member_email: session.user.email, company_id: companyId } },
