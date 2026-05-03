@@ -583,7 +583,7 @@ function LoginScreen({ lang, setLang, notice }) {
                   <p><strong>1. מבוא</strong> — Celox AI בע"מ מפעילה פלטפורמת SaaS לניהול צי רכבים. מדיניות זו מסבירה אילו נתונים אישיים אנו אוספים וכיצד אנו משתמשים בהם לפי חוק הגנת הפרטיות (תשמ"א-1981).</p>
                   <p><strong>2. מידע שנאסף</strong> — שם, אימייל, טלפון, לוחיות רישוי, היסטוריית תחזוקה, לוגים של פעילות.</p>
                   <p><strong>3. מטרות</strong> — ניהול צי, תזמון תחזוקה, אבטחה ותמיכה.</p>
-                  <p><strong>4. אחסון</strong> — המידע מאוחסן ב-Supabase (ארה"ב) עם הסכמי DPA. הצפנה בתעבורה ובאחסון.</p>
+                  <p><strong>4. אחסון</strong> — המידע מאוחסן ב-Supabase (טוקיו, יפן) עם הסכם DPA. הצפנה בתעבורה ובאחסון.</p>
                   <p><strong>5. הזכויות שלך</strong> — זכות עיון, תיקון ומחיקה. פנה אלינו: <strong>privacy@celoxai.com</strong></p>
                   <p><strong>6. יצירת קשר</strong> — privacy@celoxai.com | Celox AI בע"מ, ישראל.</p>
                 </>
@@ -592,7 +592,7 @@ function LoginScreen({ lang, setLang, notice }) {
                   <p><strong>1. Introduction</strong> — Celox AI Ltd. operates a SaaS fleet management platform. This policy explains what personal data we collect and how we use it under the Israeli Privacy Protection Law (1981).</p>
                   <p><strong>2. Data Collected</strong> — Name, email, phone, license plates, maintenance history, activity logs.</p>
                   <p><strong>3. Purpose</strong> — Fleet management, maintenance scheduling, security, and support.</p>
-                  <p><strong>4. Storage</strong> — Data stored on Supabase (USA) with DPA agreements. Encrypted in transit and at rest.</p>
+                  <p><strong>4. Storage</strong> — Data stored on Supabase (Tokyo, Japan) with DPA agreement. Encrypted in transit and at rest.</p>
                   <p><strong>5. Your Rights</strong> — Right to access, correct, and delete your data. Contact: <strong>privacy@celoxai.com</strong></p>
                   <p><strong>6. Contact</strong> — privacy@celoxai.com | Celox AI Ltd., Israel.</p>
                 </>

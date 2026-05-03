@@ -644,6 +644,12 @@ function ContactSection({ t }) {
                   style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? .7 : 1, boxShadow: '0 8px 28px rgba(37,99,235,.35)', fontFamily: 'inherit' }}>
                   {sending ? c.sending : c.send}
                 </button>
+                <p style={{ fontSize: 12, color: P.muted, textAlign: 'center', margin: '14px 0 0', lineHeight: 1.6 }}>
+                  {t.dir === 'rtl'
+                    ? <>{' בלחיצה על שלח, אתה מסכים ל'}<a href="/privacy" style={{ color: P.blue }}>{'מדיניות הפרטיות'}</a>{' שלנו.'}</>
+                    : <>{'By clicking Send, you agree to our '}<a href="/privacy" style={{ color: P.blue }}>{'Privacy Policy'}</a>{'.'}</>
+                  }
+                </p>
               </div>
             </form>
           )}
@@ -664,11 +670,14 @@ function Footer({ t }) {
           <span style={{ fontSize: 15, fontWeight: 800, color: P.text }}>Celox <span style={{ color: P.blue }}>AI</span></span>
         </div>
         <div style={{ fontSize: 13, color: P.muted }}>{t.footer}</div>
-        <div style={{ display: 'flex', gap: 24 }}>
+        <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
           {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
             <span key={id} onClick={() => scrollTo(id)} className="lp-nav-link"
               style={{ fontSize: 13, color: P.muted, cursor: 'pointer' }}>{t.nav[k]}</span>
           ))}
+          <a href="/privacy" style={{ fontSize: 13, color: P.muted, textDecoration: 'none' }} className="lp-nav-link">
+            {t.dir === 'rtl' ? 'מדיניות פרטיות' : 'Privacy Policy'}
+          </a>
         </div>
       </div>
     </footer>
