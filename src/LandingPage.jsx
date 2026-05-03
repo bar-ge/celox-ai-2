@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { CeloxIcon } from './LogoIcon'
+import { validateField, isEmail, isIsraeliPhone, isEmpty } from './validators'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
@@ -571,16 +572,41 @@ function CTASection({ t, scrollY }) {
 
 // ── Contact ───────────────────────────────────────────────────────────────────
 function ContactSection({ t }) {
-  const c = t.contact
+  const c    = t.contact
+  const lang = t.dir === 'rtl' ? 'he' : 'en'
   const [form, setForm]       = useState({ name: '', company: '', phone: '', email: '', message: '' })
   const [sending, setSending] = useState(false)
   const [done, setDone]       = useState(false)
   const [err, setErr]         = useState(null)
+  const [errors, setErrors]   = useState({})
+  const [touched, setTouched] = useState({})
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = k => e => {
+    const v = e.target.value
+    setForm(f => ({ ...f, [k]: v }))
+    if (touched[k]) setErrors(prev => ({ ...prev, [k]: validateField(k, v, lang) }))
+  }
+
+  const touch = k => () => {
+    setTouched(prev => ({ ...prev, [k]: true }))
+    setErrors(prev => ({ ...prev, [k]: validateField(k, form[k], lang) }))
+  }
+
+  const runAll = () => {
+    const errs = {}
+    const fields = { name: form.name, phone: form.phone, email: form.email }
+    for (const [k, v] of Object.entries(fields)) {
+      const e = validateField(k, v, lang)
+      if (e) errs[k] = e
+    }
+    setErrors(errs)
+    setTouched({ name: true, phone: true, email: true })
+    return Object.keys(errs).length === 0
+  }
 
   const submit = async e => {
     e.preventDefault()
+    if (!runAll()) return
     setSending(true); setErr(null)
     try {
       const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/contact-form', {
@@ -594,8 +620,14 @@ function ContactSection({ t }) {
     finally { setSending(false) }
   }
 
-  const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: P.text, marginBottom: 6 }
-  const optStyle   = { fontSize: 12, color: P.muted, fontWeight: 400 }
+  const labelStyle  = { display: 'block', fontSize: 13, fontWeight: 600, color: P.text, marginBottom: 6 }
+  const optStyle    = { fontSize: 12, color: P.muted, fontWeight: 400 }
+  const errStyle    = k => touched[k] && errors[k] ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239,68,68,.1)' } : {}
+  const ErrMsg      = ({ k }) => touched[k] && errors[k]
+    ? <span role="alert" style={{ color: '#ef4444', fontSize: 11, marginTop: 4, display: 'block' }}>{errors[k]}</span>
+    : null
+
+  const hasErrors = Object.keys(errors).some(k => errors[k])
 
   return (
     <section id="contact" style={{ background: P.light, padding: '120px 64px 100px', direction: t.dir }}>
@@ -608,13 +640,14 @@ function ContactSection({ t }) {
               {c.success}
             </div>
           ) : (
-            <form onSubmit={submit}>
+            <form onSubmit={submit} noValidate>
               <div className="lp-contact-card" style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 24, padding: '40px 44px', boxShadow: '0 4px 32px rgba(0,0,0,.05)' }}>
 
                 <div className="lp-form-grid">
                   <div>
                     <label htmlFor="cf-name" style={labelStyle}>{c.name}</label>
-                    <input id="cf-name" className="lp-input" required value={form.name} onChange={set('name')} placeholder={c.namePh} autoComplete="name" />
+                    <input id="cf-name" className="lp-input" value={form.name} onChange={set('name')} onBlur={touch('name')} placeholder={c.namePh} autoComplete="name" style={errStyle('name')} />
+                    <ErrMsg k="name" />
                   </div>
                   <div>
                     <label htmlFor="cf-company" style={labelStyle}>{c.company} <span style={optStyle}>({c.companyPh})</span></label>
@@ -625,11 +658,13 @@ function ContactSection({ t }) {
                 <div className="lp-form-grid">
                   <div>
                     <label htmlFor="cf-phone" style={labelStyle}>{c.phone}</label>
-                    <input id="cf-phone" className="lp-input" required type="tel" value={form.phone} onChange={set('phone')} placeholder={c.phonePh} autoComplete="tel" />
+                    <input id="cf-phone" className="lp-input" type="tel" value={form.phone} onChange={set('phone')} onBlur={touch('phone')} placeholder={c.phonePh} autoComplete="tel" style={errStyle('phone')} />
+                    <ErrMsg k="phone" />
                   </div>
                   <div>
                     <label htmlFor="cf-email" style={labelStyle}>{c.email}</label>
-                    <input id="cf-email" className="lp-input" required type="email" value={form.email} onChange={set('email')} placeholder={c.emailPh} autoComplete="email" />
+                    <input id="cf-email" className="lp-input" type="email" value={form.email} onChange={set('email')} onBlur={touch('email')} placeholder={c.emailPh} autoComplete="email" style={errStyle('email')} />
+                    <ErrMsg k="email" />
                   </div>
                 </div>
 

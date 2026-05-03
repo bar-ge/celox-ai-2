@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CeloxIcon } from './LogoIcon'
+import { validateField } from './validators'
 
 const T = {
   he: {
@@ -266,14 +267,23 @@ function Section({ s, dir }) {
 }
 
 function DeletionForm({ t }) {
-  const d = t.deletion
-  const [form, setForm] = useState({ name: '', email: '', company: '', type: d.types[0] })
-  const [sent, setSent] = useState(false)
+  const d    = t.deletion
+  const lang = t.dir === 'rtl' ? 'he' : 'en'
+  const [form, setForm]     = useState({ name: '', email: '', company: '', type: d.types[0] })
+  const [sent, setSent]     = useState(false)
+  const [errors, setErrors] = useState({})
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const submit = e => {
     e.preventDefault()
+    const errs = {}
+    const nameErr  = validateField('name', form.name, lang)
+    const emailErr = validateField('email', form.email, lang)
+    if (nameErr)  errs.name  = nameErr
+    if (emailErr) errs.email = emailErr
+    if (Object.keys(errs).length) { setErrors(errs); return }
+
     const subject = encodeURIComponent(`[Celox AI Privacy Request] ${form.type} — ${form.name}`)
     const body = encodeURIComponent(
       `Request type: ${form.type}\nName: ${form.name}\nEmail: ${form.email}\nCompany: ${form.company}\n\nSubmitted via celoxai.com/privacy`
@@ -283,6 +293,10 @@ function DeletionForm({ t }) {
   }
 
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: 'oklch(18% 0.02 260)', marginBottom: 6 }
+  const errBorder  = k => errors[k] ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239,68,68,.1)' } : {}
+  const ErrMsg     = ({ k }) => errors[k]
+    ? <span role="alert" style={{ color: '#ef4444', fontSize: 11, marginTop: 4, display: 'block' }}>{errors[k]}</span>
+    : null
 
   return (
     <div style={{ background: 'oklch(97% 0.006 260)', borderRadius: 20, padding: '40px', marginTop: 48 }} id="deletion-request">
@@ -294,15 +308,17 @@ function DeletionForm({ t }) {
           {t.dir === 'rtl' ? '✓ הבקשה נשלחה. בדוק את תוכנת האימייל שלך לאישור השליחה.' : '✓ Request prepared. Check your email client to confirm sending.'}
         </div>
       ) : (
-        <form onSubmit={submit}>
+        <form onSubmit={submit} noValidate>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <label style={labelStyle}>{d.name}</label>
-              <input className="pp-del-input" required value={form.name} onChange={set('name')} />
+              <input className="pp-del-input" value={form.name} onChange={set('name')} style={errBorder('name')} />
+              <ErrMsg k="name" />
             </div>
             <div>
               <label style={labelStyle}>{d.email}</label>
-              <input className="pp-del-input" required type="email" value={form.email} onChange={set('email')} />
+              <input className="pp-del-input" type="email" value={form.email} onChange={set('email')} style={errBorder('email')} />
+              <ErrMsg k="email" />
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>

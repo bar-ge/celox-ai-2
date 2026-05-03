@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
+import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isDriverLicense, isYear, isPositive } from './validators'
 
 const C = {
   navBg: '#0f172a', primary: '#0891b2', bg: '#f1f5f9', surface: '#ffffff',
@@ -23,6 +24,7 @@ const FORM_META = {
   car_checklist:    { icon: '📋', title: 'רשימת בדיקה לרכב חדש', en: 'New Company Car Checklist' },
   driver_car_check: { icon: '🚗', title: 'בדיקת רכב על ידי נהג', en: 'Driver Vehicle Check' },
   yearly_training:  { icon: '🎓', title: 'אימות הדרכה שנתית', en: 'Yearly Training Acknowledgment' },
+  accident_report:  { icon: '🚨', title: 'דוח תאונה', en: 'Accident Report' },
   custom:           { icon: '📝', title: 'טופס מותאם אישית', en: 'Custom Form' },
 }
 
@@ -39,6 +41,63 @@ async function uploadFiles(files, companyId, formLinkId) {
     }
   }
   return uploaded
+}
+
+// ── Signature Pad ────────────────────────────────────────────────────────────
+function SignaturePad({ value, onChange }) {
+  const canvasRef = useRef()
+  const drawing   = useRef(false)
+  const lastPos   = useRef(null)
+
+  function getPos(e) {
+    const canvas = canvasRef.current
+    const rect   = canvas.getBoundingClientRect()
+    const touch  = e.touches?.[0] || e
+    return {
+      x: (touch.clientX - rect.left)  * (canvas.width  / rect.width),
+      y: (touch.clientY - rect.top)   * (canvas.height / rect.height),
+    }
+  }
+  function startDraw(e) { e.preventDefault(); drawing.current = true; lastPos.current = getPos(e) }
+  function draw(e) {
+    e.preventDefault()
+    if (!drawing.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    const pos = getPos(e)
+    ctx.beginPath(); ctx.moveTo(lastPos.current.x, lastPos.current.y); ctx.lineTo(pos.x, pos.y)
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    ctx.stroke()
+    lastPos.current = pos
+    onChange(canvasRef.current.toDataURL('image/png'))
+  }
+  function endDraw() { drawing.current = false; lastPos.current = null }
+  function clear() {
+    const canvas = canvasRef.current
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    onChange('')
+  }
+
+  return (
+    <div style={field}>
+      <label style={lbl}>חתימה דיגיטלית</label>
+      <div style={{ position: 'relative', border: `2px solid ${value ? C.primary : C.border}`, borderRadius: 8, overflow: 'hidden', background: '#fafafa', transition: 'border-color 0.2s' }}>
+        <canvas
+          ref={canvasRef} width={560} height={120}
+          style={{ width: '100%', height: 120, cursor: 'crosshair', display: 'block', touchAction: 'none' }}
+          onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+          onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
+        />
+        <button type="button" onClick={clear} style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.9)', border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 8px', fontSize: 11, cursor: 'pointer', color: C.textSub }}>
+          נקה
+        </button>
+        {!value && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: C.textMuted, fontSize: 13 }}>
+            ✍️ חתום כאן
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ── File Attachments Component ────────────────────────────────────────────────
@@ -101,6 +160,7 @@ function FileAttachments({ files, onAdd, onRemove }) {
 // ── Car Checklist Form ────────────────────────────────────────────────────────
 function CarChecklistForm({ link, onSubmit, submitting }) {
   const car = link.car || {}
+  const [formError, setFormError] = useState('')
   const [form, setForm] = useState({
     plate: car.plate || '',
     make:  car.make  || '',
@@ -124,6 +184,11 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    setFormError('')
+    if (!isMinLen(form.submitter_name, 2)) { setFormError('נא להזין שם מלא (לפחות 2 תווים)'); return }
+    if (isEmpty(form.plate)) { setFormError('נא להזין מספר לוחית רישוי'); return }
+    if (!isIsraeliPlate(form.plate)) { setFormError('לוחית רישוי לא תקינה (7–8 ספרות)'); return }
+    if (form.year && !isYear(form.year)) { setFormError('שנת ייצור לא תקינה (1900–2099)'); return }
     const attachments = await uploadFiles(files, link.company_id, link.id)
     onSubmit({ ...form, attachments })
   }
@@ -257,6 +322,8 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
         onRemove={i => setFiles(p => p.filter((_, j) => j !== i))}
       />
 
+      {formError && <div role="alert" style={{ margin: '8px 0', padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: C.danger }}>{formError}</div>}
+
       <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#0891b2,#6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
         {submitting ? '…שולח' : '✅ שלח טופס'}
       </button>
@@ -272,13 +339,18 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
     submitter_name: driver.name || '',
     plate:          car.plate   || '',
     mileage: '', fuel_level: '', exterior_damage: '', damage_desc: '',
-    interior_ok: '', notes: '',
+    interior_ok: '', notes: '', signature: '',
   })
   const [files, setFiles] = useState([])
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function handleSubmit(e) {
     e.preventDefault()
+    setFormError('')
+    if (!isMinLen(form.submitter_name, 2)) { setFormError('נא להזין שם מלא (לפחות 2 תווים)'); return }
+    if (isEmpty(form.plate)) { setFormError('נא להזין מספר לוחית רישוי'); return }
+    if (!isIsraeliPlate(form.plate)) { setFormError('לוחית רישוי לא תקינה (7–8 ספרות)'); return }
+    if (form.mileage && !isPositive(form.mileage)) { setFormError('קילומטראז׳ חייב להיות מספר חיובי'); return }
     const attachments = await uploadFiles(files, link.company_id, link.id)
     onSubmit({ ...form, attachments })
   }
@@ -350,6 +422,11 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
         <textarea style={{ ...inp, minHeight: 70, resize: 'vertical' }} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="הערות נוספות..." />
       </div>
 
+      <div style={section}>
+        <div style={sectionTitle}>✍️ חתימת הנהג</div>
+        <SignaturePad value={form.signature} onChange={v => set('signature', v)} />
+      </div>
+
       <FileAttachments
         files={files}
         onAdd={picked => setFiles(p => [...p, ...picked])}
@@ -381,7 +458,7 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
     submitter_name: driver.name    || '',
     driver_license: driver.license || '',
     training_date: new Date().toISOString().slice(0, 10),
-    trainer_name: '', topics: [], other_topic: '', confirmed: false,
+    trainer_name: '', topics: [], other_topic: '', confirmed: false, signature: '',
   })
   const [files, setFiles] = useState([])
   const [formError, setFormError] = useState('')
@@ -397,7 +474,11 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setFormError('')
+    if (!isMinLen(form.submitter_name, 2)) { setFormError('נא להזין שם מלא (לפחות 2 תווים)'); return }
+    if (form.driver_license && !isDriverLicense(form.driver_license)) { setFormError('מספר רישיון נהיגה לא תקין'); return }
+    if (isEmpty(form.training_date)) { setFormError('נא לבחור תאריך הכשרה'); return }
     if (!form.confirmed) { setFormError('יש לאשר קריאת ההצהרה לפני השליחה'); return }
+    if (!form.signature) { setFormError('יש להוסיף חתימה דיגיטלית לפני השליחה'); return }
     const attachments = await uploadFiles(files, link.company_id, link.id)
     onSubmit({ ...form, attachments })
   }
@@ -459,6 +540,11 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
             style={{ accentColor: C.primary, width: 20, height: 20 }} />
           <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>אני מאשר/ת את ההצהרה לעיל *</span>
         </label>
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>✍️ חתימה דיגיטלית</div>
+        <SignaturePad value={form.signature} onChange={v => set('signature', v)} />
       </div>
 
       <FileAttachments
@@ -619,6 +705,134 @@ function CustomForm({ link, onSubmit, submitting }) {
   )
 }
 
+// ── Accident Report Form (driver at scene) ───────────────────────────────────
+function AccidentReportPublicForm({ link, onSubmit, submitting }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [form, setForm] = useState({
+    submitter_name: '', my_plate: '', my_make: '', my_model: '',
+    incident_date: today, incident_location: '', description: '',
+    other_plate: '', other_make: '', other_model: '',
+    other_driver_name: '', other_driver_phone: '',
+    police_report: '', called_ambulance: '',
+  })
+  const [files, setFiles] = useState([])
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    const attachments = await uploadFiles(files, link.company_id, link.id)
+    onSubmit({ ...form, attachments })
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={section}>
+        <div style={sectionTitle}>👤 פרטי הנהג המדווח</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ ...field, gridColumn: '1 / -1' }}>
+            <label style={lbl}>שם מלא *</label>
+            <input style={inp} required value={form.submitter_name} onChange={e => set('submitter_name', e.target.value)} placeholder="ישראל ישראלי" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>לוחית רישוי שלי *</label>
+            <input style={{ ...inp, direction: 'ltr' }} required value={form.my_plate} onChange={e => set('my_plate', e.target.value)} placeholder="123-45-678" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>תאריך האירוע</label>
+            <input style={inp} type="date" value={form.incident_date} onChange={e => set('incident_date', e.target.value)} />
+          </div>
+          <div style={field}>
+            <label style={lbl}>יצרן הרכב שלי</label>
+            <input style={inp} value={form.my_make} onChange={e => set('my_make', e.target.value)} placeholder="טויוטה" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>דגם הרכב שלי</label>
+            <input style={inp} value={form.my_model} onChange={e => set('my_model', e.target.value)} placeholder="קורולה" />
+          </div>
+        </div>
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>🚨 פרטי האירוע</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 4 }}>
+          <div style={field}>
+            <label style={lbl}>האם הוגשה תלונה במשטרה?</label>
+            <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+              {[['yes', '✅ כן'], ['no', '❌ לא']].map(([v, l]) => (
+                <label key={v} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 8px', borderRadius: 8, border: `2px solid ${form.police_report === v ? (v === 'yes' ? C.success : C.danger) : C.border}`, cursor: 'pointer', background: form.police_report === v ? (v === 'yes' ? C.success + '15' : C.danger + '12') : C.bg, transition: 'all 0.15s', fontSize: 13, fontWeight: 700 }}>
+                  <input type="radio" name="police_report" value={v} checked={form.police_report === v} onChange={() => set('police_report', v)} style={{ display: 'none' }} />
+                  {l}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={field}>
+            <label style={lbl}>האם הוזמנה אמבולנס?</label>
+            <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+              {[['yes', '✅ כן'], ['no', '❌ לא']].map(([v, l]) => (
+                <label key={v} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 8px', borderRadius: 8, border: `2px solid ${form.called_ambulance === v ? (v === 'yes' ? C.success : C.danger) : C.border}`, cursor: 'pointer', background: form.called_ambulance === v ? (v === 'yes' ? C.success + '15' : C.danger + '12') : C.bg, transition: 'all 0.15s', fontSize: 13, fontWeight: 700 }}>
+                  <input type="radio" name="called_ambulance" value={v} checked={form.called_ambulance === v} onChange={() => set('called_ambulance', v)} style={{ display: 'none' }} />
+                  {l}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={field}>
+          <label style={lbl}>מיקום התאונה</label>
+          <input style={inp} value={form.incident_location} onChange={e => set('incident_location', e.target.value)} placeholder="כביש 1 ליד צומת..." />
+        </div>
+        <div style={field}>
+          <label style={lbl}>תיאור מה קרה *</label>
+          <textarea
+            style={{ ...inp, minHeight: 100, resize: 'vertical' }}
+            required
+            value={form.description}
+            onChange={e => set('description', e.target.value)}
+            placeholder="תאר את האירוע — מה קרה, כיצד, נזקים..."
+          />
+        </div>
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>🚘 פרטי הצד השני</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={field}>
+            <label style={lbl}>לוחית רישוי צד שני</label>
+            <input style={{ ...inp, direction: 'ltr' }} value={form.other_plate} onChange={e => set('other_plate', e.target.value)} placeholder="987-65-432" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>יצרן</label>
+            <input style={inp} value={form.other_make} onChange={e => set('other_make', e.target.value)} placeholder="הונדה" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>דגם</label>
+            <input style={inp} value={form.other_model} onChange={e => set('other_model', e.target.value)} placeholder="סיוויק" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>שם הנהג</label>
+            <input style={inp} value={form.other_driver_name} onChange={e => set('other_driver_name', e.target.value)} placeholder="שם הנהג השני" />
+          </div>
+          <div style={{ ...field, gridColumn: '1 / -1' }}>
+            <label style={lbl}>טלפון הנהג</label>
+            <input style={{ ...inp, direction: 'ltr' }} type="tel" value={form.other_driver_phone} onChange={e => set('other_driver_phone', e.target.value)} placeholder="050-1234567" />
+          </div>
+        </div>
+      </div>
+
+      <FileAttachments
+        files={files}
+        onAdd={picked => setFiles(p => [...p, ...picked])}
+        onRemove={i => setFiles(p => p.filter((_, j) => j !== i))}
+      />
+
+      <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#ef4444,#f59e0b)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
+        {submitting ? '…שולח' : '🚨 שלח דוח תאונה'}
+      </button>
+    </form>
+  )
+}
+
 // ── Public Form Page (root) ───────────────────────────────────────────────────
 export default function PublicForm({ token }) {
   const [link,        setLink]        = useState(null)
@@ -662,6 +876,37 @@ export default function PublicForm({ token }) {
     if (link.type === 'car_checklist' && link.car_id) {
       await supabase.rpc('create_costs_from_checklist', { p_submission_id: submissionId })
     }
+
+    // Mirror accident report submissions into the accident_reports table
+    if (link.type === 'accident_report') {
+      const descParts = [data.description || '']
+      if (data.incident_location) descParts.push(`מיקום: ${data.incident_location}`)
+      if (data.my_plate) descParts.push(`רכב מדווח: ${[data.my_plate, data.my_make, data.my_model].filter(Boolean).join(' ')}`)
+      await supabase.from('accident_reports').insert({
+        company_id: link.company_id,
+        other_plate: data.other_plate || null,
+        other_make: data.other_make || null,
+        other_model: data.other_model || null,
+        other_driver_name: data.other_driver_name || null,
+        other_driver_phone: data.other_driver_phone || null,
+        incident_date: data.incident_date || null,
+        description: descParts.join('\n'),
+        file_paths: (data.attachments || []).map(a => ({ name: a.name, path: a.path })),
+        police_report: data.police_report === 'yes' ? true : data.police_report === 'no' ? false : null,
+        called_ambulance: data.called_ambulance === 'yes' ? true : data.called_ambulance === 'no' ? false : null,
+        status: 'open',
+      })
+    }
+
+    // Push notification to admin devices (fire-and-forget)
+    supabase.functions.invoke('push-notify', {
+      body: {
+        company_id: link.company_id,
+        title: 'טופס חדש נשלח',
+        body: `${data.submitter_name || 'נהג'} — ${link.title || link.type}`,
+        url: '/',
+      },
+    }).catch(() => {})
 
     // Notify admin of new submission (fire-and-forget) — strip attachments from email payload
     const { attachments: _att, ...formDataForEmail } = data
@@ -719,7 +964,12 @@ export default function PublicForm({ token }) {
             {/* Form header */}
             <div style={{ background: C.surface, borderRadius: 14, padding: '20px 20px 16px', marginBottom: 16, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{meta?.icon}</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 4 }}>{link.title || meta?.title}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 12 }}>{link.title || meta?.title}</div>
+              <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+                🔒 המידע שתמסור בטופס זה נשמר ומעובד בהתאם לחוק הגנת הפרטיות, התשמ״א-1981 ותקנותיו.
+                המידע ישמש לצרכי ניהול הצי בלבד ולא יועבר לצד שלישי ללא הסכמתך, אלא אם נדרש לפי דין.
+                לשאלות: <a href="mailto:bar.gershenzon@gmail.com" style={{ color: C.textMuted }}>bar.gershenzon@gmail.com</a>
+              </div>
             </div>
 
             {submitError && (
@@ -727,10 +977,11 @@ export default function PublicForm({ token }) {
                 ⚠ {submitError}
               </div>
             )}
-            {link.type === 'car_checklist'    && <CarChecklistForm    link={link} onSubmit={handleSubmit} submitting={submitting} />}
-            {link.type === 'driver_car_check' && <DriverCarCheckForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
-            {link.type === 'yearly_training'  && <YearlyTrainingForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
-            {link.type === 'custom'           && <CustomForm          link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'car_checklist'    && <CarChecklistForm         link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'driver_car_check' && <DriverCarCheckForm        link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'yearly_training'  && <YearlyTrainingForm        link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'accident_report'  && <AccidentReportPublicForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'custom'           && <CustomForm                link={link} onSubmit={handleSubmit} submitting={submitting} />}
           </>
         )}
       </div>

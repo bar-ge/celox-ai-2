@@ -1,7 +1,23 @@
 import { supabase } from './supabaseClient'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
+import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive } from './validators'
+
+async function xlsxDownload(wb, filename) {
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename })
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+function xlsxAddSheet(wb, sheetName, rows) {
+  if (!rows?.length) return
+  const ws = wb.addWorksheet(sheetName)
+  ws.columns = Object.keys(rows[0]).map(k => ({ header: k, key: k, width: 20 }))
+  ws.addRows(rows)
+}
 
 // ── Date input (DD/MM/YY format) ───────────────────────────────────────────
 function DateInput({ value, onChange, style, required, placeholder }) {
@@ -269,6 +285,23 @@ const T = {
     // plate lookup
     plateLookup:'Lookup', plateLookupLoading:'Searching…', plateLookupNotFound:'Plate not found',
     plateLookupFilled:'Details filled from Ministry of Transport',
+    // accident report
+    accidentReports:'Accident Reports', newAccidentReport:'+ New Report',
+    accidentFormTitle:'Accident Report', accidentFormSub:'Report a new vehicle accident',
+    myCar:'My Vehicle', otherDriverInfo:"Other Driver's Info",
+    otherPlate:'Plate Number', otherMake:'Make', otherModel:'Model',
+    otherDriverName:'Driver Name', otherDriverPhone:'Phone',
+    incidentDate:'Incident Date', incidentDesc:'What happened?',
+    incidentDescPlaceholder:'Describe what happened — location, damage, circumstances…',
+    attachFiles:'Attach Files (photos / police report)',
+    uploading:'Uploading…', submitReport:'Submit Report',
+    reportSubmitted:'Report submitted successfully.',
+    noAccidentReports:'No accident reports yet.',
+    accidentFiles:'Files', viewReport:'View',
+    accidentOnHold:'On Hold', accidentOpen:'Open', accidentClosed:'Closed',
+    holdReport:'⏸ Hold', resumeReport:'▶ Resume',
+    sendEmailReport:'📧 Email', sendViaEmail:'Send via Email',
+    viewDetails:'👁 View Details',
     // legal & privacy
     legalTitle:'Legal', legalDesc:'Read our policies on data protection and terms of use.',
     legalContact:'Questions? Contact us at',
@@ -447,6 +480,23 @@ const T = {
     // plate lookup
     plateLookup:'בדיקה', plateLookupLoading:'מחפש…', plateLookupNotFound:'הלוחית לא נמצאה',
     plateLookupFilled:'הפרטים הושלמו ממשרד התחבורה',
+    // accident report
+    accidentReports:'דוחות תאונה', newAccidentReport:'+ דוח חדש',
+    accidentFormTitle:'דוח תאונת דרכים', accidentFormSub:'דיווח על תאונה חדשה',
+    myCar:'הרכב שלי', otherDriverInfo:'פרטי הנהג השני',
+    otherPlate:'לוחית רישוי', otherMake:'יצרן', otherModel:'דגם',
+    otherDriverName:'שם הנהג', otherDriverPhone:'טלפון',
+    incidentDate:'תאריך האירוע', incidentDesc:'מה קרה?',
+    incidentDescPlaceholder:'תאר את האירוע — מיקום, נזק, נסיבות…',
+    attachFiles:'צרף קבצים (תמונות / דוח משטרה)',
+    uploading:'מעלה…', submitReport:'שלח דוח',
+    reportSubmitted:'הדוח נשלח בהצלחה.',
+    noAccidentReports:'אין דוחות תאונה עדיין.',
+    accidentFiles:'קבצים', viewReport:'צפה',
+    accidentOnHold:'בהמתנה', accidentOpen:'פתוח', accidentClosed:'סגור',
+    holdReport:'⏸ השהה', resumeReport:'▶ המשך',
+    sendEmailReport:'📧 אימייל', sendViaEmail:'שלח באימייל',
+    viewDetails:'👁 פרטים',
     // legal & privacy
     legalTitle:'משפטי', legalDesc:'קרא את המדיניות שלנו בנושא הגנת נתונים ותנאי שימוש.',
     legalContact:'שאלות? צור קשר:',
@@ -1965,6 +2015,20 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
 
   async function handleSave() {
     setErr('')
+    if (tab === 'cars') {
+      if (isEmpty(form.plate)) { setErr(rtl ? 'לוחית רישוי היא שדה חובה' : 'License plate is required'); return }
+      if (!isIsraeliPlate(form.plate)) { setErr(rtl ? 'לוחית רישוי לא תקינה (7–8 ספרות)' : 'Invalid license plate (7–8 digits)'); return }
+      if (form.year && !isYear(form.year)) { setErr(rtl ? 'שנה לא תקינה (1900–2099)' : 'Invalid year (1900–2099)'); return }
+      if (form.mileage && !isPositive(form.mileage)) { setErr(rtl ? 'קילומטראז׳ לא תקין' : 'Invalid mileage'); return }
+    }
+    if (tab === 'drivers') {
+      if (!isMinLen(form.name, 2)) { setErr(rtl ? 'שם חובה (לפחות 2 תווים)' : 'Name required (at least 2 characters)'); return }
+      if (form.phone && !isIsraeliPhone(form.phone)) { setErr(rtl ? 'מספר טלפון לא תקין' : 'Invalid phone number'); return }
+    }
+    if (tab === 'branches') {
+      if (!isMinLen(form.name, 2)) { setErr(rtl ? 'שם סניף חובה (לפחות 2 תווים)' : 'Branch name required (at least 2 characters)'); return }
+      if (form.phone && !isIsraeliPhone(form.phone)) { setErr(rtl ? 'מספר טלפון לא תקין' : 'Invalid phone number'); return }
+    }
     await onSave(form)
   }
 
@@ -2094,7 +2158,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done' })
+  const [form, setForm] = useState({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done', mileage: '', next_service_mileage: '' })
   const [plans, setPlans] = useState([])
   const [showPlanAdd, setShowPlanAdd] = useState(false)
   const [planForm, setPlanForm] = useState({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '' })
@@ -2119,8 +2183,10 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
       company_id: companyId, car_id: form.car_id || null, type: form.type,
       description: form.description || null, cost: parseFloat(form.cost) || 0,
       date: form.date, next_due: form.next_due || null, status: form.status,
+      mileage: form.mileage ? parseInt(form.mileage, 10) : null,
+      next_service_mileage: form.next_service_mileage ? parseInt(form.next_service_mileage, 10) : null,
     }]).select()
-    if (!error && data) { setRecords(p => [data[0], ...p]); setShowAdd(false); setForm({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done' }) }
+    if (!error && data) { setRecords(p => [data[0], ...p]); setShowAdd(false); setForm({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done', mileage: '', next_service_mileage: '' }) }
   }
   async function del(id) {
     if (!window.confirm(t.confirmDelete)) return
@@ -2189,19 +2255,23 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 520 : 600 }}>
           <thead>
-            <tr>{[t.cars, t.serviceType, t.serviceDate, t.nextDue, t.amount, t.status, t.actions].map(h => (
+            <tr>{[t.cars, t.serviceType, t.serviceDate, t.nextDue, rtl ? 'ק"מ' : 'Mileage', t.amount, t.status, t.actions].map(h => (
               <th key={h} style={mkTh(rtl, isMobile)}>{h}</th>
             ))}</tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{emptyMsg}</td></tr>
+              <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{emptyMsg}</td></tr>
             ) : rows.map(r => (
               <tr key={r.id} style={{ background: C.surface, borderBottom: `1px solid ${C.border}` }}>
                 <td style={mkTd(rtl, isMobile)}><span style={{ fontWeight: 600, color: C.primary }}>{carName(r.car_id)}</span></td>
                 <td style={mkTd(rtl, isMobile)}>{t[MAINTENANCE_TYPE_KEY[r.type]] || r.type}</td>
                 <td style={mkTd(rtl, isMobile)}>{fmtDate(r.date)}</td>
                 <td style={mkTd(rtl, isMobile)}>{fmtDate(r.next_due)}</td>
+                <td style={mkTd(rtl, isMobile)}>
+                  {r.mileage ? r.mileage.toLocaleString() : '—'}
+                  {r.mileage && r.next_service_mileage ? <span style={{ color: C.textMuted, fontSize: 11 }}> → {r.next_service_mileage.toLocaleString()}</span> : ''}
+                </td>
                 <td style={mkTd(rtl, isMobile)}>{r.cost ? `₪${parseFloat(r.cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
                 <td style={mkTd(rtl, isMobile)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textMuted} /></td>
                 <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(r.id)}>{t.delete}</ActionBtn></td>
@@ -2279,6 +2349,14 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
                 <option value="scheduled">{t.scheduled}</option>
                 <option value="overdue">{t.overdue}</option>
               </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ק"מ נוכחי' : 'Mileage (km)'}</label>
+              <input type="number" min="0" value={form.mileage} onChange={e => setForm({ ...form, mileage: e.target.value })} placeholder="0" style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ק"מ לטיפול הבא' : 'Next Service (km)'}</label>
+              <input type="number" min="0" value={form.next_service_mileage} onChange={e => setForm({ ...form, next_service_mileage: e.target.value })} placeholder="0" style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: 'span 2' }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.description}</label>
@@ -3196,7 +3274,7 @@ function ActivityLogSection({ companyId, t }) {
     setLoading(false)
   }
 
-  function exportLogs() {
+  async function exportLogs() {
     const rows = logs.map(l => ({
       [t.actionAdd === 'נוסף' ? 'פעולה' : 'Action']: l.action,
       'Entity': l.entity_type,
@@ -3204,10 +3282,9 @@ function ActivityLogSection({ companyId, t }) {
       'User': l.user_email,
       'Date': new Date(l.created_at).toLocaleString('he-IL'),
     }))
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Activity Log')
-    XLSX.writeFile(wb, `activity-log-${new Date().toISOString().slice(0,10)}.xlsx`)
+    const wb = new ExcelJS.Workbook()
+    xlsxAddSheet(wb, 'Activity Log', rows)
+    await xlsxDownload(wb, `activity-log-${new Date().toISOString().slice(0,10)}.xlsx`)
   }
 
   const actionLabel = { add: t.actionAdd, update: t.actionUpdate, delete: t.actionDelete }
@@ -3303,20 +3380,37 @@ function filterByDate(items, filter) {
   })
 }
 
-function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, setDashFilter, onExport }) {
+function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, setDashFilter, onExport, onNavigate }) {
   const isMobile = useIsMobile()
-  const [monthlyBudget, setMonthlyBudget] = useState(null)
-  const [monthCostsTotal, setMonthCostsTotal] = useState(0)
+  const [monthlyBudget,      setMonthlyBudget]      = useState(null)
+  const [monthCostsTotal,    setMonthCostsTotal]    = useState(0)
+  const [openAccidents,      setOpenAccidents]      = useState([])
+  const [weeklySubsCount,    setWeeklySubsCount]    = useState(0)
+  const [pendingFormLinks,   setPendingFormLinks]   = useState([])
 
   useEffect(() => {
     if (!companyId) return
     const thisMonth = new Date().toISOString().slice(0, 7)
+    const weekAgo   = new Date(Date.now() - 7 * 86400000).toISOString()
     Promise.all([
       supabase.from('companies').select('monthly_budget').eq('id', companyId).single(),
       supabase.from('costs').select('amount').eq('company_id', companyId).gte('date', `${thisMonth}-01`),
-    ]).then(([{ data: co }, { data: cs }]) => {
+      supabase.from('accident_reports').select('id,incident_date,created_at,other_plate,description,status').eq('company_id', companyId).eq('status', 'open').order('created_at', { ascending: false }).limit(5),
+      supabase.from('form_submissions').select('id', { count: 'exact', head: true }).eq('company_id', companyId).gte('submitted_at', weekAgo),
+      supabase.from('form_links').select('id,title,type,driver_id').eq('company_id', companyId).eq('is_active', true).not('driver_id', 'is', null),
+    ]).then(([{ data: co }, { data: cs }, { data: accidents }, { count: subsCnt }, { data: driverLinks }]) => {
       setMonthlyBudget(co?.monthly_budget || null)
       setMonthCostsTotal((cs || []).reduce((s, c) => s + parseFloat(c.amount || 0), 0))
+      setOpenAccidents(accidents || [])
+      setWeeklySubsCount(subsCnt || 0)
+      // Find driver-assigned links with no submissions
+      if (driverLinks?.length) {
+        supabase.from('form_submissions').select('form_link_id').in('form_link_id', driverLinks.map(l => l.id))
+          .then(({ data: subs }) => {
+            const submitted = new Set((subs || []).map(s => s.form_link_id))
+            setPendingFormLinks(driverLinks.filter(l => !submitted.has(l.id)))
+          })
+      }
     })
   }, [companyId])
   const filtCars     = filterByDate(cars,     dashFilter)
@@ -3426,13 +3520,65 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: isMobile ? 10 : 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : `repeat(${unassigned > 0 ? 4 : 3}, 1fr)`, gap: isMobile ? 10 : 16, marginBottom: 16 }}>
         {card('🚗', filtCars.length,     t.totalFleet,    C.primary)}
         {card('👤', filtDrivers.length,  t.totalDrivers,  C.success)}
         {card('🏢', filtBranches.length, t.totalBranches, '#8b5cf6')}
         {unassigned > 0 && card('⚠️', unassigned, t.unassigned, C.warning)}
       </div>
 
+      {/* Operations cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
+        {card('🚨', openAccidents.length,
+          rtl ? 'תאונות פתוחות' : 'Open Accidents',
+          openAccidents.length > 0 ? C.danger : C.success,
+          openAccidents.length > 0 ? (rtl ? 'לחץ לטיפול' : 'Needs attention') : (rtl ? 'הכל תקין' : 'All clear')
+        )}
+        {card('📋', weeklySubsCount,
+          rtl ? 'הגשות השבוע' : 'Submissions (7d)',
+          C.primary,
+          rtl ? 'טפסים שהתקבלו' : 'Forms received'
+        )}
+        {card('⏳', pendingFormLinks.length,
+          rtl ? 'טפסים ממתינים' : 'Pending Forms',
+          pendingFormLinks.length > 0 ? C.warning : C.success,
+          rtl ? 'שויכו לנהג ולא הוגשו' : 'Assigned, not submitted'
+        )}
+      </div>
+
+      {/* Needs Attention panel */}
+      {(openAccidents.length > 0 || pendingFormLinks.length > 0) && (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginBottom: 20, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ padding: '12px 18px', background: '#fef9f0', borderBottom: `1px solid #fde68a`, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>🔔</span>
+            <span style={{ fontWeight: 800, fontSize: 14, color: '#92400e' }}>{rtl ? 'דרוש טיפול' : 'Needs Attention'}</span>
+          </div>
+          <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {openAccidents.map(acc => (
+              <div key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fef2f2', borderRadius: 8, cursor: onNavigate ? 'pointer' : 'default' }}
+                onClick={() => onNavigate?.('forms')}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>🚨</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.danger }}>{rtl ? 'תאונה פתוחה' : 'Open Accident'}{acc.other_plate ? ` · ${acc.other_plate}` : ''}</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>{fmtDate(acc.incident_date || acc.created_at?.slice(0,10))}</div>
+                </div>
+                {onNavigate && <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>{'←'}</span>}
+              </div>
+            ))}
+            {pendingFormLinks.map(lnk => (
+              <div key={lnk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fffbeb', borderRadius: 8, cursor: onNavigate ? 'pointer' : 'default' }}
+                onClick={() => onNavigate?.('forms')}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>📋</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>{lnk.title || (rtl ? 'טופס ממתין' : 'Pending Form')}</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>{rtl ? 'שויך לנהג ולא הוגש' : 'Assigned to driver — not submitted yet'}</div>
+                </div>
+                {onNavigate && <span style={{ fontSize: 11, color: C.textMuted, flexShrink: 0 }}>{'←'}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Monthly budget bar */}
       {monthlyBudget > 0 && (
@@ -3680,11 +3826,219 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
   )
 }
 
+// ── Accident Form Modal ────────────────────────────────────────────────────────
+const ALLOWED_ACCIDENT_TYPES = [
+  'image/jpeg','image/png','image/webp','image/gif','application/pdf',
+  'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]
+
+function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    my_car_id: '', other_plate: '', other_make: '', other_model: '',
+    other_driver_name: '', other_driver_phone: '', incident_date: '', description: '',
+  })
+  const [files, setFiles]     = useState([])
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState('')
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  function pickFiles(e) {
+    const picked = Array.from(e.target.files || [])
+    const oversized = picked.find(f => f.size > 10 * 1024 * 1024)
+    const badType   = picked.find(f => !ALLOWED_ACCIDENT_TYPES.includes(f.type))
+    if (oversized) { setError(t.fileTooLarge); return }
+    if (badType)   { setError(t.fileTypeNotAllowed); return }
+    setFiles(prev => [...prev, ...picked])
+    setError('')
+    e.target.value = ''
+  }
+
+  function removeFile(idx) { setFiles(p => p.filter((_, i) => i !== idx)) }
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!form.my_car_id) { setError(rtl ? 'יש לבחור רכב' : 'Please select your vehicle'); return }
+    setSaving(true); setError('')
+    try {
+      const uploadedPaths = []
+      for (const file of files) {
+        const safe = file.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
+        const path = `${companyId}/accidents/${Date.now()}_${safe}`
+        const { error: upErr } = await supabase.storage.from('fleet-documents').upload(path, file)
+        if (upErr) throw new Error(upErr.message)
+        uploadedPaths.push({ name: file.name, path })
+      }
+      const { error: dbErr } = await supabase.from('accident_reports').insert({
+        company_id:         companyId,
+        created_by:         session?.user?.id || null,
+        my_car_id:          Number(form.my_car_id),
+        other_plate:        form.other_plate  || null,
+        other_make:         form.other_make   || null,
+        other_model:        form.other_model  || null,
+        other_driver_name:  form.other_driver_name  || null,
+        other_driver_phone: form.other_driver_phone || null,
+        incident_date:      form.incident_date || null,
+        description:        form.description  || null,
+        file_paths:         uploadedPaths,
+      })
+      if (dbErr) throw new Error(dbErr.message)
+      onSaved()
+    } catch (err) {
+      setError(err.message)
+      setSaving(false)
+    }
+  }
+
+  const inp = {
+    padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 8,
+    fontSize: 13, outline: 'none', background: C.bg, color: C.textPrimary,
+    width: '100%', boxSizing: 'border-box',
+  }
+  const row2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }
+  const label = (txt) => (
+    <div style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{txt}</div>
+  )
+  const section = (icon, title) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 18, marginBottom: 10 }}>
+      <span style={{ fontSize: 16 }}>{icon}</span>
+      <span style={{ fontSize: 13, fontWeight: 800, color: C.textPrimary }}>{title}</span>
+      <div style={{ flex: 1, height: 1, background: C.border }} />
+    </div>
+  )
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9500,
+      background: C.overlay, display: 'flex',
+      alignItems: isMobile ? 'flex-end' : 'center',
+      justifyContent: 'center', padding: isMobile ? 0 : 16,
+    }} onClick={onClose}>
+      <div style={{
+        background: C.surface, width: '100%', maxWidth: isMobile ? '100%' : 560,
+        borderRadius: isMobile ? '18px 18px 0 0' : 14,
+        boxShadow: '0 8px 40px rgba(0,0,0,0.2)', border: `1px solid ${C.border}`,
+        maxHeight: isMobile ? '95vh' : '90vh', display: 'flex', flexDirection: 'column',
+        direction: rtl ? 'rtl' : 'ltr',
+      }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: C.textPrimary }}>🚨 {t.accidentFormTitle}</div>
+            <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{t.accidentFormSub}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.textMuted, lineHeight: 1, padding: 4 }}>×</button>
+        </div>
+
+        {/* Form body */}
+        <form onSubmit={submit} style={{ overflowY: 'auto', flex: 1, padding: '4px 20px 20px' }}>
+
+          {section('🚗', t.myCar)}
+          <div style={row2}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <select
+                value={form.my_car_id}
+                onChange={e => set('my_car_id', e.target.value)}
+                required
+                style={{ ...inp }}
+              >
+                <option value="">{rtl ? '— בחר רכב —' : '— Select vehicle —'}</option>
+                {cars.map(c => (
+                  <option key={c.id} value={c.id}>{c.plate}{c.make ? ` · ${c.make}` : ''}{c.model ? ` ${c.model}` : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {label(t.incidentDate)}
+              <DateInput value={form.incident_date} onChange={e => set('incident_date', e.target.value)} style={inp} placeholder="DD/MM/YY" />
+            </div>
+          </div>
+
+          {section('👤', t.otherDriverInfo)}
+          <div style={row2}>
+            <div>
+              {label(t.otherPlate)}
+              <input style={inp} value={form.other_plate} onChange={e => set('other_plate', e.target.value)} placeholder="123-45-678" />
+            </div>
+            <div>
+              {label(t.otherMake)}
+              <input style={inp} value={form.other_make} onChange={e => set('other_make', e.target.value)} placeholder="Toyota" />
+            </div>
+          </div>
+          <div style={{ ...row2, marginTop: 10 }}>
+            <div>
+              {label(t.otherModel)}
+              <input style={inp} value={form.other_model} onChange={e => set('other_model', e.target.value)} placeholder="Corolla" />
+            </div>
+            <div>
+              {label(t.otherDriverName)}
+              <input style={inp} value={form.other_driver_name} onChange={e => set('other_driver_name', e.target.value)} />
+            </div>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            {label(t.otherDriverPhone)}
+            <input style={inp} value={form.other_driver_phone} onChange={e => set('other_driver_phone', e.target.value)} type="tel" />
+          </div>
+
+          {section('📝', t.incidentDesc)}
+          <textarea
+            value={form.description}
+            onChange={e => set('description', e.target.value)}
+            placeholder={t.incidentDescPlaceholder}
+            rows={4}
+            style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }}
+          />
+
+          {section('📎', t.attachFiles)}
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
+            border: `2px dashed ${C.border}`, borderRadius: 8, cursor: 'pointer',
+            background: C.bgSubtle, color: C.textSecondary, fontSize: 13, fontWeight: 600,
+          }}>
+            <span>📁</span>
+            <span>{rtl ? 'בחר קבצים' : 'Choose files'}</span>
+            <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx" onChange={pickFiles} style={{ display: 'none' }} />
+          </label>
+          {files.length > 0 && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {files.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: C.bg, borderRadius: 6, fontSize: 12 }}>
+                  <span>📄</span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.textPrimary }}>{f.name}</span>
+                  <span style={{ color: C.textMuted, flexShrink: 0 }}>{(f.size / 1024).toFixed(0)} KB</span>
+                  <button type="button" onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: C.danger + '10', border: `1px solid ${C.danger}30`, borderRadius: 8, fontSize: 13, color: C.danger, fontWeight: 600 }}>
+              ⚠ {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: rtl ? 'flex-start' : 'flex-end' }}>
+            <button type="button" onClick={onClose} style={{ padding: '9px 20px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, color: C.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              {t.cancel}
+            </button>
+            <button type="submit" disabled={saving} style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: saving ? C.textMuted : C.danger, color: '#fff', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+              {saving ? t.uploading : t.submitReport}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Forms Tab ────────────────────────────────────────────────────────────────
 const FORM_TYPES = [
   { id: 'car_checklist',    icon: '📋', label: 'רשימת בדיקה לרכב חדש',   labelEn: 'New Car Checklist' },
   { id: 'driver_car_check', icon: '🚗', label: 'בדיקת רכב על ידי נהג',    labelEn: 'Driver Car Check' },
   { id: 'yearly_training',  icon: '🎓', label: 'אימות הדרכה שנתית',        labelEn: 'Yearly Training' },
+  { id: 'accident_report',  icon: '🚨', label: 'דוח תאונה לנהג',           labelEn: 'Driver Accident Report' },
   { id: 'custom',           icon: '🛠️', label: 'טופס מותאם אישית',         labelEn: 'Custom Form' },
 ]
 
@@ -3721,10 +4075,20 @@ const fmtSubVal = v => {
 }
 
 function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
+  const isMobile = useIsMobile()
   const [links,         setLinks]         = useState([])
   const [subCounts,     setSubCounts]     = useState({})
   const [loading,       setLoading]       = useState(true)
   const [showCreate,    setShowCreate]    = useState(false)
+  // accident reports
+  const [accidentReports,    setAccidentReports]    = useState([])
+  const [accLoading,         setAccLoading]         = useState(true)
+  const [showAccidentForm,   setShowAccidentForm]   = useState(false)
+  const [viewAccidentReport, setViewAccidentReport] = useState(null)
+  const [accQrReport,        setAccQrReport]        = useState(null)
+  const [accSuccess,         setAccSuccess]         = useState(false)
+  const [accFormShare,       setAccFormShare]       = useState(null)
+  const [accFormShareBusy,   setAccFormShareBusy]   = useState(false)
   const [createType,    setCreateType]    = useState('car_checklist')
   const [createCar,     setCreateCar]     = useState('')
   const [createDriver,  setCreateDriver]  = useState('')
@@ -3745,7 +4109,90 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const [customFields,  setCustomFields]  = useState([])
   const [customFldType, setCustomFldType] = useState('text')
 
-  useEffect(() => { load() }, [companyId])
+  useEffect(() => { load(); loadAccidents() }, [companyId])
+
+  async function loadAccidents() {
+    if (!companyId) return
+    setAccLoading(true)
+    const { data } = await supabase.from('accident_reports').select('*')
+      .eq('company_id', companyId).order('created_at', { ascending: false })
+    setAccidentReports(data || [])
+    setAccLoading(false)
+  }
+
+  async function deleteAccident(id) {
+    if (!window.confirm(t.confirmDelete)) return
+    const rep = accidentReports.find(r => r.id === id)
+    if (rep?.file_paths?.length) {
+      await supabase.storage.from('fleet-documents').remove(rep.file_paths.map(f => f.path))
+    }
+    await supabase.from('accident_reports').delete().eq('id', id)
+    setAccidentReports(p => p.filter(r => r.id !== id))
+  }
+
+  async function openAccidentFile(fileMeta) {
+    const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(fileMeta.path, 60)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  async function toggleAccidentHold(rep) {
+    const next = rep.status === 'on_hold' ? 'open' : 'on_hold'
+    await supabase.from('accident_reports').update({ status: next }).eq('id', rep.id)
+    setAccidentReports(p => p.map(r => r.id === rep.id ? { ...r, status: next } : r))
+  }
+
+  async function openAccFormShare() {
+    setAccFormShareBusy(true)
+    // Reuse existing reusable accident_report link if one exists
+    const { data: existing } = await supabase.from('form_links')
+      .select('*').eq('company_id', companyId).eq('type', 'accident_report')
+      .eq('is_active', true).is('expires_at', null).limit(1)
+    if (existing?.length) {
+      setAccFormShare(existing[0])
+      setAccFormShareBusy(false)
+      return
+    }
+    const { data: newLink } = await supabase.from('form_links').insert({
+      company_id: companyId,
+      type: 'accident_report',
+      title: rtl ? 'טופס דוח תאונה לנהג' : 'Driver Accident Report Form',
+      created_by: session.user.id,
+      is_active: true,
+      single_use: false,
+    }).select()
+    if (newLink?.[0]) {
+      setAccFormShare(newLink[0])
+      setLinks(p => [newLink[0], ...p])
+    }
+    setAccFormShareBusy(false)
+  }
+
+  function accidentSummaryText(rep) {
+    const myCar = cars.find(c => String(c.id) === String(rep.my_car_id))
+    const myCarStr = myCar ? `${myCar.plate}${myCar.make ? ` ${myCar.make}` : ''}${myCar.model ? ` ${myCar.model}` : ''}` : '—'
+    const lines = [
+      rtl ? `🚨 דוח תאונת דרכים` : `🚨 Accident Report`,
+      rtl ? `📅 תאריך: ${rep.incident_date ? fmtDate(rep.incident_date) : '—'}` : `📅 Date: ${rep.incident_date ? fmtDate(rep.incident_date) : '—'}`,
+      rtl ? `🚗 הרכב שלי: ${myCarStr}` : `🚗 My vehicle: ${myCarStr}`,
+      rep.other_plate ? (rtl ? `🚘 רכב שני: ${rep.other_plate}${rep.other_make ? ` ${rep.other_make}` : ''}${rep.other_model ? ` ${rep.other_model}` : ''}` : `🚘 Other vehicle: ${rep.other_plate}${rep.other_make ? ` ${rep.other_make}` : ''}${rep.other_model ? ` ${rep.other_model}` : ''}`) : '',
+      rep.other_driver_name ? (rtl ? `👤 נהג שני: ${rep.other_driver_name}${rep.other_driver_phone ? ` | ${rep.other_driver_phone}` : ''}` : `👤 Other driver: ${rep.other_driver_name}${rep.other_driver_phone ? ` | ${rep.other_driver_phone}` : ''}`) : '',
+      rep.description ? (rtl ? `📝 תיאור: ${rep.description}` : `📝 Description: ${rep.description}`) : '',
+    ].filter(Boolean).join('\n')
+    return lines
+  }
+
+  function sendAccidentWhatsApp(rep) {
+    window.open(`https://wa.me/?text=${encodeURIComponent(accidentSummaryText(rep))}`, '_blank')
+  }
+
+  function sendAccidentEmail(rep) {
+    const subj = rtl ? `דוח תאונת דרכים — ${rep.incident_date ? fmtDate(rep.incident_date) : ''}` : `Accident Report — ${rep.incident_date ? fmtDate(rep.incident_date) : ''}`
+    window.location.href = `mailto:?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(accidentSummaryText(rep))}`
+  }
+
+  function accidentQrData(rep) {
+    return accidentSummaryText(rep)
+  }
 
   function cfAddPreset(preset) {
     if (customFields.some(f => f.preset === preset)) return
@@ -3867,7 +4314,16 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(greeting + body)}`, '_blank')
   }
 
-  function exportSubs(subsToExport, link) {
+  function sendFormEmail(link) {
+    const url = `${window.location.origin}/form/${link.token}`
+    const subject = rtl ? `טופס למילוי: ${link.title}` : `Form to fill out: ${link.title}`
+    const body = rtl
+      ? `שלום,\n\nנשלח אליך קישור למילוי הטופס הבא:\n${link.title}\n\n${url}\n\nתודה`
+      : `Hello,\n\nYou have been sent the following form to fill out:\n${link.title}\n\n${url}\n\nThank you`
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  }
+
+  async function exportSubs(subsToExport, link) {
     const meta = FORM_TYPES.find(f => f.id === link.type)
     const rows = subsToExport.map(s => {
       const row = { [rtl ? 'שם' : 'Name']: s.submitter_name, [rtl ? 'תאריך' : 'Date']: new Date(s.submitted_at).toLocaleString('he-IL') }
@@ -3877,10 +4333,9 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       })
       return row
     })
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Submissions')
-    XLSX.writeFile(wb, `${link.title || meta?.labelEn}-submissions.xlsx`)
+    const wb = new ExcelJS.Workbook()
+    xlsxAddSheet(wb, 'Submissions', rows)
+    await xlsxDownload(wb, `${link.title || meta?.labelEn}-submissions.xlsx`)
   }
 
   const formUrl = token => `${window.location.origin}/form/${token}`
@@ -3891,8 +4346,6 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const cardHeader = { padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }
   const btnPrimary = { background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }
   const btnGhost   = { background: 'transparent', color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }
-
-  const isMobile = window.innerWidth < 640
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
@@ -4177,6 +4630,265 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         </div>
       )}
 
+      {/* Accident Reports Section */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: C.textPrimary }}>🚨 {t.accidentReports}</div>
+            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'תיעוד תאונות ואירועי דרכים' : 'Document road accidents and incidents'}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={openAccFormShare} disabled={accFormShareBusy} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: accFormShareBusy ? 0.6 : 1 }}>
+              {accFormShareBusy ? '…' : (rtl ? '📤 שלח טופס לנהג' : '📤 Send Form to Driver')}
+            </button>
+            <button onClick={() => setShowAccidentForm(true)} style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              {t.newAccidentReport}
+            </button>
+          </div>
+        </div>
+
+        {/* Accident form share modal */}
+        {accFormShare && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 380, direction: rtl ? 'rtl' : 'ltr', overflow: 'hidden' }}>
+              <div style={{ background: C.navBg, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 15 }}>📤 {rtl ? 'שלח טופס דוח תאונה' : 'Share Accident Report Form'}</span>
+                <button onClick={() => setAccFormShare(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}>✕</button>
+              </div>
+              <div style={{ padding: '20px 18px' }}>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, textAlign: 'center' }}>
+                  {rtl ? 'שלח את הקישור לנהג — הוא יוכל למלא את הדוח מהטלפון שלו באתר התאונה' : 'Share this link with the driver to fill out the report from their phone at the scene'}
+                </div>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(formUrl(accFormShare.token))}`} alt="QR" style={{ borderRadius: 10, border: `1px solid ${C.border}` }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <input readOnly value={formUrl(accFormShare.token)} onClick={e => e.target.select()}
+                    style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '8px 10px', fontSize: 12, color: C.textSecondary, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis' }} />
+                  <button onClick={() => copyLink(accFormShare.token)} style={{ ...btnPrimary, padding: '8px 14px', fontSize: 12, background: copied === accFormShare.token ? C.success : C.primary, flexShrink: 0 }}>
+                    {copied === accFormShare.token ? '✓' : (rtl ? 'העתק' : 'Copy')}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => sendWhatsApp(accFormShare)} style={{ flex: 1, background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    📲 WhatsApp
+                  </button>
+                  <button onClick={() => sendFormEmail(accFormShare)} style={{ flex: 1, background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    📧 {rtl ? 'אימייל' : 'Email'}
+                  </button>
+                </div>
+                <div style={{ marginTop: 12, fontSize: 11, color: C.textMuted, textAlign: 'center' }}>
+                  {rtl ? 'הקישור קבוע — ניתן לשיתוף כמה פעמים שתרצה' : 'Permanent link — share as many times as needed'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {accSuccess && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: C.success + '15', border: `1px solid ${C.success}40`, borderRadius: 8, marginBottom: 12, fontSize: 13, color: C.successText, fontWeight: 600 }}>
+            ✓ {t.reportSubmitted}
+            <button onClick={() => setAccSuccess(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.successText, marginInlineStart: 'auto', fontSize: 16 }}>×</button>
+          </div>
+        )}
+
+        {/* QR modal for accident reports */}
+        {accQrReport && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', maxWidth: 300, width: '100%' }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: '#0f172a', marginBottom: 4 }}>🚨 {rtl ? 'QR לדוח תאונה' : 'Accident Report QR'}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>{rtl ? 'סרוק לקבלת פרטי הדוח' : 'Scan to get report details'}</div>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(accidentQrData(accQrReport))}`}
+                alt="QR" style={{ width: 200, height: 200, borderRadius: 8, border: '1px solid #e2e8f0' }}
+              />
+              <button onClick={() => setAccQrReport(null)} style={{ display: 'block', width: '100%', marginTop: 16, background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '9px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+                {rtl ? 'סגור' : 'Close'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* View accident detail modal — reads live data so status stays in sync */}
+        {viewAccidentReport && (() => {
+          const rep = accidentReports.find(r => r.id === viewAccidentReport.id) || viewAccidentReport
+          const myCar = cars.find(c => String(c.id) === String(rep.my_car_id))
+          const files = rep.file_paths || []
+          const statusColor = rep.status === 'on_hold' ? C.warning : rep.status === 'closed' ? C.textMuted : C.success
+          const statusLabel = rep.status === 'on_hold' ? t.accidentOnHold : rep.status === 'closed' ? t.accidentClosed : t.accidentOpen
+          return (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <div style={{ background: C.surface, borderRadius: 14, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', direction: rtl ? 'rtl' : 'ltr', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
+                <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: C.textPrimary }}>🚨 {t.accidentFormTitle}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rep.incident_date ? fmtDate(rep.incident_date) : fmtDate(rep.created_at?.slice(0, 10))}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: statusColor + '18', color: statusColor, borderRadius: 5, padding: '3px 9px' }}>{statusLabel}</span>
+                    <button onClick={() => setViewAccidentReport(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.textMuted, lineHeight: 1, padding: 4 }}>×</button>
+                  </div>
+                </div>
+                <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* My car */}
+                  <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t.myCar}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>
+                      {myCar ? `${myCar.plate}${myCar.make ? ` · ${myCar.make}` : ''}${myCar.model ? ` ${myCar.model}` : ''}` : '—'}
+                    </div>
+                  </div>
+                  {/* Police / Ambulance indicators */}
+                  {(rep.police_report != null || rep.called_ambulance != null) && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {rep.police_report != null && (
+                        <div style={{ flex: 1, background: rep.police_report ? C.success + '15' : C.danger + '10', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, marginBottom: 4 }}>👮</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{rtl ? 'דוח משטרתי' : 'Police Report'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: rep.police_report ? C.success : C.danger }}>{rep.police_report ? (rtl ? 'הוגש' : 'Filed') : (rtl ? 'לא הוגש' : 'Not filed')}</div>
+                        </div>
+                      )}
+                      {rep.called_ambulance != null && (
+                        <div style={{ flex: 1, background: rep.called_ambulance ? C.success + '15' : C.danger + '10', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, marginBottom: 4 }}>🚑</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{rtl ? 'אמבולנס' : 'Ambulance'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: rep.called_ambulance ? C.success : C.danger }}>{rep.called_ambulance ? (rtl ? 'הוזמן' : 'Called') : (rtl ? 'לא הוזמן' : 'Not called')}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Other driver */}
+                  {(rep.other_plate || rep.other_driver_name) && (
+                    <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t.otherDriverInfo}</div>
+                      {rep.other_plate && <div style={{ fontSize: 13, color: C.textPrimary, marginBottom: 2 }}>🚘 {rep.other_plate}{rep.other_make ? ` · ${rep.other_make}` : ''}{rep.other_model ? ` ${rep.other_model}` : ''}</div>}
+                      {rep.other_driver_name && <div style={{ fontSize: 13, color: C.textPrimary, marginBottom: 2 }}>👤 {rep.other_driver_name}</div>}
+                      {rep.other_driver_phone && <div style={{ fontSize: 13, color: C.textPrimary }}>📞 {rep.other_driver_phone}</div>}
+                    </div>
+                  )}
+                  {/* Description */}
+                  {rep.description && (
+                    <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t.incidentDesc}</div>
+                      <div style={{ fontSize: 13, color: C.textPrimary, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{rep.description}</div>
+                    </div>
+                  )}
+                  {/* Files */}
+                  {files.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{t.accidentFiles}</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {files.map((f, i) => (
+                          <button key={i} onClick={() => openAccidentFile(f)} style={{ background: C.primary + '15', color: C.primary, border: `1px solid ${C.primary}30`, borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                            📎 {f.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button onClick={() => setViewAccidentReport(null)} style={{ marginTop: 4, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: C.textSecondary }}>
+                    {t.cancel}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {accLoading ? (
+          <div style={{ textAlign: 'center', padding: 20, color: C.textMuted, fontSize: 13 }}>{t.loadingShort}</div>
+        ) : accidentReports.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '28px 20px', color: C.textMuted, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🚗</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{t.noAccidentReports}</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {accidentReports.map(rep => {
+              const myCar = cars.find(c => String(c.id) === String(rep.my_car_id))
+              const files = rep.file_paths || []
+              const isHold = rep.status === 'on_hold'
+              const statusColor = isHold ? C.warning : C.success
+              const statusLabel = isHold ? t.accidentOnHold : t.accidentOpen
+              return (
+                <div key={rep.id} style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', opacity: isHold ? 0.75 : 1 }}>
+                  {/* Card header */}
+                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>🚨</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>
+                          {myCar ? `${myCar.plate}${myCar.make ? ` · ${myCar.make}` : ''}${myCar.model ? ` ${myCar.model}` : ''}` : '—'}
+                        </span>
+                        {rep.other_plate && (
+                          <span style={{ fontSize: 12, color: C.textSecondary }}>⟷ {rep.other_plate}{rep.other_make ? ` ${rep.other_make}` : ''}</span>
+                        )}
+                        <span style={{ fontSize: 10, fontWeight: 700, background: statusColor + '18', color: statusColor, borderRadius: 4, padding: '2px 7px' }}>{statusLabel}</span>
+                        <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.textMuted, whiteSpace: 'nowrap' }}>
+                          {rep.incident_date ? fmtDate(rep.incident_date) : fmtDate(rep.created_at?.slice(0, 10))}
+                        </span>
+                      </div>
+                      {rep.other_driver_name && (
+                        <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 2 }}>
+                          👤 {rep.other_driver_name}{rep.other_driver_phone ? ` · ${rep.other_driver_phone}` : ''}
+                        </div>
+                      )}
+                      {rep.description && (
+                        <div style={{ fontSize: 12, color: C.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {rep.description}
+                        </div>
+                      )}
+                      {files.length > 0 && (
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
+                          {files.map((f, i) => (
+                            <button key={i} onClick={() => openAccidentFile(f)} style={{ background: C.primary + '15', color: C.primary, border: `1px solid ${C.primary}30`, borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                              📎 {f.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Action bar */}
+                  <div style={{ borderTop: `1px solid ${C.border}`, padding: '8px 12px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button onClick={() => setViewAccidentReport(rep)} style={{ background: C.primary + '08', color: C.primary, border: `1px solid ${C.primary}30`, borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      {t.viewDetails}
+                    </button>
+                    <button onClick={() => sendAccidentWhatsApp(rep)} style={{ background: '#25d36608', color: '#25d366', border: '1px solid #25d36640', borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      📲 WhatsApp
+                    </button>
+                    <button onClick={() => sendAccidentEmail(rep)} style={{ background: '#6366f108', color: '#6366f1', border: '1px solid #6366f140', borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      {t.sendEmailReport}
+                    </button>
+                    <button onClick={() => setAccQrReport(rep)} style={{ background: '#f59e0b08', color: '#f59e0b', border: '1px solid #f59e0b40', borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      ◼ QR
+                    </button>
+                    <button onClick={() => toggleAccidentHold(rep)} style={{ background: 'transparent', color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      {isHold ? t.resumeReport : t.holdReport}
+                    </button>
+                    <button onClick={() => deleteAccident(rep.id)} style={{ background: C.danger + '08', color: C.danger, border: `1px solid ${C.danger}30`, borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      🗑 {t.delete}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {showAccidentForm && (
+          <AccidentFormModal
+            companyId={companyId}
+            cars={cars}
+            session={session}
+            rtl={rtl}
+            t={t}
+            isMobile={isMobile}
+            onClose={() => setShowAccidentForm(false)}
+            onSaved={() => { setShowAccidentForm(false); setAccSuccess(true); loadAccidents() }}
+          />
+        )}
+      </div>
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
@@ -4236,6 +4948,9 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: '10px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button onClick={() => sendWhatsApp(link)} style={{ ...btnGhost, color: '#25d366', borderColor: '#25d36640', background: '#25d36608', fontWeight: 700 }}>
                       📲 {rtl ? 'שלח ב-WhatsApp' : 'Send via WhatsApp'}
+                    </button>
+                    <button onClick={() => sendFormEmail(link)} style={{ ...btnGhost, color: '#6366f1', borderColor: '#6366f140', background: '#6366f108', fontWeight: 700 }}>
+                      📧 {rtl ? 'שלח באימייל' : 'Send via Email'}
                     </button>
                     <button onClick={() => openSubs(link)} style={{ ...btnGhost, color: C.primary, borderColor: C.primary + '40', background: C.primary + '08' }}>
                       {rtl ? '👁 תגובות' : '👁 Submissions'}{subCount > 0 ? ` (${subCount})` : ''}
@@ -4508,21 +5223,16 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
       supabase.from('activity_log').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(1000),
     ])
 
-    const wb = XLSX.utils.book_new()
-    const addSheet = (name, rows) => {
-      if (!rows?.length) return
-      const ws = XLSX.utils.json_to_sheet(rows)
-      XLSX.utils.book_append_sheet(wb, ws, name)
-    }
-    addSheet('Cars', carsRes.data || [])
-    addSheet('Drivers', driversRes.data || [])
-    addSheet('Costs', costsRes.data || [])
-    addSheet('Maintenance', maintRes.data || [])
-    addSheet('Documents', docsRes.data || [])
-    addSheet('Activity Log', logsRes.data || [])
+    const wb = new ExcelJS.Workbook()
+    xlsxAddSheet(wb, 'Cars',         carsRes.data   || [])
+    xlsxAddSheet(wb, 'Drivers',      driversRes.data || [])
+    xlsxAddSheet(wb, 'Costs',        costsRes.data   || [])
+    xlsxAddSheet(wb, 'Maintenance',  maintRes.data   || [])
+    xlsxAddSheet(wb, 'Documents',    docsRes.data    || [])
+    xlsxAddSheet(wb, 'Activity Log', logsRes.data    || [])
 
     const date = new Date().toISOString().slice(0, 10)
-    XLSX.writeFile(wb, `fleet-export-${date}.xlsx`)
+    await xlsxDownload(wb, `fleet-export-${date}.xlsx`)
     setExporting(false)
   }
 
@@ -4975,6 +5685,124 @@ function TermsOfServiceModal({ onClose, t, rtl }) {
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
+// ── Notification Bell ────────────────────────────────────────────────────────
+function urlBase64ToUint8Array(b64) {
+  const pad  = '='.repeat((4 - b64.length % 4) % 4)
+  const raw  = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'))
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+}
+
+function NotificationBell({ companyId, userId, rtl }) {
+  const [unread,      setUnread]      = useState(0)
+  const [notes,       setNotes]       = useState([])
+  const [open,        setOpen]        = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushBusy,    setPushBusy]    = useState(false)
+  const ref = useRef()
+
+  // Realtime: new form submissions
+  useEffect(() => {
+    if (!companyId) return
+    const ch = supabase
+      .channel('notif-' + companyId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'form_submissions', filter: `company_id=eq.${companyId}` }, p => {
+        const s = p.new
+        setNotes(prev => [{ id: s.id, msg: `${s.submitter_name || (rtl ? 'נהג' : 'Driver')} — ${s.type}`, time: new Date() }, ...prev].slice(0, 30))
+        setUnread(n => n + 1)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [companyId, rtl])
+
+  // Check if push already subscribed
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    navigator.serviceWorker.ready.then(reg =>
+      reg.pushManager.getSubscription().then(sub => setPushEnabled(!!sub))
+    ).catch(() => {})
+  }, [])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!open) return
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  async function togglePush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    setPushBusy(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      if (pushEnabled) {
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) {
+          await sub.unsubscribe()
+          await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+        }
+        setPushEnabled(false)
+      } else {
+        const perm = await Notification.requestPermission()
+        if (perm !== 'granted') { setPushBusy(false); return }
+        const sub  = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+        })
+        const j = sub.toJSON()
+        await supabase.from('push_subscriptions').upsert({
+          company_id: companyId, user_id: userId,
+          endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth,
+        }, { onConflict: 'user_id,endpoint' })
+        setPushEnabled(true)
+      }
+    } catch (err) { console.error('push toggle:', err) }
+    setPushBusy(false)
+  }
+
+  const bellBtn = { position: 'relative', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button onClick={() => { setOpen(p => !p); if (!open) setUnread(0) }} title={rtl ? 'התראות' : 'Notifications'} style={bellBtn}>
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.85)" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        {unread > 0 && (
+          <span style={{ position: 'absolute', top: -4, right: -4, background: '#ef4444', color: '#fff', borderRadius: 10, minWidth: 15, height: 15, fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{ position: 'absolute', top: 38, right: 0, width: 290, background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', zIndex: 1000, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>🔔 {rtl ? 'התראות' : 'Notifications'}</span>
+            {'PushManager' in window && (
+              <button onClick={togglePush} disabled={pushBusy} style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, border: `1px solid ${pushEnabled ? C.success : C.border}`, background: pushEnabled ? C.success + '18' : 'transparent', color: pushEnabled ? C.success : C.textMuted, cursor: 'pointer' }}>
+                {pushBusy ? '…' : pushEnabled ? (rtl ? '🔔 פעיל' : '🔔 On') : (rtl ? '🔕 כבוי' : '🔕 Off')}
+              </button>
+            )}
+          </div>
+          {notes.length === 0 ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{rtl ? 'אין התראות חדשות' : 'No new notifications'}</div>
+          ) : (
+            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+              {notes.map(n => (
+                <div key={n.id} style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
+                  <div style={{ color: C.textPrimary, fontWeight: 500 }}>{n.msg}</div>
+                  <div style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{n.time.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
@@ -4995,6 +5823,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [selectedIds, setSelectedIds] = useState([])
   const [dashFilter, setDashFilter]   = useState('all')
   const [showCsvImport, setShowCsvImport] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState(null)
+
+  useEffect(() => {
+    const handler = e => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
   const [costsReloadKey, setCostsReloadKey] = useState(0)
   const [showEntityCsvImport, setShowEntityCsvImport] = useState(null) // 'cars' | 'drivers' | null
   const [showPrivacy, setShowPrivacy] = useState(false)
@@ -5070,11 +5905,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
 
   // ── Export to Excel ───────────────────────────────────────────────────────
-  function exportExcel(tab) {
-    const wb = XLSX.utils.book_new()
+  async function exportExcel(tab) {
+    const wb = new ExcelJS.Workbook()
     const date = new Date().toISOString().slice(0, 10)
     if (!tab || tab === 'cars') {
-      const carSheet = XLSX.utils.json_to_sheet(cars.map(c => ({
+      xlsxAddSheet(wb, t.cars || 'Vehicles', cars.map(c => ({
         [t.plate]:   c.plate,
         [t.make]:    c.make,
         [t.model]:   c.model,
@@ -5084,30 +5919,27 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         [t.branch]:  getBranchName(c.branch_id),
         [t.driver]:  drivers.find(d => d.id === c.driver_id)?.name || '',
       })))
-      XLSX.utils.book_append_sheet(wb, carSheet, t.cars || 'Vehicles')
     }
     if (!tab || tab === 'drivers') {
-      const drvSheet = XLSX.utils.json_to_sheet(drivers.map(d => ({
+      xlsxAddSheet(wb, t.drivers || 'Drivers', drivers.map(d => ({
         [t.name]:         d.name,
         [t.license]:      d.license,
         [t.phone]:        d.phone,
         [t.driverStatus]: d.status,
         [t.branch]:       getBranchName(d.branch_id),
       })))
-      XLSX.utils.book_append_sheet(wb, drvSheet, t.drivers || 'Drivers')
     }
     if (!tab || tab === 'branches') {
-      const brnSheet = XLSX.utils.json_to_sheet(branches.map(b => ({
+      xlsxAddSheet(wb, t.branches || 'Branches', branches.map(b => ({
         [t.branchName]: b.name,
         [t.city]:       b.city,
         [t.address]:    b.address,
         [t.manager]:    b.manager,
         [t.phone]:      b.phone,
       })))
-      XLSX.utils.book_append_sheet(wb, brnSheet, t.branches || 'Branches')
     }
     const suffix = tab ? `-${tab}` : '-all'
-    XLSX.writeFile(wb, `fleet-export${suffix}-${date}.xlsx`)
+    await xlsxDownload(wb, `fleet-export${suffix}-${date}.xlsx`)
   }
 
   // ── Export to PDF ─────────────────────────────────────────────────────────
@@ -5215,7 +6047,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (companyLimits.max_cars != null && cars.length >= companyLimits.max_cars) {
       setCrudError(t.limitReachedCars); return
     }
-    if (form.year && (parseInt(form.year, 10) < 1900 || parseInt(form.year, 10) > 2099)) { setCrudError(t.yearRange || 'Year must be between 1900 and 2099'); return }
+    if (isEmpty(form.plate)) { setCrudError(rtl ? 'לוחית רישוי היא שדה חובה' : 'License plate is required'); return }
+    if (!isIsraeliPlate(form.plate)) { setCrudError(rtl ? 'לוחית רישוי לא תקינה (7–8 ספרות)' : 'Invalid license plate (7–8 digits)'); return }
+    if (form.year && !isYear(form.year)) { setCrudError(rtl ? 'שנה לא תקינה (1900–2099)' : 'Invalid year (1900–2099)'); return }
+    if (form.mileage && !isPositive(form.mileage)) { setCrudError(rtl ? 'קילומטראז׳ חייב להיות מספר חיובי' : 'Mileage must be a positive number'); return }
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
     if (error || !data?.[0]) { setCrudError(error?.message || 'Insert failed'); return }
     setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
@@ -5223,8 +6058,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     logActivity('add', 'car', `${form.plate} ${form.make}`)
   }
   async function updateCar(form) {
-    if (!form.plate?.trim() || !form.make?.trim() || !form.model?.trim()) { setCrudError(t.requiredFields || 'Plate, make and model are required'); return }
-    if (form.year && (parseInt(form.year, 10) < 1900 || parseInt(form.year, 10) > 2099)) { setCrudError(t.yearRange || 'Year must be between 1900 and 2099'); return }
+    if (isEmpty(form.plate)) { setCrudError(rtl ? 'לוחית רישוי היא שדה חובה' : 'License plate is required'); return }
+    if (!isIsraeliPlate(form.plate)) { setCrudError(rtl ? 'לוחית רישוי לא תקינה (7–8 ספרות)' : 'Invalid license plate (7–8 digits)'); return }
+    if (!form.make?.trim() || !form.model?.trim()) { setCrudError(t.requiredFields || 'Make and model are required'); return }
+    if (form.year && !isYear(form.year)) { setCrudError(rtl ? 'שנה לא תקינה (1900–2099)' : 'Invalid year (1900–2099)'); return }
+    if (form.mileage && !isPositive(form.mileage)) { setCrudError(rtl ? 'קילומטראז׳ חייב להיות מספר חיובי' : 'Mileage must be a positive number'); return }
     const { id: carId, ...carData } = { ...cleanCar(form), id: form.id }
     const { error } = await supabase.from('cars').update(carData).eq('id', carId).eq('company_id', activeCompanyId)
     const c = { ...carData, id: carId }
@@ -5269,12 +6107,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (companyLimits.max_users != null && drivers.length >= companyLimits.max_users) {
       setCrudError(t.limitReachedUsers); return
     }
+    if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הנהג חייב להכיל לפחות 2 תווים' : 'Driver name must be at least 2 characters'); return }
+    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const { data, error } = await supabase.from('drivers').insert([cleanDriver(form)]).select()
     if (error) { setCrudError(error.message); return }
     setDrivers(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
     logActivity('add', 'driver', form.name)
   }
   async function updateDriver(form) {
+    if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הנהג חייב להכיל לפחות 2 תווים' : 'Driver name must be at least 2 characters'); return }
+    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const prevDrv = drivers.find(x => x.id === form.id)
     const { id: driverId, ...driverData } = { ...cleanDriver(form), id: form.id }
     const { error } = await supabase.from('drivers').update(driverData).eq('id', driverId)
@@ -5292,12 +6134,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     logActivity('delete', 'driver', drv?.name)
   }
   async function addBranch(form) {
+    if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הסניף חייב להכיל לפחות 2 תווים' : 'Branch name must be at least 2 characters'); return }
+    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const { data, error } = await supabase.from('branches').insert([cleanBranch(form)]).select()
     if (error) { setCrudError(error.message); return }
     setBranches(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
     logActivity('add', 'branch', form.name)
   }
   async function updateBranch(form) {
+    if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הסניף חייב להכיל לפחות 2 תווים' : 'Branch name must be at least 2 characters'); return }
+    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const prevBrn = branches.find(x => x.id === form.id)
     const { id: branchId, ...branchData } = { ...cleanBranch(form), id: form.id }
     const { error } = await supabase.from('branches').update(branchData).eq('id', branchId)
@@ -5416,8 +6262,14 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           </div>
         )}
 
-        {/* Right side — sign-out + lang toggle. flexShrink:0 so they are NEVER cut off */}
+        {/* Right side — notifications + sign-out + lang toggle. flexShrink:0 so they are NEVER cut off */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
+          {activeCompanyId && <NotificationBell companyId={activeCompanyId} userId={session?.user?.id} rtl={rtl} />}
+          {installPrompt && (
+            <button onClick={async () => { await installPrompt.prompt(); setInstallPrompt(null) }} title={rtl ? 'הוסף לדף הבית' : 'Install app'} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 15 }}>
+              📲
+            </button>
+          )}
           {isMaster && viewCompanyName && !isMobile && (
             <span style={{
               background: C.primary + '40', color: C.navActive,
@@ -5584,7 +6436,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Dashboard view */}
         {activeTab === 'dashboard' && (
-          <Dashboard cars={cars} drivers={drivers} branches={branches} companyId={activeCompanyId} t={t} rtl={rtl} dashFilter={dashFilter} setDashFilter={setDashFilter} onExport={exportExcel} />
+          <Dashboard cars={cars} drivers={drivers} branches={branches} companyId={activeCompanyId} t={t} rtl={rtl} dashFilter={dashFilter} setDashFilter={setDashFilter} onExport={exportExcel} onNavigate={switchTab} />
         )}
 
         {/* Settings view */}
