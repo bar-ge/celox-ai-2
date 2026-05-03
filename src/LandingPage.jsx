@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { CeloxIcon } from './LogoIcon'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const P = {
@@ -337,7 +338,7 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg,#2563eb,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>🚗</div>
+          <CeloxIcon size={28} dark />
           <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: -.3 }}>
             Celox <span style={{ color: '#60a5fa' }}>AI</span>
           </span>
@@ -659,7 +660,7 @@ function Footer({ t }) {
     <footer style={{ background: P.white, borderTop: `1px solid ${P.border}`, padding: '32px 64px', direction: t.dir }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'linear-gradient(135deg,#2563eb,#0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>🚗</div>
+          <CeloxIcon size={28} />
           <span style={{ fontSize: 15, fontWeight: 800, color: P.text }}>Celox <span style={{ color: P.blue }}>AI</span></span>
         </div>
         <div style={{ fontSize: 13, color: P.muted }}>{t.footer}</div>
