@@ -106,6 +106,7 @@ function MultiSelect({ options, value = [], onChange, placeholder, style, getLab
 
       {open && createPortal(
         <div ref={dropdownRef} onMouseDown={e => e.stopPropagation()}
+          className="dropdown-enter"
           style={{
             position: 'fixed', zIndex: 99999,
             top: pos.top, left: pos.left, width: pos.width,
@@ -615,7 +616,7 @@ const gradient = `linear-gradient(135deg, ${C.primary}, ${C.indigo})`
 const btnPrimary = {
   background: gradient, color: '#fff', border: 'none',
   borderRadius: 8, fontWeight: 700, cursor: 'pointer',
-  boxShadow: '0 2px 10px rgba(59,130,246,0.35)', transition: 'opacity 0.15s',
+  boxShadow: '0 2px 10px rgba(59,130,246,0.35)', transition: 'opacity 0.15s, transform 0.1s',
 }
 const btnGhost = {
   background: 'transparent', border: `1px solid ${C.border}`,
@@ -695,7 +696,7 @@ function ActionBtn({ onClick, variant, children }) {
   return (
     <button onClick={onClick} style={{
       border: 'none', borderRadius: 6, padding: '5px 10px',
-      fontSize: 12, fontWeight: 600, cursor: 'pointer', ...variants[variant],
+      fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background 0.12s, transform 0.1s', ...variants[variant],
     }}>{children}</button>
   )
 }
@@ -798,7 +799,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
   const entityLabel = entityType === 'car' ? (entity.plate || entity.make) : entity.name
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, zIndex: 200,
       background: C.overlay, display: 'flex',
       alignItems: isMobile ? 'flex-end' : 'center',
@@ -5824,7 +5825,7 @@ function NotificationBell({ companyId, userId, rtl }) {
       </button>
 
       {open && (
-        <div style={{ position: 'absolute', top: 38, right: 0, width: 290, background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', zIndex: 1000, overflow: 'hidden' }}>
+        <div className="notif-panel" style={{ position: 'absolute', top: 38, right: 0, width: 290, background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', zIndex: 1000, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>🔔 {rtl ? 'התראות' : 'Notifications'}</span>
             {'PushManager' in window && (
@@ -6915,7 +6916,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   fontSize: 13,
                   outline: isActive ? '1px solid rgba(255,255,255,0.15)' : 'none',
                   outlineOffset: -1,
-                  transition: 'color 0.15s, background 0.15s',
+                  transition: 'color 0.15s, background 0.15s, transform 0.1s',
                   whiteSpace: 'nowrap',
                 }}
                   onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#e2e8f0' }}
@@ -6985,7 +6986,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 fontSize: isMobile ? 10 : 11, fontWeight: 700, letterSpacing: '0.04em',
                 background: lang === l ? 'rgba(255,255,255,0.2)' : 'transparent',
                 color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
-                transition: 'all 0.15s',
+                transition: 'background 0.15s, color 0.15s, transform 0.1s',
               }}>
                 {l === 'en' ? 'EN' : 'HE'}
               </button>
@@ -7012,9 +7013,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 border: 'none', cursor: 'pointer', background: 'transparent',
                 color: isActive ? '#fff' : C.navText,
                 borderTop: isActive ? `2px solid ${C.primary}` : '2px solid transparent',
-                transition: 'color 0.15s',
+                transition: 'color 0.15s, transform 0.1s',
               }}>
-                <TabIcon id={item.id} size={17} />
+                <span style={{ display: 'flex', transition: 'transform 0.15s ease-out', transform: isActive ? 'translateY(-1px)' : 'translateY(0)' }}>
+                  <TabIcon id={item.id} size={17} />
+                </span>
                 {isActive && (
                   <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', padding: '0 2px' }}>{item.label}</span>
                 )}
@@ -7050,16 +7053,14 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: isMobile ? 12 : 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
-            <button onClick={() => { setShowAdd(true); setEditingId(null) }} style={{
+            <button onClick={() => { setShowAdd(true); setEditingId(null) }} className="btn-cta" style={{
               background: `linear-gradient(135deg, ${C.primary}, ${C.indigo})`, color: '#fff', border: 'none',
               borderRadius: 7, padding: isMobile ? '6px 10px' : '8px 18px',
               fontSize: isMobile ? 16 : 13, fontWeight: 700,
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              boxShadow: '0 2px 10px rgba(59,130,246,0.35)', transition: 'opacity 0.15s',
+              boxShadow: '0 2px 10px rgba(59,130,246,0.35)', transition: 'opacity 0.15s, transform 0.1s',
               whiteSpace: 'nowrap', minWidth: isMobile ? 34 : 'auto', letterSpacing: '0.01em',
-            }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+            }}>
               {isMobile ? '+' : t.newItem}
             </button>
             {(activeTab === 'costs' || activeTab === 'cars' || activeTab === 'drivers') && activeCompanyId && (
@@ -7107,6 +7108,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             onImported={() => { setShowCsvImport(false); setCostsReloadKey(k => k + 1) }}
           />
         )}
+
+        {/* ── Animated tab content area ──────────────────────────────────── */}
+        <div key={activeTab} className="tab-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Dashboard view */}
         {activeTab === 'dashboard' && (
@@ -7397,6 +7401,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             </div>
           )
         )}
+        </div> {/* end animated tab-content */}
       </div>
 
       {/* Car Detail modal */}

@@ -21,15 +21,29 @@ body {
   color: #323338;
 }
 
+/* ── Global button defaults ──────────────────────────────────────────────── */
 button {
   font-family: inherit;
   cursor: pointer;
+  transition: transform 0.1s ease-out, background 0.12s, color 0.12s, opacity 0.12s;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Primary CTA hover via CSS so touch devices don't get false-positives */
+@media (hover: hover) and (pointer: fine) {
+  .btn-cta:hover {
+    opacity: 0.88;
+  }
 }
 
 input, select {
   font-family: inherit;
 }
 
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -37,4 +51,55 @@ input, select {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes notifIn {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Animation utility classes ──────────────────────────────────────────── */
+.tab-content {
+  animation: fadeIn 150ms ease-out;
+}
+
+.dropdown-enter {
+  animation: dropdownIn 150ms cubic-bezier(0.23, 1, 0.32, 1);
+  transform-origin: top center;
+}
+
+.notif-panel {
+  animation: notifIn 150ms cubic-bezier(0.23, 1, 0.32, 1);
+  transform-origin: top right;
+}
+
+.modal-overlay {
+  animation: overlayIn 200ms ease-out;
+}
+
+.modal-content {
+  animation: modalIn 250ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
