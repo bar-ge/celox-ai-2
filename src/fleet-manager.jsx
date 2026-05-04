@@ -588,6 +588,12 @@ function TabIcon({ id, size = 15 }) {
   if (id === 'settings') return (
     <svg style={s} viewBox="0 0 16 16" fill="none"><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" strokeWidth="1.4"/><path d="M13.2 9.6a5.4 5.4 0 0 0 .13-.6l1.17-.9a.5.5 0 0 0 .12-.64l-1.1-1.9a.5.5 0 0 0-.61-.22l-1.38.55a5.3 5.3 0 0 0-1.03-.6l-.21-1.47A.5.5 0 0 0 9.8 3h-2.2a.5.5 0 0 0-.5.43l-.2 1.47a5.3 5.3 0 0 0-1.04.6L4.47 5a.5.5 0 0 0-.61.22l-1.1 1.9a.5.5 0 0 0 .12.64l1.17.9a5.4 5.4 0 0 0 0 1.2l-1.17.9a.5.5 0 0 0-.12.64l1.1 1.9a.5.5 0 0 0 .61.22l1.38-.55a5.3 5.3 0 0 0 1.04.6l.2 1.47a.5.5 0 0 0 .5.43h2.2a.5.5 0 0 0 .49-.43l.2-1.47a5.3 5.3 0 0 0 1.04-.6l1.38.55a.5.5 0 0 0 .61-.22l1.1-1.9a.5.5 0 0 0-.12-.64l-1.17-.9Z" stroke="currentColor" strokeWidth="1.3"/></svg>
   )
+  if (id === 'violations') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><path d="M8 2L14 13H2L8 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M8 6v3.5M8 11.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+  )
+  if (id === 'reports') return (
+    <svg style={s} viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M5 8h6M5 10.5h4M5 5.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+  )
   return <span style={{ fontSize: size }}></span>
 }
 
@@ -1442,7 +1448,7 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
 
         {/* Tab bar */}
         <div style={tabBar}>
-          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['certifications', `🏅 ${rtl ? 'הסמכות' : 'Certifications'}`], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -1500,6 +1506,13 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
                 )}
               </div>
             </>
+          )}
+
+          {/* ── CERTIFICATIONS ── */}
+          {tab === 'certifications' && (
+            <div style={{ padding: '0 24px 20px' }}>
+              <CertificationsPane driverId={driver.id} companyId={companyId} rtl={rtl} />
+            </div>
           )}
 
           {/* ── DOCUMENTS ── */}
@@ -2989,7 +3002,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const [showAdd, setShowAdd] = useState(false)
   const [addError, setAddError] = useState('')
   const [selectedCostIds, setSelectedCostIds] = useState([])
-  const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' })
+  const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '', cost_center: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
 
@@ -3016,9 +3029,30 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       driver_id: form.driver_id || null,
       category: form.category, amount,
       description: form.description || null, date: form.date,
+      cost_center: form.cost_center || null,
     }]).select()
     if (error) { setAddError(friendlyDbError(error, rtl)); return }
-    if (data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setAddError(''); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '' }) }
+    if (data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setAddError(''); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '', cost_center: '' }) }
+  }
+  function exportAccountingCsv() {
+    const headers = rtl
+      ? ['תאריך', 'קטגוריה', 'סכום', 'מרכז עלות', 'רכב', 'נהג', 'תיאור']
+      : ['Date', 'Category', 'Amount', 'Cost Center', 'Vehicle', 'Driver', 'Description']
+    const rows = costs.map(c => [
+      c.date || '',
+      catLabel[c.category] || c.category,
+      parseFloat(c.amount || 0).toFixed(2),
+      c.cost_center || '',
+      c.car_id ? carName(c.car_id) : '',
+      c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '') : '',
+      c.description || '',
+    ])
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = Object.assign(document.createElement('a'), { href: url, download: `accounting-${new Date().toISOString().slice(0,10)}.csv` })
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
   async function del(id) {
     if (!window.confirm(t.confirmDelete)) return
@@ -3073,9 +3107,16 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
         <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>💰 {t.costsTab}</span>
-          <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
-            {showAdd ? t.cancel : t.newItem}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {costs.length > 0 && (
+              <button onClick={exportAccountingCsv} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.15)' }}>
+                📥 {rtl ? 'ייצוא הנהלת חשבונות' : 'Export CSV'}
+              </button>
+            )}
+            <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+              {showAdd ? t.cancel : t.newItem}
+            </button>
+          </div>
         </div>
         {showAdd && (
           <form onSubmit={add} style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
@@ -3111,6 +3152,10 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                 <option value="">—</option>
                 {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'מרכז עלות' : 'Cost Center'}</label>
+              <input value={form.cost_center} onChange={e => setForm({ ...form, cost_center: e.target.value })} placeholder={rtl ? 'לדוגמה: צי ת"א' : 'e.g. Fleet TLV'} style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.actions}</label>
@@ -3151,16 +3196,16 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                       style={{ cursor: 'pointer' }} />
                   </label>
                 </th>
-                {[t.serviceDate, t.category, t.amount, t.cars, t.driver, t.actions].map(h => (
+                {[t.serviceDate, t.category, t.amount, rtl ? 'מרכז עלות' : 'Cost Center', t.cars, t.driver, t.actions].map(h => (
                   <th key={h} style={mkTh(rtl, isMobile)}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
+                <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
               ) : costs.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
+                <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
               ) : costs.map(c => (
                 <tr key={c.id} style={{ background: selectedCostIds.includes(c.id) ? C.primary + '08' : C.surface }}>
                   <td style={{ ...mkTd(rtl, isMobile), width: 36, padding: '10px 12px' }}>
@@ -3169,6 +3214,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                   <td style={mkTd(rtl, isMobile)}>{fmtDate(c.date)}</td>
                   <td style={mkTd(rtl, isMobile)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
                   <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>₪{parseFloat(c.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td style={{ ...mkTd(rtl, isMobile), color: C.textSecondary, fontSize: 12 }}>{c.cost_center || '—'}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.car_id ? carName(c.car_id) : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(c.id)}>{t.delete}</ActionBtn></td>
@@ -5805,6 +5851,623 @@ function NotificationBell({ companyId, userId, rtl }) {
   )
 }
 
+// ── Shared SignaturePad (inline, fleet-manager version) ───────────────────────
+function FMSignaturePad({ value, onChange, label = 'חתימה דיגיטלית', clearLabel = 'נקה' }) {
+  const canvasRef = useRef()
+  const drawing   = useRef(false)
+  const lastPos   = useRef(null)
+
+  function getPos(e) {
+    const canvas = canvasRef.current
+    const rect   = canvas.getBoundingClientRect()
+    const touch  = e.touches?.[0] || e
+    return { x: (touch.clientX - rect.left) * (canvas.width / rect.width), y: (touch.clientY - rect.top) * (canvas.height / rect.height) }
+  }
+  function startDraw(e) { e.preventDefault(); drawing.current = true; lastPos.current = getPos(e) }
+  function draw(e) {
+    e.preventDefault()
+    if (!drawing.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    const pos = getPos(e)
+    ctx.beginPath(); ctx.moveTo(lastPos.current.x, lastPos.current.y); ctx.lineTo(pos.x, pos.y)
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    ctx.stroke()
+    lastPos.current = pos
+    onChange(canvasRef.current.toDataURL('image/png'))
+  }
+  function endDraw() { drawing.current = false; lastPos.current = null }
+  function clear() { canvasRef.current.getContext('2d').clearRect(0, 0, canvasRef.current.width, canvasRef.current.height); onChange('') }
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 6 }}>{label}</div>
+      <div style={{ position: 'relative', border: `2px solid ${value ? C.primary : C.border}`, borderRadius: 8, overflow: 'hidden', background: '#fafafa' }}>
+        <canvas ref={canvasRef} width={560} height={120}
+          style={{ width: '100%', height: 120, cursor: 'crosshair', display: 'block', touchAction: 'none' }}
+          onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+          onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
+        <button type="button" onClick={clear} style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.9)', border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>{clearLabel}</button>
+        {!value && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: C.textMuted, fontSize: 13 }}>✍️ חתום כאן</div>}
+      </div>
+    </div>
+  )
+}
+
+// ── Traffic Violations Tab ────────────────────────────────────────────────────
+const VIOLATION_TYPES_HE = ['מהירות יתר','אי מתן זכות קדימה','חנייה אסורה','שימוש בטלפון בנהיגה','אי עצירה ברמזור אדום','חריגה מנתיב','אחר']
+const VIOLATION_TYPES_EN = ['Speeding','Right of way','Illegal parking','Phone while driving','Red light','Lane violation','Other']
+const VIOLATION_STATUS_COLORS = { new: C?.warning || '#f59e0b', assigned: '#8b5cf6', signed: C?.primary || '#0891b2', submitted: C?.success || '#10b981', resolved: '#64748b' }
+
+function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
+  const [violations, setViolations] = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [showAdd, setShowAdd]       = useState(false)
+  const [signTarget, setSignTarget] = useState(null)
+  const [signature, setSignature]   = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [form, setForm] = useState({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', location: '', amount: '', notes: '', driver_id: '' })
+  const [addError, setAddError]     = useState('')
+  const [matching, setMatching]     = useState(false)
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => { load() }, [companyId])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('traffic_violations').select('*').eq('company_id', companyId).order('violation_date', { ascending: false })
+    setViolations(data || [])
+    setLoading(false)
+  }
+
+  async function matchDriver() {
+    if (!form.car_id || !form.violation_date) return
+    setMatching(true)
+    const { data } = await supabase.from('driver_car_history')
+      .select('driver_id, driver_name')
+      .eq('car_id', parseInt(form.car_id, 10))
+      .lte('assigned_at', form.violation_date + 'T23:59:59')
+      .order('assigned_at', { ascending: false })
+      .limit(1)
+    if (data?.[0]?.driver_id) {
+      set('driver_id', data[0].driver_id)
+    } else {
+      const car = cars.find(c => c.id === parseInt(form.car_id, 10))
+      if (car?.driver_id) set('driver_id', car.driver_id)
+    }
+    setMatching(false)
+  }
+
+  async function addViolation(e) {
+    e.preventDefault()
+    setAddError('')
+    if (!form.plate || !form.violation_date) { setAddError(rtl ? 'לוחית רישוי ותאריך הם שדות חובה' : 'Plate and date are required'); return }
+    const { data, error } = await supabase.from('traffic_violations').insert([{
+      company_id:     companyId,
+      plate:          form.plate.replace(/[-\s]/g,''),
+      car_id:         form.car_id ? parseInt(form.car_id,10) : null,
+      driver_id:      form.driver_id || null,
+      violation_date: form.violation_date,
+      violation_type: form.violation_type,
+      fine_number:    form.fine_number || null,
+      location:       form.location   || null,
+      amount:         form.amount ? parseFloat(form.amount) : null,
+      notes:          form.notes      || null,
+      status:         form.driver_id  ? 'assigned' : 'new',
+      created_by:     session?.user?.id || null,
+    }]).select()
+    if (error) { setAddError(friendlyDbError(error, rtl)); return }
+    setViolations(p => [data[0], ...p])
+    setShowAdd(false)
+    setForm({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', location: '', amount: '', notes: '', driver_id: '' })
+  }
+
+  async function saveSignature() {
+    if (!signature) return
+    setSaving(true)
+    const { data, error } = await supabase.from('traffic_violations').update({ signature_data: signature, signed_at: new Date().toISOString(), status: 'signed' }).eq('id', signTarget.id).select()
+    if (!error && data?.[0]) {
+      setViolations(p => p.map(v => v.id === signTarget.id ? data[0] : v))
+      setSignTarget(null)
+      setSignature('')
+    }
+    setSaving(false)
+  }
+
+  async function updateStatus(id, status) {
+    const { data } = await supabase.from('traffic_violations').update({ status }).eq('id', id).select()
+    if (data?.[0]) setViolations(p => p.map(v => v.id === id ? data[0] : v))
+  }
+
+  async function deleteViolation(id) {
+    if (!window.confirm(rtl ? 'למחוק את הקנס?' : 'Delete this violation?')) return
+    await supabase.from('traffic_violations').delete().eq('id', id)
+    setViolations(p => p.filter(v => v.id !== id))
+  }
+
+  const statusLabel = { new: rtl?'חדש':'New', assigned: rtl?'שויך לנהג':'Assigned', signed: rtl?'נחתם':'Signed', submitted: rtl?'הוגש':'Submitted', resolved: rtl?'סגור':'Resolved' }
+  const driverName  = id => drivers.find(d => d.id === id)?.name || id || '—'
+  const carPlate    = id => id ? (formatPlate(cars.find(c => c.id === parseInt(id,10))?.plate) || id) : '—'
+  const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '🚦 ניהול קנסות תנועה' : '🚦 Traffic Violations'}</h2>
+          <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'עקוב, שייך לנהג, וקבל חתימה לפני העברה למשרד הרישוי' : 'Track, assign to driver, collect signature before submitting to Ministry of Transport'}</p>
+        </div>
+        <button onClick={() => setShowAdd(p => !p)} style={{ background: `linear-gradient(135deg,${C.primary},${C.indigo})`, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          {showAdd ? (rtl ? '✕ ביטול' : '✕ Cancel') : (rtl ? '+ הוסף קנס' : '+ Add Violation')}
+        </button>
+      </div>
+
+      {/* Add form */}
+      {showAdd && (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700 }}>{rtl ? 'קנס חדש' : 'New Violation'}</h3>
+          <form onSubmit={addViolation}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'לוחית רישוי *' : 'License Plate *'}</label>
+                <input style={inp} value={form.plate} onChange={e => set('plate', e.target.value)} placeholder="12-345-67" required />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'רכב מהצי' : 'Fleet Vehicle'}</label>
+                <select style={inp} value={form.car_id} onChange={e => { set('car_id', e.target.value); if (e.target.value) set('plate', cars.find(c=>c.id===parseInt(e.target.value,10))?.plate?.replace(/\D/g,'')||form.plate) }}>
+                  <option value="">{rtl ? 'בחר...' : 'Select...'}</option>
+                  {cars.map(c => <option key={c.id} value={c.id}>{formatPlate(c.plate)}{c.make ? ` – ${c.make}` : ''}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תאריך הקנס *' : 'Violation Date *'}</label>
+                <input type="date" style={inp} value={form.violation_date} onChange={e => set('violation_date', e.target.value)} required />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג עבירה' : 'Violation Type'}</label>
+                <select style={inp} value={form.violation_type} onChange={e => set('violation_type', e.target.value)}>
+                  {(rtl ? VIOLATION_TYPES_HE : VIOLATION_TYPES_EN).map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'מספר דוח' : 'Fine Number'}</label>
+                <input style={inp} value={form.fine_number} onChange={e => set('fine_number', e.target.value)} placeholder="12345678" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סכום (₪)' : 'Amount (₪)'}</label>
+                <input type="number" style={inp} value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="250" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'מיקום' : 'Location'}</label>
+                <input style={inp} value={form.location} onChange={e => set('location', e.target.value)} placeholder={rtl ? 'כביש 4, גבעת שמואל' : 'Highway 4, Tel Aviv'} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'נהג אחראי' : 'Responsible Driver'}</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <select style={{ ...inp, flex: 1 }} value={form.driver_id} onChange={e => set('driver_id', e.target.value)}>
+                    <option value="">{rtl ? 'לא ידוע' : 'Unknown'}</option>
+                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                  {form.car_id && (
+                    <button type="button" onClick={matchDriver} disabled={matching} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '0 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      {matching ? '…' : (rtl ? '🔍 איתור אוטו' : '🔍 Auto')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'הערות' : 'Notes'}</label>
+              <textarea style={{ ...inp, minHeight: 60, resize: 'vertical' }} value={form.notes} onChange={e => set('notes', e.target.value)} />
+            </div>
+            {addError && <div style={{ color: C.danger, fontSize: 13, marginBottom: 10, padding: '8px 12px', background: C.danger + '12', borderRadius: 6 }}>{addError}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'שמור קנס' : 'Save Violation'}</button>
+              <button type="button" onClick={() => setShowAdd(false)} style={{ background: C.bg, color: C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: C.textSecondary }}>…</div>
+      ) : violations.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60 }}>
+          <div style={{ fontSize: 44, marginBottom: 12, opacity: 0.2 }}>🚦</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{rtl ? 'אין קנסות רשומים' : 'No violations recorded'}</div>
+          <div style={{ fontSize: 13, color: C.textMuted }}>{rtl ? 'הוסף קנס חדש כדי להתחיל' : 'Add a violation to get started'}</div>
+        </div>
+      ) : (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: C.bg }}>
+                {[rtl?'תאריך':'Date', rtl?'לוחית':'Plate', rtl?'עבירה':'Type', rtl?'נהג':'Driver', rtl?'סכום':'Amount', rtl?'מס׳ דוח':'Fine #', rtl?'סטטוס':'Status', rtl?'פעולות':'Actions'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: C.textSecondary, textAlign: rtl ? 'right' : 'left', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {violations.map((v, i) => (
+                <tr key={v.id} style={{ borderBottom: i < violations.length-1 ? `1px solid ${C.border}` : 'none', background: i % 2 === 0 ? 'transparent' : C.bg + '80' }}>
+                  <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{v.violation_date}</td>
+                  <td style={{ padding: '12px 14px' }}><span style={{ fontWeight: 700, fontFamily: 'monospace', color: C.primary }}>{formatPlate(v.plate)}</span></td>
+                  <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{v.violation_type}</td>
+                  <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{driverName(v.driver_id)}</td>
+                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.danger }}>
+                    {v.amount ? `₪${parseFloat(v.amount).toLocaleString()}` : '—'}
+                  </td>
+                  <td style={{ padding: '12px 14px', fontSize: 12, color: C.textSecondary, fontFamily: 'monospace' }}>{v.fine_number || '—'}</td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, background: (VIOLATION_STATUS_COLORS[v.status] || '#64748b') + '18', color: VIOLATION_STATUS_COLORS[v.status] || '#64748b' }}>
+                      {statusLabel[v.status] || v.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {v.status !== 'signed' && v.status !== 'submitted' && v.status !== 'resolved' && (
+                        <button onClick={() => { setSignTarget(v); setSignature('') }} style={{ background: '#8b5cf618', color: '#8b5cf6', border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          ✍️ {rtl ? 'חתימה' : 'Sign'}
+                        </button>
+                      )}
+                      {v.status === 'signed' && (
+                        <button onClick={() => updateStatus(v.id, 'submitted')} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          📤 {rtl ? 'הוגש' : 'Mark Submitted'}
+                        </button>
+                      )}
+                      {v.status === 'submitted' && (
+                        <button onClick={() => updateStatus(v.id, 'resolved')} style={{ background: C.success + '18', color: C.success, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          ✅ {rtl ? 'סגור' : 'Close'}
+                        </button>
+                      )}
+                      {v.signature_data && (
+                        <button onClick={() => window.open(v.signature_data, '_blank')} style={{ background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>
+                          🖼 {rtl ? 'חתימה' : 'Sig'}
+                        </button>
+                      )}
+                      <button onClick={() => deleteViolation(v.id)} style={{ background: C.danger + '14', color: C.danger, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Signature modal */}
+      {signTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 16, padding: 24, maxWidth: 600, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800 }}>{rtl ? '✍️ חתימת נהג על קנס' : '✍️ Driver Signature for Violation'}</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: C.textSecondary }}>
+              {rtl ? `נהג: ${driverName(signTarget.driver_id)} | רכב: ${formatPlate(signTarget.plate)} | תאריך: ${signTarget.violation_date}` : `Driver: ${driverName(signTarget.driver_id)} | Plate: ${formatPlate(signTarget.plate)} | Date: ${signTarget.violation_date}`}
+            </p>
+            <div style={{ background: C.bg, borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, direction: rtl ? 'rtl' : 'ltr' }}>
+              <p style={{ margin: 0, fontWeight: 600 }}>{rtl ? 'הצהרת הנהג:' : 'Driver Declaration:'}</p>
+              <p style={{ margin: '8px 0 0', color: C.textSecondary, lineHeight: 1.7 }}>
+                {rtl
+                  ? `אני ${driverName(signTarget.driver_id)} מאשר/ת שנהגתי ברכב ${formatPlate(signTarget.plate)} בתאריך ${signTarget.violation_date} ואני האחראי/ת לקנס מספר ${signTarget.fine_number || '—'} בסך ₪${signTarget.amount || '—'} בגין: ${signTarget.violation_type}.`
+                  : `I, ${driverName(signTarget.driver_id)}, confirm that I drove vehicle ${formatPlate(signTarget.plate)} on ${signTarget.violation_date} and I am responsible for fine #${signTarget.fine_number || '—'} of ₪${signTarget.amount || '—'} for: ${signTarget.violation_type}.`
+                }
+              </p>
+            </div>
+            <FMSignaturePad value={signature} onChange={setSignature} label={rtl ? 'חתימת הנהג' : 'Driver Signature'} clearLabel={rtl ? 'נקה' : 'Clear'} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setSignTarget(null); setSignature('') }} style={{ background: C.bg, color: C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 18px', fontSize: 13, cursor: 'pointer' }}>
+                {rtl ? 'ביטול' : 'Cancel'}
+              </button>
+              <button onClick={saveSignature} disabled={!signature || saving} style={{ background: signature ? C.primary : C.border, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: signature ? 'pointer' : 'not-allowed' }}>
+                {saving ? '…' : (rtl ? '✅ שמור חתימה' : '✅ Save Signature')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Reports Tab ───────────────────────────────────────────────────────────────
+function ReportsTab({ cars, drivers, costs, companyId, t, rtl }) {
+  const [reportType, setReportType] = useState('fleet_status')
+  const [recipients, setRecipients] = useState('')
+  const [sending, setSending]       = useState(false)
+  const [sent, setSent]             = useState('')
+  const [sendError, setSendError]   = useState('')
+  const [dateFrom, setDateFrom]     = useState(new Date(Date.now() - 30*24*3600*1000).toISOString().slice(0,10))
+  const [dateTo, setDateTo]         = useState(new Date().toISOString().slice(0,10))
+
+  const REPORT_TYPES = [
+    { id: 'fleet_status',   label: rtl ? '🚗 סטטוס הצי'     : '🚗 Fleet Status'  },
+    { id: 'cost_summary',   label: rtl ? '💰 סיכום עלויות'  : '💰 Cost Summary'  },
+    { id: 'expiry_alerts',  label: rtl ? '⚠️ התראות תפוגה' : '⚠️ Expiry Alerts' },
+  ]
+
+  function buildFleetHtml() {
+    const active    = cars.filter(c => c.status === 'In Use' || c.status === 'Available').length
+    const inMaint   = cars.filter(c => c.status === 'Maintenance').length
+    const rows = cars.map(c => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${formatPlate(c.plate)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${c.make||''} ${c.model||''}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${c.status||''}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${c.mileage?.toLocaleString()||'—'}</td></tr>`).join('')
+    return `<div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:32px">
+      <h1 style="color:#0f172a;margin:0 0 4px">דוח סטטוס צי</h1>
+      <p style="color:#64748b;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
+        <div style="background:#eff6ff;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#2563eb">${cars.length}</div><div style="font-size:13px;color:#64748b">סה"כ רכבים</div></div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#16a34a">${active}</div><div style="font-size:13px;color:#64748b">פעילים</div></div>
+        <div style="background:#fef9c3;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#ca8a04">${inMaint}</div><div style="font-size:13px;color:#64748b">בתחזוקה</div></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        <thead><tr style="background:#f8fafc"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">לוחית</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">רכב</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">סטטוס</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">ק"מ</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`
+  }
+
+  function buildCostHtml() {
+    const filtered = costs.filter(c => c.date >= dateFrom && c.date <= dateTo)
+    const total    = filtered.reduce((s,c) => s + parseFloat(c.amount||0), 0)
+    const byCat    = filtered.reduce((acc,c) => { acc[c.category]=(acc[c.category]||0)+parseFloat(c.amount||0); return acc }, {})
+    const catRows  = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${cat}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:700">₪${amt.toLocaleString('en',{minimumFractionDigits:2})}</td></tr>`).join('')
+    return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px">
+      <h1 style="color:#0f172a;margin:0 0 4px">סיכום עלויות</h1>
+      <p style="color:#64748b;margin:0 0 24px">${dateFrom} – ${dateTo}</p>
+      <div style="background:#eff6ff;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
+        <div style="font-size:36px;font-weight:800;color:#2563eb">₪${total.toLocaleString('en',{minimumFractionDigits:2})}</div>
+        <div style="font-size:13px;color:#64748b">סה"כ הוצאות</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <tbody>${catRows}</tbody>
+      </table>
+    </div>`
+  }
+
+  function buildExpiryHtml() {
+    const today   = new Date(); today.setHours(0,0,0,0)
+    const soon    = new Date(today); soon.setDate(soon.getDate() + 30)
+    const expRows = drivers.filter(d => d.license_expiry).map(d => {
+      const exp = new Date(d.license_expiry); const days = Math.round((exp-today)/86400000)
+      const color = days < 0 ? '#dc2626' : days < 30 ? '#d97706' : '#16a34a'
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${d.name}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${d.license_expiry}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;color:${color};font-weight:700">${days < 0 ? 'פג תוקף' : days + ' ימים'}</td></tr>`
+    }).join('')
+    return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px">
+      <h1 style="color:#0f172a;margin:0 0 4px">התראות תפוגה</h1>
+      <p style="color:#64748b;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f8fafc"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">נהג</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">תפוגת רישיון</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">סטטוס</th></tr></thead>
+        <tbody>${expRows || '<tr><td colspan="3" style="padding:20px;text-align:center;color:#64748b">אין התראות פעילות</td></tr>'}</tbody>
+      </table>
+    </div>`
+  }
+
+  function buildWhatsAppText() {
+    if (reportType === 'fleet_status') {
+      const active  = cars.filter(c => c.status === 'In Use' || c.status === 'Available').length
+      const inMaint = cars.filter(c => c.status === 'Maintenance').length
+      return `🚗 *דוח סטטוס צי – ${new Date().toLocaleDateString('he-IL')}*\n\nסה"כ רכבים: ${cars.length}\n✅ פעילים: ${active}\n🔧 בתחזוקה: ${inMaint}\nנהגים פעילים: ${drivers.filter(d=>d.status==='Active').length}`
+    }
+    if (reportType === 'cost_summary') {
+      const filtered = costs.filter(c => c.date >= dateFrom && c.date <= dateTo)
+      const total    = filtered.reduce((s,c) => s + parseFloat(c.amount||0), 0)
+      return `💰 *סיכום עלויות ${dateFrom} – ${dateTo}*\n\nסה"כ: ₪${total.toLocaleString('en',{minimumFractionDigits:2})}\nמספר רשומות: ${filtered.length}`
+    }
+    const expired = drivers.filter(d => d.license_expiry && new Date(d.license_expiry) < new Date()).length
+    const expiring = drivers.filter(d => { if (!d.license_expiry) return false; const days=(new Date(d.license_expiry)-new Date())/86400000; return days>=0&&days<30 }).length
+    return `⚠️ *התראות תפוגה – ${new Date().toLocaleDateString('he-IL')}*\n\n🔴 פג תוקף: ${expired} נהגים\n🟡 פג תוקף בחודש הקרוב: ${expiring} נהגים`
+  }
+
+  async function sendEmail() {
+    const toList = recipients.split(/[,\n]/).map(e=>e.trim()).filter(Boolean)
+    if (!toList.length) { setSendError(rtl ? 'הזן כתובת אימייל אחת לפחות' : 'Enter at least one email'); return }
+    setSending(true); setSendError(''); setSent('')
+    const html = reportType === 'fleet_status' ? buildFleetHtml() : reportType === 'cost_summary' ? buildCostHtml() : buildExpiryHtml()
+    const subjectMap = { fleet_status: 'דוח סטטוס צי', cost_summary: 'סיכום עלויות', expiry_alerts: 'התראות תפוגה' }
+    const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/send-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: toList, subject: `${subjectMap[reportType]} – ${new Date().toLocaleDateString('he-IL')}`, html }),
+    })
+    setSending(false)
+    if (r.ok) setSent(rtl ? `✅ הדוח נשלח ל-${toList.length} נמענים` : `✅ Report sent to ${toList.length} recipient(s)`)
+    else setSendError(rtl ? 'שגיאה בשליחה. נסה שוב.' : 'Send failed. Please try again.')
+  }
+
+  function openWhatsApp() {
+    const text = encodeURIComponent(buildWhatsAppText())
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+      <div style={{ maxWidth: 640 }}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '📊 שליחת דוחות' : '📊 Send Reports'}</h2>
+        <p style={{ margin: '0 0 24px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'שלח דוחות ישירות לאימייל או לוואטסאפ' : 'Send reports directly by email or WhatsApp'}</p>
+
+        {/* Report type */}
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{rtl ? 'סוג דוח' : 'Report Type'}</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {REPORT_TYPES.map(rt => (
+              <label key={rt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, border: `2px solid ${reportType === rt.id ? C.primary : C.border}`, cursor: 'pointer', background: reportType === rt.id ? C.primary + '08' : 'transparent', transition: 'all 0.15s' }}>
+                <input type="radio" name="reportType" value={rt.id} checked={reportType === rt.id} onChange={() => setReportType(rt.id)} style={{ accentColor: C.primary }} />
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{rt.label}</span>
+              </label>
+            ))}
+          </div>
+
+          {reportType === 'cost_summary' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'מתאריך' : 'From'}</label>
+                <input type="date" style={inp} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'עד תאריך' : 'To'}</label>
+                <input type="date" style={inp} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Email */}
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>✉️ {rtl ? 'שליחה באימייל' : 'Send by Email'}</label>
+          <textarea
+            style={{ ...inp, minHeight: 70, resize: 'vertical', marginBottom: 10 }}
+            value={recipients}
+            onChange={e => setRecipients(e.target.value)}
+            placeholder={rtl ? 'כתובות אימייל (מופרדות בפסיק או שורה חדשה)\nדוגמה: manager@company.com, cfo@company.com' : 'Email addresses (comma or newline separated)\nExample: manager@company.com, cfo@company.com'}
+          />
+          {sendError && <div style={{ color: C.danger, fontSize: 13, marginBottom: 8 }}>{sendError}</div>}
+          {sent      && <div style={{ color: C.success, fontSize: 13, marginBottom: 8 }}>{sent}</div>}
+          <button onClick={sendEmail} disabled={sending} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
+            {sending ? '…' : (rtl ? '📨 שלח דוח' : '📨 Send Report')}
+          </button>
+        </div>
+
+        {/* WhatsApp */}
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>💬 {rtl ? 'שליחה בוואטסאפ' : 'Send via WhatsApp'}</label>
+          <p style={{ margin: '0 0 12px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'ייפתח WhatsApp עם הדוח המוכן לשליחה. בחר איש קשר ולחץ שלח.' : 'Opens WhatsApp with a ready-to-send message. Select a contact and tap send.'}</p>
+          <button onClick={openWhatsApp} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 7, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.06L2 22l5.07-1.34C8.5 21.52 10.2 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.69 0-3.27-.48-4.62-1.31L4 20l1.33-3.3C4.5 15.3 4 13.7 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z"/></svg>
+            {rtl ? 'שלח בוואטסאפ' : 'Send via WhatsApp'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Driver Certifications Pane ────────────────────────────────────────────────
+const CERT_TYPES_HE = ['עזרה ראשונה','כיבוי אש','נהיגה מונעת','חומרים מסוכנים','הדרכה שנתית','אחר']
+const CERT_TYPES_EN = ['First Aid','Fire Safety','Defensive Driving','Hazmat','Yearly Training','Other']
+
+function CertificationsPane({ driverId, companyId, rtl }) {
+  const [certs,    setCerts]    = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [showAdd,  setShowAdd]  = useState(false)
+  const [saving,   setSaving]   = useState(false)
+  const [err,      setErr]      = useState('')
+  const [form, setForm] = useState({ cert_type: '', cert_name: '', completed_date: '', expiry_date: '', provider: '' })
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  const today = new Date(); today.setHours(0,0,0,0)
+  const daysUntil = dateStr => Math.round((new Date(dateStr) - today) / 86400000)
+  const expiryColor = dateStr => {
+    const d = daysUntil(dateStr)
+    if (d < 0)  return C.danger
+    if (d < 30) return C.warning || '#f59e0b'
+    return C.success
+  }
+
+  useEffect(() => { load() }, [driverId])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('driver_certifications').select('*').eq('driver_id', driverId).order('completed_date', { ascending: false })
+    setCerts(data || [])
+    setLoading(false)
+  }
+
+  async function add(e) {
+    e.preventDefault()
+    setErr('')
+    if (!form.cert_type || !form.completed_date) { setErr(rtl ? 'סוג ותאריך הם שדות חובה' : 'Type and date are required'); return }
+    setSaving(true)
+    const { data, error } = await supabase.from('driver_certifications').insert([{
+      company_id: companyId, driver_id: driverId,
+      cert_type: form.cert_type, cert_name: form.cert_name || null,
+      completed_date: form.completed_date, expiry_date: form.expiry_date || null,
+      provider: form.provider || null,
+    }]).select()
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setCerts(p => [data[0], ...p])
+    setShowAdd(false)
+    setForm({ cert_type: '', cert_name: '', completed_date: '', expiry_date: '', provider: '' })
+  }
+
+  async function del(id) {
+    if (!window.confirm(rtl ? 'למחוק?' : 'Delete?')) return
+    await supabase.from('driver_certifications').delete().eq('id', id)
+    setCerts(p => p.filter(c => c.id !== id))
+  }
+
+  const inp = { width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>{rtl ? 'הסמכות ואישורים' : 'Certifications'}</span>
+        <button onClick={() => setShowAdd(p => !p)} style={{ background: C.primary + '15', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+          {showAdd ? '✕' : `+ ${rtl ? 'הוסף' : 'Add'}`}
+        </button>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={add} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג הסמכה *' : 'Type *'}</label>
+              <select style={inp} value={form.cert_type} onChange={e => set('cert_type', e.target.value)} required>
+                <option value="">{rtl ? 'בחר...' : 'Select...'}</option>
+                {(rtl ? CERT_TYPES_HE : CERT_TYPES_EN).map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'שם קורס' : 'Course Name'}</label>
+              <input style={inp} value={form.cert_name} onChange={e => set('cert_name', e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תאריך השלמה *' : 'Completed *'}</label>
+              <input type="date" style={inp} value={form.completed_date} onChange={e => set('completed_date', e.target.value)} required />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תפוגה' : 'Expiry'}</label>
+              <input type="date" style={inp} value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'ספק / מכון' : 'Provider'}</label>
+              <input style={inp} value={form.provider} onChange={e => set('provider', e.target.value)} placeholder={rtl ? 'לדוגמה: מכון דרך ארץ' : 'e.g. Safe Drive Institute'} />
+            </div>
+          </div>
+          {err && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{err}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" disabled={saving} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</button>
+            <button type="button" onClick={() => setShowAdd(false)} style={{ background: C.bg, color: C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+          </div>
+        </form>
+      )}
+
+      {loading ? <div style={{ color: C.textMuted, fontSize: 12, textAlign: 'center', padding: 16 }}>…</div> : certs.length === 0 ? (
+        <div style={{ color: C.textMuted, fontSize: 13, textAlign: 'center', padding: 20 }}>{rtl ? 'אין הסמכות רשומות' : 'No certifications recorded'}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {certs.map(c => (
+            <div key={c.id} style={{ background: C.bg, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>{c.cert_type}{c.cert_name ? ` – ${c.cert_name}` : ''}</div>
+                <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? 'הושלם:' : 'Completed:'} {c.completed_date}{c.provider ? ` | ${c.provider}` : ''}</div>
+              </div>
+              {c.expiry_date && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: expiryColor(c.expiry_date), background: expiryColor(c.expiry_date) + '18', padding: '3px 8px', borderRadius: 6 }}>
+                  {daysUntil(c.expiry_date) < 0 ? (rtl ? '⚠ פג' : '⚠ Expired') : `${daysUntil(c.expiry_date)}d`}
+                </span>
+              )}
+              <button onClick={() => del(c.id)} style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: '2px 4px' }}>🗑</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
@@ -6179,8 +6842,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     { id: 'branches',    label: t.branches,       icon: '🏢', count: branches.length },
     { id: 'maintenance', label: t.maintenanceTab, icon: '🔧', count: null },
     { id: 'costs',       label: t.costsTab,       icon: '💰', count: null },
-    { id: 'forms',       label: rtl ? 'טפסים' : 'Forms', icon: '📋', count: null },
-    { id: 'settings',    label: t.settings,       icon: '⚙️', count: null },
+    { id: 'forms',       label: rtl ? 'טפסים'    : 'Forms',      icon: '📋', count: null },
+    { id: 'violations',  label: rtl ? 'קנסות'     : 'Violations', icon: '🚦', count: null },
+    { id: 'reports',     label: rtl ? 'דוחות'     : 'Reports',    icon: '📄', count: null },
+    { id: 'settings',    label: t.settings,        icon: '⚙️', count: null },
   ]
 
   const activeTabData  = tabs.find(tab => tab.id === activeTab)
@@ -6359,20 +7024,20 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         <div style={{
           background: C.surface, borderBottom: `1px solid ${C.border}`,
           padding: isMobile ? '0 10px' : '0 24px',
-          height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 'auto' : (isMobile ? 44 : 56),
+          height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' ? 'auto' : (isMobile ? 44 : 56),
           minHeight: isMobile ? 44 : 56,
           display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 14, flexShrink: 0,
           boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
           flexWrap: isMobile ? 'wrap' : 'nowrap',
-          paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
-          paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' ? 8 : 0,
+          paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' ? 8 : 0,
+          paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' ? 8 : 0,
         }}>
           <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
-          {/* Search + New item — hidden on dashboard and settings */}
-          {activeTab !== 'dashboard' && activeTab !== 'settings' && <>
+          {/* Search + New item — hidden on dashboard, settings, violations, reports */}
+          {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: isMobile ? '5px 8px' : '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
               <span style={{ fontSize: 12, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
@@ -6461,15 +7126,25 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           <FormsTab companyId={activeCompanyId} cars={cars} drivers={drivers} session={session} t={t} rtl={rtl} />
         )}
 
+        {/* Violations tab */}
+        {activeTab === 'violations' && activeCompanyId && (
+          <ViolationsTab cars={cars} drivers={drivers} companyId={activeCompanyId} rtl={rtl} session={session} />
+        )}
+
+        {/* Reports tab */}
+        {activeTab === 'reports' && activeCompanyId && (
+          <ReportsTab cars={cars} drivers={drivers} costs={[]} companyId={activeCompanyId} t={t} rtl={rtl} />
+        )}
+
         {/* Board */}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && isMaster && !activeCompanyId && (
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && isMaster && !activeCompanyId && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textSecondary }}>
             <span style={{ fontSize: 40 }}>🏢</span>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.selectCompanyPrompt}</p>
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
         )}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && activeTab !== 'forms' && (!isMaster || activeCompanyId) && (
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && activeTab !== 'forms' && activeTab !== 'violations' && activeTab !== 'reports' && (!isMaster || activeCompanyId) && (
           isMobile ? (
             /* ── MOBILE: card list ─────────────────────────────────────── */
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 70px' }}>

@@ -346,17 +346,36 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
 }
 
 // ── Driver Car Check Form ─────────────────────────────────────────────────────
+const EQUIPMENT_ITEMS = [
+  { key: 'lights',     label: '💡 תאורה (פנסים, בלמים, חיווי)' },
+  { key: 'brakes',     label: '🛑 בלמים (תקינות פדל)' },
+  { key: 'tires',      label: '🔘 צמיגים (לחץ ומצב)' },
+  { key: 'extinguisher', label: '🧯 מטף כיבוי אש' },
+  { key: 'triangles',  label: '⚠️ משולשי אזהרה (2 יחידות)' },
+  { key: 'first_aid',  label: '🩹 ערכת עזרה ראשונה' },
+  { key: 'documents',  label: '📄 מסמכי רכב (רישיון, ביטוח)' },
+  { key: 'wipers',     label: '🌧️ מגבי שמשה קדמיים ואחוריים' },
+]
+
 function DriverCarCheckForm({ link, onSubmit, submitting }) {
   const car    = link.car    || {}
   const driver = link.driver || {}
   const [form, setForm] = useState({
-    submitter_name: driver.name || '',
-    plate:          car.plate   || '',
-    mileage: '', fuel_level: '', exterior_damage: '', damage_desc: '',
-    interior_ok: '', notes: '', signature: '',
+    submitter_name:  driver.name || '',
+    plate:           car.plate   || '',
+    handover_type:   'taking',
+    mileage_before:  '', mileage_after: '',
+    fuel_level:      '',
+    exterior_damage: '', damage_desc: '',
+    interior_ok:     '',
+    equipment:       {},
+    notes:           '',
+    signature:       '',
   })
   const [files, setFiles] = useState([])
+  const [formError, setFormError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const setEquip = (k, v) => setForm(f => ({ ...f, equipment: { ...f.equipment, [k]: v } }))
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -364,10 +383,14 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
     if (!isMinLen(form.submitter_name, 2)) { setFormError('נא להזין שם מלא (לפחות 2 תווים)'); return }
     if (isEmpty(form.plate)) { setFormError('נא להזין מספר לוחית רישוי'); return }
     if (!isIsraeliPlate(form.plate)) { setFormError('לוחית רישוי לא תקינה (7–8 ספרות)'); return }
-    if (form.mileage && !isPositive(form.mileage)) { setFormError('קילומטראז׳ חייב להיות מספר חיובי'); return }
+    const km = form.handover_type === 'taking' ? form.mileage_before : form.mileage_after
+    if (km && !isPositive(km)) { setFormError('קילומטראז׳ חייב להיות מספר חיובי'); return }
     const attachments = await uploadFiles(files, link.company_id, link.id)
     onSubmit({ ...form, attachments })
   }
+
+  const isTaking   = form.handover_type === 'taking'
+  const isReturning = form.handover_type === 'returning'
 
   return (
     <form onSubmit={handleSubmit}>
@@ -380,23 +403,60 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
       </div>
 
       <div style={section}>
+        <div style={sectionTitle}>🔄 סוג מסירה</div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {[['taking', '📥 קבלת רכב'], ['returning', '📤 החזרת רכב']].map(([v, l]) => (
+            <label key={v} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '12px 16px', borderRadius: 10, border: `2px solid ${form.handover_type === v ? C.primary : C.border}`, background: form.handover_type === v ? C.primary + '10' : C.surface, fontSize: 14, fontWeight: 700 }}>
+              <input type="radio" name="handover_type" value={v} checked={form.handover_type === v} onChange={() => set('handover_type', v)} style={{ accentColor: C.primary }} />
+              {l}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div style={section}>
         <div style={sectionTitle}>🚗 פרטי הרכב</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={field}>
             <label style={lbl}>לוחית רישוי *</label>
             <input style={inp} required value={form.plate} onChange={e => set('plate', e.target.value)} placeholder="123-45-678" />
           </div>
-          <div style={field}>
-            <label style={lbl}>קילומטראז' נוכחי *</label>
-            <input style={inp} required type="number" value={form.mileage} onChange={e => set('mileage', e.target.value)} placeholder="50000" />
-          </div>
+          {isTaking && (
+            <div style={field}>
+              <label style={lbl}>קילומטראז' בקבלה</label>
+              <input style={inp} type="number" min="0" value={form.mileage_before} onChange={e => set('mileage_before', e.target.value)} placeholder="50000" />
+            </div>
+          )}
+          {isReturning && (
+            <div style={field}>
+              <label style={lbl}>קילומטראז' בהחזרה</label>
+              <input style={inp} type="number" min="0" value={form.mileage_after} onChange={e => set('mileage_after', e.target.value)} placeholder="51000" />
+            </div>
+          )}
         </div>
         <div style={field}>
           <label style={lbl}>רמת דלק</label>
-          <select style={inp} value={form.fuel_level} onChange={e => set('fuel_level', e.target.value)}>
-            <option value="">בחר...</option>
-            {['ריק', 'רבע', 'חצי', 'שלושה רבעים', 'מלא'].map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['ריק', 'רבע', 'חצי', '¾', 'מלא'].map(v => (
+              <label key={v} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 8, border: `2px solid ${form.fuel_level === v ? C.primary : C.border}`, background: form.fuel_level === v ? C.primary + '10' : C.surface, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: form.fuel_level === v ? C.primary : C.textSub }}>
+                <input type="radio" name="fuel_level" value={v} checked={form.fuel_level === v} onChange={() => set('fuel_level', v)} style={{ display: 'none' }} />
+                {v}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>✅ בדיקת ציוד ומערכות</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {EQUIPMENT_ITEMS.map(({ key, label }) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: `1px solid ${form.equipment[key] ? C.success + '60' : C.border}`, background: form.equipment[key] ? C.success + '08' : 'transparent', cursor: 'pointer' }}
+              onClick={() => setEquip(key, !form.equipment[key])}>
+              <input type="checkbox" checked={!!form.equipment[key]} onChange={() => setEquip(key, !form.equipment[key])} style={{ accentColor: C.success, width: 17, height: 17, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: C.text, userSelect: 'none' }}>{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -447,8 +507,14 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
         onRemove={i => setFiles(p => p.filter((_, j) => j !== i))}
       />
 
+      {formError && (
+        <div style={{ padding: '10px 14px', background: C.danger + '10', border: `1px solid ${C.danger}30`, borderRadius: 8, color: C.danger, fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+          ⚠ {formError}
+        </div>
+      )}
+
       <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#0891b2,#6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
-        {submitting ? '…שולח' : '✅ שלח דוח בדיקה'}
+        {submitting ? '…שולח' : isTaking ? '✅ אשר קבלת רכב' : '✅ אשר החזרת רכב'}
       </button>
     </form>
   )
