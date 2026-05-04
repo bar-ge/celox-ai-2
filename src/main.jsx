@@ -5,6 +5,7 @@ import App from './App.jsx'
 import LandingPage from './LandingPage.jsx'
 import PrivacyPage from './PrivacyPage.jsx'
 import { SpeedInsights } from '@vercel/speed-insights/react'
+import { Analytics } from '@vercel/analytics/react'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
@@ -17,5 +18,6 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Root />
     <SpeedInsights />
+    <Analytics />
   </StrictMode>,
 )
