@@ -6172,7 +6172,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
 }
 
 // ── Reports Tab ───────────────────────────────────────────────────────────────
-function ReportsTab({ cars, drivers, costs, companyId, t, rtl }) {
+function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   const [reportType, setReportType] = useState('fleet_status')
   const [recipients, setRecipients] = useState('')
   const [sending, setSending]       = useState(false)
@@ -6180,6 +6180,12 @@ function ReportsTab({ cars, drivers, costs, companyId, t, rtl }) {
   const [sendError, setSendError]   = useState('')
   const [dateFrom, setDateFrom]     = useState(new Date(Date.now() - 30*24*3600*1000).toISOString().slice(0,10))
   const [dateTo, setDateTo]         = useState(new Date().toISOString().slice(0,10))
+  const [costs, setCosts]           = useState([])
+
+  useEffect(() => {
+    if (!companyId) return
+    supabase.from('costs').select('*').eq('company_id', companyId).then(({ data }) => setCosts(data || []))
+  }, [companyId])
 
   const REPORT_TYPES = [
     { id: 'fleet_status',   label: rtl ? '🚗 סטטוס הצי'     : '🚗 Fleet Status'  },
@@ -6994,22 +7000,23 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
           background: C.navBg, borderTop: `1px solid ${C.navBorder}`,
           display: 'flex', direction: rtl ? 'rtl' : 'ltr',
+          overflowX: 'auto', scrollbarWidth: 'none',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
           {tabs.map(item => {
             const isActive = activeTab === item.id
             return (
               <button key={item.id} onClick={() => switchTab(item.id)} style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', gap: 2, padding: '6px 2px',
+                flex: '0 0 auto', minWidth: 48, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 2, padding: '6px 6px',
                 border: 'none', cursor: 'pointer', background: 'transparent',
                 color: isActive ? '#fff' : C.navText,
                 borderTop: isActive ? `2px solid ${C.primary}` : '2px solid transparent',
-                transition: 'color 0.15s', minWidth: 0,
+                transition: 'color 0.15s',
               }}>
                 <TabIcon id={item.id} size={17} />
                 {isActive && (
-                  <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>{item.label}</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', padding: '0 2px' }}>{item.label}</span>
                 )}
               </button>
             )
@@ -7133,7 +7140,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Reports tab */}
         {activeTab === 'reports' && activeCompanyId && (
-          <ReportsTab cars={cars} drivers={drivers} costs={[]} companyId={activeCompanyId} t={t} rtl={rtl} />
+          <ReportsTab cars={cars} drivers={drivers} companyId={activeCompanyId} t={t} rtl={rtl} />
         )}
 
         {/* Board */}
