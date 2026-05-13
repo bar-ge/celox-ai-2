@@ -1,0 +1,50 @@
+{
+  "name": "Celox AI — Fleet Manager",
+  "short_name": "Celox AI",
+  "description": "ניהול צי רכבים חכם מבוסס בינה מלאכותית",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "lang": "he",
+  "dir": "rtl",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Celox AI Fleet Manager — Dashboard"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Celox AI Fleet Manager — Desktop View"
+    }
+  ]
+}
