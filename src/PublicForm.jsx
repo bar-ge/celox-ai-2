@@ -1052,7 +1052,7 @@ export default function PublicForm({ token }) {
               <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
                 🔒 המידע שתמסור בטופס זה נשמר ומעובד בהתאם לחוק הגנת הפרטיות, התשמ״א-1981 ותקנותיו.
                 המידע ישמש לצרכי ניהול הצי בלבד ולא יועבר לצד שלישי ללא הסכמתך, אלא אם נדרש לפי דין.
-                לשאלות: <a href="mailto:bar.gershenzon@gmail.com" style={{ color: C.textMuted }}>bar.gershenzon@gmail.com</a>
+                לשאלות: <a href="mailto:support@celoxai.com" style={{ color: C.textMuted }}>support@celoxai.com</a>
               </div>
             </div>
 

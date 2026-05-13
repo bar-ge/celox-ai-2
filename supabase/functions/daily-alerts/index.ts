@@ -5,7 +5,7 @@ const CRON_SECRET    = Deno.env.get('CRON_SECRET') ?? ''
 const FROM_EMAIL     = 'Celox AI <noreply@celoxai.com>'
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const APP_URL        = 'https://my-fleet-app.vercel.app'
+const APP_URL        = 'https://celoxai.com'
 
 // Re-send same alert only after 7 days
 const RESEND_DAYS = 7
@@ -64,7 +64,8 @@ Deno.serve(async (req) => {
     alreadyAlerted.has(`${cid}:${type}:${id}`)
 
   // ── Fetch all alert types ────────────────────────────────────────────────
-  const [{ data: maintenance }, { data: documents }, { data: licenses }] = await Promise.all([
+  const twoDaysAgo = new Date(today.getTime() - 2 * 86400000).toISOString()
+  const [{ data: maintenance }, { data: documents }, { data: licenses }, { data: openAccidents }] = await Promise.all([
     supabase.from('maintenance')
       .select('id, type, next_due, cars(plate, make, model, company_id)')
       .lte('next_due', in30Str)
@@ -76,17 +77,21 @@ Deno.serve(async (req) => {
       .select('id, name, license_expiry, company_id')
       .lte('license_expiry', in30Str)
       .not('license_expiry', 'is', null),
+    supabase.from('accident_reports')
+      .select('id, company_id, incident_date, created_at, other_plate, other_driver_name, description, status')
+      .eq('status', 'open')
+      .lt('created_at', twoDaysAgo),
   ])
 
   // ── Group by company — filter disabled companies and already-alerted items ─
   type AlertMap = {
-    maintenance: any[]; documents: any[]; licenses: any[]
+    maintenance: any[]; documents: any[]; licenses: any[]; accidents: any[]
     newMaintIds: string[]; newDocIds: string[]; newLicIds: string[]
   }
   const byCompany: Record<string, AlertMap> = {}
   const ensure = (cid: string) => {
     if (!byCompany[cid]) byCompany[cid] = {
-      maintenance: [], documents: [], licenses: [],
+      maintenance: [], documents: [], licenses: [], accidents: [],
       newMaintIds: [], newDocIds: [], newLicIds: [],
     }
   }
@@ -106,11 +111,15 @@ Deno.serve(async (req) => {
     if (isAlerted(cid, 'license', String(drv.id))) continue
     ensure(cid); byCompany[cid].licenses.push(drv); byCompany[cid].newLicIds.push(String(drv.id))
   }
+  for (const acc of openAccidents ?? []) {
+    const cid = acc.company_id; if (!cid || !enabledIds.has(cid)) continue
+    ensure(cid); byCompany[cid].accidents.push(acc)
+  }
 
   let emails_sent = 0
 
   for (const [companyId, items] of Object.entries(byCompany)) {
-    const total = items.maintenance.length + items.documents.length + items.licenses.length
+    const total = items.maintenance.length + items.documents.length + items.licenses.length + items.accidents.length
     if (total === 0) continue
 
     const { data: admins } = await supabase.from('profiles')
@@ -173,9 +182,27 @@ Deno.serve(async (req) => {
       </tr>`
     }).join('')
 
-    const tableBlock = (title: string, rows: string) =>
+    // Accident rows
+    const accidentColNames = isHe
+      ? ['תאריך', 'לוחית צד שני', 'נהג צד שני', 'תיאור']
+      : ['Date', 'Other Plate', 'Other Driver', 'Description']
+    const accidentThead = `<thead><tr style="background:#fef2f2">${accidentColNames.map(c =>
+      `<th style="padding:9px 12px;text-align:${dir === 'rtl' ? 'right' : 'left'};color:#dc2626;font-size:11px;text-transform:uppercase">${c}</th>`
+    ).join('')}</tr></thead>`
+    const accRows = items.accidents.map(acc => {
+      const dateStr = fmtDate(acc.incident_date || acc.created_at?.slice(0, 10))
+      const desc = (acc.description || '').slice(0, 60) + ((acc.description || '').length > 60 ? '…' : '')
+      return `<tr style="border-bottom:1px solid #fee2e2">
+        <td style="padding:9px 12px;font-weight:600">${dateStr}</td>
+        <td style="padding:9px 12px">${acc.other_plate || '—'}</td>
+        <td style="padding:9px 12px">${acc.other_driver_name || '—'}</td>
+        <td style="padding:9px 12px;color:#475569;font-size:12px">${desc || '—'}</td>
+      </tr>`
+    }).join('')
+
+    const tableBlock = (title: string, rows: string, customThead?: string) =>
       `<h3 style="margin:0 0 10px;font-size:14px;color:#0f172a">${title}</h3>
-       <table style="width:100%;border-collapse:collapse;margin-bottom:24px">${thead(colNames)}<tbody>${rows}</tbody></table>`
+       <table style="width:100%;border-collapse:collapse;margin-bottom:24px">${customThead ?? thead(colNames)}<tbody>${rows}</tbody></table>`
 
     const settingsUrl = `${APP_URL}?tab=settings`
     const unsubText = isHe
@@ -196,7 +223,8 @@ Deno.serve(async (req) => {
       <p style="color:rgba(255,255,255,0.65);margin:8px 0 0;font-size:13px">${new Date().toLocaleDateString(locale)}</p>
     </div>
     <div style="padding:28px 32px;font-size:14px;color:#334155">
-      ${maintRows ? tableBlock(isHe ? `🔧 ${isHe ? 'תחזוקה' : 'Maintenance'} (${items.maintenance.length})` : `🔧 Maintenance (${items.maintenance.length})`, maintRows) : ''}
+      ${accRows   ? tableBlock(isHe ? `🚨 תאונות פתוחות (${items.accidents.length})` : `🚨 Open Accidents (${items.accidents.length})`, accRows, accidentThead) : ''}
+      ${maintRows ? tableBlock(isHe ? `🔧 תחזוקה (${items.maintenance.length})` : `🔧 Maintenance (${items.maintenance.length})`, maintRows) : ''}
       ${docRows   ? tableBlock(isHe ? `📎 מסמכים (${items.documents.length})` : `📎 Documents (${items.documents.length})`, docRows) : ''}
       ${licRows   ? tableBlock(isHe ? `🪪 רישיונות (${items.licenses.length})` : `🪪 Licenses (${items.licenses.length})`, licRows) : ''}
       <div style="text-align:center;margin-top:8px">

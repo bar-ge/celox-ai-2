@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL     = 'Celox AI <noreply@celoxai.com>'
-const TO_EMAIL       = 'bar.gershenzon@gmail.com'
+const TO_EMAIL       = 'support@celoxai.com'
 
 const ALLOWED_ORIGINS = ['https://celoxai.com', 'https://www.celoxai.com', 'http://localhost:5173', 'http://localhost:4173']
 
