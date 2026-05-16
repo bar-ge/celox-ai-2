@@ -7008,8 +7008,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             const isActive = activeTab === item.id
             return (
               <button key={item.id} onClick={() => switchTab(item.id)} style={{
-                flex: '0 0 auto', minWidth: 48, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', gap: 2, padding: '6px 6px',
+                flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 2, padding: '6px 2px',
                 border: 'none', cursor: 'pointer', background: 'transparent',
                 color: isActive ? '#fff' : C.navText,
                 borderTop: isActive ? `2px solid ${C.primary}` : '2px solid transparent',
