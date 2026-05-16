@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e3a5f"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="500" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines -->
+  <line x1="0" y1="100" x2="1024" y2="100" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="0" y1="200" x2="1024" y2="200" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="0" y1="300" x2="1024" y2="300" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="0" y1="400" x2="1024" y2="400" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="200" y1="0" x2="200" y2="500" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="400" y1="0" x2="400" y2="500" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="600" y1="0" x2="600" y2="500" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="800" y1="0" x2="800" y2="500" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+
+  <!-- Blue accent circle -->
+  <circle cx="820" cy="250" r="300" fill="rgba(37,99,235,0.08)"/>
+  <circle cx="820" cy="250" r="200" fill="rgba(37,99,235,0.06)"/>
+
+  <!-- Logo icon -->
+  <rect x="60" y="130" width="72" height="72" rx="18" fill="#2563eb"/>
+  <text x="96" y="178" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="white" text-anchor="middle">C</text>
+
+  <!-- App name -->
+  <text x="60" y="248" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#f8fafc">Celox AI</text>
+  <text x="60" y="298" font-family="Arial, sans-serif" font-size="28" font-weight="400" fill="#94a3b8">Fleet Manager</text>
+
+  <!-- Tagline -->
+  <text x="60" y="355" font-family="Arial, sans-serif" font-size="18" fill="#64748b">Smart AI-powered fleet management for businesses</text>
+
+  <!-- Divider -->
+  <rect x="60" y="375" width="60" height="3" rx="2" fill="#2563eb"/>
+
+  <!-- Stats cards -->
+  <rect x="620" y="100" width="160" height="90" rx="12" fill="url(#card)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="700" y="145" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#f8fafc" text-anchor="middle">247</text>
+  <text x="700" y="170" font-family="Arial, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">Vehicles</text>
+
+  <rect x="800" y="100" width="160" height="90" rx="12" fill="url(#card)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="880" y="145" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#2563eb" text-anchor="middle">98%</text>
+  <text x="880" y="170" font-family="Arial, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">Fleet Active</text>
+
+  <rect x="620" y="210" width="160" height="90" rx="12" fill="url(#card)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="700" y="255" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#10b981" text-anchor="middle">84</text>
+  <text x="700" y="280" font-family="Arial, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">Drivers</text>
+
+  <rect x="800" y="210" width="160" height="90" rx="12" fill="url(#card)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="880" y="255" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#f59e0b" text-anchor="middle">₪12K</text>
+  <text x="880" y="280" font-family="Arial, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">Monthly Cost</text>
+
+  <!-- Bottom bar card -->
+  <rect x="620" y="320" width="340" height="80" rx="12" fill="url(#card)" stroke="rgba(37,99,235,0.3)" stroke-width="1"/>
+  <rect x="636" y="340" width="8" height="40" rx="4" fill="#2563eb"/>
+  <text x="660" y="362" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#f8fafc">Inspection Alert</text>
+  <text x="660" y="382" font-family="Arial, sans-serif" font-size="12" fill="#64748b">3 vehicles due this week</text>
+</svg>
