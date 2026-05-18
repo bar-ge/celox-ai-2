@@ -562,9 +562,13 @@ function LeadsView({ leads, session, onUpdate }) {
 }
 
 // ── Agreements ────────────────────────────────────────────────────────────────
-function AgreementsView({ agreements, companies }) {
-  const [search,   setSearch]   = useState('')
-  const [viewing,  setViewing]  = useState(null)
+function AgreementsView({ agreements, companies, session, onUpdate }) {
+  const [search,       setSearch]       = useState('')
+  const [viewing,      setViewing]      = useState(null)
+  const [sendCompany,  setSendCompany]  = useState('')
+  const [sendLink,     setSendLink]     = useState(null)
+  const [sendBusy,     setSendBusy]     = useState(false)
+  const [sendCopied,   setSendCopied]   = useState(false)
 
   const filtered = agreements.filter(a => {
     const q = search.toLowerCase()
@@ -573,11 +577,89 @@ function AgreementsView({ agreements, companies }) {
 
   const getCompanyName = companyId => companies.find(c => c.id === companyId)?.name || '—'
 
+  async function generateLink() {
+    if (!sendCompany) return
+    setSendBusy(true)
+    setSendLink(null)
+    const { data: existing } = await supabase.from('form_links')
+      .select('*').eq('company_id', sendCompany).eq('type', 'license_agreement')
+      .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
+    if (existing?.length) { setSendLink(existing[0]); setSendBusy(false); return }
+    const co = companies.find(c => c.id === sendCompany)
+    const { data: newLink } = await supabase.from('form_links').insert({
+      company_id: sendCompany, type: 'license_agreement',
+      title: `הסכם רישיון — ${co?.name || ''}`,
+      created_by: session.user.id, is_active: true, single_use: false,
+    }).select().single()
+    if (newLink) setSendLink(newLink)
+    setSendBusy(false)
+  }
+
+  async function newLink() {
+    if (!sendCompany) return
+    setSendBusy(true)
+    const co = companies.find(c => c.id === sendCompany)
+    const { data: nl } = await supabase.from('form_links').insert({
+      company_id: sendCompany, type: 'license_agreement',
+      title: `הסכם רישיון — ${co?.name || ''}`,
+      created_by: session.user.id, is_active: true, single_use: false,
+    }).select().single()
+    if (nl) setSendLink(nl)
+    setSendBusy(false)
+  }
+
+  const linkUrl = sendLink ? `${window.location.origin}/form/${sendLink.token}` : ''
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: C.textPrimary }}>📄 הסכמים חתומים</div>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חיפוש..." style={{ ...inp, width: 200 }} />
+      <div style={{ fontSize: 22, fontWeight: 900, color: C.textPrimary, marginBottom: 16 }}>📄 הסכמים</div>
+
+      {/* Send agreement section */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: C.textPrimary, marginBottom: 10 }}>📤 שלח הסכם רישיון ללקוח</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label style={lbl}>בחר חברה</label>
+            <select value={sendCompany} onChange={e => { setSendCompany(e.target.value); setSendLink(null) }} style={{ ...inp, cursor: 'pointer' }}>
+              <option value="">בחר לקוח...</option>
+              {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
+            </select>
+          </div>
+          <button onClick={generateLink} disabled={!sendCompany || sendBusy} style={{ ...btnPrimary, opacity: !sendCompany || sendBusy ? 0.5 : 1, whiteSpace: 'nowrap' }}>
+            {sendBusy ? '…' : '🔗 צור קישור'}
+          </button>
+        </div>
+
+        {sendLink && (
+          <div style={{ background: C.bg, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: C.textSecondary }}>שלח ללקוח לחתימה על הסכם הרישיון:</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input readOnly value={linkUrl} onClick={e => e.target.select()}
+                style={{ flex: 1, minWidth: 0, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary, outline: 'none', direction: 'ltr' }} />
+              <button onClick={() => { navigator.clipboard.writeText(linkUrl); setSendCopied(true); setTimeout(() => setSendCopied(false), 2000) }}
+                style={{ ...btnPrimary, background: sendCopied ? C.success : C.primary, whiteSpace: 'nowrap', fontSize: 12 }}>
+                {sendCopied ? '✓ הועתק' : 'העתק'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n${linkUrl}`)}`, '_blank')}
+                style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                📲 WhatsApp
+              </button>
+              <button onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent('הסכם רישיון — Celox AI Fleet Manager')}&body=${encodeURIComponent(`שלום,\nקישור לחתימה:\n${linkUrl}`)}` }}
+                style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                📧 אימייל
+              </button>
+              <button onClick={newLink} disabled={sendBusy} style={{ ...btnGhost, fontSize: 12 }}>+ קישור חדש</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Signed agreements list */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+        הסכמים חתומים
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חיפוש..." style={{ ...inp, width: 160, fontSize: 12, padding: '5px 10px', marginBottom: 0, fontWeight: 400, letterSpacing: 0, textTransform: 'none' }} />
       </div>
 
       {filtered.length === 0 && <div style={{ ...card, textAlign: 'center', color: C.textMuted, padding: 40 }}>אין הסכמים עדיין.</div>}
@@ -728,7 +810,7 @@ export default function CRM({ session, onBack }) {
           {view === 'dashboard'  && <DashboardView  companies={companies} leads={leads} agreements={agreements} />}
           {view === 'clients'    && <ClientsView    companies={companies} agreements={agreements} session={session} onUpdate={loadAll} />}
           {view === 'leads'      && <LeadsView      leads={leads} session={session} onUpdate={loadAll} />}
-          {view === 'agreements' && <AgreementsView agreements={agreements} companies={companies} />}
+          {view === 'agreements' && <AgreementsView agreements={agreements} companies={companies} session={session} onUpdate={loadAll} />}
         </div>
       </div>
 

@@ -4155,15 +4155,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const [printSub,      setPrintSub]      = useState(null)
   const [customFields,  setCustomFields]  = useState([])
   const [customFldType, setCustomFldType] = useState('text')
-  // License agreement
-  const [licenseLink,       setLicenseLink]       = useState(null)
-  const [licenseBusy,       setLicenseBusy]       = useState(false)
-  const [licenseCopied,     setLicenseCopied]     = useState(false)
-  const [licenseSignatures, setLicenseSignatures] = useState([])
-  const [licenseSigsLoad,   setLicenseSigsLoad]   = useState(true)
-  const [viewLicenseSub,    setViewLicenseSub]    = useState(null)
-
-  useEffect(() => { load(); loadAccidents(); loadLicenseData() }, [companyId])
+  useEffect(() => { load(); loadAccidents() }, [companyId])
 
   async function loadAccidents() {
     if (!companyId) return
@@ -4219,53 +4211,6 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       setLinks(p => [newLink[0], ...p])
     }
     setAccFormShareBusy(false)
-  }
-
-  async function loadLicenseData() {
-    if (!companyId) return
-    setLicenseSigsLoad(true)
-    const [{ data: lLinks }, { data: sigs }] = await Promise.all([
-      supabase.from('form_links').select('*').eq('company_id', companyId)
-        .eq('type', 'license_agreement').eq('is_active', true).is('expires_at', null)
-        .order('created_at', { ascending: false }).limit(1),
-      supabase.from('form_submissions').select('*').eq('company_id', companyId)
-        .eq('type', 'license_agreement').order('created_at', { ascending: false }),
-    ])
-    if (lLinks?.[0]) setLicenseLink(lLinks[0])
-    setLicenseSignatures(sigs || [])
-    setLicenseSigsLoad(false)
-  }
-
-  async function openLicenseFormLink() {
-    setLicenseBusy(true)
-    const { data: existing } = await supabase.from('form_links')
-      .select('*').eq('company_id', companyId).eq('type', 'license_agreement')
-      .eq('is_active', true).is('expires_at', null).limit(1)
-    if (existing?.length) { setLicenseLink(existing[0]); setLicenseBusy(false); return }
-    const { data: newLink } = await supabase.from('form_links').insert({
-      company_id: companyId,
-      type: 'license_agreement',
-      title: rtl ? 'הסכם רישיון שימוש — Celox AI' : 'License Agreement — Celox AI',
-      created_by: session.user.id,
-      is_active: true,
-      single_use: false,
-    }).select().single()
-    if (newLink) { setLicenseLink(newLink); setLinks(p => [newLink, ...p]) }
-    setLicenseBusy(false)
-  }
-
-  async function newLicenseFormLink() {
-    setLicenseBusy(true)
-    const { data: newLink } = await supabase.from('form_links').insert({
-      company_id: companyId,
-      type: 'license_agreement',
-      title: rtl ? 'הסכם רישיון שימוש — Celox AI' : 'License Agreement — Celox AI',
-      created_by: session.user.id,
-      is_active: true,
-      single_use: false,
-    }).select().single()
-    if (newLink) { setLicenseLink(newLink); setLinks(p => [newLink, ...p]) }
-    setLicenseBusy(false)
   }
 
   function accidentSummaryText(rep) {
@@ -4726,132 +4671,6 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               <button onClick={createLink} disabled={creating} style={{ ...btnPrimary, padding: '12px', fontSize: 14, opacity: creating ? 0.7 : 1, cursor: creating ? 'not-allowed' : 'pointer' }}>
                 {creating ? '…' : (rtl ? '🔗 צור קישור' : '🔗 Create Link')}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* License Agreement Section */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: C.textPrimary }}>📄 {rtl ? 'הסכם רישיון' : 'License Agreement'}</div>
-            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'שלח ללקוח לחתימה דיגיטלית על הסכם שימוש במערכת' : 'Send to client for digital signature on the usage agreement'}</div>
-          </div>
-          <button onClick={openLicenseFormLink} disabled={licenseBusy} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: licenseBusy ? 'not-allowed' : 'pointer', opacity: licenseBusy ? 0.6 : 1 }}>
-            {licenseBusy ? '…' : (rtl ? '📤 שלח הסכם' : '📤 Send Agreement')}
-          </button>
-        </div>
-
-        {/* Share link card */}
-        {licenseLink && (
-          <div style={{ background: C.surface, borderRadius: 12, padding: 16, border: `1px solid ${C.primary}30`, marginBottom: 12 }}>
-            <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>
-              {rtl ? 'קישור לחתימה על ההסכם — שלח ללקוח:' : 'Signing link — send to client:'}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <input readOnly value={formUrl(licenseLink.token)} onClick={e => e.target.select()}
-                style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '7px 10px', fontSize: 12, color: C.textSecondary, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', outline: 'none' }} />
-              <button onClick={() => { navigator.clipboard.writeText(formUrl(licenseLink.token)); setLicenseCopied(true); setTimeout(() => setLicenseCopied(false), 2000) }}
-                style={{ ...btnPrimary, padding: '7px 14px', fontSize: 12, background: licenseCopied ? C.success : C.primary, flexShrink: 0 }}>
-                {licenseCopied ? '✓ ' + (rtl ? 'הועתק' : 'Copied') : (rtl ? '📋 העתק' : '📋 Copy')}
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent((rtl ? 'שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n' : 'Hello,\nHere is a link to sign the Celox AI Fleet Manager license agreement:\n') + formUrl(licenseLink.token))}`, '_blank')}
-                style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                📲 WhatsApp
-              </button>
-              <button onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent(rtl ? 'הסכם רישיון — Celox AI Fleet Manager' : 'License Agreement — Celox AI Fleet Manager')}&body=${encodeURIComponent((rtl ? 'שלום,\nמצורף קישור לחתימה על הסכם רישיון:\n' : 'Hello,\nHere is the signing link:\n') + formUrl(licenseLink.token))}` }}
-                style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                📧 {rtl ? 'אימייל' : 'Email'}
-              </button>
-              <button onClick={newLicenseFormLink} disabled={licenseBusy} style={{ ...btnGhost, fontSize: 12, opacity: licenseBusy ? 0.5 : 1 }}>
-                {rtl ? '+ קישור חדש' : '+ New link'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Signed agreements list */}
-        {!licenseSigsLoad && licenseSignatures.length > 0 && (
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-              {rtl ? `${licenseSignatures.length} הסכמים חתומים` : `${licenseSignatures.length} signed agreement${licenseSignatures.length !== 1 ? 's' : ''}`}
-            </div>
-            {licenseSignatures.map(sig => (
-              <div key={sig.id} style={{ background: C.surface, borderRadius: 10, padding: '12px 16px', marginBottom: 8, border: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {sig.data?.company_name || sig.submitter_name || '—'}
-                  </div>
-                  <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
-                    👤 {sig.data?.signatory_name || '—'} &nbsp;·&nbsp; {sig.data?.sign_date || fmtDate(sig.created_at?.slice(0, 10))}
-                    {sig.data?.id_number && ` · ח.פ/ת.ז: ${sig.data.id_number}`}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, background: C.success + '15', color: C.success, borderRadius: 5, padding: '2px 8px', fontWeight: 700 }}>✓ {rtl ? 'חתום' : 'Signed'}</span>
-                  <button onClick={() => setViewLicenseSub(sig)} style={{ ...btnGhost, padding: '5px 10px', fontSize: 12 }}>
-                    {rtl ? 'צפה' : 'View'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {!licenseSigsLoad && licenseSignatures.length === 0 && !licenseLink && (
-          <div style={{ color: C.textMuted, fontSize: 13, padding: '8px 0' }}>
-            {rtl ? 'לחץ על "שלח הסכם" ליצירת קישור חתימה.' : 'Click "Send Agreement" to generate a signing link.'}
-          </div>
-        )}
-        {!licenseSigsLoad && licenseSignatures.length === 0 && licenseLink && (
-          <div style={{ color: C.textMuted, fontSize: 13, padding: '8px 0' }}>
-            {rtl ? 'לא נחתמו הסכמים עדיין.' : 'No signed agreements yet.'}
-          </div>
-        )}
-      </div>
-
-      {/* View signed agreement modal */}
-      {viewLicenseSub && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: C.surface, borderRadius: 14, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', direction: rtl ? 'rtl' : 'ltr', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
-            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontWeight: 800, fontSize: 15, color: C.textPrimary }}>📄 {rtl ? 'הסכם חתום' : 'Signed Agreement'}</div>
-              <button onClick={() => setViewLicenseSub(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.textMuted }}>×</button>
-            </div>
-            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                ['🏢', rtl ? 'שם חברה / עסק' : 'Company Name', viewLicenseSub.data?.company_name],
-                ['👤', rtl ? 'מורשה חתימה' : 'Signatory', viewLicenseSub.data?.signatory_name],
-                ['💼', rtl ? 'תפקיד' : 'Role', viewLicenseSub.data?.signatory_role],
-                ['🪪', rtl ? 'ח.פ. / ת.ז.' : 'ID / Reg No.', viewLicenseSub.data?.id_number],
-                ['📞', rtl ? 'טלפון' : 'Phone', viewLicenseSub.data?.phone],
-                ['📧', rtl ? 'אימייל' : 'Email', viewLicenseSub.data?.email],
-                ['📅', rtl ? 'תאריך חתימה' : 'Sign Date', viewLicenseSub.data?.sign_date],
-              ].filter(([, , v]) => v).map(([icon, label, val]) => (
-                <div key={label} style={{ background: C.bg, borderRadius: 8, padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 16 }}>{icon}</span>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary }}>{val}</div>
-                  </div>
-                </div>
-              ))}
-              {viewLicenseSub.data?.signature && (
-                <div style={{ background: C.bg, borderRadius: 8, padding: '10px 14px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{rtl ? 'חתימה דיגיטלית' : 'Digital Signature'}</div>
-                  <img src={viewLicenseSub.data.signature} alt="signature" style={{ maxWidth: '100%', border: `1px solid ${C.border}`, borderRadius: 6, background: '#fff' }} />
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                <span style={{ flex: 1, fontSize: 11, color: C.textMuted }}>
-                  {rtl ? `נחתם: ${fmtDate(viewLicenseSub.created_at?.slice(0,10))}` : `Signed: ${fmtDate(viewLicenseSub.created_at?.slice(0,10))}`}
-                </span>
-                <button onClick={() => setViewLicenseSub(null)} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: C.textSecondary }}>
-                  {t.cancel}
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -5348,11 +5167,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [limitUsers, setLimitUsers] = useState('')
   const [editingAccess, setEditingAccess] = useState(null) // company id being edited
   const [accessUntil, setAccessUntil]     = useState('')
-  // Master: send license agreement per company
-  const [licenseCompany, setLicenseCompany] = useState(null)
-  const [licenseLink,    setLicenseLink]    = useState(null)
-  const [licenseBusy,    setLicenseBusy]    = useState(false)
-  const [licenseCopied,  setLicenseCopied]  = useState(false)
 
   useEffect(() => {
     if (isMaster) {
@@ -5460,42 +5274,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     setEditingAccess(null)
   }
 
-  async function openLicenseLink(co) {
-    if (licenseCompany === co.id) { setLicenseCompany(null); setLicenseLink(null); return }
-    setLicenseCompany(co.id)
-    setLicenseLink(null)
-    setLicenseBusy(true)
-    const { data: existing } = await supabase.from('form_links')
-      .select('*').eq('company_id', co.id).eq('type', 'license_agreement')
-      .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
-    if (existing?.length) { setLicenseLink(existing[0]); setLicenseBusy(false); return }
-    const { data: newLink } = await supabase.from('form_links').insert({
-      company_id: co.id,
-      type: 'license_agreement',
-      title: `הסכם רישיון — ${co.name}`,
-      created_by: session.user.id,
-      is_active: true,
-      single_use: false,
-    }).select().single()
-    if (newLink) setLicenseLink(newLink)
-    setLicenseBusy(false)
-  }
-
-  async function refreshLicenseLink(co) {
-    setLicenseLink(null)
-    setLicenseBusy(true)
-    const { data: newLink } = await supabase.from('form_links').insert({
-      company_id: co.id,
-      type: 'license_agreement',
-      title: `הסכם רישיון — ${co.name}`,
-      created_by: session.user.id,
-      is_active: true,
-      single_use: false,
-    }).select().single()
-    if (newLink) setLicenseLink(newLink)
-    setLicenseBusy(false)
-  }
-
   const [exporting, setExporting] = useState(false)
 
   async function exportAllData() {
@@ -5597,15 +5375,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                       background: 'transparent', border: `1px solid ${C.border}`,
                       color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     }}>⚙️</button>
-                    <button
-                      onClick={() => openLicenseLink(co)}
-                      title={rtl ? 'שלח הסכם רישיון' : 'Send License Agreement'}
-                      style={{
-                        background: licenseCompany === co.id ? C.primary + '18' : 'transparent',
-                        border: `1px solid ${C.primary}50`,
-                        color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      }}
-                    >📄</button>
                     <button onClick={() => toggleActive(co)} style={{
                       background: 'transparent',
                       border: `1px solid ${co.is_active ? C.danger + '40' : C.success + '40'}`,
@@ -5664,57 +5433,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                       {rtl ? 'ללא הגבלה' : 'Unlimited'}
                     </button>
                     <button onClick={() => setEditingAccess(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
-                  </div>
-                )}
-                {/* Inline license agreement panel */}
-                {licenseCompany === co.id && (
-                  <div style={{ background: C.bg, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>
-                      📄 {rtl ? 'הסכם רישיון' : 'License Agreement'} — {co.name}
-                    </div>
-                    {licenseBusy ? (
-                      <div style={{ fontSize: 12, color: C.textSecondary }}>…{rtl ? 'יוצר קישור' : 'Generating'}</div>
-                    ) : licenseLink ? (
-                      <>
-                        <div style={{ fontSize: 12, color: C.textSecondary }}>
-                          {rtl ? 'שלח ללקוח לחתימה על ההסכם:' : 'Send to client to sign the agreement:'}
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <input
-                            readOnly
-                            value={`${window.location.origin}/form/${licenseLink.token}`}
-                            onClick={e => e.target.select()}
-                            style={{ flex: 1, minWidth: 0, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary, outline: 'none', direction: 'ltr' }}
-                          />
-                          <button
-                            onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/form/${licenseLink.token}`); setLicenseCopied(true); setTimeout(() => setLicenseCopied(false), 2000) }}
-                            style={{ background: licenseCopied ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                          >
-                            {licenseCopied ? (rtl ? '✓ הועתק' : '✓ Copied') : (rtl ? 'העתק' : 'Copy')}
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button
-                            onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n${window.location.origin}/form/${licenseLink.token}`)}`, '_blank')}
-                            style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                          >📲 WhatsApp</button>
-                          <button
-                            onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent('הסכם רישיון — Celox AI Fleet Manager')}&body=${encodeURIComponent(`שלום,\nמצורף קישור לחתימה על הסכם רישיון:\n${window.location.origin}/form/${licenseLink.token}`)}` }}
-                            style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                          >📧 {rtl ? 'אימייל' : 'Email'}</button>
-                          <button
-                            onClick={() => refreshLicenseLink(co)}
-                            style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 8, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}
-                          >{rtl ? '+ קישור חדש' : '+ New link'}</button>
-                        </div>
-                      </>
-                    ) : (
-                      <div style={{ fontSize: 12, color: C.danger }}>{rtl ? 'שגיאה ביצירת הקישור.' : 'Failed to create link.'}</div>
-                    )}
-                    <button
-                      onClick={() => { setLicenseCompany(null); setLicenseLink(null) }}
-                      style={{ alignSelf: 'flex-start', background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}
-                    >{t.cancel}</button>
                   </div>
                 )}
                 {/* Inline limits editor */}
@@ -6819,136 +6537,6 @@ function CertificationsPane({ driverId, companyId, rtl }) {
   )
 }
 
-// ── Master: Forms tab license sender ─────────────────────────────────────────
-function MasterLicenseSender({ session, t, rtl, isMobile }) {
-  const [companies,      setCompanies]      = useState([])
-  const [loading,        setLoading]        = useState(true)
-  const [activeCompany,  setActiveCompany]  = useState(null) // company id with open panel
-  const [licenseLink,    setLicenseLink]    = useState(null)
-  const [linkBusy,       setLinkBusy]       = useState(false)
-  const [copied,         setCopied]         = useState(false)
-
-  useEffect(() => {
-    supabase.from('companies').select('id, name, invite_code, is_active')
-      .order('name').then(({ data }) => { if (data) setCompanies(data); setLoading(false) })
-  }, [])
-
-  async function openPanel(co) {
-    if (activeCompany === co.id) { setActiveCompany(null); setLicenseLink(null); return }
-    setActiveCompany(co.id)
-    setLicenseLink(null)
-    setLinkBusy(true)
-    const { data: existing } = await supabase.from('form_links')
-      .select('*').eq('company_id', co.id).eq('type', 'license_agreement')
-      .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
-    if (existing?.length) { setLicenseLink(existing[0]); setLinkBusy(false); return }
-    const { data: newLink } = await supabase.from('form_links').insert({
-      company_id: co.id, type: 'license_agreement',
-      title: `הסכם רישיון — ${co.name}`,
-      created_by: session.user.id, is_active: true, single_use: false,
-    }).select().single()
-    if (newLink) setLicenseLink(newLink)
-    setLinkBusy(false)
-  }
-
-  async function newLink(co) {
-    setLicenseLink(null); setLinkBusy(true)
-    const { data: nl } = await supabase.from('form_links').insert({
-      company_id: co.id, type: 'license_agreement',
-      title: `הסכם רישיון — ${co.name}`,
-      created_by: session.user.id, is_active: true, single_use: false,
-    }).select().single()
-    if (nl) setLicenseLink(nl)
-    setLinkBusy(false)
-  }
-
-  const C2 = { surface: '#ffffff', bg: '#f1f5f9', border: '#e2e8f0', primary: '#0891b2', textPrimary: '#0f172a', textSecondary: '#475569', textMuted: '#94a3b8', success: '#10b981', danger: '#ef4444' }
-  const card = { background: C2.surface, borderRadius: 10, border: `1px solid ${C2.border}`, padding: '14px 18px', marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }
-
-  return (
-    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
-      <div style={{ maxWidth: 640 }}>
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: C2.textPrimary }}>📄 {rtl ? 'שליחת הסכם רישיון' : 'Send License Agreement'}</div>
-          <div style={{ fontSize: 13, color: C2.textMuted, marginTop: 4 }}>
-            {rtl ? 'בחר חברה ושלח קישור לחתימה על הסכם הרישיון' : 'Select a company and send a signing link'}
-          </div>
-        </div>
-
-        {loading && <div style={{ color: C2.textMuted, fontSize: 14 }}>טוען…</div>}
-
-        {companies.map(co => (
-          <div key={co.id} style={card}>
-            {/* Company row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: C2.textPrimary }}>{co.name}</div>
-                <div style={{ fontSize: 11, color: C2.textMuted, fontFamily: 'monospace', letterSpacing: '0.1em' }}>{co.invite_code}</div>
-              </div>
-              <button
-                onClick={() => openPanel(co)}
-                style={{
-                  background: activeCompany === co.id ? C2.primary : C2.primary,
-                  color: '#fff', border: 'none', borderRadius: 7,
-                  padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  opacity: activeCompany === co.id ? 0.85 : 1,
-                }}
-              >
-                {activeCompany === co.id ? (rtl ? '✕ סגור' : '✕ Close') : (rtl ? '📤 שלח הסכם' : '📤 Send Agreement')}
-              </button>
-            </div>
-
-            {/* Inline panel */}
-            {activeCompany === co.id && (
-              <div style={{ background: C2.bg, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {linkBusy ? (
-                  <div style={{ fontSize: 12, color: C2.textSecondary }}>…{rtl ? 'יוצר קישור' : 'Generating link'}</div>
-                ) : licenseLink ? (
-                  <>
-                    <div style={{ fontSize: 12, color: C2.textSecondary }}>
-                      {rtl ? 'שלח ללקוח לחתימה על הסכם הרישיון:' : 'Send to client to sign the agreement:'}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <input
-                        readOnly
-                        value={`${window.location.origin}/form/${licenseLink.token}`}
-                        onClick={e => e.target.select()}
-                        style={{ flex: 1, minWidth: 0, padding: '7px 10px', border: `1px solid ${C2.border}`, borderRadius: 6, fontSize: 12, background: C2.surface, color: C2.textPrimary, outline: 'none', direction: 'ltr' }}
-                      />
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/form/${licenseLink.token}`); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-                        style={{ background: copied ? C2.success : C2.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      >
-                        {copied ? (rtl ? '✓ הועתק' : '✓ Copied') : (rtl ? 'העתק' : 'Copy')}
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button
-                        onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n${window.location.origin}/form/${licenseLink.token}`)}`, '_blank')}
-                        style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-                      >📲 WhatsApp</button>
-                      <button
-                        onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent('הסכם רישיון — Celox AI Fleet Manager')}&body=${encodeURIComponent(`שלום,\nקישור לחתימה:\n${window.location.origin}/form/${licenseLink.token}`)}` }}
-                        style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-                      >📧 {rtl ? 'אימייל' : 'Email'}</button>
-                      <button
-                        onClick={() => newLink(co)}
-                        style={{ background: 'transparent', border: `1px solid ${C2.border}`, color: C2.textSecondary, borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}
-                      >{rtl ? '+ קישור חדש' : '+ New link'}</button>
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ fontSize: 12, color: C2.danger }}>{rtl ? 'שגיאה ביצירת הקישור.' : 'Failed to create link.'}</div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang, onOpenCRM }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
@@ -7621,10 +7209,6 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {activeTab === 'forms' && activeCompanyId && (
           <FormsTab companyId={activeCompanyId} cars={cars} drivers={drivers} session={session} t={t} rtl={rtl} />
         )}
-        {activeTab === 'forms' && isMaster && !activeCompanyId && (
-          <MasterLicenseSender session={session} t={t} rtl={rtl} isMobile={isMobile} />
-        )}
-
         {/* Violations tab */}
         {activeTab === 'violations' && activeCompanyId && (
           <ViolationsTab cars={cars} drivers={drivers} companyId={activeCompanyId} rtl={rtl} session={session} />
