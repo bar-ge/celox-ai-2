@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 import FleetManager from './fleet-manager'
 import PublicForm from './PublicForm'
+import CRM from './CRM'
+import ContactForm from './ContactForm'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { friendlyDbError } from './validators'
 import './App.css'
@@ -736,7 +738,8 @@ function JoinCompanyScreen({ session, onDone, onSignOut, lang, setLang }) {
 
 // ── Root App ───────────────────────────────────────────────────────────────
 export default function App() {
-  // Public form route — no auth needed
+  // Public routes — no auth needed
+  if (window.location.pathname === '/contact') return <ContactForm />
   const formToken = window.location.pathname.match(/^\/form\/([0-9a-f-]{36})$/i)?.[1]
   if (formToken) return <PublicForm token={formToken} />
 
@@ -745,6 +748,7 @@ export default function App() {
   const [lang, setLang]               = useState(() => localStorage.getItem('fleet_lang') || 'en')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [timedOut, setTimedOut]       = useState(false)
+  const [crmMode, setCrmMode]         = useState(false)
   const t = L[lang]
 
   useEffect(() => {
@@ -880,6 +884,10 @@ export default function App() {
     }
   }
 
+  if (isMaster && crmMode) {
+    return <CRM session={session} onBack={() => setCrmMode(false)} />
+  }
+
   return (
     <>
       <FleetManager
@@ -889,6 +897,7 @@ export default function App() {
         companyId={profile?.company_id ?? null}
         onSignOut={handleSignOut}
         initialLang={lang}
+        onOpenCRM={isMaster ? () => setCrmMode(true) : undefined}
       />
     </>
   )

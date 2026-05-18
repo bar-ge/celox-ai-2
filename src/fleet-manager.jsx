@@ -6949,7 +6949,7 @@ function MasterLicenseSender({ session, t, rtl, isMobile }) {
   )
 }
 
-function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang }) {
+function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang, onOpenCRM }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
   const [cars, setCars]           = useState([])
@@ -7440,6 +7440,17 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               </span>
               {session.user.email?.split('@')[0]}
             </span>
+          )}
+          {isMaster && onOpenCRM && (
+            <button onClick={onOpenCRM} style={{
+              background: 'linear-gradient(135deg,#6366f1,#0891b2)', border: 'none',
+              color: '#fff', borderRadius: 5,
+              padding: isMobile ? '3px 7px' : '4px 9px',
+              fontSize: isMobile ? 11 : 12, fontWeight: 700, cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}>
+              {isMobile ? '📊' : '📊 CRM'}
+            </button>
           )}
           {session && (
             <button onClick={onSignOut} style={{
