@@ -569,6 +569,7 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
   const [sendLink,     setSendLink]     = useState(null)
   const [sendBusy,     setSendBusy]     = useState(false)
   const [sendCopied,   setSendCopied]   = useState(false)
+  const [sendError,    setSendError]    = useState('')
 
   const filtered = agreements.filter(a => {
     const q = search.toLowerCase()
@@ -581,16 +582,19 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
     if (!sendCompany) return
     setSendBusy(true)
     setSendLink(null)
-    const { data: existing } = await supabase.from('form_links')
+    setSendError('')
+    const { data: existing, error: selErr } = await supabase.from('form_links')
       .select('*').eq('company_id', sendCompany).eq('type', 'license_agreement')
       .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
+    if (selErr) { setSendError(selErr.message); setSendBusy(false); return }
     if (existing?.length) { setSendLink(existing[0]); setSendBusy(false); return }
     const co = companies.find(c => c.id === sendCompany)
-    const { data: newLink } = await supabase.from('form_links').insert({
+    const { data: newLink, error: insErr } = await supabase.from('form_links').insert({
       company_id: sendCompany, type: 'license_agreement',
       title: `הסכם רישיון — ${co?.name || ''}`,
       created_by: session.user.id, is_active: true, single_use: false,
     }).select().single()
+    if (insErr) { setSendError(insErr.message); setSendBusy(false); return }
     if (newLink) setSendLink(newLink)
     setSendBusy(false)
   }
@@ -598,12 +602,14 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
   async function newLink() {
     if (!sendCompany) return
     setSendBusy(true)
+    setSendError('')
     const co = companies.find(c => c.id === sendCompany)
-    const { data: nl } = await supabase.from('form_links').insert({
+    const { data: nl, error: insErr } = await supabase.from('form_links').insert({
       company_id: sendCompany, type: 'license_agreement',
       title: `הסכם רישיון — ${co?.name || ''}`,
       created_by: session.user.id, is_active: true, single_use: false,
     }).select().single()
+    if (insErr) { setSendError(insErr.message); setSendBusy(false); return }
     if (nl) setSendLink(nl)
     setSendBusy(false)
   }
@@ -629,6 +635,12 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
             {sendBusy ? '…' : '🔗 צור קישור'}
           </button>
         </div>
+
+        {sendError && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 7, padding: '8px 12px', color: '#dc2626', fontSize: 12, marginTop: 8 }}>
+            ⚠ {sendError}
+          </div>
+        )}
 
         {sendLink && (
           <div style={{ background: C.bg, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
