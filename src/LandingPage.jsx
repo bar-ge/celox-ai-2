@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { CeloxIcon } from './LogoIcon'
 import { validateField, isEmail, isIsraeliPhone, isEmpty } from './validators'
+
+const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
 
 function checkClientRateLimit(key, max, windowMs = 3_600_000) {
   try {
@@ -588,12 +591,14 @@ function CTASection({ t, scrollY }) {
 function ContactSection({ t }) {
   const c    = t.contact
   const lang = t.dir === 'rtl' ? 'he' : 'en'
-  const [form, setForm]       = useState({ name: '', company: '', phone: '', email: '', message: '' })
-  const [sending, setSending] = useState(false)
-  const [done, setDone]       = useState(false)
-  const [err, setErr]         = useState(null)
-  const [errors, setErrors]   = useState({})
-  const [touched, setTouched] = useState({})
+  const [form, setForm]           = useState({ name: '', company: '', phone: '', email: '', message: '' })
+  const [sending, setSending]     = useState(false)
+  const [done, setDone]           = useState(false)
+  const [err, setErr]             = useState(null)
+  const [errors, setErrors]       = useState({})
+  const [touched, setTouched]     = useState({})
+  const [captchaToken, setCaptchaToken] = useState('')
+  const captchaRef = useRef(null)
 
   const set = k => e => {
     const v = e.target.value
@@ -621,6 +626,10 @@ function ContactSection({ t }) {
   const submit = async e => {
     e.preventDefault()
     if (!runAll()) return
+    if (!captchaToken) {
+      setErr(lang === 'he' ? 'נא לאמת שאינך רובוט.' : 'Please complete the CAPTCHA verification.')
+      return
+    }
     if (!checkClientRateLimit('celox_contact_rl', 3)) {
       setErr(lang === 'he' ? 'נסית לשלוח יותר מדי פנויות. נסה שוב מאוחר יותר.' : 'Too many submissions. Please try again later.')
       return
@@ -632,6 +641,8 @@ function ContactSection({ t }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
+      captchaRef.current?.resetCaptcha()
+      setCaptchaToken('')
       if (r.ok) setDone(true)
       else setErr(c.error)
     } catch { setErr(c.error) }
@@ -691,10 +702,20 @@ function ContactSection({ t }) {
                   <textarea id="cf-message" className="lp-input" value={form.message} onChange={set('message')} placeholder={c.messagePh} />
                 </div>
 
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+                  <HCaptcha
+                    sitekey={HCAPTCHA_SITE_KEY}
+                    onVerify={token => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken('')}
+                    ref={captchaRef}
+                    theme="light"
+                  />
+                </div>
+
                 {err && <div role="alert" style={{ marginBottom: 16, padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 13, color: '#dc2626' }}>{err}</div>}
 
-                <button type="submit" disabled={sending} className="lp-btn-primary"
-                  style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? .7 : 1, boxShadow: '0 8px 28px rgba(37,99,235,.35)', fontFamily: 'inherit' }}>
+                <button type="submit" disabled={sending || !captchaToken} className="lp-btn-primary"
+                  style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', padding: '15px', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sending || !captchaToken ? 'not-allowed' : 'pointer', opacity: sending || !captchaToken ? .7 : 1, boxShadow: '0 8px 28px rgba(37,99,235,.35)', fontFamily: 'inherit' }}>
                   {sending ? c.sending : c.send}
                 </button>
                 <p style={{ fontSize: 12, color: P.muted, textAlign: 'center', margin: '14px 0 0', lineHeight: 1.6 }}>
