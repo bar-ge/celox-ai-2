@@ -6819,6 +6819,136 @@ function CertificationsPane({ driverId, companyId, rtl }) {
   )
 }
 
+// ── Master: Forms tab license sender ─────────────────────────────────────────
+function MasterLicenseSender({ session, t, rtl, isMobile }) {
+  const [companies,      setCompanies]      = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [activeCompany,  setActiveCompany]  = useState(null) // company id with open panel
+  const [licenseLink,    setLicenseLink]    = useState(null)
+  const [linkBusy,       setLinkBusy]       = useState(false)
+  const [copied,         setCopied]         = useState(false)
+
+  useEffect(() => {
+    supabase.from('companies').select('id, name, invite_code, is_active')
+      .order('name').then(({ data }) => { if (data) setCompanies(data); setLoading(false) })
+  }, [])
+
+  async function openPanel(co) {
+    if (activeCompany === co.id) { setActiveCompany(null); setLicenseLink(null); return }
+    setActiveCompany(co.id)
+    setLicenseLink(null)
+    setLinkBusy(true)
+    const { data: existing } = await supabase.from('form_links')
+      .select('*').eq('company_id', co.id).eq('type', 'license_agreement')
+      .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
+    if (existing?.length) { setLicenseLink(existing[0]); setLinkBusy(false); return }
+    const { data: newLink } = await supabase.from('form_links').insert({
+      company_id: co.id, type: 'license_agreement',
+      title: `הסכם רישיון — ${co.name}`,
+      created_by: session.user.id, is_active: true, single_use: false,
+    }).select().single()
+    if (newLink) setLicenseLink(newLink)
+    setLinkBusy(false)
+  }
+
+  async function newLink(co) {
+    setLicenseLink(null); setLinkBusy(true)
+    const { data: nl } = await supabase.from('form_links').insert({
+      company_id: co.id, type: 'license_agreement',
+      title: `הסכם רישיון — ${co.name}`,
+      created_by: session.user.id, is_active: true, single_use: false,
+    }).select().single()
+    if (nl) setLicenseLink(nl)
+    setLinkBusy(false)
+  }
+
+  const C2 = { surface: '#ffffff', bg: '#f1f5f9', border: '#e2e8f0', primary: '#0891b2', textPrimary: '#0f172a', textSecondary: '#475569', textMuted: '#94a3b8', success: '#10b981', danger: '#ef4444' }
+  const card = { background: C2.surface, borderRadius: 10, border: `1px solid ${C2.border}`, padding: '14px 18px', marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24 }}>
+      <div style={{ maxWidth: 640 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: C2.textPrimary }}>📄 {rtl ? 'שליחת הסכם רישיון' : 'Send License Agreement'}</div>
+          <div style={{ fontSize: 13, color: C2.textMuted, marginTop: 4 }}>
+            {rtl ? 'בחר חברה ושלח קישור לחתימה על הסכם הרישיון' : 'Select a company and send a signing link'}
+          </div>
+        </div>
+
+        {loading && <div style={{ color: C2.textMuted, fontSize: 14 }}>טוען…</div>}
+
+        {companies.map(co => (
+          <div key={co.id} style={card}>
+            {/* Company row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: C2.textPrimary }}>{co.name}</div>
+                <div style={{ fontSize: 11, color: C2.textMuted, fontFamily: 'monospace', letterSpacing: '0.1em' }}>{co.invite_code}</div>
+              </div>
+              <button
+                onClick={() => openPanel(co)}
+                style={{
+                  background: activeCompany === co.id ? C2.primary : C2.primary,
+                  color: '#fff', border: 'none', borderRadius: 7,
+                  padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  opacity: activeCompany === co.id ? 0.85 : 1,
+                }}
+              >
+                {activeCompany === co.id ? (rtl ? '✕ סגור' : '✕ Close') : (rtl ? '📤 שלח הסכם' : '📤 Send Agreement')}
+              </button>
+            </div>
+
+            {/* Inline panel */}
+            {activeCompany === co.id && (
+              <div style={{ background: C2.bg, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {linkBusy ? (
+                  <div style={{ fontSize: 12, color: C2.textSecondary }}>…{rtl ? 'יוצר קישור' : 'Generating link'}</div>
+                ) : licenseLink ? (
+                  <>
+                    <div style={{ fontSize: 12, color: C2.textSecondary }}>
+                      {rtl ? 'שלח ללקוח לחתימה על הסכם הרישיון:' : 'Send to client to sign the agreement:'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        readOnly
+                        value={`${window.location.origin}/form/${licenseLink.token}`}
+                        onClick={e => e.target.select()}
+                        style={{ flex: 1, minWidth: 0, padding: '7px 10px', border: `1px solid ${C2.border}`, borderRadius: 6, fontSize: 12, background: C2.surface, color: C2.textPrimary, outline: 'none', direction: 'ltr' }}
+                      />
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/form/${licenseLink.token}`); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                        style={{ background: copied ? C2.success : C2.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        {copied ? (rtl ? '✓ הועתק' : '✓ Copied') : (rtl ? 'העתק' : 'Copy')}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n${window.location.origin}/form/${licenseLink.token}`)}`, '_blank')}
+                        style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                      >📲 WhatsApp</button>
+                      <button
+                        onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent('הסכם רישיון — Celox AI Fleet Manager')}&body=${encodeURIComponent(`שלום,\nקישור לחתימה:\n${window.location.origin}/form/${licenseLink.token}`)}` }}
+                        style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                      >📧 {rtl ? 'אימייל' : 'Email'}</button>
+                      <button
+                        onClick={() => newLink(co)}
+                        style={{ background: 'transparent', border: `1px solid ${C2.border}`, color: C2.textSecondary, borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}
+                      >{rtl ? '+ קישור חדש' : '+ New link'}</button>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 12, color: C2.danger }}>{rtl ? 'שגיאה ביצירת הקישור.' : 'Failed to create link.'}</div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
@@ -7480,6 +7610,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {activeTab === 'forms' && activeCompanyId && (
           <FormsTab companyId={activeCompanyId} cars={cars} drivers={drivers} session={session} t={t} rtl={rtl} />
         )}
+        {activeTab === 'forms' && isMaster && !activeCompanyId && (
+          <MasterLicenseSender session={session} t={t} rtl={rtl} isMobile={isMobile} />
+        )}
 
         {/* Violations tab */}
         {activeTab === 'violations' && activeCompanyId && (
@@ -7492,7 +7625,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         )}
 
         {/* Board */}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && isMaster && !activeCompanyId && (
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'forms' && isMaster && !activeCompanyId && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textSecondary }}>
             <span style={{ fontSize: 40 }}>🏢</span>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.selectCompanyPrompt}</p>
