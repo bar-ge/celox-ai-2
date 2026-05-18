@@ -5166,6 +5166,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [editingLimits, setEditingLimits] = useState(null) // company id being edited
   const [limitCars, setLimitCars]   = useState('')
   const [limitUsers, setLimitUsers] = useState('')
+  const [editingAccess, setEditingAccess] = useState(null) // company id being edited
+  const [accessUntil, setAccessUntil]     = useState('')
 
   useEffect(() => {
     if (isMaster) {
@@ -5257,6 +5259,20 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
       .select().single()
     if (data) setCompanies(p => p.map(c => c.id === data.id ? data : c))
     setEditingLimits(null)
+  }
+
+  function startEditAccess(co) {
+    setEditingAccess(co.id)
+    setAccessUntil(co.access_until ?? '')
+  }
+
+  async function saveAccessUntil(co) {
+    const { data } = await supabase.from('companies')
+      .update({ access_until: accessUntil || null })
+      .eq('id', co.id)
+      .select().single()
+    if (data) setCompanies(p => p.map(c => c.id === data.id ? data : c))
+    setEditingAccess(null)
   }
 
   const [exporting, setExporting] = useState(false)
@@ -5369,10 +5385,57 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                   </div>
                 </div>
                 {/* Limits row — current values always visible */}
-                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSecondary }}>
+                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSecondary, flexWrap: 'wrap', alignItems: 'center' }}>
                   <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.textPrimary : C.textSecondary }}>{co.max_cars ?? '∞'}</strong></span>
                   <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.textPrimary : C.textSecondary }}>{co.max_users ?? '∞'}</strong></span>
+                  {/* Access expiry */}
+                  {(() => {
+                    if (!co.access_until) return (
+                      <span style={{ cursor: 'pointer', color: C.textSecondary }} onClick={() => startEditAccess(co)}>
+                        📅 {rtl ? 'גישה: ללא הגבלה' : 'Access: unlimited'}
+                      </span>
+                    )
+                    const daysLeft = Math.ceil((new Date(co.access_until) - new Date()) / 86400000)
+                    const expired  = daysLeft < 0
+                    const soon     = daysLeft >= 0 && daysLeft <= 14
+                    return (
+                      <span
+                        onClick={() => startEditAccess(co)}
+                        style={{
+                          cursor: 'pointer', borderRadius: 4, padding: '2px 7px', fontWeight: 700,
+                          background: expired ? C.danger + '15' : soon ? C.warning + '15' : C.success + '15',
+                          color: expired ? C.danger : soon ? C.warning : C.success,
+                        }}
+                      >
+                        📅 {expired
+                          ? (rtl ? `פג תוקף ${co.access_until}` : `Expired ${co.access_until}`)
+                          : soon
+                            ? (rtl ? `פוקע בעוד ${daysLeft} ימים` : `Expires in ${daysLeft}d`)
+                            : (rtl ? `עד ${co.access_until}` : `Until ${co.access_until}`)
+                        }
+                      </span>
+                    )
+                  })()}
                 </div>
+                {/* Inline access-until editor */}
+                {editingAccess === co.id && (
+                  <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>
+                      📅 {rtl ? 'גישה בתוקף עד' : 'Access until'}
+                    </label>
+                    <input
+                      type="date"
+                      value={accessUntil}
+                      onChange={e => setAccessUntil(e.target.value)}
+                      style={{ padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }}
+                    />
+                    <button onClick={() => saveAccessUntil(co)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t.save}</button>
+                    <button onClick={() => { setAccessUntil(''); saveAccessUntil({ ...co, access_until: null }) }} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>
+                      {rtl ? 'ללא הגבלה' : 'Unlimited'}
+                    </button>
+                    <button onClick={() => setEditingAccess(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
+                  </div>
+                )}
                 {/* Inline limits editor */}
                 {editingLimits === co.id && (
                   <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

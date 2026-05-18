@@ -840,6 +840,39 @@ export default function App() {
     return <JoinCompanyScreen session={session} onDone={fetchProfile} lang={lang} setLang={setLang} />
   }
 
+  // Block access if company subscription expired
+  if (!isMaster && profile?.companies?.access_until) {
+    const expired = new Date(profile.companies.access_until) < new Date()
+    if (expired) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', fontFamily: 'sans-serif' }}>
+          <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, maxWidth: 420, textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+            <h2 style={{ color: '#f8fafc', margin: '0 0 12px', fontSize: 22 }}>
+              {lang === 'he' ? 'המנוי פג תוקף' : 'Subscription Expired'}
+            </h2>
+            <p style={{ color: '#94a3b8', margin: '0 0 24px', fontSize: 15, lineHeight: 1.6 }}>
+              {lang === 'he'
+                ? `הגישה לחברה "${profile.companies.name}" פגה בתאריך ${profile.companies.access_until}. צור קשר עם Celox AI לחידוש המנוי.`
+                : `Access to "${profile.companies.name}" expired on ${profile.companies.access_until}. Contact Celox AI to renew.`}
+            </p>
+            <a href="mailto:bar.gershenzon@gmail.com" style={{
+              display: 'inline-block', background: '#2563eb', color: '#fff',
+              borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 700,
+              textDecoration: 'none', marginBottom: 12,
+            }}>
+              {lang === 'he' ? 'צור קשר לחידוש' : 'Contact to Renew'}
+            </a>
+            <br />
+            <button onClick={handleSignOut} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 13, marginTop: 8 }}>
+              {lang === 'he' ? 'התנתק' : 'Sign out'}
+            </button>
+          </div>
+        </div>
+      )
+    }
+  }
+
   return (
     <>
       <FleetManager
