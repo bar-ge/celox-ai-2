@@ -612,7 +612,7 @@ function LoginScreen({ lang, setLang, notice }) {
 }
 
 // ── Join-company screen (regular users without a company) ──────────────────
-function JoinCompanyScreen({ session, onDone, lang, setLang }) {
+function JoinCompanyScreen({ session, onDone, onSignOut, lang, setLang }) {
   const t = L[lang]
   const [tab, setTab]             = useState('code')
   const [inviteCode, setInviteCode] = useState('')
@@ -723,6 +723,13 @@ function JoinCompanyScreen({ session, onDone, lang, setLang }) {
       <p style={{ marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
         {t.contactAdmin}
       </p>
+      <button onClick={onSignOut} style={{
+        marginTop: 8, background: 'transparent', border: 'none',
+        color: 'rgba(255,255,255,0.35)', fontSize: 12, cursor: 'pointer',
+        textDecoration: 'underline',
+      }}>
+        {lang === 'he' ? 'התנתק' : 'Sign out'}
+      </button>
     </Page>
   )
 }
@@ -837,7 +844,7 @@ export default function App() {
   const isMaster = session.user.email === MASTER_EMAIL
 
   if (!isMaster && !profile?.company_id) {
-    return <JoinCompanyScreen session={session} onDone={fetchProfile} lang={lang} setLang={setLang} />
+    return <JoinCompanyScreen session={session} onDone={fetchProfile} onSignOut={handleSignOut} lang={lang} setLang={setLang} />
   }
 
   // Block access if company subscription expired
