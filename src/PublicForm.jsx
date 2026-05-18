@@ -41,6 +41,7 @@ const FORM_META = {
   accident_report:  { icon: '🚨', title: 'דוח תאונה', en: 'Accident Report' },
   custom:           { icon: '📝', title: 'טופס מותאם אישית', en: 'Custom Form' },
   license_agreement: { icon: '📄', title: 'הסכם רישיון שימוש', en: 'License Agreement' },
+  periodic_inspection: { icon: '🔍', title: 'בדיקת רכב תקופתית', en: 'Periodic Vehicle Inspection' },
 }
 
 // ── File upload helper ────────────────────────────────────────────────────────
@@ -1067,6 +1068,132 @@ function LicenseAgreementForm({ link, onSubmit, submitting }) {
   )
 }
 
+// ── Periodic Inspection Form ──────────────────────────────────────────────────
+const INSPECTION_ITEMS = [
+  { key: 'tires',       label: '🔘 צמיגים (לחץ ומצב)' },
+  { key: 'brakes',      label: '🛑 בלמים' },
+  { key: 'lights',      label: '💡 תאורה (פנסים, בלמים, חיווי)' },
+  { key: 'oil',         label: '🛢️ שמן מנוע (רמה ומצב)' },
+  { key: 'wipers',      label: '🌧️ מגבי שמשה' },
+  { key: 'extinguisher',label: '🧯 מטף כיבוי אש' },
+  { key: 'first_aid',   label: '🩹 ערכת עזרה ראשונה' },
+  { key: 'triangles',   label: '⚠️ משולשי אזהרה (2 יחידות)' },
+  { key: 'battery',     label: '🔋 מצבר' },
+  { key: 'documents',   label: '📄 מסמכי רכב (רישיון, ביטוח)' },
+  { key: 'coolant',     label: '🌡️ מים/קירור מנוע' },
+  { key: 'mirrors',     label: '🔲 מראות' },
+]
+
+function PeriodicInspectionForm({ link, onSubmit, submitting }) {
+  const car    = link.car    || {}
+  const driver = link.driver || {}
+  const [form, setForm] = useState({
+    submitter_name: driver.name || '',
+    plate:          car.plate   || '',
+    mileage:        '',
+    inspection_date: new Date().toISOString().slice(0, 10),
+    items: {},
+    notes: '',
+    signature: '',
+  })
+  const [files, setFiles]       = useState([])
+  const [formError, setFormError] = useState('')
+  const set  = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const setItem = (k, v) => setForm(f => ({ ...f, items: { ...f.items, [k]: v } }))
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setFormError('')
+    if (!form.submitter_name?.trim()) { setFormError('נא להזין שם מלא'); return }
+    if (!form.plate?.trim())          { setFormError('נא להזין לוחית רישוי'); return }
+    if (!form.signature)              { setFormError('נא לחתום לפני השליחה'); return }
+    const attachments = await uploadFiles(files, link.company_id, link.id)
+    onSubmit({ ...form, attachments })
+  }
+
+  const allPassed = INSPECTION_ITEMS.every(i => form.items[i.key] === 'ok')
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={section}>
+        <div style={sectionTitle}>👤 פרטי הממלא</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={field}>
+            <label style={lbl}>שם מלא *</label>
+            <input style={inp} required value={form.submitter_name} onChange={e => set('submitter_name', e.target.value)} placeholder="ישראל ישראלי" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>תאריך בדיקה</label>
+            <input style={inp} type="date" value={form.inspection_date} onChange={e => set('inspection_date', e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>🚗 פרטי הרכב</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={field}>
+            <label style={lbl}>לוחית רישוי *</label>
+            <input style={inp} required value={form.plate} onChange={e => set('plate', e.target.value)} placeholder="123-45-678" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>קילומטראז'</label>
+            <input style={inp} type="number" min="0" value={form.mileage} onChange={e => set('mileage', e.target.value)} placeholder="50000" />
+          </div>
+        </div>
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>✅ רשימת בדיקה ({INSPECTION_ITEMS.filter(i => form.items[i.key] === 'ok').length}/{INSPECTION_ITEMS.length})</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {INSPECTION_ITEMS.map(({ key, label }) => {
+            const val = form.items[key]
+            return (
+              <div key={key} style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${val === 'ok' ? C.success + '60' : val === 'fail' ? C.danger + '60' : C.border}`, background: val === 'ok' ? C.success + '08' : val === 'fail' ? C.danger + '08' : 'transparent' }}>
+                <div style={{ fontSize: 13, color: C.text, marginBottom: 6 }}>{label}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[['ok', '✅ תקין', C.success], ['fail', '❌ לא תקין', C.danger]].map(([v, l, clr]) => (
+                    <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 12, fontWeight: val === v ? 700 : 400, color: val === v ? clr : C.textMuted }}>
+                      <input type="radio" name={`item_${key}`} value={v} checked={val === v} onChange={() => setItem(key, v)} style={{ accentColor: clr }} />
+                      {l}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        {allPassed && (
+          <div style={{ marginTop: 12, padding: '10px 14px', background: C.success + '14', borderRadius: 8, fontSize: 13, fontWeight: 700, color: C.success, textAlign: 'center' }}>
+            ✅ כל הפריטים תקינים!
+          </div>
+        )}
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>📝 הערות</div>
+        <textarea style={{ ...inp, minHeight: 70, resize: 'vertical' }} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="הערות על מצב הרכב..." />
+      </div>
+
+      <div style={section}>
+        <div style={sectionTitle}>✍️ חתימת הבודק</div>
+        <SignaturePad value={form.signature} onChange={v => set('signature', v)} />
+      </div>
+
+      <FileAttachments files={files} onAdd={picked => setFiles(p => [...p, ...picked])} onRemove={i => setFiles(p => p.filter((_, j) => j !== i))} />
+
+      {formError && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 8, color: '#dc2626', fontSize: 14, fontWeight: 600 }}>
+          ⚠ {formError}
+        </div>
+      )}
+      <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#0891b2,#6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
+        {submitting ? '…שולח' : '🔍 שלח טופס בדיקה'}
+      </button>
+    </form>
+  )
+}
+
 // ── Public Form Page (root) ───────────────────────────────────────────────────
 export default function PublicForm({ token }) {
   const [link,        setLink]        = useState(null)
@@ -1227,6 +1354,7 @@ export default function PublicForm({ token }) {
             {link.type === 'accident_report'  && <AccidentReportPublicForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'custom'           && <CustomForm                link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'license_agreement' && <LicenseAgreementForm     link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'periodic_inspection' && <PeriodicInspectionForm link={link} onSubmit={handleSubmit} submitting={submitting} />}
           </>
         )}
       </div>

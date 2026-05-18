@@ -1449,7 +1449,7 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
 
         {/* Tab bar */}
         <div style={tabBar}>
-          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['certifications', `🏅 ${rtl ? 'הסמכות' : 'Certifications'}`], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['certifications', `🏅 ${rtl ? 'הסמכות' : 'Certifications'}`], ['training', `📚 ${rtl ? 'הדרכות' : 'Training'}`], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -1513,6 +1513,13 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
           {tab === 'certifications' && (
             <div style={{ padding: '0 24px 20px' }}>
               <CertificationsPane driverId={driver.id} companyId={companyId} rtl={rtl} />
+            </div>
+          )}
+
+          {/* ── TRAINING ── */}
+          {tab === 'training' && (
+            <div style={{ padding: '0 24px 20px' }}>
+              <TrainingPane driverId={driver.id} companyId={companyId} rtl={rtl} />
             </div>
           )}
 
@@ -3006,6 +3013,8 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '', cost_center: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
+  const [filterCostCenter, setFilterCostCenter] = useState('')
+  const [showByCostCenter, setShowByCostCenter] = useState(false)
 
   useEffect(() => { load() }, [companyId])
   async function load() {
@@ -3077,6 +3086,15 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   }
 
   const total = costs.reduce((s, c) => s + parseFloat(c.amount || 0), 0)
+  const allCostCenters = [...new Set(costs.map(c => c.cost_center || '').filter(Boolean))].sort()
+  const byCostCenter = costs.reduce((acc, c) => {
+    const key = c.cost_center || (rtl ? 'ללא מרכז עלות' : 'No cost center')
+    acc[key] = acc[key] || { total: 0, count: 0 }
+    acc[key].total += parseFloat(c.amount || 0)
+    acc[key].count++
+    return acc
+  }, {})
+  const displayedCosts = filterCostCenter ? costs.filter(c => (c.cost_center || '') === filterCostCenter) : costs
   const byCategory = costs.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + parseFloat(c.amount || 0); return acc }, {})
   const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted, 'ביטוח': C.success, 'נתיב תשלום': C.primary }
   const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther, 'ביטוח': t.catInsurance, 'נתיב תשלום': rtl ? 'נתיב תשלום' : 'Toll' }
@@ -3183,6 +3201,32 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
         </div>
       )}
 
+      {/* Cost center filter */}
+      {allCostCenters.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+          <select value={filterCostCenter} onChange={e => setFilterCostCenter(e.target.value)} style={{ padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: C.surface, color: C.textPrimary, outline: 'none', cursor: 'pointer' }}>
+            <option value="">{rtl ? 'כל מרכזי העלות' : 'All cost centers'}</option>
+            {allCostCenters.map(cc => <option key={cc} value={cc}>{cc}</option>)}
+          </select>
+          <button onClick={() => setShowByCostCenter(p => !p)} style={{ background: showByCostCenter ? C.primary : C.bg, color: showByCostCenter ? '#fff' : C.textPrimary, border: `1px solid ${showByCostCenter ? C.primary : C.border}`, borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            📊 {rtl ? 'לפי מרכז עלות' : 'By Cost Center'}
+          </button>
+        </div>
+      )}
+
+      {/* By cost center summary */}
+      {showByCostCenter && Object.keys(byCostCenter).length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 10, marginBottom: 16 }}>
+          {Object.entries(byCostCenter).sort((a, b) => b[1].total - a[1].total).map(([cc, data]) => (
+            <div key={cc} onClick={() => setFilterCostCenter(filterCostCenter === cc ? '' : cc)} style={{ background: filterCostCenter === cc ? C.primary + '10' : C.surface, border: `1px solid ${filterCostCenter === cc ? C.primary : C.border}`, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cc}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: C.textPrimary }}>₪{data.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+              <div style={{ fontSize: 12, color: C.textSecondary }}>{data.count} {rtl ? 'רשומות' : 'records'}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Table */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -3207,7 +3251,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                 <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.loadingShort}</td></tr>
               ) : costs.length === 0 ? (
                 <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: C.textMuted }}>{t.noCosts}</td></tr>
-              ) : costs.map(c => (
+              ) : displayedCosts.map(c => (
                 <tr key={c.id} style={{ background: selectedCostIds.includes(c.id) ? C.primary + '08' : C.surface }}>
                   <td style={{ ...mkTd(rtl, isMobile), width: 36, padding: '10px 12px' }}>
                     <input type="checkbox" checked={selectedCostIds.includes(c.id)} onChange={() => toggleCost(c.id)} style={{ cursor: 'pointer' }} />
@@ -4087,6 +4131,7 @@ const FORM_TYPES = [
   { id: 'yearly_training',  icon: '🎓', label: 'אימות הדרכה שנתית',        labelEn: 'Yearly Training' },
   { id: 'accident_report',  icon: '🚨', label: 'דוח תאונה לנהג',           labelEn: 'Driver Accident Report' },
   { id: 'custom',           icon: '🛠️', label: 'טופס מותאם אישית',         labelEn: 'Custom Form' },
+  { id: 'periodic_inspection', icon: '🔍', label: 'בדיקת רכב תקופתית', labelEn: 'Periodic Inspection' },
 ]
 
 const PRESET_FIELDS = [
@@ -5168,6 +5213,13 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [editingAccess, setEditingAccess] = useState(null) // company id being edited
   const [accessUntil, setAccessUntil]     = useState('')
 
+  // Report schedules
+  const [schedules,     setSchedules]     = useState([])
+  const [schedLoading,  setSchedLoading]  = useState(false)
+  const [showAddSched,  setShowAddSched]  = useState(false)
+  const [schedForm,     setSchedForm]     = useState({ report_type: 'costs', frequency: 'weekly', recipients: '', day_of_week: '0' })
+  const [schedErr,      setSchedErr]      = useState('')
+
   useEffect(() => {
     if (isMaster) {
       supabase.from('companies').select('*').order('created_at', { ascending: false })
@@ -5182,6 +5234,44 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     navigator.clipboard.writeText(company?.invite_code || '')
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  useEffect(() => { loadSchedules() }, [companyId])
+
+  async function loadSchedules() {
+    if (!companyId) return
+    setSchedLoading(true)
+    const { data } = await supabase.from('report_schedules').select('*').eq('company_id', companyId).order('created_at')
+    setSchedules(data || [])
+    setSchedLoading(false)
+  }
+
+  async function addSchedule(e) {
+    e.preventDefault()
+    setSchedErr('')
+    if (!schedForm.recipients.trim()) { setSchedErr(rtl ? 'נא להזין כתובת אימייל' : 'Email required'); return }
+    const { data, error } = await supabase.from('report_schedules').insert([{
+      company_id:   companyId,
+      report_type:  schedForm.report_type,
+      frequency:    schedForm.frequency,
+      recipients:   schedForm.recipients.split(',').map(s => s.trim()).filter(Boolean),
+      day_of_week:  parseInt(schedForm.day_of_week, 10),
+      is_active:    true,
+    }]).select()
+    if (error) { setSchedErr(error.message); return }
+    setSchedules(p => [...p, data[0]])
+    setShowAddSched(false)
+    setSchedForm({ report_type: 'costs', frequency: 'weekly', recipients: '', day_of_week: '0' })
+  }
+
+  async function deleteSchedule(id) {
+    await supabase.from('report_schedules').delete().eq('id', id)
+    setSchedules(p => p.filter(s => s.id !== id))
+  }
+
+  async function toggleSchedule(id, isActive) {
+    const { data } = await supabase.from('report_schedules').update({ is_active: !isActive }).eq('id', id).select()
+    if (data?.[0]) setSchedules(p => p.map(s => s.id === id ? data[0] : s))
   }
 
   async function removeMember(memberId) {
@@ -5617,6 +5707,81 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Activity log — admin only */}
           {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} />}
 
+          {/* ── Report Schedules ── */}
+          {companyId && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.textPrimary }}>{rtl ? '📅 תזמון דוחות' : '📅 Report Schedules'}</div>
+                  <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{rtl ? 'שלח דוחות אוטומטיים לאימייל' : 'Send automated reports by email'}</div>
+                </div>
+                <button onClick={() => setShowAddSched(p => !p)} style={{ background: C.primary + '15', color: C.primary, border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  {showAddSched ? '✕' : `+ ${rtl ? 'הוסף' : 'Add'}`}
+                </button>
+              </div>
+
+              {showAddSched && (
+                <form onSubmit={addSchedule} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג דוח' : 'Report Type'}</label>
+                      <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.report_type} onChange={e => setSchedForm(p => ({ ...p, report_type: e.target.value }))}>
+                        <option value="costs">{rtl ? 'הוצאות' : 'Costs'}</option>
+                        <option value="maintenance">{rtl ? 'תחזוקה' : 'Maintenance'}</option>
+                        <option value="violations">{rtl ? 'קנסות' : 'Violations'}</option>
+                        <option value="fleet_summary">{rtl ? 'סיכום צי' : 'Fleet Summary'}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תדירות' : 'Frequency'}</label>
+                      <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.frequency} onChange={e => setSchedForm(p => ({ ...p, frequency: e.target.value }))}>
+                        <option value="daily">{rtl ? 'יומי' : 'Daily'}</option>
+                        <option value="weekly">{rtl ? 'שבועי' : 'Weekly'}</option>
+                        <option value="monthly">{rtl ? 'חודשי' : 'Monthly'}</option>
+                      </select>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'נמענים (אימייל, מופרד בפסיקים)' : 'Recipients (comma-separated emails)'}</label>
+                      <input style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: C.surface }} value={schedForm.recipients} onChange={e => setSchedForm(p => ({ ...p, recipients: e.target.value }))} placeholder="a@co.com, b@co.com" required />
+                    </div>
+                  </div>
+                  {schedErr && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{schedErr}</div>}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'שמור' : 'Save'}</button>
+                    <button type="button" onClick={() => setShowAddSched(false)} style={{ background: 'none', color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 12px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+                  </div>
+                </form>
+              )}
+
+              {schedLoading ? (
+                <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>…</div>
+              ) : schedules.length === 0 ? (
+                <div style={{ fontSize: 13, color: C.textMuted, textAlign: 'center', padding: '16px 0' }}>{rtl ? 'אין תזמונים מוגדרים עדיין' : 'No schedules configured yet'}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {schedules.map(s => (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: C.bg, borderRadius: 8, border: `1px solid ${C.border}` }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>
+                          {s.report_type === 'costs' ? (rtl?'הוצאות':'Costs') : s.report_type === 'maintenance' ? (rtl?'תחזוקה':'Maintenance') : s.report_type === 'violations' ? (rtl?'קנסות':'Violations') : (rtl?'סיכום צי':'Fleet Summary')}
+                          {' · '}
+                          {s.frequency === 'daily' ? (rtl?'יומי':'Daily') : s.frequency === 'weekly' ? (rtl?'שבועי':'Weekly') : (rtl?'חודשי':'Monthly')}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{Array.isArray(s.recipients) ? s.recipients.join(', ') : s.recipients}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button onClick={() => toggleSchedule(s.id, s.is_active)} style={{ background: s.is_active ? C.success + '18' : C.textMuted + '18', color: s.is_active ? C.success : C.textMuted, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          {s.is_active ? (rtl?'פעיל':'Active') : (rtl?'כבוי':'Off')}
+                        </button>
+                        <button onClick={() => deleteSchedule(s.id)} style={{ background: 'none', color: C.textMuted, border: 'none', borderRadius: 4, padding: '4px 8px', fontSize: 14, cursor: 'pointer' }}>🗑</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Legal card */}
           <div style={{ ...card, background: 'linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%)' }}>
             <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>⚖️ {t.legalTitle}</h3>
@@ -5957,7 +6122,9 @@ function FMSignaturePad({ value, onChange, label = 'חתימה דיגיטלית'
 }
 
 // ── Traffic Violations Tab ────────────────────────────────────────────────────
-const VIOLATION_TYPES_HE = ['מהירות יתר','אי מתן זכות קדימה','חנייה אסורה','שימוש בטלפון בנהיגה','אי עצירה ברמזור אדום','חריגה מנתיב','אחר']
+const VIOLATION_PAYMENT_STATUS_HE = { unpaid: 'לא שולם', paid: 'שולם', disputed: 'בערעור', cancelled: 'בוטל' }
+const VIOLATION_PAYMENT_STATUS_COLORS = { unpaid: '#ef4444', paid: '#10b981', disputed: '#f59e0b', cancelled: '#94a3b8' }
+const VIOLATION_TYPES_HE =['מהירות יתר','אי מתן זכות קדימה','חנייה אסורה','שימוש בטלפון בנהיגה','אי עצירה ברמזור אדום','חריגה מנתיב','אחר']
 const VIOLATION_TYPES_EN = ['Speeding','Right of way','Illegal parking','Phone while driving','Red light','Lane violation','Other']
 const VIOLATION_STATUS_COLORS = { new: C?.warning || '#f59e0b', assigned: '#8b5cf6', signed: C?.primary || '#0891b2', submitted: C?.success || '#10b981', resolved: '#64748b' }
 
@@ -5968,9 +6135,11 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
   const [signTarget, setSignTarget] = useState(null)
   const [signature, setSignature]   = useState('')
   const [saving, setSaving]         = useState(false)
-  const [form, setForm] = useState({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', location: '', amount: '', notes: '', driver_id: '' })
+  const [form, setForm] = useState({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', ticket_number: '', location: '', amount: '', notes: '', driver_id: '', payment_status: 'unpaid' })
   const [addError, setAddError]     = useState('')
   const [matching, setMatching]     = useState(false)
+  const [filterPayStatus, setFilterPayStatus] = useState('')
+  const [filterVType,     setFilterVType]     = useState('')
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -6016,13 +6185,15 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
       location:       form.location   || null,
       amount:         form.amount ? parseFloat(form.amount) : null,
       notes:          form.notes      || null,
+      payment_status: form.payment_status || 'unpaid',
+      ticket_number:  form.ticket_number  || null,
       status:         form.driver_id  ? 'assigned' : 'new',
       created_by:     session?.user?.id || null,
     }]).select()
     if (error) { setAddError(friendlyDbError(error, rtl)); return }
     setViolations(p => [data[0], ...p])
     setShowAdd(false)
-    setForm({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', location: '', amount: '', notes: '', driver_id: '' })
+    setForm({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', ticket_number: '', location: '', amount: '', notes: '', driver_id: '', payment_status: 'unpaid' })
   }
 
   async function saveSignature() {
@@ -6048,6 +6219,11 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
     setViolations(p => p.filter(v => v.id !== id))
   }
 
+  async function updatePaymentStatus(id, status) {
+    const { data } = await supabase.from('traffic_violations').update({ payment_status: status }).eq('id', id).select()
+    if (data?.[0]) setViolations(p => p.map(v => v.id === id ? data[0] : v))
+  }
+
   const statusLabel = { new: rtl?'חדש':'New', assigned: rtl?'שויך לנהג':'Assigned', signed: rtl?'נחתם':'Signed', submitted: rtl?'הוגש':'Submitted', resolved: rtl?'סגור':'Resolved' }
   const driverName  = id => drivers.find(d => d.id === id)?.name || id || '—'
   const carPlate    = id => id ? (formatPlate(cars.find(c => c.id === parseInt(id,10))?.plate) || id) : '—'
@@ -6065,6 +6241,41 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
         <button onClick={() => setShowAdd(p => !p)} style={{ background: `linear-gradient(135deg,${C.primary},${C.indigo})`, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
           {showAdd ? (rtl ? '✕ ביטול' : '✕ Cancel') : (rtl ? '+ הוסף קנס' : '+ Add Violation')}
         </button>
+      </div>
+
+      {/* Stat cards */}
+      {!loading && violations.length > 0 && (() => {
+        const unpaid   = violations.filter(v => !v.payment_status || v.payment_status === 'unpaid')
+        const paid     = violations.filter(v => v.payment_status === 'paid')
+        const disputed = violations.filter(v => v.payment_status === 'disputed')
+        const totalUnpaid = unpaid.reduce((s, v) => s + parseFloat(v.amount || 0), 0)
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: rtl ? 'סה"כ לא שולם' : 'Total Unpaid', value: `₪${totalUnpaid.toLocaleString()}`, color: C.danger },
+              { label: rtl ? 'קנסות פתוחים' : 'Unpaid', value: unpaid.length, color: C.danger },
+              { label: rtl ? 'בערעור' : 'Disputed', value: disputed.length, color: C.warning },
+              { label: rtl ? 'שולמו' : 'Paid', value: paid.length, color: C.success },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, marginBottom: 4 }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* Filter bar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <select value={filterPayStatus} onChange={e => setFilterPayStatus(e.target.value)} style={{ padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: C.surface, color: C.textPrimary, outline: 'none', cursor: 'pointer' }}>
+          <option value="">{rtl ? 'כל סטטוס תשלום' : 'All payment statuses'}</option>
+          {Object.entries(VIOLATION_PAYMENT_STATUS_HE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={filterVType} onChange={e => setFilterVType(e.target.value)} style={{ padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: C.surface, color: C.textPrimary, outline: 'none', cursor: 'pointer' }}>
+          <option value="">{rtl ? 'כל סוגי העבירות' : 'All violation types'}</option>
+          {(rtl ? VIOLATION_TYPES_HE : VIOLATION_TYPES_EN).map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
       </div>
 
       {/* Add form */}
@@ -6097,6 +6308,16 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'מספר דוח' : 'Fine Number'}</label>
                 <input style={inp} value={form.fine_number} onChange={e => set('fine_number', e.target.value)} placeholder="12345678" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'מספר כרטיס' : 'Ticket #'}</label>
+                <input style={inp} value={form.ticket_number} onChange={e => set('ticket_number', e.target.value)} placeholder="TK-12345" />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סטטוס תשלום' : 'Payment Status'}</label>
+                <select style={inp} value={form.payment_status} onChange={e => set('payment_status', e.target.value)}>
+                  {Object.entries(VIOLATION_PAYMENT_STATUS_HE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סכום (₪)' : 'Amount (₪)'}</label>
@@ -6148,20 +6369,25 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: C.bg }}>
-                {[rtl?'תאריך':'Date', rtl?'לוחית':'Plate', rtl?'עבירה':'Type', rtl?'נהג':'Driver', rtl?'סכום':'Amount', rtl?'מס׳ דוח':'Fine #', rtl?'סטטוס':'Status', rtl?'פעולות':'Actions'].map(h => (
+                {[rtl?'תאריך':'Date', rtl?'לוחית':'Plate', rtl?'עבירה':'Type', rtl?'נהג':'Driver', rtl?'סכום':'Amount', rtl?'סטטוס תשלום':'Payment', rtl?'מס׳ דוח':'Fine #', rtl?'סטטוס':'Status', rtl?'פעולות':'Actions'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: C.textSecondary, textAlign: rtl ? 'right' : 'left', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {violations.map((v, i) => (
-                <tr key={v.id} style={{ borderBottom: i < violations.length-1 ? `1px solid ${C.border}` : 'none', background: i % 2 === 0 ? 'transparent' : C.bg + '80' }}>
+              {violations.filter(v => (!filterPayStatus || (v.payment_status || 'unpaid') === filterPayStatus) && (!filterVType || v.violation_type === filterVType)).map((v, i) => (
+                <tr key={v.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? 'transparent' : C.bg + '80' }}>
                   <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{v.violation_date}</td>
                   <td style={{ padding: '12px 14px' }}><span style={{ fontWeight: 700, fontFamily: 'monospace', color: C.primary }}>{formatPlate(v.plate)}</span></td>
                   <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{v.violation_type}</td>
                   <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{driverName(v.driver_id)}</td>
                   <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.danger }}>
                     {v.amount ? `₪${parseFloat(v.amount).toLocaleString()}` : '—'}
+                  </td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, background: (VIOLATION_PAYMENT_STATUS_COLORS[v.payment_status || 'unpaid'] || '#ef4444') + '18', color: VIOLATION_PAYMENT_STATUS_COLORS[v.payment_status || 'unpaid'] || '#ef4444' }}>
+                      {VIOLATION_PAYMENT_STATUS_HE[v.payment_status || 'unpaid']}
+                    </span>
                   </td>
                   <td style={{ padding: '12px 14px', fontSize: 12, color: C.textSecondary, fontFamily: 'monospace' }}>{v.fine_number || '—'}</td>
                   <td style={{ padding: '12px 14px' }}>
@@ -6189,6 +6415,16 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                       {v.signature_data && (
                         <button onClick={() => window.open(v.signature_data, '_blank')} style={{ background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>
                           🖼 {rtl ? 'חתימה' : 'Sig'}
+                        </button>
+                      )}
+                      {(!v.payment_status || v.payment_status === 'unpaid') && (
+                        <button onClick={() => updatePaymentStatus(v.id, 'paid')} style={{ background: C.success + '18', color: C.success, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          ✅ {rtl ? 'שולם' : 'Paid'}
+                        </button>
+                      )}
+                      {v.payment_status === 'paid' && (
+                        <button onClick={() => updatePaymentStatus(v.id, 'unpaid')} style={{ background: C.textMuted + '18', color: C.textMuted, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          ↩ {rtl ? 'בטל' : 'Undo'}
                         </button>
                       )}
                       <button onClick={() => deleteViolation(v.id)} style={{ background: C.danger + '14', color: C.danger, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
@@ -6533,6 +6769,235 @@ function CertificationsPane({ driverId, companyId, rtl }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const TRAINING_TYPES_HE = ['נהיגה בטוחה', 'עזרה ראשונה', 'כיבוי אש', 'חומרים מסוכנים', 'ציות לחוק', 'אחר']
+
+function TrainingPane({ driverId, companyId, rtl }) {
+  const [records,  setRecords]  = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [showAdd,  setShowAdd]  = useState(false)
+  const [saving,   setSaving]   = useState(false)
+  const [err,      setErr]      = useState('')
+  const [form, setForm] = useState({ cert_type: '', cert_name: '', completed_date: '', expiry_date: '', provider: '' })
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  const today = new Date(); today.setHours(0,0,0,0)
+  const daysUntil = dateStr => Math.round((new Date(dateStr) - today) / 86400000)
+  const expiryColor = dateStr => {
+    const d = daysUntil(dateStr)
+    if (d < 0)  return C.danger
+    if (d < 30) return C.warning || '#f59e0b'
+    return C.success
+  }
+
+  useEffect(() => { loadRecords() }, [driverId])
+
+  async function loadRecords() {
+    setLoading(true)
+    const { data } = await supabase.from('driver_certifications').select('*').eq('driver_id', driverId).eq('record_type', 'training').order('completed_date', { ascending: false })
+    setRecords(data || [])
+    setLoading(false)
+  }
+
+  async function add(e) {
+    e.preventDefault()
+    setErr('')
+    if (!form.cert_type || !form.completed_date) { setErr(rtl ? 'סוג ותאריך הם שדות חובה' : 'Type and date are required'); return }
+    setSaving(true)
+    const { data, error } = await supabase.from('driver_certifications').insert([{
+      company_id: companyId, driver_id: driverId,
+      cert_type: form.cert_type, cert_name: form.cert_name || null,
+      completed_date: form.completed_date, expiry_date: form.expiry_date || null,
+      provider: form.provider || null,
+      record_type: 'training',
+    }]).select()
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setRecords(p => [data[0], ...p])
+    setShowAdd(false)
+    setForm({ cert_type: '', cert_name: '', completed_date: '', expiry_date: '', provider: '' })
+  }
+
+  async function del(id) {
+    if (!window.confirm(rtl ? 'למחוק?' : 'Delete?')) return
+    await supabase.from('driver_certifications').delete().eq('id', id)
+    setRecords(p => p.filter(c => c.id !== id))
+  }
+
+  const inp = { width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>{rtl ? 'הדרכות ואימונים' : 'Training Records'}</span>
+        <button onClick={() => setShowAdd(p => !p)} style={{ background: C.primary + '15', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+          {showAdd ? '✕' : `+ ${rtl ? 'הוסף' : 'Add'}`}
+        </button>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={add} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג הדרכה *' : 'Type *'}</label>
+              <select style={inp} value={form.cert_type} onChange={e => set('cert_type', e.target.value)} required>
+                <option value="">{rtl ? 'בחר...' : 'Select...'}</option>
+                {TRAINING_TYPES_HE.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'שם קורס' : 'Course Name'}</label>
+              <input style={inp} value={form.cert_name} onChange={e => set('cert_name', e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תאריך הדרכה *' : 'Date *'}</label>
+              <input type="date" style={inp} value={form.completed_date} onChange={e => set('completed_date', e.target.value)} required />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תוקף עד' : 'Valid Until'}</label>
+              <input type="date" style={inp} value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'גוף מדריך' : 'Provider'}</label>
+              <input style={inp} value={form.provider} onChange={e => set('provider', e.target.value)} placeholder={rtl ? 'שם ספק ההדרכה' : 'Training provider'} />
+            </div>
+          </div>
+          {err && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{err}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" disabled={saving} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</button>
+            <button type="button" onClick={() => setShowAdd(false)} style={{ background: 'none', color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 20, color: C.textMuted, fontSize: 13 }}>…</div>
+      ) : records.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 24, color: C.textMuted }}>
+          <div style={{ fontSize: 28, marginBottom: 6 }}>📚</div>
+          <div style={{ fontSize: 13 }}>{rtl ? 'אין רשומות הדרכה עדיין' : 'No training records yet'}</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {records.map(r => (
+            <div key={r.id} style={{ background: C.bg, borderRadius: 8, padding: '10px 14px', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, marginBottom: 2 }}>{r.cert_type}{r.cert_name ? ` — ${r.cert_name}` : ''}</div>
+                <div style={{ fontSize: 12, color: C.textSecondary }}>
+                  {rtl ? 'תאריך: ' : 'Date: '}{fmtDate(r.completed_date)}
+                  {r.provider && (` · ${r.provider}`)}
+                </div>
+                {r.expiry_date && (
+                  <div style={{ fontSize: 12, color: expiryColor(r.expiry_date), fontWeight: 600, marginTop: 2 }}>
+                    {rtl ? 'תוקף עד: ' : 'Until: '}{fmtDate(r.expiry_date)}
+                    {daysUntil(r.expiry_date) < 0 ? (rtl ? ' (פג תוקף)' : ' (expired)') : daysUntil(r.expiry_date) < 30 ? ` (${daysUntil(r.expiry_date)} ${rtl ? 'ימים' : 'days'})` : ''}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => del(r.id)} style={{ background: 'none', color: C.textMuted, border: 'none', borderRadius: 4, padding: '3px 7px', fontSize: 14, cursor: 'pointer', flexShrink: 0 }}>🗑</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function IntegrationsTab({ companyId, rtl }) {
+  const [webhookCopied, setWebhookCopied] = useState(false)
+  const [costs, setCosts] = useState([])
+  const webhookUrl = `https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/gps-ingest?company_id=${companyId}`
+
+  useEffect(() => {
+    if (!companyId) return
+    supabase.from('costs').select('*').eq('company_id', companyId).order('date', { ascending: false }).then(({ data }) => setCosts(data || []))
+  }, [companyId])
+
+  function copyWebhook() {
+    navigator.clipboard.writeText(webhookUrl).catch(() => {})
+    setWebhookCopied(true)
+    setTimeout(() => setWebhookCopied(false), 2000)
+  }
+
+  function exportAccountingCsvInteg() {
+    const catLabel = { Fuel: rtl?'דלק':'Fuel', Insurance: rtl?'ביטוח':'Insurance', Fine: rtl?'קנס':'Fine', Repair: rtl?'תיקון':'Repair', Other: rtl?'אחר':'Other' }
+    const headers = rtl ? ['תאריך', 'קטגוריה', 'סכום', 'מרכז עלות', 'תיאור'] : ['Date', 'Category', 'Amount', 'Cost Center', 'Description']
+    const rows = costs.map(c => [c.date || '', catLabel[c.category] || c.category, parseFloat(c.amount || 0).toFixed(2), c.cost_center || '', c.description || ''])
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = Object.assign(document.createElement('a'), { href: url, download: `accounting-${new Date().toISOString().slice(0,10)}.csv` })
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  async function exportAccountingExcelInteg() {
+    const catLabel = { Fuel: rtl?'דלק':'Fuel', Insurance: rtl?'ביטוח':'Insurance', Fine: rtl?'קנס':'Fine', Repair: rtl?'תיקון':'Repair', Other: rtl?'אחר':'Other' }
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet(rtl ? 'הוצאות' : 'Costs')
+    const cols = rtl ? ['תאריך', 'קטגוריה', 'סכום', 'מרכז עלות', 'תיאור'] : ['Date', 'Category', 'Amount', 'Cost Center', 'Description']
+    ws.columns = cols.map((h, i) => ({ header: h, key: `c${i}`, width: 20 }))
+    costs.forEach(c => ws.addRow({ c0: c.date || '', c1: catLabel[c.category] || c.category, c2: parseFloat(c.amount || 0), c3: c.cost_center || '', c4: c.description || '' }))
+    await xlsxDownload(wb, `accounting-${new Date().toISOString().slice(0,10)}.xlsx`)
+  }
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+      <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>🔌 {rtl ? 'אינטגרציות' : 'Integrations'}</h2>
+      <p style={{ margin: '0 0 24px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'חיבורים למערכות חיצוניות' : 'Connect to external systems'}</p>
+
+      {/* GPS Webhook */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 22 }}>📡</span>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'GPS Webhook' : 'GPS Webhook'}</div>
+            <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? 'שלח נתוני GPS ממכשיר מעקב לכתובת זו' : 'Send GPS data from a tracker to this URL'}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <code style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '8px 12px', fontSize: 12, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{webhookUrl}</code>
+          <button onClick={copyWebhook} style={{ background: webhookCopied ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {webhookCopied ? (rtl ? '✓ הועתק' : '✓ Copied') : (rtl ? 'העתק' : 'Copy')}
+          </button>
+        </div>
+      </div>
+
+      {/* Accounting Export */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span style={{ fontSize: 22 }}>📊</span>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'ייצוא לחשבוניות / הנהלת חשבונות' : 'Accounting Export'}</div>
+            <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? `${costs.length} רשומות הוצאות זמינות לייצוא` : `${costs.length} cost records available`}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={exportAccountingCsvInteg} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            📥 {rtl ? 'ייצוא CSV' : 'Export CSV'}
+          </button>
+          <button onClick={exportAccountingExcelInteg} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            📊 {rtl ? 'ייצוא Excel' : 'Export Excel'}
+          </button>
+        </div>
+      </div>
+
+      {/* Fuel API */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, opacity: 0.7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 22 }}>⛽</span>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'Fuel API — ייבוא תדלוקים' : 'Fuel API — Import Refuels'}</span>
+              <span style={{ background: C.primary + '20', color: C.primary, fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 10 }}>Coming Soon</span>
+            </div>
+            <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? 'חיבור ל-API של ספקי הדלק' : 'Connect to fuel provider APIs'}</div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -6912,7 +7377,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     { id: 'maintenance', label: t.maintenanceTab, icon: '🔧', count: null },
     { id: 'costs',       label: t.costsTab,       icon: '💰', count: null },
     { id: 'forms',       label: rtl ? 'טפסים'    : 'Forms',      icon: '📋', count: null },
-    { id: 'violations',  label: rtl ? 'קנסות'     : 'Violations', icon: '🚦', count: null },
+    { id: 'violations',  label: rtl ? 'קנסות'     : 'Violations',   icon: '🚦', count: null },
+    { id: 'integrations', label: rtl ? 'אינטגרציות' : 'Integrations', icon: '🔌', count: null },
     { id: 'reports',     label: rtl ? 'דוחות'     : 'Reports',    icon: '📄', count: null },
     { id: 'settings',    label: t.settings,        icon: '⚙️', count: null },
   ]
@@ -7107,20 +7573,20 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         <div style={{
           background: C.surface, borderBottom: `1px solid ${C.border}`,
           padding: isMobile ? '0 10px' : '0 24px',
-          height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' ? 'auto' : (isMobile ? 44 : 56),
+          height: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'integrations' ? 'auto' : (isMobile ? 44 : 56),
           minHeight: isMobile ? 44 : 56,
           display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 14, flexShrink: 0,
           boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
           flexWrap: isMobile ? 'wrap' : 'nowrap',
-          paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' ? 8 : 0,
-          paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' ? 8 : 0,
+          paddingTop: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'integrations' ? 8 : 0,
+          paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'integrations' ? 8 : 0,
         }}>
           <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
             {activeTabData?.icon} {activeTabData?.label}
           </h2>
 
-          {/* Search + New item — hidden on dashboard, settings, violations, reports */}
-          {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && <>
+          {/* Search + New item — hidden on dashboard, settings, violations, reports, integrations */}
+          {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'integrations' && <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: isMobile ? '5px 8px' : '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
               <span style={{ fontSize: 12, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
@@ -7219,15 +7685,20 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           <ReportsTab cars={cars} drivers={drivers} companyId={activeCompanyId} t={t} rtl={rtl} />
         )}
 
+        {/* Integrations tab */}
+        {activeTab === 'integrations' && activeCompanyId && (
+          <IntegrationsTab companyId={activeCompanyId} rtl={rtl} />
+        )}
+
         {/* Board */}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'forms' && isMaster && !activeCompanyId && (
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'forms' && activeTab !== 'integrations' && isMaster && !activeCompanyId && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textSecondary }}>
             <span style={{ fontSize: 40 }}>🏢</span>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.selectCompanyPrompt}</p>
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
         )}
-        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && activeTab !== 'forms' && activeTab !== 'violations' && activeTab !== 'reports' && (!isMaster || activeCompanyId) && (
+        {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'maintenance' && activeTab !== 'costs' && activeTab !== 'forms' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'integrations' && (!isMaster || activeCompanyId) && (
           isMobile ? (
             /* ── MOBILE: card list ─────────────────────────────────────── */
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 70px' }}>
