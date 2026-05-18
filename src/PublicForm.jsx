@@ -40,6 +40,7 @@ const FORM_META = {
   yearly_training:  { icon: '🎓', title: 'אימות הדרכה שנתית', en: 'Yearly Training Acknowledgment' },
   accident_report:  { icon: '🚨', title: 'דוח תאונה', en: 'Accident Report' },
   custom:           { icon: '📝', title: 'טופס מותאם אישית', en: 'Custom Form' },
+  license_agreement: { icon: '📄', title: 'הסכם רישיון שימוש', en: 'License Agreement' },
 }
 
 // ── File upload helper ────────────────────────────────────────────────────────
@@ -913,6 +914,159 @@ function AccidentReportPublicForm({ link, onSubmit, submitting }) {
   )
 }
 
+// ── License Agreement Form ────────────────────────────────────────────────────
+function LicenseAgreementForm({ link, onSubmit, submitting }) {
+  const [form, setForm] = useState({
+    company_name: '',
+    signatory_name: '',
+    signatory_role: '',
+    id_number: '',
+    phone: '',
+    email: '',
+    sign_date: new Date().toISOString().slice(0, 10),
+  })
+  const [signature, setSignature] = useState('')
+  const [agreed, setAgreed]       = useState(false)
+  const [error, setError]         = useState('')
+
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  function validate() {
+    if (!form.company_name.trim())   return 'נא להזין שם חברה / עסק.'
+    if (!form.signatory_name.trim()) return 'נא להזין שם מלא של מורשה החתימה.'
+    if (!form.id_number.trim())      return 'נא להזין מספר ח.פ. / ת.ז.'
+    if (!agreed)                     return 'יש לסמן את תיבת האישור לפני החתימה.'
+    if (!signature)                  return 'נא לחתום בשדה החתימה הדיגיטלית.'
+    return ''
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    const err = validate()
+    if (err) { setError(err); return }
+    setError('')
+    onSubmit({
+      submitter_name: form.signatory_name,
+      ...form,
+      signature,
+      agreed: true,
+      signed_at: new Date().toISOString(),
+    })
+  }
+
+  const AGREEMENT_CLAUSES = [
+    { n: '1', t: 'הענקת רישיון', b: 'ניתן רישיון שימוש מוגבל, אישי, בלתי-בלעדי ובלתי-ניתן להעברה לגישה למערכת Celox AI Fleet Manager לצרכים העסקיים הפנימיים של הלקוח בלבד, לתקופת הרישיון שנרכשה.' },
+    { n: '2', t: 'בעלות', b: 'המערכת כולה — קוד מקור, עיצוב, אלגוריתמים ומסדי נתונים — היא קניינו הבלעדי של ספק השירות. הסכם זה אינו מעביר כל זכות בעלות ללקוח.' },
+    { n: '3', t: 'הגבלות', b: 'אסור לבצע הנדסה לאחור, מכירה, השכרה, מתן רישיון משנה, בניית מוצר מתחרה, גישה לא מורשית לשרתים, או שיתוף גישה עם גורמים בלתי מורשים.' },
+    { n: '4', t: 'שירות ענן', b: 'המערכת ניתנת כ-SaaS. הספק אחראי לתחזוקת שרתים, אבטחה ועדכונים. הספק שואף לזמינות של 99% לפחות.' },
+    { n: '5', t: 'תשלום', b: 'דמי השימוש ישולמו מראש ואינם ניתנים להחזר אלא אם הוסכם בכתב. אי-תשלום עלול לגרור השעיית גישה לאחר 7 ימי הודעה.' },
+    { n: '6', t: 'פרטיות', b: 'הספק מתחייב לפעול בהתאם לחוק הגנת הפרטיות התשמ"א-1981. נתוני הלקוח לא יועברו לצד שלישי אלא לצורך מתן השירות.' },
+    { n: '7', t: 'הגבלת אחריות', b: 'המערכת מסופקת "כמות שהיא". הספק לא יישא בנזקים עקיפים או תוצאתיים. האחריות המרבית לא תעלה על 6 חודשי דמי מנוי.' },
+    { n: '8', t: 'ביטול', b: 'הספק רשאי לסיים רישיון לאלתר עקב הפרה מהותית, שימוש בלתי חוקי, או אי-תשלום שלא תוקן תוך 14 ימים.' },
+    { n: '9', t: 'דין חל', b: 'הסכם זה כפוף לדיני מדינת ישראל. סמכות שיפוט בלעדית לבתי המשפט בתל-אביב-יפו.' },
+  ]
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+
+      {/* Signatory details */}
+      <div style={section}>
+        <div style={sectionTitle}>🏢 פרטי הלקוח החותם</div>
+
+        <div style={field}>
+          <label style={lbl}>שם חברה / עסק <span style={{ color: '#ef4444' }}>*</span></label>
+          <input style={inp} value={form.company_name} onChange={set('company_name')} placeholder="שם החברה או העסק" required />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={field}>
+            <label style={lbl}>שם מלא מורשה חתימה <span style={{ color: '#ef4444' }}>*</span></label>
+            <input style={inp} value={form.signatory_name} onChange={set('signatory_name')} placeholder="שם פרטי + שם משפחה" required />
+          </div>
+          <div style={field}>
+            <label style={lbl}>תפקיד</label>
+            <input style={inp} value={form.signatory_role} onChange={set('signatory_role')} placeholder="מנכ&quot;ל / מנהל רכש..." />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={field}>
+            <label style={lbl}>מספר ח.פ. / ת.ז. <span style={{ color: '#ef4444' }}>*</span></label>
+            <input style={inp} value={form.id_number} onChange={set('id_number')} placeholder="000000000" required />
+          </div>
+          <div style={field}>
+            <label style={lbl}>תאריך חתימה</label>
+            <input type="date" style={inp} value={form.sign_date} onChange={set('sign_date')} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={field}>
+            <label style={lbl}>טלפון</label>
+            <input style={inp} value={form.phone} onChange={set('phone')} placeholder="05X-XXXXXXX" type="tel" />
+          </div>
+          <div style={field}>
+            <label style={lbl}>דואר אלקטרוני</label>
+            <input style={inp} value={form.email} onChange={set('email')} placeholder="you@company.com" type="email" />
+          </div>
+        </div>
+      </div>
+
+      {/* Agreement text */}
+      <div style={section}>
+        <div style={sectionTitle}>📜 תנאי הסכם רישיון — Celox AI Fleet Manager</div>
+        <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 12 }}>
+          קרא את עיקרי ההסכם בטרם חתימה. הנוסח המלא זמין בכתובת:{' '}
+          <a href="https://celoxai.com/license-agreement.html" target="_blank" rel="noreferrer" style={{ color: C.primary }}>celoxai.com/license-agreement.html</a>
+        </div>
+        <div style={{ maxHeight: 280, overflowY: 'auto', padding: '4px 2px' }}>
+          {AGREEMENT_CLAUSES.map(cl => (
+            <div key={cl.n} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 4 }}>
+                <span style={{ display: 'inline-block', background: C.primary, color: '#fff', borderRadius: 4, padding: '1px 7px', fontSize: 10, marginLeft: 6, fontWeight: 800 }}>{cl.n}</span>
+                {cl.t}
+              </div>
+              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.65, paddingRight: 8 }}>{cl.b}</div>
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
+            גרסה 1.0 · מאי 2025 · celoxai.com · bar.gershenzon@gmail.com
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation checkbox */}
+      <div style={{ background: C.surface, borderRadius: 12, padding: '16px 20px', marginBottom: 16, border: `1px solid ${agreed ? C.primary : C.border}`, transition: 'border-color 0.2s' }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={e => setAgreed(e.target.checked)}
+            style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, accentColor: C.primary, cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 13, color: C.text, lineHeight: 1.6 }}>
+            קראתי ואני מסכים/ה לכל תנאי הסכם הרישיון של Celox AI Fleet Manager המפורטים לעיל ובנוסח המלא באתר.
+            אני מאשר/ת כי הפרטים שמסרתי נכונים וכי הנני מורשה/ת לחתום בשם הגוף/חברה המצוינים.
+          </span>
+        </label>
+      </div>
+
+      {/* Digital signature */}
+      <div style={section}>
+        <div style={sectionTitle}>✍️ חתימה דיגיטלית</div>
+        <SignaturePad value={signature} onChange={setSignature} />
+      </div>
+
+      {error && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 16px', marginBottom: 12, color: '#dc2626', fontSize: 14, fontWeight: 600, textAlign: 'right' }}>
+          ⚠ {error}
+        </div>
+      )}
+
+      <button type="submit" disabled={submitting} style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#0891b2)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
+        {submitting ? '…שולח' : '📄 אני מסכים/ה וחותם/ת על ההסכם'}
+      </button>
+    </form>
+  )
+}
+
 // ── Public Form Page (root) ───────────────────────────────────────────────────
 export default function PublicForm({ token }) {
   const [link,        setLink]        = useState(null)
@@ -1037,9 +1191,15 @@ export default function PublicForm({ token }) {
 
         {!loading && done && (
           <div style={{ background: '#fff', borderRadius: 14, padding: 40, textAlign: 'center', marginTop: 40, border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: C.success, marginBottom: 8 }}>הטופס נשלח בהצלחה!</div>
-            <div style={{ fontSize: 14, color: C.textSub }}>תודה על מילוי הטופס. הנתונים נקלטו במערכת.</div>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>{link?.type === 'license_agreement' ? '📄' : '✅'}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: C.success, marginBottom: 8 }}>
+              {link?.type === 'license_agreement' ? 'ההסכם נחתם בהצלחה!' : 'הטופס נשלח בהצלחה!'}
+            </div>
+            <div style={{ fontSize: 14, color: C.textSub }}>
+              {link?.type === 'license_agreement'
+                ? 'תודה על חתימתך. ההסכם נשמר ויישלח אליך בדואר אלקטרוני.'
+                : 'תודה על מילוי הטופס. הנתונים נקלטו במערכת.'}
+            </div>
           </div>
         )}
 
@@ -1066,6 +1226,7 @@ export default function PublicForm({ token }) {
             {link.type === 'yearly_training'  && <YearlyTrainingForm        link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'accident_report'  && <AccidentReportPublicForm  link={link} onSubmit={handleSubmit} submitting={submitting} />}
             {link.type === 'custom'           && <CustomForm                link={link} onSubmit={handleSubmit} submitting={submitting} />}
+            {link.type === 'license_agreement' && <LicenseAgreementForm     link={link} onSubmit={handleSubmit} submitting={submitting} />}
           </>
         )}
       </div>

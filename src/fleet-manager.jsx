@@ -5168,6 +5168,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [limitUsers, setLimitUsers] = useState('')
   const [editingAccess, setEditingAccess] = useState(null) // company id being edited
   const [accessUntil, setAccessUntil]     = useState('')
+  // Master: license agreement sending
+  const [licenseCompany, setLicenseCompany] = useState(null)
+  const [licenseLink,    setLicenseLink]    = useState(null)
+  const [licenseBusy,    setLicenseBusy]    = useState(false)
+  const [licenseCopied,  setLicenseCopied]  = useState(false)
 
   useEffect(() => {
     if (isMaster) {
@@ -5275,6 +5280,49 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     setEditingAccess(null)
   }
 
+  async function openLicenseLink(co) {
+    // Toggle off if same company
+    if (licenseCompany === co.id) { setLicenseCompany(null); setLicenseLink(null); return }
+    setLicenseCompany(co.id)
+    setLicenseLink(null)
+    setLicenseBusy(true)
+    // Reuse existing active license_agreement link if available
+    const { data: existing } = await supabase.from('form_links')
+      .select('*').eq('company_id', co.id).eq('type', 'license_agreement')
+      .eq('is_active', true).is('expires_at', null).limit(1)
+    if (existing?.length) {
+      setLicenseLink(existing[0])
+      setLicenseBusy(false)
+      return
+    }
+    // Create a new link
+    const { data: newLink } = await supabase.from('form_links').insert({
+      company_id: co.id,
+      type: 'license_agreement',
+      title: `הסכם רישיון — ${co.name}`,
+      created_by: session.user.id,
+      is_active: true,
+      single_use: false,
+    }).select().single()
+    if (newLink) setLicenseLink(newLink)
+    setLicenseBusy(false)
+  }
+
+  async function newLicenseLink(co) {
+    setLicenseLink(null)
+    setLicenseBusy(true)
+    const { data: newLink } = await supabase.from('form_links').insert({
+      company_id: co.id,
+      type: 'license_agreement',
+      title: `הסכם רישיון — ${co.name}`,
+      created_by: session.user.id,
+      is_active: true,
+      single_use: false,
+    }).select().single()
+    if (newLink) setLicenseLink(newLink)
+    setLicenseBusy(false)
+  }
+
   const [exporting, setExporting] = useState(false)
 
   async function exportAllData() {
@@ -5376,6 +5424,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                       background: 'transparent', border: `1px solid ${C.border}`,
                       color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     }}>⚙️</button>
+                    <button onClick={() => openLicenseLink(co)} title={rtl ? 'שלח הסכם רישיון' : 'Send License Agreement'} style={{
+                      background: licenseCompany === co.id ? C.primary + '18' : 'transparent',
+                      border: `1px solid ${C.primary}50`,
+                      color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}>📄</button>
                     <button onClick={() => toggleActive(co)} style={{
                       background: 'transparent',
                       border: `1px solid ${co.is_active ? C.danger + '40' : C.success + '40'}`,
@@ -5434,6 +5487,66 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                       {rtl ? 'ללא הגבלה' : 'Unlimited'}
                     </button>
                     <button onClick={() => setEditingAccess(null)} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>{t.cancel}</button>
+                  </div>
+                )}
+                {/* Inline license agreement panel */}
+                {licenseCompany === co.id && (
+                  <div style={{ background: C.bg, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>
+                      📄 {rtl ? 'הסכם רישיון' : 'License Agreement'} — {co.name}
+                    </div>
+                    {licenseBusy ? (
+                      <div style={{ fontSize: 12, color: C.textSecondary }}>…{rtl ? 'יוצר קישור' : 'Generating link'}</div>
+                    ) : licenseLink ? (
+                      <>
+                        <div style={{ fontSize: 12, color: C.textSecondary }}>
+                          {rtl ? 'שלח קישור זה ללקוח לחתימה על ההסכם:' : 'Send this link to the client to sign the agreement:'}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <input
+                            readOnly
+                            value={`${window.location.origin}/form/${licenseLink.id}`}
+                            onClick={e => e.target.select()}
+                            style={{ flex: 1, minWidth: 0, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary, outline: 'none' }}
+                          />
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/form/${licenseLink.id}`)
+                              setLicenseCopied(true)
+                              setTimeout(() => setLicenseCopied(false), 2000)
+                            }}
+                            style={{ background: licenseCopied ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            {licenseCopied ? (rtl ? '✓ הועתק' : '✓ Copied') : (rtl ? 'העתק' : 'Copy')}
+                          </button>
+                          <button
+                            onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n${window.location.origin}/form/${licenseLink.id}`)}`, '_blank')}
+                            style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            📲 WhatsApp
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <div style={{ fontSize: 11, color: C.textSecondary, flex: 1 }}>
+                            {rtl ? 'הלקוח ימלא פרטי חברה, יקרא את ההסכם ויחתום דיגיטלית. החתימה תישמר בטפסים.' : 'The client fills company details, reads the agreement and signs digitally.'}
+                          </div>
+                          <button
+                            onClick={() => newLicenseLink(co)}
+                            style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            {rtl ? '+ קישור חדש' : '+ New link'}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 12, color: C.danger }}>{rtl ? 'שגיאה ביצירת הקישור.' : 'Failed to create link.'}</div>
+                    )}
+                    <button
+                      onClick={() => { setLicenseCompany(null); setLicenseLink(null) }}
+                      style={{ alignSelf: 'flex-start', background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}
+                    >
+                      {t.cancel}
+                    </button>
                   </div>
                 )}
                 {/* Inline limits editor */}
