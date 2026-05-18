@@ -695,7 +695,7 @@ export default function CRM({ session, onBack }) {
   ]
 
   if (loading) return (
-    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: C.bg, direction: 'rtl' }}>
+    <div style={{ display: 'flex', width: '100%', height: '100vh', alignItems: 'center', justifyContent: 'center', background: C.bg, direction: 'rtl' }}>
       <div style={{ textAlign: 'center', color: C.textMuted }}>
         <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.primary}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
         טוען נתוני CRM...
@@ -704,7 +704,7 @@ export default function CRM({ session, onBack }) {
   )
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: C.bg, direction: 'rtl', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', width: '100%', height: '100vh', background: C.bg, direction: 'rtl', overflow: 'hidden' }}>
       {/* Sidebar — desktop only */}
       {!isMobile && (
         <CRMSidebar view={view} setView={setView} onBack={onBack} leads={leads} />
