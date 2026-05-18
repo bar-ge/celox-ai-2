@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { supabase } from './supabaseClient'
+
+const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
 
 function checkRateLimit() {
   try {
@@ -32,6 +35,8 @@ export default function ContactForm() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
+  const captchaRef = useRef(null)
 
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
 
@@ -39,6 +44,7 @@ export default function ContactForm() {
     e.preventDefault()
     if (!form.name.trim()) { setError('נא להזין שם מלא.'); return }
     if (!form.email.trim() && !form.phone.trim()) { setError('נא להזין אימייל או טלפון.'); return }
+    if (!captchaToken) { setError('נא לאמת שאינך רובוט.'); return }
     if (!checkRateLimit()) { setError('שלחת יותר מדי בקשות. נסה שוב מאוחר יותר.'); return }
     setError(''); setSubmitting(true)
     const { error: dbErr } = await supabase.from('crm_leads').insert({
@@ -51,6 +57,8 @@ export default function ContactForm() {
       source: 'contact_form',
       status: 'new',
     })
+    captchaRef.current?.resetCaptcha()
+    setCaptchaToken('')
     if (dbErr) { setError('שגיאה בשליחה. נסה שוב.'); setSubmitting(false); return }
     setDone(true); setSubmitting(false)
   }
@@ -122,12 +130,21 @@ export default function ContactForm() {
                     placeholder="ספר לנו על הצרכים שלך..."
                   />
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <HCaptcha
+                    sitekey={HCAPTCHA_SITE_KEY}
+                    onVerify={token => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken('')}
+                    ref={captchaRef}
+                    theme="light"
+                  />
+                </div>
                 {error && (
                   <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', color: '#dc2626', fontSize: 13, fontWeight: 600 }}>
                     ⚠ {error}
                   </div>
                 )}
-                <button type="submit" disabled={submitting} style={{ background: 'linear-gradient(135deg, #0891b2, #6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, marginTop: 4 }}>
+                <button type="submit" disabled={submitting || !captchaToken} style={{ background: 'linear-gradient(135deg, #0891b2, #6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting || !captchaToken ? 'not-allowed' : 'pointer', opacity: submitting || !captchaToken ? 0.7 : 1, marginTop: 4 }}>
                   {submitting ? '…שולח' : '📨 שלח פנייה'}
                 </button>
                 <div style={{ fontSize: 11, color: C.textMuted, textAlign: 'center' }}>
