@@ -566,6 +566,8 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
   const [search,       setSearch]       = useState('')
   const [viewing,      setViewing]      = useState(null)
   const [sendCompany,  setSendCompany]  = useState('')
+  const [sendNumCars,  setSendNumCars]  = useState('')
+  const [sendNotes,    setSendNotes]    = useState('')
   const [sendLink,     setSendLink]     = useState(null)
   const [sendBusy,     setSendBusy]     = useState(false)
   const [sendCopied,   setSendCopied]   = useState(false)
@@ -589,10 +591,12 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
     if (selErr) { setSendError(selErr.message); setSendBusy(false); return }
     if (existing?.length) { setSendLink(existing[0]); setSendBusy(false); return }
     const co = companies.find(c => c.id === sendCompany)
+    const agreementFields = { num_cars: sendNumCars ? parseInt(sendNumCars, 10) : null, notes: sendNotes.trim() || null }
     const { data: newLink, error: insErr } = await supabase.from('form_links').insert({
       company_id: sendCompany, type: 'license_agreement',
       title: `הסכם רישיון — ${co?.name || ''}`,
       created_by: session.user.id, is_active: true, single_use: false,
+      fields: agreementFields,
     }).select().single()
     if (insErr) { setSendError(insErr.message); setSendBusy(false); return }
     if (newLink) setSendLink(newLink)
@@ -604,10 +608,12 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
     setSendBusy(true)
     setSendError('')
     const co = companies.find(c => c.id === sendCompany)
+    const agreementFields = { num_cars: sendNumCars ? parseInt(sendNumCars, 10) : null, notes: sendNotes.trim() || null }
     const { data: nl, error: insErr } = await supabase.from('form_links').insert({
       company_id: sendCompany, type: 'license_agreement',
       title: `הסכם רישיון — ${co?.name || ''}`,
       created_by: session.user.id, is_active: true, single_use: false,
+      fields: agreementFields,
     }).select().single()
     if (insErr) { setSendError(insErr.message); setSendBusy(false); return }
     if (nl) setSendLink(nl)
@@ -626,11 +632,21 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: 180 }}>
             <label style={lbl}>בחר חברה</label>
-            <select value={sendCompany} onChange={e => { setSendCompany(e.target.value); setSendLink(null) }} style={{ ...inp, cursor: 'pointer' }}>
+            <select value={sendCompany} onChange={e => { setSendCompany(e.target.value); setSendLink(null); setSendNumCars(''); setSendNotes('') }} style={{ ...inp, cursor: 'pointer' }}>
               <option value="">בחר לקוח...</option>
               {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
             </select>
           </div>
+          <div style={{ width: 110 }}>
+            <label style={lbl}>מספר רכבים</label>
+            <input type="number" min="0" value={sendNumCars} onChange={e => { setSendNumCars(e.target.value); setSendLink(null) }} placeholder="0" style={{ ...inp }} />
+          </div>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <label style={lbl}>הערות להסכם</label>
+          <textarea value={sendNotes} onChange={e => { setSendNotes(e.target.value); setSendLink(null) }} placeholder="הערות שיופיעו בהסכם..." rows={2} style={{ ...inp, resize: 'none' }} />
+        </div>
+        <div style={{ marginTop: 8 }}>
           <button onClick={generateLink} disabled={!sendCompany || sendBusy} style={{ ...btnPrimary, opacity: !sendCompany || sendBusy ? 0.5 : 1, whiteSpace: 'nowrap' }}>
             {sendBusy ? '…' : '🔗 צור קישור'}
           </button>
