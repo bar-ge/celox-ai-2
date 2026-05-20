@@ -589,9 +589,12 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
       .select('*').eq('company_id', sendCompany).eq('type', 'license_agreement')
       .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
     if (selErr) { setSendError(selErr.message); setSendBusy(false); return }
-    if (existing?.length) { setSendLink(existing[0]); setSendBusy(false); return }
-    const co = companies.find(c => c.id === sendCompany)
     const agreementFields = { num_cars: sendNumCars ? parseInt(sendNumCars, 10) : null, notes: sendNotes.trim() || null }
+    if (existing?.length) {
+      const { data: updated } = await supabase.from('form_links').update({ fields: agreementFields }).eq('id', existing[0].id).select().single()
+      setSendLink(updated || existing[0]); setSendBusy(false); return
+    }
+    const co = companies.find(c => c.id === sendCompany)
     const { data: newLink, error: insErr } = await supabase.from('form_links').insert({
       company_id: sendCompany, type: 'license_agreement',
       title: `הסכם רישיון — ${co?.name || ''}`,
