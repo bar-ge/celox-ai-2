@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react'
-import HCaptcha from '@hcaptcha/react-hcaptcha'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { supabase } from './supabaseClient'
 
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
 function checkRateLimit() {
   try {
@@ -36,7 +36,7 @@ export default function ContactForm() {
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
   const [captchaToken, setCaptchaToken] = useState('')
-  const captchaRef = useRef(null)
+  const turnstileRef = useRef(null)
 
   const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }))
 
@@ -57,7 +57,7 @@ export default function ContactForm() {
       source: 'contact_form',
       status: 'new',
     })
-    captchaRef.current?.resetCaptcha()
+    turnstileRef.current?.reset()
     setCaptchaToken('')
     if (dbErr) { setError('שגיאה בשליחה. נסה שוב.'); setSubmitting(false); return }
     setDone(true); setSubmitting(false)
@@ -131,12 +131,13 @@ export default function ContactForm() {
                   />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <HCaptcha
-                    sitekey={HCAPTCHA_SITE_KEY}
-                    onVerify={token => setCaptchaToken(token)}
+                  <Turnstile
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={token => setCaptchaToken(token)}
                     onExpire={() => setCaptchaToken('')}
-                    ref={captchaRef}
-                    theme="light"
+                    onError={() => setCaptchaToken('')}
+                    ref={turnstileRef}
+                    options={{ theme: 'light', language: 'he' }}
                   />
                 </div>
                 {error && (
