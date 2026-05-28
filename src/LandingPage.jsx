@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import HCaptcha from '@hcaptcha/react-hcaptcha'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { CeloxIcon } from './LogoIcon'
 import { validateField, isEmail, isIsraeliPhone, isEmpty } from './validators'
 
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
 function checkClientRateLimit(key, max, windowMs = 3_600_000) {
   try {
@@ -641,7 +641,7 @@ function ContactSection({ t }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-      captchaRef.current?.resetCaptcha()
+      captchaRef.current?.reset()
       setCaptchaToken('')
       if (r.ok) setDone(true)
       else setErr(c.error)
@@ -703,12 +703,13 @@ function ContactSection({ t }) {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-                  <HCaptcha
-                    sitekey={HCAPTCHA_SITE_KEY}
-                    onVerify={token => setCaptchaToken(token)}
+                  <Turnstile
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={token => setCaptchaToken(token)}
                     onExpire={() => setCaptchaToken('')}
+                    onError={() => setCaptchaToken('')}
                     ref={captchaRef}
-                    theme="light"
+                    options={{ theme: 'light', language: t.dir === 'rtl' ? 'he' : 'en' }}
                   />
                 </div>
 
