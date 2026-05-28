@@ -4,11 +4,11 @@ import FleetManager from './fleet-manager'
 import PublicForm from './PublicForm'
 import CRM from './CRM'
 import ContactForm from './ContactForm'
-import HCaptcha from '@hcaptcha/react-hcaptcha'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { friendlyDbError } from './validators'
 import './App.css'
 
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || '9b4aefb2-ea20-4dd6-ae22-ccc6360a2ede'
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
 const MASTER_EMAIL = import.meta.env.VITE_MASTER_EMAIL ?? ''
 
@@ -455,14 +455,14 @@ function LoginScreen({ lang, setLang, notice }) {
     setLoading(true)
 
     if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setError(error.message)
     } else {
-      const { error } = await supabase.auth.signUp({ email, password, options: { captchaToken } })
+      const { error } = await supabase.auth.signUp({ email, password })
       if (error) setError(error.message)
       else { setEmail(''); setPassword(''); setMode('login'); setSuccess(t.accountCreated) }
     }
-    captchaRef.current?.resetCaptcha()
+    captchaRef.current?.reset()
     setCaptchaToken('')
     setLoading(false)
   }
@@ -478,7 +478,7 @@ function LoginScreen({ lang, setLang, notice }) {
     else setSuccess(t.resetLinkSent)
   }
 
-  function switchMode(m) { setMode(m); setForgotMode(false); setError(''); setSuccess(''); setCaptchaToken(''); setConsentChecked(false); captchaRef.current?.resetCaptcha() }
+  function switchMode(m) { setMode(m); setForgotMode(false); setError(''); setSuccess(''); setCaptchaToken(''); setConsentChecked(false); captchaRef.current?.reset() }
 
   return (
     <Page lang={lang} setLang={setLang}>
@@ -553,8 +553,14 @@ function LoginScreen({ lang, setLang, notice }) {
               <Err  msg={error} />
               <Succ msg={success} />
               <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <HCaptcha sitekey={HCAPTCHA_SITE_KEY} onVerify={token => setCaptchaToken(token)}
-                  onExpire={() => setCaptchaToken('')} ref={captchaRef} theme="light" />
+                <Turnstile
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={token => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken('')}
+                  onError={() => setCaptchaToken('')}
+                  ref={captchaRef}
+                  options={{ theme: 'light' }}
+                />
               </div>
               <button type="submit"
                 disabled={loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough)))}
