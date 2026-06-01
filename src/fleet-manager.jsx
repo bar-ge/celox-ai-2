@@ -220,6 +220,7 @@ const T = {
     maxCars:'Max Vehicles', maxUsers:'Max Users', maxDrivers:'Max Drivers', maxStorage:'Max Storage',
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
+    limitReachedStorage:'Storage limit reached for this company.',
     requiredFields:'Plate, make and model are required.',
     yearRange:'Year must be between 1900 and 2099.',
     signOut:'Sign Out', loadingShort:'Loading…', emailPlaceholder:'colleague@example.com',
@@ -415,6 +416,7 @@ const T = {
     maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים', maxDrivers:'מקסימום נהגים', maxStorage:'מקסימום אחסון',
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
+    limitReachedStorage:'הגעת למגבלת האחסון של החברה.',
     requiredFields:'לוחית, יצרן ודגם הם שדות חובה.',
     yearRange:'שנת הייצור חייבת להיות בין 1900 ל-2099.',
     signOut:'התנתק', loadingShort:'טוען…', emailPlaceholder:'עמית@example.com',
@@ -746,6 +748,17 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
     if (!pendingFile) return
     if (pendingFile.size > 10 * 1024 * 1024) { setError(t.fileTooLarge); return }
     if (!ALLOWED_DOC_TYPES.includes(pendingFile.type)) { setError(t.fileTypeNotAllowed); return }
+    // Check company-wide storage limit
+    const [{ data: co }, { data: usedDocs }] = await Promise.all([
+      supabase.from('companies').select('max_storage_mb').eq('id', companyId).single(),
+      supabase.from('documents').select('size').eq('company_id', companyId),
+    ])
+    if (co?.max_storage_mb != null) {
+      const usedBytes = (usedDocs || []).reduce((sum, d) => sum + (d.size || 0), 0)
+      if (usedBytes + pendingFile.size > co.max_storage_mb * 1024 * 1024) {
+        setError(t.limitReachedStorage); return
+      }
+    }
     setUploading(true); setError('')
     const safeName = pendingFile.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
     const path = `${companyId}/${entityType}/${entity.id}/${Date.now()}_${safeName}`
@@ -1037,6 +1050,17 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
     if (!pendingFile) return
     if (pendingFile.size > 10 * 1024 * 1024) { setError(t.fileTooLarge); return }
     if (!ALLOWED.includes(pendingFile.type)) { setError(t.fileTypeNotAllowed); return }
+    // Check company-wide storage limit
+    const [{ data: co }, { data: usedDocs }] = await Promise.all([
+      supabase.from('companies').select('max_storage_mb').eq('id', companyId).single(),
+      supabase.from('documents').select('size').eq('company_id', companyId),
+    ])
+    if (co?.max_storage_mb != null) {
+      const usedBytes = (usedDocs || []).reduce((sum, d) => sum + (d.size || 0), 0)
+      if (usedBytes + pendingFile.size > co.max_storage_mb * 1024 * 1024) {
+        setError(t.limitReachedStorage); return
+      }
+    }
     setUploading(true); setError('')
     const safeName = pendingFile.name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '').replace(/\s+/g, '_')
     const path = `${companyId}/${entityType}/${entityId}/${Date.now()}_${safeName}`
