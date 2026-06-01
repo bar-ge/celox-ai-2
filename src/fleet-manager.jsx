@@ -217,7 +217,7 @@ const T = {
     selectCompanyHint:'Go to Settings → click Manage next to a company',
     files:'Files', uploadFile:'Upload File', noFiles:'No files yet.',
     expiryDate:'Expiry Date', expired:'Expired', expiresIn:'Expires in', clearExpiry:'Clear',
-    maxCars:'Max Vehicles', maxUsers:'Max Users',
+    maxCars:'Max Vehicles', maxUsers:'Max Users', maxDrivers:'Max Drivers', maxStorage:'Max Storage',
     limitReachedCars:'Vehicle limit reached for this company.',
     limitReachedUsers:'User limit reached for this company.',
     requiredFields:'Plate, make and model are required.',
@@ -412,7 +412,7 @@ const T = {
     selectCompanyHint:'עבור להגדרות ← לחץ נהל ליד חברה',
     files:'קבצים', uploadFile:'העלה קובץ', noFiles:'אין קבצים עדיין.',
     expiryDate:'תאריך תפוגה', expired:'פג תוקף', expiresIn:'פג בעוד', clearExpiry:'נקה',
-    maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים',
+    maxCars:'מקסימום רכבים', maxUsers:'מקסימום משתמשים', maxDrivers:'מקסימום נהגים', maxStorage:'מקסימום אחסון',
     limitReachedCars:'הגעת למגבלת הרכבים של החברה.',
     limitReachedUsers:'הגעת למגבלת המשתמשים של החברה.',
     requiredFields:'לוחית, יצרן ודגם הם שדות חובה.',
@@ -5208,8 +5208,10 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [masterMsg, setMasterMsg]   = useState('')
   const [masterErr, setMasterErr]   = useState('')
   const [editingLimits, setEditingLimits] = useState(null) // company id being edited
-  const [limitCars, setLimitCars]   = useState('')
-  const [limitUsers, setLimitUsers] = useState('')
+  const [limitCars, setLimitCars]         = useState('')
+  const [limitUsers, setLimitUsers]       = useState('')
+  const [limitDrivers, setLimitDrivers]   = useState('')
+  const [limitStorageMb, setLimitStorageMb] = useState('')
   const [editingAccess, setEditingAccess] = useState(null) // company id being edited
   const [accessUntil, setAccessUntil]     = useState('')
 
@@ -5336,13 +5338,18 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     setEditingLimits(co.id)
     setLimitCars(co.max_cars ?? '')
     setLimitUsers(co.max_users ?? '')
+    setLimitDrivers(co.max_drivers ?? '')
+    setLimitStorageMb(co.max_storage_mb != null ? Math.round(co.max_storage_mb / 1024) : '')
   }
 
   async function saveLimits(co) {
+    const storageMbVal = limitStorageMb === '' ? null : parseInt(limitStorageMb, 10) * 1024
     const { data } = await supabase.from('companies')
       .update({
-        max_cars:  limitCars  === '' ? null : parseInt(limitCars, 10),
-        max_users: limitUsers === '' ? null : parseInt(limitUsers, 10),
+        max_cars:        limitCars     === '' ? null : parseInt(limitCars, 10),
+        max_users:       limitUsers    === '' ? null : parseInt(limitUsers, 10),
+        max_drivers:     limitDrivers  === '' ? null : parseInt(limitDrivers, 10),
+        max_storage_mb:  storageMbVal,
       })
       .eq('id', co.id)
       .select().single()
@@ -5477,6 +5484,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSecondary, flexWrap: 'wrap', alignItems: 'center' }}>
                   <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.textPrimary : C.textSecondary }}>{co.max_cars ?? '∞'}</strong></span>
                   <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.textPrimary : C.textSecondary }}>{co.max_users ?? '∞'}</strong></span>
+                  <span>🧑‍✈️ {t.maxDrivers}: <strong style={{ color: co.max_drivers != null ? C.textPrimary : C.textSecondary }}>{co.max_drivers ?? '∞'}</strong></span>
+                  <span>💾 {t.maxStorage}: <strong style={{ color: co.max_storage_mb != null ? C.textPrimary : C.textSecondary }}>{co.max_storage_mb != null ? `${Math.round(co.max_storage_mb / 1024)} GB` : '∞'}</strong></span>
                   {/* Access expiry */}
                   {(() => {
                     if (!co.access_until) return (
@@ -5536,6 +5545,16 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>👤 {t.maxUsers}</label>
                       <input type="number" min="0" value={limitUsers} onChange={e => setLimitUsers(e.target.value)}
+                        placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>🧑‍✈️ {t.maxDrivers}</label>
+                      <input type="number" min="0" value={limitDrivers} onChange={e => setLimitDrivers(e.target.value)}
+                        placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>💾 {t.maxStorage} (GB)</label>
+                      <input type="number" min="0" value={limitStorageMb} onChange={e => setLimitStorageMb(e.target.value)}
                         placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <button onClick={() => saveLimits(co)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t.save}</button>
