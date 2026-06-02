@@ -7061,8 +7061,9 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
   const containerRef = useRef(null)
   const moreRef      = useRef(null)
   const cachedWidths = useRef({})
-  const [cutoff, setCutoff] = useState(tabs.length)
-  const [open, setOpen]     = useState(false)
+  const [cutoff, setCutoff]   = useState(tabs.length)
+  const [open, setOpen]       = useState(false)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0 })
 
   useLayoutEffect(() => {
     const el = containerRef.current
@@ -7072,7 +7073,7 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
         const w = btn.getBoundingClientRect().width
         if (w > 0) cachedWidths.current[btn.dataset.ntab] = w
       })
-      const MORE_W   = 56
+      const MORE_W    = 56
       const available = el.offsetWidth - MORE_W
       let used = 0, cut = tabs.length
       for (let i = 0; i < tabs.length; i++) {
@@ -7093,6 +7094,14 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [open])
+
+  function handleMoreClick() {
+    if (moreRef.current) {
+      const r = moreRef.current.getBoundingClientRect()
+      setDropPos({ top: r.bottom + 4, left: rtl ? r.right : r.left })
+    }
+    setOpen(p => !p)
+  }
 
   const hiddenTabs     = tabs.slice(cutoff)
   const overflowActive = hiddenTabs.some(t => t.id === activeTab)
@@ -7138,8 +7147,8 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
       })}
 
       {hiddenTabs.length > 0 && (
-        <div ref={moreRef} style={{ position: 'relative', flexShrink: 0 }}>
-          <button onClick={() => setOpen(p => !p)} style={{
+        <div ref={moreRef} style={{ flexShrink: 0 }}>
+          <button onClick={handleMoreClick} style={{
             display: 'flex', alignItems: 'center', gap: 3,
             padding: '6px 9px', borderRadius: 7, border: 'none', cursor: 'pointer',
             background: (open || overflowActive) ? 'rgba(255,255,255,0.1)' : 'transparent',
@@ -7152,14 +7161,16 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
             +{hiddenTabs.length} <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
           </button>
 
-          {open && (
-            <div className="dropdown-enter" style={{
-              position: 'absolute', top: 'calc(100% + 6px)',
-              [rtl ? 'right' : 'left']: 0,
-              background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 10, boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
-              padding: '4px', zIndex: 9999, minWidth: 180,
-            }}>
+          {open && createPortal(
+            <div className="dropdown-enter" onMouseDown={e => e.stopPropagation()}
+              style={{
+                position: 'fixed', zIndex: 99999,
+                top: dropPos.top,
+                ...(rtl ? { right: window.innerWidth - dropPos.left } : { left: dropPos.left }),
+                background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 10, boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+                padding: '4px', minWidth: 180,
+              }}>
               {hiddenTabs.map(item => {
                 const active = activeTab === item.id
                 return (
@@ -7186,7 +7197,8 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
                   </button>
                 )
               })}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       )}
