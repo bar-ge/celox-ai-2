@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import ExcelJS from 'exceljs'
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, friendlyDbError } from './validators'
@@ -7056,6 +7056,144 @@ function IntegrationsTab({ companyId, rtl }) {
   )
 }
 
+// ── Nav tabs with automatic overflow → "+N" dropdown ───────────────────────
+function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
+  const containerRef = useRef(null)
+  const moreRef      = useRef(null)
+  const cachedWidths = useRef({})
+  const [cutoff, setCutoff] = useState(tabs.length)
+  const [open, setOpen]     = useState(false)
+
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    function measure() {
+      el.querySelectorAll('[data-ntab]').forEach(btn => {
+        const w = btn.getBoundingClientRect().width
+        if (w > 0) cachedWidths.current[btn.dataset.ntab] = w
+      })
+      const MORE_W   = 56
+      const available = el.offsetWidth - MORE_W
+      let used = 0, cut = tabs.length
+      for (let i = 0; i < tabs.length; i++) {
+        used += (cachedWidths.current[tabs[i].id] ?? 100) + 1
+        if (used > available) { cut = i; break }
+      }
+      setCutoff(cut)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [tabs, isNarrow])
+
+  useEffect(() => {
+    if (!open) return
+    const h = e => { if (!moreRef.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  const hiddenTabs     = tabs.slice(cutoff)
+  const overflowActive = hiddenTabs.some(t => t.id === activeTab)
+
+  return (
+    <div ref={containerRef} style={{
+      display: 'flex', flex: 1, minWidth: 0, alignItems: 'center',
+      gap: 1, overflow: 'hidden', direction: rtl ? 'rtl' : 'ltr',
+    }}>
+      {tabs.map((item, i) => {
+        const active = activeTab === item.id
+        const hidden = i >= cutoff
+        return (
+          <button key={item.id} data-ntab={item.id}
+            onClick={() => onSwitch(item.id)} title={item.label}
+            style={{
+              display: hidden ? 'none' : 'flex',
+              alignItems: 'center', justifyContent: 'center', gap: 5,
+              padding: isNarrow ? '6px 8px' : '6px 12px',
+              borderRadius: 7, border: 'none', cursor: 'pointer', flexShrink: 0,
+              background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
+              color: active ? C.navActive : C.navText,
+              fontWeight: active ? 700 : 400,
+              fontSize: isNarrow ? 12 : 13,
+              outline: active ? '1px solid rgba(255,255,255,0.15)' : 'none',
+              outlineOffset: -1,
+              transition: 'color 0.15s, background 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#e2e8f0' }}
+            onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.navText }}
+          >
+            <TabIcon id={item.id} size={14} />
+            {item.label}
+            {item.count !== null && (
+              <span style={{
+                background: active ? 'rgba(37,99,235,0.5)' : 'rgba(255,255,255,0.15)',
+                color: '#fff', borderRadius: 10, padding: '1px 5px', fontSize: 10, fontWeight: 700,
+              }}>{item.count}</span>
+            )}
+          </button>
+        )
+      })}
+
+      {hiddenTabs.length > 0 && (
+        <div ref={moreRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <button onClick={() => setOpen(p => !p)} style={{
+            display: 'flex', alignItems: 'center', gap: 3,
+            padding: '6px 9px', borderRadius: 7, border: 'none', cursor: 'pointer',
+            background: (open || overflowActive) ? 'rgba(255,255,255,0.1)' : 'transparent',
+            color: (open || overflowActive) ? C.navActive : C.navText,
+            fontWeight: overflowActive ? 700 : 500,
+            fontSize: isNarrow ? 12 : 13, whiteSpace: 'nowrap',
+            outline: overflowActive ? '1px solid rgba(255,255,255,0.15)' : 'none',
+            outlineOffset: -1,
+          }}>
+            +{hiddenTabs.length} <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
+          </button>
+
+          {open && (
+            <div className="dropdown-enter" style={{
+              position: 'absolute', top: 'calc(100% + 6px)',
+              [rtl ? 'right' : 'left']: 0,
+              background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10, boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+              padding: '4px', zIndex: 9999, minWidth: 180,
+            }}>
+              {hiddenTabs.map(item => {
+                const active = activeTab === item.id
+                return (
+                  <button key={item.id}
+                    onClick={() => { onSwitch(item.id); setOpen(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                      padding: '8px 12px', border: 'none', cursor: 'pointer', borderRadius: 7,
+                      textAlign: 'start', fontFamily: 'inherit',
+                      background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
+                      color: active ? '#fff' : 'rgba(255,255,255,0.75)',
+                      fontWeight: active ? 700 : 400,
+                      fontSize: 13, whiteSpace: 'nowrap',
+                      transition: 'background 0.12s',
+                    }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = active ? 'rgba(255,255,255,0.1)' : 'transparent' }}
+                  >
+                    <TabIcon id={item.id} size={15} />
+                    {item.label}
+                    {item.count !== null && (
+                      <span style={{ marginInlineStart: 'auto', fontSize: 11, opacity: 0.6 }}>{item.count}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang, onOpenCRM }) {
   const [branches, setBranches]   = useState([])
   const [drivers, setDrivers]     = useState([])
@@ -7482,41 +7620,15 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           {!isMobile && <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 13, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>Celox AI</span>}
         </div>
 
-        {/* Nav tabs — desktop only; flex:1 so they take available space, overflow hidden so they never push right controls off screen */}
+        {/* Nav tabs — desktop only; auto-overflow into "+N" dropdown */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', direction: rtl ? 'rtl' : 'ltr' }}>
-            {tabs.map(item => {
-              const isActive = activeTab === item.id
-              return (
-                <button key={item.id} onClick={() => switchTab(item.id)} title={item.label} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  padding: isNarrow ? '6px 8px' : '6px 12px',
-                  borderRadius: 7,
-                  border: 'none', cursor: 'pointer', flexShrink: 0,
-                  background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  color: isActive ? C.navActive : C.navText,
-                  fontWeight: isActive ? 700 : 400,
-                  fontSize: isNarrow ? 12 : 13,
-                  outline: isActive ? '1px solid rgba(255,255,255,0.15)' : 'none',
-                  outlineOffset: -1,
-                  transition: 'color 0.15s, background 0.15s, transform 0.1s',
-                  whiteSpace: 'nowrap',
-                }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#e2e8f0' }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.navText }}
-                >
-                  <TabIcon id={item.id} size={14} />
-                  {item.label}
-                  {item.count !== null && (
-                    <span style={{
-                      background: isActive ? 'rgba(8,145,178,0.5)' : 'rgba(255,255,255,0.15)', color: '#fff',
-                      borderRadius: 10, padding: '1px 5px', fontSize: 10, fontWeight: 700,
-                    }}>{item.count}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          <NavTabsWithOverflow
+            tabs={tabs}
+            activeTab={activeTab}
+            onSwitch={switchTab}
+            rtl={rtl}
+            isNarrow={isNarrow}
+          />
         )}
 
         {/* Right side — notifications + sign-out + lang toggle. flexShrink:0 so they are NEVER cut off */}
