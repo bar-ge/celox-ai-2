@@ -19,7 +19,7 @@ function checkRateLimit() {
 }
 
 const C = {
-  navBg: '#0f172a', primary: '#0891b2', bg: '#f1f5f9', surface: '#ffffff',
+  navBg: '#0f172a', primary: '#2563eb', bg: '#f1f5f9', surface: '#ffffff',
   border: '#e2e8f0', text: '#0f172a', textSub: '#475569', textMuted: '#94a3b8',
   danger: '#ef4444', success: '#10b981',
 }
@@ -67,7 +67,7 @@ export default function ContactForm() {
     <div style={{ minHeight: '100vh', background: `linear-gradient(135deg, ${C.navBg} 0%, #1e3a5f 100%)`, display: 'flex', flexDirection: 'column', direction: 'rtl' }}>
       {/* Header */}
       <div style={{ background: C.navBg, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#0891b2,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="20" height="20" viewBox="0 0 26 26" fill="none"><rect x="2" y="15" width="22" height="7" rx="3.5" fill="white" fillOpacity="0.9"/><rect x="6" y="10" width="14" height="7" rx="2" fill="white"/><circle cx="7.5" cy="22" r="2.5" fill="white" fillOpacity="0.6"/><circle cx="18.5" cy="22" r="2.5" fill="white" fillOpacity="0.6"/><rect x="10" y="6" width="6" height="5" rx="1" fill="white" fillOpacity="0.7"/></svg>
         </div>
         <span style={{ color: '#f8fafc', fontWeight: 900, fontSize: 17 }}>Celox AI Fleet Manager</span>
@@ -86,7 +86,7 @@ export default function ContactForm() {
             </div>
           ) : (
             <div style={{ background: C.surface, borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
-              <div style={{ background: 'linear-gradient(135deg, #0891b2, #6366f1)', padding: '28px 32px' }}>
+              <div style={{ background: 'linear-gradient(135deg, #2563eb, #6366f1)', padding: '28px 32px' }}>
                 <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', marginBottom: 6 }}>צור קשר</div>
                 <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>מלא את הפרטים ונחזור אליך בהקדם</div>
               </div>
@@ -145,7 +145,7 @@ export default function ContactForm() {
                     ⚠ {error}
                   </div>
                 )}
-                <button type="submit" disabled={submitting || !captchaToken} style={{ background: 'linear-gradient(135deg, #0891b2, #6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting || !captchaToken ? 'not-allowed' : 'pointer', opacity: submitting || !captchaToken ? 0.7 : 1, marginTop: 4 }}>
+                <button type="submit" disabled={submitting || !captchaToken} style={{ background: 'linear-gradient(135deg, #2563eb, #6366f1)', color: '#fff', border: 'none', borderRadius: 10, padding: '14px', fontSize: 15, fontWeight: 800, cursor: submitting || !captchaToken ? 'not-allowed' : 'pointer', opacity: submitting || !captchaToken ? 0.7 : 1, marginTop: 4 }}>
                   {submitting ? '…שולח' : '📨 שלח פנייה'}
                 </button>
                 <div style={{ fontSize: 11, color: C.textMuted, textAlign: 'center' }}>

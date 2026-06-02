@@ -119,7 +119,7 @@ function MultiSelect({ options, value = [], onChange, placeholder, style, getLab
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 13, color: '#1e293b' }}>
               <input type="checkbox" checked={value.includes(opt)}
                 onChange={() => toggle(opt)}
-                style={{ accentColor: '#0891b2', width: 15, height: 15 }} />
+                style={{ accentColor: C.primary, width: 15, height: 15 }} />
               {lbl(opt)}
             </label>
           ))}
@@ -141,6 +141,17 @@ function useIsMobile(breakpoint = 640) {
   return isMobile
 }
 
+// ── Narrow desktop breakpoint hook (nav compression) ───────────────────────
+function useIsNarrow(breakpoint = 1200) {
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < breakpoint)
+  const handler = useCallback(() => setIsNarrow(window.innerWidth < breakpoint), [breakpoint])
+  useEffect(() => {
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [handler])
+  return isNarrow
+}
+
 // ── Design tokens ───────────────────────────────────────────────────────────
 const C = {
   navBg:        '#0f172a',
@@ -148,8 +159,8 @@ const C = {
   navText:      '#94a3b8',
   navActive:    '#f8fafc',
   navActiveBg:  'rgba(255,255,255,0.1)',
-  primary:      '#0891b2',
-  primaryHover: '#0e7490',
+  primary:      '#2563eb',
+  primaryHover: '#1d4ed8',
   indigo:       '#6366f1',
   bg:           '#f1f5f9',
   bgSubtle:     '#f8fafc',
@@ -168,7 +179,7 @@ const C = {
   footerBg:     '#f8fafc',
 }
 
-const BRANCH_COLORS = ['#0891b2','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
+const BRANCH_COLORS = ['#2563eb','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
 const branchColor = idx => BRANCH_COLORS[Math.max(idx, 0) % BRANCH_COLORS.length]
 
 // ── Translations ────────────────────────────────────────────────────────────
@@ -999,7 +1010,7 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {sub.data.attachments.map((a, i) => (
                         <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
-                          style={{ background: '#0891b2', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          style={{ background: C.primary, color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
                           📎 {a.name}
                         </a>
                       ))}
@@ -3893,7 +3904,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
 
   const card  = { background: '#f8faff', borderRadius: 8, border: '1px solid #e4eaf4', padding: '10px 14px', marginBottom: 8 }
   const badge = { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600,
-    background: '#ecfeff', color: '#0891b2', borderRadius: 5, padding: '3px 8px', marginRight: 6, marginBottom: 4 }
+    background: '#eff6ff', color: C.primary, borderRadius: 5, padding: '3px 8px', marginRight: 6, marginBottom: 4 }
   const defBadge = { ...badge, background: '#f3f4f6', color: '#6b7280', cursor: 'default' }
 
   if (loading) return <p style={{ color: C.textSecondary, fontSize: 13 }}>{t.loadingShort}</p>
@@ -3915,7 +3926,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
               {customs.map(item => (
                 <span key={item.id} style={badge}>
                   {item.value}
-                  <button onClick={() => removeValue(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#0891b2', fontWeight: 900, fontSize: 14, lineHeight: 1 }}>×</button>
+                  <button onClick={() => removeValue(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: C.primary, fontWeight: 900, fontSize: 14, lineHeight: 1 }}>×</button>
                 </span>
               ))}
               {customs.length === 0 && defaults.length === 0 && (
@@ -4475,7 +4486,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                 <div style={{ fontSize: 13, color: '#64748b' }}>{printSub.submitter_name} · {new Date(printSub.submitted_at).toLocaleString('he-IL')}</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => window.print()} style={{ background: '#0891b2', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🖨️ הדפס</button>
+                <button onClick={() => window.print()} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🖨️ הדפס</button>
                 <button onClick={() => setPrintSub(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>סגור</button>
               </div>
             </div>
@@ -4489,7 +4500,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
             {printSub.data?.attachments?.length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontWeight: 700, color: '#475569', marginBottom: 8 }}>קבצים מצורפים</div>
-                {printSub.data.attachments.map((a, i) => <div key={i} style={{ fontSize: 13, color: '#0891b2' }}>📎 {a.name}</div>)}
+                {printSub.data.attachments.map((a, i) => <div key={i} style={{ fontSize: 13, color: C.primary }}>📎 {a.name}</div>)}
               </div>
             )}
           </div>
@@ -4505,7 +4516,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
             <img src={qrUrl(showQr.token)} alt="QR" style={{ width: 220, height: 220, borderRadius: 10, border: '1px solid #e2e8f0' }} />
             <div style={{ marginTop: 16, fontSize: 11, color: '#94a3b8', wordBreak: 'break-all', direction: 'ltr' }}>{formUrl(showQr.token)}</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
-              <a href={qrUrl(showQr.token)} download={`qr-${showQr.title}.png`} style={{ background: '#0891b2', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>⬇️ {rtl ? 'הורד QR' : 'Download QR'}</a>
+              <a href={qrUrl(showQr.token)} download={`qr-${showQr.title}.png`} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>⬇️ {rtl ? 'הורד QR' : 'Download QR'}</a>
               <button onClick={() => setShowQr(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'סגור' : 'Close'}</button>
             </div>
           </div>
@@ -5928,7 +5939,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
             <ul style={{ margin: '0 0 8px', paddingInlineStart: 20 }}>
               {t.privacyRightsItems.map((item, i) => <li key={i} style={{ marginBottom: 4 }}>{item}</li>)}
             </ul>
-            <p style={{ margin: 0, fontWeight: 600, color: '#0891b2' }}>{t.privacyRightsContact}</p>
+            <p style={{ margin: 0, fontWeight: 600, color: C.primary }}>{t.privacyRightsContact}</p>
           </Section>
           <Section title={t.privacySecurityTitle}>
             <p style={{ margin: 0 }}>{t.privacySecurity}</p>
@@ -6169,7 +6180,7 @@ const VIOLATION_PAYMENT_STATUS_HE = { unpaid: 'לא שולם', paid: 'שולם',
 const VIOLATION_PAYMENT_STATUS_COLORS = { unpaid: '#ef4444', paid: '#10b981', disputed: '#f59e0b', cancelled: '#94a3b8' }
 const VIOLATION_TYPES_HE =['מהירות יתר','אי מתן זכות קדימה','חנייה אסורה','שימוש בטלפון בנהיגה','אי עצירה ברמזור אדום','חריגה מנתיב','אחר']
 const VIOLATION_TYPES_EN = ['Speeding','Right of way','Illegal parking','Phone while driving','Red light','Lane violation','Other']
-const VIOLATION_STATUS_COLORS = { new: C?.warning || '#f59e0b', assigned: '#8b5cf6', signed: C?.primary || '#0891b2', submitted: C?.success || '#10b981', resolved: '#64748b' }
+const VIOLATION_STATUS_COLORS = { new: C?.warning || '#f59e0b', assigned: '#8b5cf6', signed: C?.primary || '#2563eb', submitted: C?.success || '#10b981', resolved: '#64748b' }
 
 function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
   const [violations, setViolations] = useState([])
@@ -7056,6 +7067,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [search, setSearch]       = useState('')
   const [lang, setLang]           = useState(() => localStorage.getItem('fleet_lang') || initialLang || 'en')
   const isMobile                  = useIsMobile()
+  const isNarrow                  = useIsNarrow()
   const [filesFor, setFilesFor]   = useState(null)
   const [companyLimits, setCompanyLimits] = useState({ max_cars: null, max_users: null })
   const [customLists, setCustomLists]     = useState({})
@@ -7441,7 +7453,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   return (
     // Outer wrapper: always LTR so the nav never flips
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Plus Jakarta Sans','Inter',system-ui,sans-serif", background: C.bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Heebo','Plus Jakarta Sans',system-ui,sans-serif", background: C.bg }}>
 
       {/* ── TOP NAVIGATION BAR ────────────────────────────────────────────── */}
       <nav style={{
@@ -7459,7 +7471,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Brand logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginRight: isMobile ? 4 : 12 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0891b2, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(8,145,178,0.4)', flexShrink: 0 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #2563eb, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(37,99,235,0.4)', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M3 9h10M4.5 7l1.2-2.5h4.6L11.5 7" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
               <rect x="1.5" y="8.5" width="13" height="4" rx="2" stroke="white" strokeWidth="1.3"/>
@@ -7472,19 +7484,19 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
         {/* Nav tabs — desktop only; flex:1 so they take available space, overflow hidden so they never push right controls off screen */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0, overflow: 'hidden', direction: rtl ? 'rtl' : 'ltr' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', direction: rtl ? 'rtl' : 'ltr' }}>
             {tabs.map(item => {
               const isActive = activeTab === item.id
               return (
                 <button key={item.id} onClick={() => switchTab(item.id)} title={item.label} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  padding: '6px 12px',
+                  padding: isNarrow ? '6px 8px' : '6px 12px',
                   borderRadius: 7,
                   border: 'none', cursor: 'pointer', flexShrink: 0,
                   background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
                   color: isActive ? C.navActive : C.navText,
                   fontWeight: isActive ? 700 : 400,
-                  fontSize: 13,
+                  fontSize: isNarrow ? 12 : 13,
                   outline: isActive ? '1px solid rgba(255,255,255,0.15)' : 'none',
                   outlineOffset: -1,
                   transition: 'color 0.15s, background 0.15s, transform 0.1s',
@@ -7523,7 +7535,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               🏢 {viewCompanyName}
             </span>
           )}
-          {session && !isMobile && (
+          {session && !isMobile && !isNarrow && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6,
               background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
               borderRadius: 6, padding: '4px 10px', fontSize: 12, color: 'rgba(255,255,255,0.85)',
@@ -7540,7 +7552,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           )}
           {isMaster && onOpenCRM && (
             <button onClick={onOpenCRM} style={{
-              background: 'linear-gradient(135deg,#6366f1,#0891b2)', border: 'none',
+              background: 'linear-gradient(135deg,#6366f1,#2563eb)', border: 'none',
               color: '#fff', borderRadius: 5,
               padding: isMobile ? '3px 7px' : '4px 9px',
               fontSize: isMobile ? 11 : 12, fontWeight: 700, cursor: 'pointer',

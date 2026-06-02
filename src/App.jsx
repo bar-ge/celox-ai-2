@@ -14,7 +14,7 @@ const MASTER_EMAIL = import.meta.env.VITE_MASTER_EMAIL ?? ''
 
 const C = {
   navBg:    '#0f172a',
-  primary:  '#0891b2',
+  primary:  '#2563eb',
   bg:       '#f1f5f9',
   surface:  '#ffffff',
   border:   '#e2e8f0',
@@ -138,7 +138,7 @@ const labelStyle = {
   textTransform: 'uppercase', letterSpacing: '0.07em',
 }
 const primaryBtn = (loading) => ({
-  background: 'linear-gradient(135deg, #0891b2, #6366f1)', color: '#fff', border: 'none',
+  background: 'linear-gradient(135deg, #2563eb, #6366f1)', color: '#fff', border: 'none',
   borderRadius: 8, padding: '11px', fontSize: 14, fontWeight: 700,
   cursor: loading ? 'not-allowed' : 'pointer',
   opacity: loading ? 0.7 : 1, width: '100%',
@@ -189,9 +189,9 @@ function Logo() {
     <div style={{ textAlign: 'center', marginBottom: 32 }}>
       <div style={{
         width: 60, height: 60, borderRadius: 16, margin: '0 auto 16px',
-        background: 'linear-gradient(135deg, #0891b2, #6366f1)',
+        background: 'linear-gradient(135deg, #2563eb, #6366f1)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 24px rgba(8,145,178,0.5), 0 0 0 1px rgba(255,255,255,0.1)',
+        boxShadow: '0 4px 24px rgba(37,99,235,0.5), 0 0 0 1px rgba(255,255,255,0.1)',
       }}>
         <svg width="30" height="30" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="15" width="22" height="7" rx="3.5" fill="white" fillOpacity="0.9"/>
@@ -288,7 +288,7 @@ function PasswordStrengthMeter({ password, t, rtl }) {
   const levels = [
     { min: 0, label: t.pwWeak,   color: '#ef4444' },
     { min: 2, label: t.pwFair,   color: '#f59e0b' },
-    { min: 3, label: t.pwGood,   color: '#0891b2' },
+    { min: 3, label: t.pwGood,   color: '#2563eb' },
     { min: 5, label: t.pwStrong, color: '#10b981' },
   ]
   const level = [...levels].reverse().find(l => score >= l.min) || levels[0]

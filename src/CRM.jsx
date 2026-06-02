@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient'
 const C = {
   navBg: '#0f172a', navBorder: '#1e293b',
   sidebar: '#162032', sidebarHover: 'rgba(255,255,255,0.07)',
-  primary: '#0891b2', indigo: '#6366f1',
+  primary: '#2563eb', indigo: '#6366f1',
   bg: '#f1f5f9', surface: '#ffffff',
   border: '#e2e8f0',
   textPrimary: '#0f172a', textSecondary: '#475569', textMuted: '#94a3b8',
@@ -21,7 +21,7 @@ const STAGE_META = {
 }
 
 const LEAD_STATUS_META = {
-  new:       { label: 'חדש',       color: C.primary, bg: '#0891b215' },
+  new:       { label: 'חדש',       color: C.primary, bg: '#2563eb15' },
   contacted: { label: 'נוצר קשר',  color: C.purple,  bg: '#8b5cf615' },
   qualified: { label: 'מוסמך',     color: C.warning, bg: '#f59e0b15' },
   proposal:  { label: 'הצעה',      color: C.indigo,  bg: '#6366f115' },
