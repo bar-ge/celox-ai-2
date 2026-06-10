@@ -1012,31 +1012,42 @@ function LicenseAgreementForm({ link, onSubmit, submitting }) {
 
       {/* Pricing */}
       {(() => {
-        const numCars    = link.fields?.num_cars || 0
-        const perCar     = 60
-        const systemFee  = 100
-        const monthly    = systemFee + perCar * numCars
+        const numCars       = link.fields?.num_cars       || 0
+        const perCar        = link.fields?.price_per_car  ?? 0
+        const freeStorage   = link.fields?.free_storage_gb ?? 10
+        const priceExtraGb  = link.fields?.price_extra_gb  ?? 0
+        const systemFee     = 100
+        const carsTotal     = perCar * numCars
+        const monthly       = systemFee + carsTotal
+        const rows = [
+          ['עלות מערכת קבועה', `₪${systemFee} / חודש`],
+          perCar > 0
+            ? [`רכבים (${numCars} × ₪${perCar})`, `₪${carsTotal.toLocaleString()} / חודש`]
+            : [`רכבים`, `${numCars}`],
+          ['הקמה', '₪0'],
+          ['תחזוקה', '₪0'],
+          ['אפליקציה למובייל', '₪0'],
+          ['אחסון', freeStorage > 0
+            ? `${freeStorage} GB חינם${priceExtraGb > 0 ? ` · ₪${priceExtraGb}/GB נוסף` : ''}`
+            : priceExtraGb > 0 ? `₪${priceExtraGb}/GB` : 'ללא'],
+        ]
         return (
           <div style={section}>
             <div style={sectionTitle}>💰 מחירון</div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
-                {[
-                  ['עלות מערכת קבועה', `₪${systemFee} / חודש`],
-                  [`רכבים (${numCars} × ₪${perCar})`, `₪${(perCar * numCars).toLocaleString()} / חודש`],
-                  ['הקמה', '₪0'],
-                  ['תחזוקה', '₪0'],
-                  ['אפליקציה למובייל', '₪0'],
-                ].map(([label, value], i) => (
+                {rows.map(([label, value], i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
                     <td style={{ padding: '9px 4px', color: C.textSub }}>{label}</td>
                     <td style={{ padding: '9px 4px', textAlign: 'left', fontWeight: 600, color: C.text, direction: 'ltr' }}>{value}</td>
                   </tr>
                 ))}
-                <tr style={{ background: '#f0fdf4' }}>
-                  <td style={{ padding: '11px 4px', fontWeight: 800, color: C.text, fontSize: 14 }}>סה"כ חודשי</td>
-                  <td style={{ padding: '11px 4px', textAlign: 'left', fontWeight: 900, color: '#047857', fontSize: 16, direction: 'ltr' }}>₪{monthly.toLocaleString()}</td>
-                </tr>
+                {perCar > 0 && (
+                  <tr style={{ background: '#f0fdf4' }}>
+                    <td style={{ padding: '11px 4px', fontWeight: 800, color: C.text, fontSize: 14 }}>סה"כ חודשי</td>
+                    <td style={{ padding: '11px 4px', textAlign: 'left', fontWeight: 900, color: '#047857', fontSize: 16, direction: 'ltr' }}>₪{monthly.toLocaleString()}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
             {link.fields?.notes && (
