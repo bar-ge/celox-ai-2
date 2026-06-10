@@ -187,7 +187,7 @@ function DashboardView({ companies, leads, agreements }) {
               <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 13, color: C.textPrimary }}>{a.data?.company_name || a.submitter_name || '—'}</div>
-                  <div style={{ fontSize: 11, color: C.textMuted }}>{a.data?.signatory_name || '—'} · {fmtDate(a.created_at)}</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>{a.data?.signatory_name || '—'} · {fmtDate(a.submitted_at)}</div>
                 </div>
                 <span style={{ fontSize: 10, background: C.success + '15', color: C.success, borderRadius: 5, padding: '2px 8px', fontWeight: 700 }}>✓ חתום</span>
               </div>
@@ -383,7 +383,7 @@ function ClientsView({ companies, agreements, session, onUpdate }) {
                       <div key={a.id} style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', marginBottom: 8 }}>
                         <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{a.data?.company_name || '—'}</div>
                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
-                          👤 {a.data?.signatory_name || '—'} &nbsp;·&nbsp; 📅 {a.data?.sign_date || fmtDate(a.created_at?.slice(0,10))}
+                          👤 {a.data?.signatory_name || '—'} &nbsp;·&nbsp; 📅 {a.data?.sign_date || fmtDate(a.submitted_at?.slice(0,10))}
                           {a.data?.id_number && ` · ח.פ/ת.ז: ${a.data.id_number}`}
                           {a.data?.email && ` · ${a.data.email}`}
                         </div>
@@ -866,7 +866,7 @@ export default function CRM({ session, onBack }) {
     const [cosRes, ldsRes, agrsRes] = await Promise.all([
       supabase.from('companies').select('*').order('created_at', { ascending: false }),
       supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
-      supabase.from('form_submissions').select('*, form_links(fields)').eq('type', 'license_agreement').order('created_at', { ascending: false }),
+      supabase.from('form_submissions').select('*, form_links(fields)').eq('type', 'license_agreement').order('submitted_at', { ascending: false }),
     ])
     setCompanies(cosRes.data || [])
     setLeads(ldsRes.data || [])
