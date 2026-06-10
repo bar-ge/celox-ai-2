@@ -1019,27 +1019,40 @@ function LicenseAgreementForm({ link, onSubmit, submitting }) {
         const systemFee     = 100
         const carsTotal     = perCar * numCars
         const monthly       = systemFee + carsTotal
+        const storageLabel = freeStorage > 0
+          ? `${freeStorage} GB חינם`
+          : null
+        const storageExtra = priceExtraGb > 0
+          ? `₪${priceExtraGb} / GB נוסף`
+          : null
+        // [label, value, direction]
         const rows = [
-          ['עלות מערכת קבועה', `₪${systemFee} / חודש`],
+          ['עלות מערכת קבועה', `₪${systemFee} / חודש`, 'ltr'],
           perCar > 0
-            ? [`רכבים (${numCars} × ₪${perCar})`, `₪${carsTotal.toLocaleString()} / חודש`]
-            : [`רכבים`, `${numCars}`],
-          ['הקמה', '₪0'],
-          ['תחזוקה', '₪0'],
-          ['אפליקציה למובייל', '₪0'],
-          ['אחסון', freeStorage > 0
-            ? `${freeStorage} GB חינם${priceExtraGb > 0 ? ` · ₪${priceExtraGb}/GB נוסף` : ''}`
-            : priceExtraGb > 0 ? `₪${priceExtraGb}/GB` : 'ללא'],
+            ? [`רכבים (${numCars} × ₪${perCar})`, `₪${carsTotal.toLocaleString()} / חודש`, 'ltr']
+            : [`רכבים`, `${numCars}`, 'ltr'],
+          ['הקמה', '₪0', 'ltr'],
+          ['תחזוקה', '₪0', 'ltr'],
+          ['אפליקציה למובייל', '₪0', 'ltr'],
+          ['אחסון', null, 'rtl'],
         ]
         return (
           <div style={section}>
             <div style={sectionTitle}>💰 מחירון</div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
-                {rows.map(([label, value], i) => (
+                {rows.map(([label, value, dir], i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
                     <td style={{ padding: '9px 4px', color: C.textSub }}>{label}</td>
-                    <td style={{ padding: '9px 4px', textAlign: 'left', fontWeight: 600, color: C.text, direction: 'ltr' }}>{value}</td>
+                    <td style={{ padding: '9px 4px', textAlign: dir === 'ltr' ? 'left' : 'right', fontWeight: 600, color: C.text, direction: dir }}>
+                      {label === 'אחסון'
+                        ? <span>
+                            {storageLabel && <span style={{ marginInlineEnd: storageExtra ? 8 : 0 }}>{storageLabel}</span>}
+                            {storageExtra && <span style={{ color: C.textMuted, fontWeight: 500, fontSize: 12 }}>· {storageExtra}</span>}
+                            {!storageLabel && !storageExtra && 'ללא'}
+                          </span>
+                        : value}
+                    </td>
                   </tr>
                 ))}
                 {perCar > 0 && (
