@@ -583,15 +583,35 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
 
   const getCompanyName = companyId => companies.find(c => c.id === companyId)?.name || '—'
 
+  function sevenDaysFromNow() {
+    const d = new Date()
+    d.setDate(d.getDate() + 7)
+    return d.toISOString()
+  }
+
+  async function createAgreementLink(agreementFields) {
+    const co = companies.find(c => c.id === sendCompany)
+    // Expire any existing active links for this company in 7 days (backup window)
+    await supabase.from('form_links')
+      .update({ expires_at: sevenDaysFromNow() })
+      .eq('company_id', sendCompany)
+      .eq('type', 'license_agreement')
+      .eq('is_active', true)
+      .is('expires_at', null)
+    const { data: nl, error: insErr } = await supabase.from('form_links').insert({
+      company_id: sendCompany, type: 'license_agreement',
+      title: `הסכם רישיון — ${co?.name || ''}`,
+      created_by: session.user.id, is_active: true, single_use: false,
+      fields: agreementFields,
+    }).select().single()
+    return { data: nl, error: insErr }
+  }
+
   async function generateLink() {
     if (!sendCompany) return
     setSendBusy(true)
     setSendLink(null)
     setSendError('')
-    const { data: existing, error: selErr } = await supabase.from('form_links')
-      .select('*').eq('company_id', sendCompany).eq('type', 'license_agreement')
-      .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
-    if (selErr) { setSendError(selErr.message); setSendBusy(false); return }
     const agreementFields = {
       num_cars:         sendNumCars       ? parseInt(sendNumCars, 10)    : null,
       price_per_car:    sendPricePerCar   ? parseFloat(sendPricePerCar)  : null,
@@ -599,19 +619,9 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
       price_extra_gb:   sendPriceExtraGb  ? parseFloat(sendPriceExtraGb) : null,
       notes:            sendNotes.trim() || null,
     }
-    if (existing?.length) {
-      const { data: updated } = await supabase.from('form_links').update({ fields: agreementFields }).eq('id', existing[0].id).select().single()
-      setSendLink(updated || existing[0]); setSendBusy(false); return
-    }
-    const co = companies.find(c => c.id === sendCompany)
-    const { data: newLink, error: insErr } = await supabase.from('form_links').insert({
-      company_id: sendCompany, type: 'license_agreement',
-      title: `הסכם רישיון — ${co?.name || ''}`,
-      created_by: session.user.id, is_active: true, single_use: false,
-      fields: agreementFields,
-    }).select().single()
+    const { data: nl, error: insErr } = await createAgreementLink(agreementFields)
     if (insErr) { setSendError(insErr.message); setSendBusy(false); return }
-    if (newLink) setSendLink(newLink)
+    if (nl) setSendLink(nl)
     setSendBusy(false)
   }
 
@@ -619,7 +629,6 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
     if (!sendCompany) return
     setSendBusy(true)
     setSendError('')
-    const co = companies.find(c => c.id === sendCompany)
     const agreementFields = {
       num_cars:         sendNumCars       ? parseInt(sendNumCars, 10)    : null,
       price_per_car:    sendPricePerCar   ? parseFloat(sendPricePerCar)  : null,
@@ -627,12 +636,7 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
       price_extra_gb:   sendPriceExtraGb  ? parseFloat(sendPriceExtraGb) : null,
       notes:            sendNotes.trim() || null,
     }
-    const { data: nl, error: insErr } = await supabase.from('form_links').insert({
-      company_id: sendCompany, type: 'license_agreement',
-      title: `הסכם רישיון — ${co?.name || ''}`,
-      created_by: session.user.id, is_active: true, single_use: false,
-      fields: agreementFields,
-    }).select().single()
+    const { data: nl, error: insErr } = await createAgreementLink(agreementFields)
     if (insErr) { setSendError(insErr.message); setSendBusy(false); return }
     if (nl) setSendLink(nl)
     setSendBusy(false)
