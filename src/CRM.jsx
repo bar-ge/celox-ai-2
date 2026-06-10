@@ -565,13 +565,16 @@ function LeadsView({ leads, session, onUpdate }) {
 function AgreementsView({ agreements, companies, session, onUpdate }) {
   const [search,       setSearch]       = useState('')
   const [viewing,      setViewing]      = useState(null)
-  const [sendCompany,  setSendCompany]  = useState('')
-  const [sendNumCars,  setSendNumCars]  = useState('')
-  const [sendNotes,    setSendNotes]    = useState('')
-  const [sendLink,     setSendLink]     = useState(null)
-  const [sendBusy,     setSendBusy]     = useState(false)
-  const [sendCopied,   setSendCopied]   = useState(false)
-  const [sendError,    setSendError]    = useState('')
+  const [sendCompany,        setSendCompany]        = useState('')
+  const [sendNumCars,        setSendNumCars]        = useState('')
+  const [sendNotes,          setSendNotes]          = useState('')
+  const [sendPricePerCar,    setSendPricePerCar]    = useState('')
+  const [sendFreeStorageGb,  setSendFreeStorageGb]  = useState('10')
+  const [sendPriceExtraGb,   setSendPriceExtraGb]   = useState('')
+  const [sendLink,           setSendLink]           = useState(null)
+  const [sendBusy,           setSendBusy]           = useState(false)
+  const [sendCopied,         setSendCopied]         = useState(false)
+  const [sendError,          setSendError]          = useState('')
 
   const filtered = agreements.filter(a => {
     const q = search.toLowerCase()
@@ -589,7 +592,13 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
       .select('*').eq('company_id', sendCompany).eq('type', 'license_agreement')
       .eq('is_active', true).is('expires_at', null).order('created_at', { ascending: false }).limit(1)
     if (selErr) { setSendError(selErr.message); setSendBusy(false); return }
-    const agreementFields = { num_cars: sendNumCars ? parseInt(sendNumCars, 10) : null, notes: sendNotes.trim() || null }
+    const agreementFields = {
+      num_cars:         sendNumCars       ? parseInt(sendNumCars, 10)    : null,
+      price_per_car:    sendPricePerCar   ? parseFloat(sendPricePerCar)  : null,
+      free_storage_gb:  sendFreeStorageGb ? parseInt(sendFreeStorageGb, 10) : 10,
+      price_extra_gb:   sendPriceExtraGb  ? parseFloat(sendPriceExtraGb) : null,
+      notes:            sendNotes.trim() || null,
+    }
     if (existing?.length) {
       const { data: updated } = await supabase.from('form_links').update({ fields: agreementFields }).eq('id', existing[0].id).select().single()
       setSendLink(updated || existing[0]); setSendBusy(false); return
@@ -611,7 +620,13 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
     setSendBusy(true)
     setSendError('')
     const co = companies.find(c => c.id === sendCompany)
-    const agreementFields = { num_cars: sendNumCars ? parseInt(sendNumCars, 10) : null, notes: sendNotes.trim() || null }
+    const agreementFields = {
+      num_cars:         sendNumCars       ? parseInt(sendNumCars, 10)    : null,
+      price_per_car:    sendPricePerCar   ? parseFloat(sendPricePerCar)  : null,
+      free_storage_gb:  sendFreeStorageGb ? parseInt(sendFreeStorageGb, 10) : 10,
+      price_extra_gb:   sendPriceExtraGb  ? parseFloat(sendPriceExtraGb) : null,
+      notes:            sendNotes.trim() || null,
+    }
     const { data: nl, error: insErr } = await supabase.from('form_links').insert({
       company_id: sendCompany, type: 'license_agreement',
       title: `הסכם רישיון — ${co?.name || ''}`,
@@ -635,7 +650,7 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: 180 }}>
             <label style={lbl}>בחר חברה</label>
-            <select value={sendCompany} onChange={e => { setSendCompany(e.target.value); setSendLink(null); setSendNumCars(''); setSendNotes('') }} style={{ ...inp, cursor: 'pointer' }}>
+            <select value={sendCompany} onChange={e => { setSendCompany(e.target.value); setSendLink(null); setSendNumCars(''); setSendNotes(''); setSendPricePerCar(''); setSendFreeStorageGb('10'); setSendPriceExtraGb('') }} style={{ ...inp, cursor: 'pointer' }}>
               <option value="">בחר לקוח...</option>
               {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
             </select>
@@ -643,6 +658,22 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
           <div style={{ width: 110 }}>
             <label style={lbl}>מספר רכבים</label>
             <input type="number" min="0" value={sendNumCars} onChange={e => { setSendNumCars(e.target.value); setSendLink(null) }} placeholder="0" style={{ ...inp }} />
+          </div>
+          <div style={{ width: 120 }}>
+            <label style={lbl}>מחיר לרכב (₪)</label>
+            <input type="number" min="0" step="0.01" value={sendPricePerCar} onChange={e => { setSendPricePerCar(e.target.value); setSendLink(null) }} placeholder="0.00" style={{ ...inp }} />
+          </div>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginTop: 12, marginBottom: 6 }}>אחסון</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ width: 140 }}>
+            <label style={lbl}>אחסון חינם (GB)</label>
+            <input type="number" min="0" value={sendFreeStorageGb} onChange={e => { setSendFreeStorageGb(e.target.value); setSendLink(null) }} placeholder="10" style={{ ...inp }} />
+            <div style={{ fontSize: 10, color: C.textMuted, marginTop: 3 }}>ברירת מחדל: 10 GB חינם</div>
+          </div>
+          <div style={{ width: 150 }}>
+            <label style={lbl}>מחיר ל-GB נוסף (₪)</label>
+            <input type="number" min="0" step="0.01" value={sendPriceExtraGb} onChange={e => { setSendPriceExtraGb(e.target.value); setSendLink(null) }} placeholder="0.00" style={{ ...inp }} />
           </div>
         </div>
         <div style={{ marginTop: 8 }}>
@@ -664,6 +695,24 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
         {sendLink && (
           <div style={{ background: C.bg, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
             <div style={{ fontSize: 12, color: C.textSecondary }}>שלח ללקוח לחתימה על הסכם הרישיון:</div>
+            {(sendLink.fields?.num_cars || sendLink.fields?.price_per_car != null) && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {sendLink.fields?.num_cars > 0 && (
+                  <span style={{ fontSize: 11, background: C.primary + '15', color: C.primary, borderRadius: 5, padding: '2px 8px', fontWeight: 700 }}>
+                    🚗 {sendLink.fields.num_cars} רכבים
+                  </span>
+                )}
+                {sendLink.fields?.price_per_car != null && (
+                  <span style={{ fontSize: 11, background: C.success + '15', color: C.success, borderRadius: 5, padding: '2px 8px', fontWeight: 700 }}>
+                    ₪{sendLink.fields.price_per_car} לרכב
+                  </span>
+                )}
+                <span style={{ fontSize: 11, background: '#f59e0b15', color: C.warning, borderRadius: 5, padding: '2px 8px', fontWeight: 700 }}>
+                  💾 {sendLink.fields?.free_storage_gb ?? 10} GB חינם
+                  {sendLink.fields?.price_extra_gb ? ` · ₪${sendLink.fields.price_extra_gb}/GB נוסף` : ''}
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input readOnly value={linkUrl} onClick={e => e.target.select()}
                 style={{ flex: 1, minWidth: 0, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary, outline: 'none', direction: 'ltr' }} />
@@ -731,6 +780,27 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
                   </div>
                 ))}
               </div>
+              {(a.form_links?.fields?.price_per_car != null || a.form_links?.fields?.free_storage_gb != null) && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={lbl}>תמחור</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {a.form_links.fields.num_cars > 0 && (
+                      <span style={{ fontSize: 11, background: C.primary + '15', color: C.primary, borderRadius: 5, padding: '3px 10px', fontWeight: 700 }}>
+                        🚗 {a.form_links.fields.num_cars} רכבים
+                      </span>
+                    )}
+                    {a.form_links.fields.price_per_car != null && (
+                      <span style={{ fontSize: 11, background: C.success + '15', color: C.success, borderRadius: 5, padding: '3px 10px', fontWeight: 700 }}>
+                        ₪{a.form_links.fields.price_per_car} לרכב
+                      </span>
+                    )}
+                    <span style={{ fontSize: 11, background: '#f59e0b15', color: C.warning, borderRadius: 5, padding: '3px 10px', fontWeight: 700 }}>
+                      💾 {a.form_links.fields.free_storage_gb ?? 10} GB חינם
+                      {a.form_links.fields.price_extra_gb ? ` · ₪${a.form_links.fields.price_extra_gb}/GB נוסף` : ''}
+                    </span>
+                  </div>
+                </div>
+              )}
               {a.data?.signature && (
                 <div>
                   <div style={lbl}>חתימה דיגיטלית</div>
@@ -792,7 +862,7 @@ export default function CRM({ session, onBack }) {
     const [cosRes, ldsRes, agrsRes] = await Promise.all([
       supabase.from('companies').select('*').order('created_at', { ascending: false }),
       supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
-      supabase.from('form_submissions').select('*').eq('type', 'license_agreement').order('created_at', { ascending: false }),
+      supabase.from('form_submissions').select('*, form_links(fields)').eq('type', 'license_agreement').order('created_at', { ascending: false }),
     ])
     setCompanies(cosRes.data || [])
     setLeads(ldsRes.data || [])
