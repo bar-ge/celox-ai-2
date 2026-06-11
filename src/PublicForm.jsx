@@ -1014,7 +1014,9 @@ function LicenseAgreementForm({ link, onSubmit, submitting }) {
           </div>
           <div style={field}>
             <label style={lbl}>תאריך חתימה</label>
-            <input type="date" style={inp} value={form.sign_date} onChange={set('sign_date')} />
+            <div style={{ ...inp, background: '#f8fafc', color: '#64748b', cursor: 'default' }}>
+              {form.sign_date ? new Date(form.sign_date + 'T00:00:00').toLocaleDateString('he-IL') : ''}
+            </div>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
