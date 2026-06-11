@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from './supabaseClient'
+import { createClient } from '@supabase/supabase-js'
+
+// Dedicated no-session client — prevents stale auth tokens from fleet manager causing 401 on public form submissions
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+)
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isDriverLicense, isYear, isPositive } from './validators'
 
 function checkClientRateLimit(key, max, windowMs = 3_600_000) {
