@@ -1350,6 +1350,29 @@ export default function PublicForm({ token }) {
       },
     }).catch(() => {})
 
+    // License agreement signed: send copy to master email with full details
+    if (link.type === 'license_agreement') {
+      supabase.functions.invoke('send-notification', {
+        body: {
+          type: 'license_signed',
+          payload: {
+            company_name:    data.company_name    || '',
+            signatory_name:  data.signatory_name  || '',
+            signatory_role:  data.signatory_role  || '',
+            id_number:       data.id_number       || '',
+            phone:           data.phone           || '',
+            email:           data.email           || '',
+            sign_date:       data.sign_date       || '',
+            notes:           link.fields?.notes   || '',
+            num_cars:        link.fields?.num_cars        ?? null,
+            price_per_car:   link.fields?.price_per_car   ?? null,
+            free_storage_gb: link.fields?.free_storage_gb ?? 10,
+            price_extra_gb:  link.fields?.price_extra_gb  ?? null,
+          },
+        },
+      }).catch(() => {})
+    }
+
     setDone(true)
     setSubmitting(false)
   }
