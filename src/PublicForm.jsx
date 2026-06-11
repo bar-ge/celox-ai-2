@@ -1,11 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-// Dedicated no-session client — prevents stale auth tokens from fleet manager causing 401 on public form submissions
+// Public-form client: custom fetch forces the anon key on every request so a
+// stale authenticated session stored in Safari/localStorage can never cause 401.
+const _ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-  { auth: { persistSession: false, autoRefreshToken: false } }
+  _ANON,
+  {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (url, options = {}) => {
+        const headers = new Headers(options.headers || {})
+        headers.set('apikey', _ANON)
+        headers.set('Authorization', `Bearer ${_ANON}`)
+        return fetch(url, { ...options, headers })
+      },
+    },
+  }
 )
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isDriverLicense, isYear, isPositive } from './validators'
 
