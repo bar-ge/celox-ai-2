@@ -562,7 +562,7 @@ function LeadsView({ leads, session, onUpdate }) {
 }
 
 // ── Agreements ────────────────────────────────────────────────────────────────
-function AgreementsView({ agreements, companies, session, onUpdate }) {
+function AgreementsView({ agreements, pendingLinks = [], companies, session, onUpdate }) {
   const [search,       setSearch]       = useState('')
   const [viewing,      setViewing]      = useState(null)
   const [sendCompany,        setSendCompany]        = useState('')
@@ -740,13 +740,45 @@ function AgreementsView({ agreements, companies, session, onUpdate }) {
         )}
       </div>
 
+      {/* Pending (unsigned) links */}
+      {pendingLinks.length > 0 && (
+        <>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+            ממתינים לחתימה ({pendingLinks.length})
+          </div>
+          {pendingLinks.map(l => {
+            const co = companies.find(c => c.id === l.company_id)
+            const linkUrl = `${window.location.origin}/form/${l.token}`
+            return (
+              <div key={l.id} style={{ ...card, marginBottom: 10, opacity: 0.85 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{co?.name || '—'}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                      📅 נשלח {fmtDate(l.created_at?.slice(0, 10))}
+                      {l.fields?.num_cars ? ` · 🚗 ${l.fields.num_cars} רכבים` : ''}
+                      {l.fields?.price_per_car != null ? ` · ₪${l.fields.price_per_car}/רכב` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, background: C.warning + '20', color: C.warning, borderRadius: 5, padding: '2px 8px', fontWeight: 700 }}>⏳ ממתין</span>
+                    <button onClick={() => { navigator.clipboard.writeText(linkUrl) }} style={{ ...btnGhost, fontSize: 12 }}>העתק קישור</button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+          <div style={{ marginBottom: 20 }} />
+        </>
+      )}
+
       {/* Signed agreements list */}
       <div style={{ fontSize: 13, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
         הסכמים חתומים
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חיפוש..." style={{ ...inp, width: 160, fontSize: 12, padding: '5px 10px', marginBottom: 0, fontWeight: 400, letterSpacing: 0, textTransform: 'none' }} />
       </div>
 
-      {filtered.length === 0 && <div style={{ ...card, textAlign: 'center', color: C.textMuted, padding: 40 }}>אין הסכמים עדיין.</div>}
+      {filtered.length === 0 && <div style={{ ...card, textAlign: 'center', color: C.textMuted, padding: 40 }}>אין הסכמים חתומים עדיין.</div>}
 
       {filtered.map(a => (
         <div key={a.id} style={{ ...card, marginBottom: 10 }}>
@@ -852,25 +884,30 @@ function CRMSidebar({ view, setView, onBack, leads }) {
 
 // ── CRM main export ───────────────────────────────────────────────────────────
 export default function CRM({ session, onBack }) {
-  const [view,       setView]       = useState('dashboard')
-  const [companies,  setCompanies]  = useState([])
-  const [leads,      setLeads]      = useState([])
-  const [agreements, setAgreements] = useState([])
-  const [loading,    setLoading]    = useState(true)
+  const [view,         setView]         = useState('dashboard')
+  const [companies,    setCompanies]    = useState([])
+  const [leads,        setLeads]        = useState([])
+  const [agreements,   setAgreements]   = useState([])
+  const [pendingLinks, setPendingLinks] = useState([])
+  const [loading,      setLoading]      = useState(true)
   const isMobile = useIsMobile()
 
   useEffect(() => { loadAll() }, [])
 
   async function loadAll() {
     setLoading(true)
-    const [cosRes, ldsRes, agrsRes] = await Promise.all([
+    const [cosRes, ldsRes, agrsRes, linksRes] = await Promise.all([
       supabase.from('companies').select('*').order('created_at', { ascending: false }),
       supabase.from('crm_leads').select('*').order('created_at', { ascending: false }),
       supabase.from('form_submissions').select('*, form_links(fields)').eq('type', 'license_agreement').order('submitted_at', { ascending: false }),
+      supabase.from('form_links').select('*, form_submissions(id)').eq('type', 'license_agreement').eq('is_active', true).order('created_at', { ascending: false }),
     ])
     setCompanies(cosRes.data || [])
     setLeads(ldsRes.data || [])
     setAgreements(agrsRes.data || [])
+    // Pending = active links that have no signed submission yet
+    const signed = new Set((agrsRes.data || []).map(a => a.form_link_id))
+    setPendingLinks((linksRes.data || []).filter(l => !signed.has(l.id)))
     setLoading(false)
   }
 
@@ -915,7 +952,7 @@ export default function CRM({ session, onBack }) {
           {view === 'dashboard'  && <DashboardView  companies={companies} leads={leads} agreements={agreements} />}
           {view === 'clients'    && <ClientsView    companies={companies} agreements={agreements} session={session} onUpdate={loadAll} />}
           {view === 'leads'      && <LeadsView      leads={leads} session={session} onUpdate={loadAll} />}
-          {view === 'agreements' && <AgreementsView agreements={agreements} companies={companies} session={session} onUpdate={loadAll} />}
+          {view === 'agreements' && <AgreementsView agreements={agreements} pendingLinks={pendingLinks} companies={companies} session={session} onUpdate={loadAll} />}
         </div>
       </div>
 
