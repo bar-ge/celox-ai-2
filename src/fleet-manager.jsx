@@ -4386,7 +4386,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       supabase.from('form_links').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
       supabase.from('form_submissions').select('form_link_id').eq('company_id', companyId),
     ])
-    setLinks(linksData || [])
+    setLinks((linksData || []).filter(l => l.type !== 'license_agreement'))
     const cm = {}
     ;(countsData || []).forEach(s => { cm[s.form_link_id] = (cm[s.form_link_id] || 0) + 1 })
     setSubCounts(cm)
