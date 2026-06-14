@@ -1253,6 +1253,21 @@ function getMergedOptions(type, customLists = {}) {
   return [...defaults, ...custom]
 }
 
+// Normalize license_levels for form: custom (non-standard) values → 'Other' + otherText
+function normalizeLicenseLevels(levels = []) {
+  const known = DEFAULT_LISTS.license_level
+  const custom = levels.filter(l => !known.includes(l))
+  const standard = levels.filter(l => known.includes(l))
+  if (custom.length > 0 && !standard.includes('Other')) standard.push('Other')
+  return { levels: standard, otherText: custom.join(', ') }
+}
+// Build final levels array for save: replace 'Other' with typed text if provided
+function buildSaveLicenseLevels(levels = [], otherText = '') {
+  const text = otherText.trim()
+  if (!text) return levels
+  return [...levels.filter(l => l !== 'Other'), text]
+}
+
 // ── Car Detail Modal ─────────────────────────────────────────────────────────
 function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClose }) {
   const [tab, setTab]           = useState('overview')
@@ -1739,7 +1754,9 @@ function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, on
 }
 
 function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile, customLists }) {
-  const [form, setForm] = useState({ ...driver })
+  const { levels: initLevels, otherText: initOther } = normalizeLicenseLevels(driver.license_levels)
+  const [form, setForm] = useState({ ...driver, license_levels: initLevels })
+  const [otherText, setOtherText] = useState(initOther)
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   return (
@@ -1748,7 +1765,12 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile,
       <td style={td}><input value={form.name || ''} placeholder={t.name} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} /></td>
       <td style={td}><input value={form.license || ''} placeholder={t.license} maxLength={20} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
       <td style={td}>
-        <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels || []} onChange={v => setForm({ ...form, license_levels: v })} placeholder={t.licenseLevel} style={inp} getLabel={l => t[LICENSE_LEVEL_KEY[l]] || l} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels || []} onChange={v => setForm({ ...form, license_levels: v })} placeholder={t.licenseLevel} style={inp} getLabel={l => t[LICENSE_LEVEL_KEY[l]] || l} />
+          {(form.license_levels || []).includes('Other') && (
+            <input value={otherText} onChange={e => setOtherText(e.target.value)} placeholder={rtl ? 'פרט...' : 'Specify...'} maxLength={40} style={{ ...inp, fontSize: 12 }} />
+          )}
+        </div>
       </td>
       <td style={td}><input value={form.phone || ''} placeholder={t.phone} maxLength={20} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={td}>
@@ -1764,7 +1786,7 @@ function EditableDriverRow({ driver, branches, onSave, onCancel, t, rtl, mobile,
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6 }}>
-          <ActionBtn variant="save" onClick={() => onSave(form)}>{t.save}</ActionBtn>
+          <ActionBtn variant="save" onClick={() => onSave({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText) })}>{t.save}</ActionBtn>
           <ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn>
         </span>
       </td>
@@ -1921,16 +1943,22 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
 
 function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ name: '', license: '', license_levels: [], phone: '', status: 'Active', branch_id: '' })
+  const [otherText, setOtherText] = useState('')
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
-  function submit() { if (form.name.trim()) onAdd(form) }
+  function submit() { if (form.name.trim()) onAdd({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText) }) }
   return (
     <tr style={{ background: C.rowAdd }}>
       <td style={td} />
       <td style={td}><input autoFocus placeholder={t.name} value={form.name} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
       <td style={td}><input placeholder={t.license} value={form.license} maxLength={20} onChange={e => setForm({ ...form, license: e.target.value })} style={inp} /></td>
       <td style={td}>
-        <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels} onChange={v => setForm({ ...form, license_levels: v })} placeholder={t.licenseLevel} style={inp} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels} onChange={v => setForm({ ...form, license_levels: v })} placeholder={t.licenseLevel} style={inp} />
+          {form.license_levels.includes('Other') && (
+            <input value={otherText} onChange={e => setOtherText(e.target.value)} placeholder={rtl ? 'פרט...' : 'Specify...'} maxLength={40} style={{ ...inp, fontSize: 12 }} />
+          )}
+        </div>
       </td>
       <td style={td}><input placeholder={t.phone} value={form.phone} maxLength={20} onChange={e => setForm({ ...form, phone: e.target.value })} style={inp} /></td>
       <td style={td}>
@@ -2040,7 +2068,9 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
     drivers: { name: '', license: '', phone: '', status: 'Active', branch_id: '' },
     branches:{ name: '', city: '', address: '', manager: '', phone: '' },
   }
-  const [form, setForm] = useState(isEdit && item ? { ...item } : defaults[tab] || {})
+  const { levels: initLevels, otherText: initOther } = normalizeLicenseLevels(item?.license_levels)
+  const [form, setForm] = useState(isEdit && item ? { ...item, license_levels: initLevels } : defaults[tab] || {})
+  const [otherText, setOtherText] = useState(isEdit ? initOther : '')
   const [err, setErr]   = useState('')
   const [lookupState, setLookupState] = useState('idle')
   const [lookupMsg, setLookupMsg]     = useState('')
@@ -2085,7 +2115,10 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
       if (!isMinLen(form.name, 2)) { setErr(rtl ? 'שם סניף חובה (לפחות 2 תווים)' : 'Branch name required (at least 2 characters)'); return }
       if (form.phone && !isIsraeliPhone(form.phone)) { setErr(rtl ? 'מספר טלפון לא תקין' : 'Invalid phone number'); return }
     }
-    await onSave(form)
+    const saveForm = tab === 'drivers'
+      ? { ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText) }
+      : form
+    await onSave(saveForm)
   }
 
   return (
@@ -2152,6 +2185,9 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
             </div>
             <div style={fw}><label style={lbl}>{t.licenseLevel}</label>
               <MultiSelect options={getMergedOptions('license_level', customLists)} value={form.license_levels||[]} onChange={v=>setForm({...form,license_levels:v})} placeholder={t.licenseLevel} style={inp} />
+              {(form.license_levels||[]).includes('Other') && (
+                <input value={otherText} onChange={e=>setOtherText(e.target.value)} placeholder={rtl ? 'פרט...' : 'Specify...'} maxLength={40} style={{ ...inp, marginTop: 6, fontSize: 12 }} />
+              )}
             </div>
             <div style={fw}><label style={lbl}>{t.driverStatus}</label>
               <select value={form.status||'Active'} onChange={e=>setForm({...form,status:e.target.value})} style={inp}>
