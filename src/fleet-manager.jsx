@@ -4792,21 +4792,29 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         </div>
       )}
 
+      {/* Unified Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: C.textPrimary }}>📋 {rtl ? 'טפסים' : 'Forms'}</div>
+          <div style={{ fontSize: 13, color: C.textMuted, marginTop: 3 }}>{rtl ? 'שלח קישורים לנהגים או לצוות למילוי טפסים' : 'Send links for drivers or staff to fill out forms'}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button onClick={openAccFormShare} disabled={accFormShareBusy} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: accFormShareBusy ? 0.6 : 1 }}>
+            {accFormShareBusy ? '…' : (rtl ? '📤 שלח טופס לנהג' : '📤 Send Form to Driver')}
+          </button>
+          <button onClick={() => setShowAccidentForm(true)} style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            {t.newAccidentReport}
+          </button>
+          <button onClick={() => setShowCreate(true)} style={btnPrimary}>
+            {rtl ? '+ קישור חדש' : '+ New Link'}
+          </button>
+        </div>
+      </div>
+
       {/* Accident Reports Section */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: C.textPrimary }}>🚨 {t.accidentReports}</div>
-            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'תיעוד תאונות ואירועי דרכים' : 'Document road accidents and incidents'}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={openAccFormShare} disabled={accFormShareBusy} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: accFormShareBusy ? 0.6 : 1 }}>
-              {accFormShareBusy ? '…' : (rtl ? '📤 שלח טופס לנהג' : '📤 Send Form to Driver')}
-            </button>
-            <button onClick={() => setShowAccidentForm(true)} style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              {t.newAccidentReport}
-            </button>
-          </div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
+          🚨 {t.accidentReports}
         </div>
 
         {/* Accident form share modal */}
@@ -5051,15 +5059,9 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         )}
       </div>
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: C.textPrimary }}>📋 {rtl ? 'טפסים' : 'Forms'}</div>
-          <div style={{ fontSize: 13, color: C.textMuted, marginTop: 3 }}>{rtl ? 'שלח קישורים לנהגים או לצוות למילוי טפסים' : 'Send links for drivers or staff to fill out forms'}</div>
-        </div>
-        <button onClick={() => setShowCreate(true)} style={btnPrimary}>
-          {rtl ? '+ קישור חדש' : '+ New Link'}
-        </button>
+      {/* Form Links sub-header + list */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
+        📋 {rtl ? 'קישורי טפסים' : 'Form Links'}
       </div>
 
       {/* Links list */}
