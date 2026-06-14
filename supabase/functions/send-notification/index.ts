@@ -5,6 +5,7 @@ const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const FROM_EMAIL     = 'Celox AI <noreply@celoxai.com>'
 const APP_URL        = 'https://celoxai.com'
+const MASTER_EMAIL   = 'bar.gershenzon@gmail.com'
 
 // ── Shared layout wrapper ─────────────────────────────────────────────────────
 function layout(body: string, dir: string) {
@@ -144,11 +145,68 @@ function buildFormSubmitted(p: any, isHe: boolean, dir: string) {
   return layout(body, dir)
 }
 
+function row(label: string, value: string | number | null | undefined) {
+  if (value == null || value === '') return ''
+  return `<tr style="border-bottom:1px solid #f1f5f9">
+    <td style="padding:7px 12px;color:#64748b;font-weight:600;white-space:nowrap">${label}</td>
+    <td style="padding:7px 12px;color:#0f172a">${value}</td>
+  </tr>`
+}
+
+function buildLicenseSigned(p: any) {
+  const monthly = p.price_per_car && p.num_cars
+    ? (100 + p.price_per_car * p.num_cars).toLocaleString('he-IL')
+    : null
+  const pricingRows = [
+    row('מספר רכבים', p.num_cars),
+    row('מחיר לרכב', p.price_per_car ? `₪${p.price_per_car}` : null),
+    row('אחסון חינם', p.free_storage_gb ? `${p.free_storage_gb} GB` : '10 GB'),
+    row('מחיר GB נוסף', p.price_extra_gb ? `₪${p.price_extra_gb}` : null),
+    row('סה"כ חודשי', monthly ? `₪${monthly}` : null),
+  ].filter(Boolean).join('')
+
+  const body = `
+    <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">📄 הסכם רישיון נחתם</h2>
+    <p style="margin:0 0 16px;color:#475569">לקוח חדש חתם על הסכם הרישיון.</p>
+    ${section('פרטי החותם', `<table style="width:100%;border-collapse:collapse">
+      ${row('חברה', p.company_name)}
+      ${row('שם מלא', p.signatory_name)}
+      ${row('תפקיד', p.signatory_role)}
+      ${row('ת.ז.', p.id_number)}
+      ${row('טלפון', p.phone)}
+      ${row('אימייל', p.email)}
+      ${row('תאריך', p.sign_date)}
+    </table>`)}
+    ${pricingRows ? section('תמחור', `<table style="width:100%;border-collapse:collapse">${pricingRows}</table>`) : ''}
+    ${p.notes ? section('הערות', `<p style="margin:0;color:#475569">${p.notes}</p>`) : ''}
+    ${btn('פתח CRM', `${APP_URL}?tab=crm`)}
+  `
+  return layout(body, 'rtl')
+}
+
+async function sendEmail(to: string, subject: string, html: string) {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+  })
+  if (!res.ok) console.error('Resend error:', await res.text())
+  return res.ok
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (!RESEND_API_KEY) return new Response('RESEND_API_KEY not configured', { status: 500 })
 
   const { type, payload } = await req.json()
+
+  // License signed: send directly to master, no company lookup needed
+  if (type === 'license_signed') {
+    const subject = `📄 הסכם נחתם — ${payload.company_name || payload.signatory_name || 'לקוח חדש'}`
+    const ok = await sendEmail(MASTER_EMAIL, subject, buildLicenseSigned(payload))
+    return new Response(JSON.stringify({ ok }), { headers: { 'Content-Type': 'application/json' } })
+  }
+
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 
   // Load company for name + language preference
@@ -201,16 +259,9 @@ Deno.serve(async (req) => {
 
   if (!to) return new Response(JSON.stringify({ ok: false, reason: 'no_recipient' }), { status: 200 })
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+  const ok = await sendEmail(to, subject, html)
+  return new Response(JSON.stringify({ ok }), {
+    status: ok ? 200 : 500,
+    headers: { 'Content-Type': 'application/json' },
   })
-
-  if (!res.ok) {
-    console.error('Resend error:', await res.text())
-    return new Response(JSON.stringify({ ok: false }), { status: 500 })
-  }
-
-  return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
 })
