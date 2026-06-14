@@ -6400,10 +6400,6 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                 <input style={inp} value={form.fine_number} onChange={e => set('fine_number', e.target.value)} placeholder="12345678" />
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'מספר כרטיס' : 'Ticket #'}</label>
-                <input style={inp} value={form.ticket_number} onChange={e => set('ticket_number', e.target.value)} placeholder="TK-12345" />
-              </div>
-              <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סטטוס תשלום' : 'Payment Status'}</label>
                 <select style={inp} value={form.payment_status} onChange={e => set('payment_status', e.target.value)}>
                   {Object.entries(VIOLATION_PAYMENT_STATUS_HE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
