@@ -194,9 +194,18 @@ async function sendEmail(to: string, subject: string, html: string) {
   return res.ok
 }
 
+// ── CORS ──────────────────────────────────────────────────────────────────────
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-  if (!RESEND_API_KEY) return new Response('RESEND_API_KEY not configured', { status: 500 })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+  if (!RESEND_API_KEY) return new Response('RESEND_API_KEY not configured', { status: 500, headers: CORS })
 
   const { type, payload } = await req.json()
 
@@ -204,7 +213,7 @@ Deno.serve(async (req) => {
   if (type === 'license_signed') {
     const subject = `📄 הסכם נחתם — ${payload.company_name || payload.signatory_name || 'לקוח חדש'}`
     const ok = await sendEmail(MASTER_EMAIL, subject, buildLicenseSigned(payload))
-    return new Response(JSON.stringify({ ok }), { headers: { 'Content-Type': 'application/json' } })
+    return json({ ok })
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
@@ -257,11 +266,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (!to) return new Response(JSON.stringify({ ok: false, reason: 'no_recipient' }), { status: 200 })
+  if (!to) return json({ ok: false, reason: 'no_recipient' })
 
   const ok = await sendEmail(to, subject, html)
-  return new Response(JSON.stringify({ ok }), {
-    status: ok ? 200 : 500,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return json({ ok }, ok ? 200 : 500)
 })
