@@ -6994,6 +6994,214 @@ function TrainingPane({ driverId, companyId, rtl }) {
   )
 }
 
+function ConnectionManager({ companyId, rtl }) {
+  const [catalog, setCatalog]         = useState([])
+  const [connections, setConnections] = useState([])
+  const [view, setView]               = useState('list')   // 'list' | 'chooser' | 'form'
+  const [selected, setSelected]       = useState(null)     // integration catalog entry
+  const [formValues, setFormValues]   = useState({})
+  const [saving, setSaving]           = useState(false)
+  const [deletingId, setDeletingId]   = useState(null)
+  const [showPass, setShowPass]       = useState({})
+
+  useEffect(() => {
+    supabase.from('integration_catalog').select('*').eq('active', true).order('sort_order').then(({ data }) => setCatalog(data || []))
+  }, [])
+
+  useEffect(() => {
+    if (!companyId) return
+    supabase.from('integration_connections').select('*').eq('company_id', companyId).order('created_at').then(({ data }) => setConnections(data || []))
+  }, [companyId])
+
+  function openChooser() { setView('chooser') }
+  function openForm(integ) {
+    setSelected(integ)
+    setFormValues({})
+    setShowPass({})
+    setView('form')
+  }
+  function backToList() { setView('list'); setSelected(null) }
+  function backToChooser() { setView('chooser') }
+
+  async function saveConnection() {
+    if (!selected || !companyId) return
+    const fields = selected.fields || []
+    for (const f of fields) {
+      if (f.required && !formValues[f.name]?.trim()) {
+        alert(rtl ? `שדה חובה: ${f.label}` : `Required field: ${f.label}`)
+        return
+      }
+    }
+    setSaving(true)
+    const name = formValues['connection_name'] || selected.label
+    const creds = { ...formValues }
+    delete creds['connection_name']
+    const { data, error } = await supabase.from('integration_connections').insert({
+      company_id: companyId,
+      integration_key: selected.key,
+      name,
+      credentials: creds
+    }).select().single()
+    setSaving(false)
+    if (error) { alert(error.message); return }
+    setConnections(prev => [...prev, data])
+    backToList()
+  }
+
+  async function deleteConnection(id) {
+    setDeletingId(id)
+    await supabase.from('integration_connections').delete().eq('id', id)
+    setConnections(prev => prev.filter(c => c.id !== id))
+    setDeletingId(null)
+  }
+
+  const catalogMap = Object.fromEntries(catalog.map(c => [c.key, c]))
+
+  // ── LIST VIEW ──────────────────────────────────────────────────────────────
+  if (view === 'list') return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 22 }}>🔗</span>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'חיבורים' : 'Connections'}</div>
+            <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? 'חיבורים למערכות חיצוניות של החברה' : 'External system connections for this company'}</div>
+          </div>
+        </div>
+        <button onClick={openChooser} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          + {rtl ? 'הוסף חיבור' : 'Add Connection'}
+        </button>
+      </div>
+
+      {connections.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '32px 0', color: C.textMuted }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🔌</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{rtl ? 'אין חיבורים עדיין' : 'No connections yet'}</div>
+          <div style={{ fontSize: 12, marginTop: 4 }}>{rtl ? 'לחץ "הוסף חיבור" כדי להתחיל' : 'Click "Add Connection" to get started'}</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {connections.map(conn => {
+            const integ = catalogMap[conn.integration_key]
+            return (
+              <div key={conn.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>{integ?.logo || '🔌'}</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{conn.name}</div>
+                    <div style={{ fontSize: 12, color: C.textSecondary }}>{integ?.label || conn.integration_key}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ background: '#d1fae5', color: '#065f46', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10 }}>
+                    {rtl ? '✓ מחובר' : '✓ Connected'}
+                  </span>
+                  <button
+                    onClick={() => deleteConnection(conn.id)}
+                    disabled={deletingId === conn.id}
+                    style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 7, padding: '5px 10px', fontSize: 13, cursor: 'pointer', color: C.danger, opacity: deletingId === conn.id ? 0.5 : 1 }}
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
+  // ── CHOOSER VIEW ────────────────────────────────────────────────────────────
+  if (view === 'chooser') return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <button onClick={backToList} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 12px', fontSize: 13, cursor: 'pointer', color: C.textSecondary }}>
+          {rtl ? '← חזור' : '← Back'}
+        </button>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'בחר אינטגרציה' : 'Choose Integration'}</div>
+          <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? 'בחר מערכת חיצונית לחיבור' : 'Select an external system to connect'}</div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+        {catalog.map(integ => (
+          <button
+            key={integ.key}
+            onClick={() => openForm(integ)}
+            style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px', cursor: 'pointer', textAlign: rtl ? 'right' : 'left', transition: 'border-color 0.15s, box-shadow 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.boxShadow = `0 0 0 3px ${C.primary}20` }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = 'none' }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 8 }}>{integ.logo}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 4 }}>{integ.label}</div>
+            <div style={{ fontSize: 11, color: C.textSecondary, lineHeight: 1.4 }}>{integ.description}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  // ── FORM VIEW ───────────────────────────────────────────────────────────────
+  if (view === 'form' && selected) return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <button onClick={backToChooser} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 12px', fontSize: 13, cursor: 'pointer', color: C.textSecondary }}>
+          {rtl ? '← חזור' : '← Back'}
+        </button>
+        <span style={{ fontSize: 28 }}>{selected.logo}</span>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{selected.label}</div>
+          <div style={{ fontSize: 12, color: C.textSecondary }}>{selected.description}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 480 }}>
+        {(selected.fields || []).map(field => (
+          <div key={field.name}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.textSecondary, marginBottom: 5 }}>
+              {field.label}{field.required && <span style={{ color: C.danger }}> *</span>}
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={field.type === 'password' && !showPass[field.name] ? 'password' : 'text'}
+                placeholder={field.placeholder}
+                value={formValues[field.name] || ''}
+                onChange={e => setFormValues(prev => ({ ...prev, [field.name]: e.target.value }))}
+                style={{ width: '100%', boxSizing: 'border-box', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: field.type === 'password' ? '10px 40px 10px 12px' : '10px 12px', fontSize: 13, color: C.textPrimary, outline: 'none' }}
+              />
+              {field.type === 'password' && (
+                <button
+                  type="button"
+                  onClick={() => setShowPass(prev => ({ ...prev, [field.name]: !prev[field.name] }))}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: C.textMuted }}
+                >
+                  {showPass[field.name] ? '🙈' : '👁'}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+        <button
+          onClick={saveConnection}
+          disabled={saving}
+          style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+        >
+          {saving ? (rtl ? 'שומר...' : 'Saving...') : (rtl ? '💾 שמור חיבור' : '💾 Save Connection')}
+        </button>
+        <button onClick={backToList} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 20px', fontSize: 14, cursor: 'pointer', color: C.textSecondary }}>
+          {rtl ? 'ביטול' : 'Cancel'}
+        </button>
+      </div>
+    </div>
+  )
+
+  return null
+}
+
 function IntegrationsTab({ companyId, rtl }) {
   const [webhookCopied, setWebhookCopied] = useState(false)
   const [costs, setCosts] = useState([])
@@ -7086,6 +7294,9 @@ function IntegrationsTab({ companyId, rtl }) {
           </div>
         </div>
       </div>
+
+      {/* Connection Manager */}
+      <ConnectionManager companyId={companyId} rtl={rtl} />
     </div>
   )
 }
