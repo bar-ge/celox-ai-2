@@ -27,8 +27,9 @@ const INJECTED_STYLES = `
                 box-shadow 0.22s cubic-bezier(0.32,0.72,0,1) !important;
   }
   .crm-card:hover {
-    background: rgba(255,255,255,0.068) !important;
-    border-color: rgba(255,255,255,0.14) !important;
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.08) !important;
   }
 
   .crm-stat-card {
@@ -38,7 +39,7 @@ const INJECTED_STYLES = `
   }
   .crm-stat-card:hover {
     transform: translateY(-3px) !important;
-    box-shadow: 0 20px 56px rgba(0,0,0,0.55) !important;
+    box-shadow: 0 16px 40px rgba(15,23,42,0.12) !important;
   }
 
   .crm-btn-primary {
@@ -53,18 +54,18 @@ const INJECTED_STYLES = `
     transition: background 0.2s, border-color 0.2s, color 0.2s !important;
   }
   .crm-btn-ghost:hover {
-    background: rgba(255,255,255,0.09) !important;
-    border-color: rgba(255,255,255,0.2) !important;
-    color: rgba(241,245,249,0.92) !important;
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
   }
 
   .crm-btn-danger {
     transition: background 0.2s, border-color 0.2s, color 0.2s !important;
   }
   .crm-btn-danger:hover {
-    background: rgba(248,113,113,0.16) !important;
-    border-color: rgba(248,113,113,0.35) !important;
-    color: #f87171 !important;
+    background: #fef2f2 !important;
+    border-color: #fca5a5 !important;
+    color: #dc2626 !important;
   }
 
   .crm-nav-item {
@@ -79,9 +80,9 @@ const INJECTED_STYLES = `
     transition: border-color 0.2s, box-shadow 0.2s, background 0.2s !important;
   }
   .crm-input:focus {
-    border-color: rgba(59,130,246,0.55) !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.14) !important;
-    background: rgba(255,255,255,0.07) !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+    background: #ffffff !important;
     outline: none !important;
   }
 
@@ -104,7 +105,7 @@ const INJECTED_STYLES = `
   }
 
   .crm-note-card { transition: background 0.18s !important; }
-  .crm-note-card:hover { background: rgba(255,255,255,0.07) !important; }
+  .crm-note-card:hover { background: #f8fafc !important; }
 
   .crm-status-pill {
     transition: transform 0.18s, box-shadow 0.18s !important;
@@ -116,72 +117,73 @@ const INJECTED_STYLES = `
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 const C = {
-  bg:            '#070c18',
-  surface:       'rgba(255,255,255,0.043)',
-  surfaceHover:  'rgba(255,255,255,0.07)',
-  surfaceStrong: 'rgba(255,255,255,0.095)',
-  border:        'rgba(255,255,255,0.082)',
-  borderStrong:  'rgba(255,255,255,0.16)',
-  primary:       '#3b82f6',
-  primaryDim:    'rgba(59,130,246,0.18)',
-  indigo:        '#818cf8',
-  textPrimary:   '#f1f5f9',
-  textSecondary: 'rgba(241,245,249,0.58)',
-  textMuted:     'rgba(241,245,249,0.3)',
-  success:       '#34d399',
-  successText:   '#34d399',
-  warning:       '#fbbf24',
-  danger:        '#f87171',
-  purple:        '#a78bfa',
-  navBg:         '#040810',
-  sidebar:       '#040810',
+  bg:            '#f1f5f9',
+  surface:       '#ffffff',
+  surfaceHover:  '#f8fafc',
+  surfaceStrong: '#f1f5f9',
+  border:        '#e2e8f0',
+  borderStrong:  '#cbd5e1',
+  primary:       '#2563eb',
+  primaryDim:    'rgba(37,99,235,0.1)',
+  indigo:        '#6366f1',
+  textPrimary:   '#0f172a',
+  textSecondary: '#475569',
+  textMuted:     '#94a3b8',
+  success:       '#059669',
+  successText:   '#059669',
+  warning:       '#d97706',
+  danger:        '#dc2626',
+  purple:        '#7c3aed',
+  navBg:         '#0f172a',
+  sidebar:       '#0f172a',
 }
 
 const STAGE_META = {
-  lead:    { label: 'ליד',    color: C.purple,  bg: 'rgba(167,139,250,0.14)' },
-  trial:   { label: 'ניסיון', color: C.warning, bg: 'rgba(251,191,36,0.14)'  },
-  active:  { label: 'פעיל',   color: C.success, bg: 'rgba(52,211,153,0.14)'  },
-  paused:  { label: 'מושהה',  color: C.textMuted, bg: 'rgba(241,245,249,0.08)' },
-  churned: { label: 'עזב',    color: C.danger,  bg: 'rgba(248,113,113,0.14)' },
+  lead:    { label: 'ליד',    color: '#7c3aed', bg: '#ede9fe' },
+  trial:   { label: 'ניסיון', color: '#b45309', bg: '#fef3c7' },
+  active:  { label: 'פעיל',   color: '#065f46', bg: '#d1fae5' },
+  paused:  { label: 'מושהה',  color: '#64748b', bg: '#f1f5f9' },
+  churned: { label: 'עזב',    color: '#991b1b', bg: '#fee2e2' },
 }
 
 const LEAD_STATUS_META = {
-  new:       { label: 'חדש',      color: C.primary, bg: 'rgba(59,130,246,0.14)'  },
-  contacted: { label: 'נוצר קשר', color: C.purple,  bg: 'rgba(167,139,250,0.14)' },
-  qualified: { label: 'מוסמך',    color: C.warning, bg: 'rgba(251,191,36,0.14)'  },
-  proposal:  { label: 'הצעה',     color: C.indigo,  bg: 'rgba(129,140,248,0.14)' },
-  won:       { label: '✓ נסגר',   color: C.success, bg: 'rgba(52,211,153,0.14)'  },
-  lost:      { label: 'אבוד',     color: C.danger,  bg: 'rgba(248,113,113,0.14)' },
+  new:       { label: 'חדש',      color: '#1d4ed8', bg: '#dbeafe' },
+  contacted: { label: 'נוצר קשר', color: '#7c3aed', bg: '#ede9fe' },
+  qualified: { label: 'מוסמך',    color: '#b45309', bg: '#fef3c7' },
+  proposal:  { label: 'הצעה',     color: '#4338ca', bg: '#e0e7ff' },
+  won:       { label: '✓ נסגר',   color: '#065f46', bg: '#d1fae5' },
+  lost:      { label: 'אבוד',     color: '#991b1b', bg: '#fee2e2' },
 }
 
 // ── Style constants ───────────────────────────────────────────────────────────
 const FONT = "'Figtree','Segoe UI',system-ui,sans-serif"
 
 const card = {
-  background: C.surface,
+  background: '#ffffff',
   borderRadius: 14,
-  border: `1px solid ${C.border}`,
+  border: '1px solid #e2e8f0',
   padding: '18px 22px',
   fontFamily: FONT,
+  boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
 }
 
 const inp = {
   width: '100%',
   padding: '9px 13px',
-  border: `1px solid ${C.border}`,
+  border: '1px solid #e2e8f0',
   borderRadius: 9,
   fontSize: 13,
   outline: 'none',
   boxSizing: 'border-box',
-  color: C.textPrimary,
-  background: 'rgba(255,255,255,0.045)',
+  color: '#0f172a',
+  background: '#ffffff',
   fontFamily: FONT,
 }
 
 const lbl = {
   fontSize: 10,
   fontWeight: 700,
-  color: C.textMuted,
+  color: '#94a3b8',
   textTransform: 'uppercase',
   letterSpacing: '0.1em',
   marginBottom: 5,
@@ -190,7 +192,7 @@ const lbl = {
 }
 
 const btnPrimary = {
-  background: C.primary,
+  background: '#2563eb',
   color: '#fff',
   border: 'none',
   borderRadius: 9,
@@ -202,9 +204,9 @@ const btnPrimary = {
 }
 
 const btnGhost = {
-  background: 'rgba(255,255,255,0.05)',
-  border: `1px solid ${C.border}`,
-  color: C.textSecondary,
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  color: '#475569',
   borderRadius: 9,
   padding: '7px 14px',
   fontSize: 12,
@@ -297,10 +299,10 @@ function NotesPanel({ entityType, entityId, authorEmail }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
           {notes.map(n => (
             <div key={n.id} className="crm-note-card" style={{
-              background: 'rgba(255,255,255,0.04)',
+              background: '#f8fafc',
               borderRadius: 9, padding: '10px 13px',
               fontSize: 13, color: C.textPrimary,
-              border: `1px solid ${C.border}`,
+              border: '1px solid #e2e8f0',
             }}>
               <div style={{ lineHeight: 1.65, whiteSpace: 'pre-wrap', fontFamily: FONT }}>{n.body}</div>
               <div style={{ fontSize: 10, color: C.textMuted, marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -368,10 +370,11 @@ function DashboardView({ companies, leads, agreements }) {
             key={s.label}
             className={`crm-stat-card crm-animate crm-animate-${s.delay}`}
             style={{
-              background: C.surface,
+              background: '#ffffff',
               borderRadius: 14,
-              border: `1px solid ${C.border}`,
+              border: '1px solid #e2e8f0',
               padding: '20px 20px 18px',
+              boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
               position: 'relative',
               overflow: 'hidden',
             }}
@@ -442,7 +445,7 @@ function DashboardView({ companies, leads, agreements }) {
                     {a.data?.signatory_name || '—'} · {fmtDate(a.submitted_at)}
                   </div>
                 </div>
-                <span style={{ fontSize: 10, background: 'rgba(52,211,153,0.14)', color: C.success, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
+                <span style={{ fontSize: 10, background: '#d1fae5', color: '#065f46', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
                   ✓ חתום
                 </span>
               </div>
@@ -551,8 +554,8 @@ function ClientsView({ companies, agreements, session, onUpdate }) {
               {/* Company avatar */}
               <div style={{
                 width: 38, height: 38, borderRadius: 10,
-                background: `linear-gradient(135deg, ${C.primary}30, ${C.indigo}30)`,
-                border: `1px solid ${C.border}`,
+                background: 'linear-gradient(135deg, #dbeafe, #e0e7ff)',
+                border: '1px solid #c7d2fe',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 16, flexShrink: 0,
               }}>
@@ -563,9 +566,9 @@ function ClientsView({ companies, agreements, session, onUpdate }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, fontFamily: FONT }}>{co.name}</span>
                   <Badge meta={STAGE_META[co.crm_stage] || STAGE_META.active} />
-                  {!co.is_active && <span style={{ fontSize: 10, background: 'rgba(248,113,113,0.14)', color: C.danger, borderRadius: 20, padding: '2px 9px', fontWeight: 700, fontFamily: FONT }}>סגור</span>}
-                  {expired && <span style={{ fontSize: 10, background: 'rgba(248,113,113,0.14)', color: C.danger, borderRadius: 20, padding: '2px 9px', fontWeight: 700, fontFamily: FONT }}>פג תוקף</span>}
-                  {agrs.length > 0 && <span style={{ fontSize: 10, background: 'rgba(52,211,153,0.14)', color: C.success, borderRadius: 20, padding: '2px 9px', fontWeight: 700, fontFamily: FONT }}>📄 {agrs.length} הסכמים</span>}
+                  {!co.is_active && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', borderRadius: 20, padding: '2px 9px', fontWeight: 700, fontFamily: FONT }}>סגור</span>}
+                  {expired && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', borderRadius: 20, padding: '2px 9px', fontWeight: 700, fontFamily: FONT }}>פג תוקף</span>}
+                  {agrs.length > 0 && <span style={{ fontSize: 10, background: '#d1fae5', color: '#065f46', borderRadius: 20, padding: '2px 9px', fontWeight: 700, fontFamily: FONT }}>📄 {agrs.length} הסכמים</span>}
                 </div>
                 <div style={{ fontSize: 12, color: C.textMuted, marginTop: 3, display: 'flex', gap: 12, flexWrap: 'wrap', fontFamily: FONT }}>
                   <span style={{ fontFamily: 'monospace', letterSpacing: '0.1em', color: C.textSecondary }}>{co.invite_code}</span>
@@ -594,7 +597,7 @@ function ClientsView({ companies, agreements, session, onUpdate }) {
                       style={{
                         padding: '5px 13px', borderRadius: 20, border: 'none',
                         fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: FONT,
-                        background: tab === t ? C.primary : 'rgba(255,255,255,0.05)',
+                        background: tab === t ? C.primary : '#f1f5f9',
                         color: tab === t ? '#fff' : C.textSecondary,
                       }}
                     >
@@ -607,7 +610,7 @@ function ClientsView({ companies, agreements, session, onUpdate }) {
                 {tab === 'info' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {[['שם', co.name], ['קוד הזמנה', co.invite_code], ['נוצר', fmtDate(co.created_at)], ['סטטוס', co.is_active ? 'פעיל' : 'סגור']].map(([k, v]) => (
-                      <div key={k} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 9, padding: '10px 13px', border: `1px solid ${C.border}` }}>
+                      <div key={k} style={{ background: '#f8fafc', borderRadius: 9, padding: '10px 13px', border: '1px solid #e2e8f0' }}>
                         <div style={lbl}>{k}</div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, fontFamily: FONT }}>{v}</div>
                       </div>
@@ -627,7 +630,7 @@ function ClientsView({ companies, agreements, session, onUpdate }) {
                             ['📅 גישה עד',       co.access_until || 'ללא הגבלה'],
                             ['שלב CRM',          STAGE_META[co.crm_stage]?.label || co.crm_stage],
                           ].map(([k, v]) => (
-                            <div key={k} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 9, padding: '10px 13px', border: `1px solid ${C.border}` }}>
+                            <div key={k} style={{ background: '#f8fafc', borderRadius: 9, padding: '10px 13px', border: '1px solid #e2e8f0' }}>
                               <div style={lbl}>{k}</div>
                               <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, fontFamily: FONT }}>{v}</div>
                             </div>
@@ -679,7 +682,7 @@ function ClientsView({ companies, agreements, session, onUpdate }) {
                     {agrs.length === 0 ? (
                       <div style={{ fontSize: 13, color: C.textMuted, fontFamily: FONT }}>אין הסכמים חתומים עדיין.</div>
                     ) : agrs.map(a => (
-                      <div key={a.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', marginBottom: 8, border: `1px solid ${C.border}` }}>
+                      <div key={a.id} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', marginBottom: 8, border: '1px solid #e2e8f0' }}>
                         <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary, fontFamily: FONT }}>{a.data?.company_name || '—'}</div>
                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 3, fontFamily: FONT }}>
                           👤 {a.data?.signatory_name || '—'} &nbsp;·&nbsp; 📅 {a.data?.sign_date || fmtDate(a.submitted_at?.slice(0, 10))}
@@ -821,8 +824,8 @@ function LeadsView({ leads, session, onUpdate }) {
               {/* Avatar */}
               <div style={{
                 width: 38, height: 38, borderRadius: 10,
-                background: `linear-gradient(135deg, ${LEAD_STATUS_META[l.status]?.color || C.primary}22, ${LEAD_STATUS_META[l.status]?.color || C.primary}10)`,
-                border: `1px solid ${LEAD_STATUS_META[l.status]?.color || C.primary}30`,
+                background: LEAD_STATUS_META[l.status]?.bg || '#dbeafe',
+                border: `1px solid ${LEAD_STATUS_META[l.status]?.color || '#2563eb'}30`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 16, flexShrink: 0,
               }}>
@@ -862,7 +865,7 @@ function LeadsView({ leads, session, onUpdate }) {
                         style={{
                           padding: '5px 13px', borderRadius: 20, border: 'none',
                           fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: FONT,
-                          background: l.status === k ? v.color : 'rgba(255,255,255,0.06)',
+                          background: l.status === k ? v.color : '#f1f5f9',
                           color: l.status === k ? '#fff' : C.textSecondary,
                           boxShadow: l.status === k ? `0 4px 16px ${v.color}40` : 'none',
                         }}
@@ -874,7 +877,7 @@ function LeadsView({ leads, session, onUpdate }) {
                 </div>
 
                 {l.message && (
-                  <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 9, padding: '10px 13px', fontSize: 13, color: C.textPrimary, marginBottom: 14, lineHeight: 1.65, border: `1px solid ${C.border}`, fontFamily: FONT }}>
+                  <div style={{ background: '#f8fafc', borderRadius: 9, padding: '10px 13px', fontSize: 13, color: C.textPrimary, marginBottom: 14, lineHeight: 1.65, border: '1px solid #e2e8f0', fontFamily: FONT }}>
                     📝 {l.message}
                   </div>
                 )}
@@ -1043,27 +1046,27 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
         </div>
 
         {sendError && (
-          <div style={{ background: 'rgba(248,113,113,0.1)', border: `1px solid rgba(248,113,113,0.25)`, borderRadius: 9, padding: '9px 13px', color: C.danger, fontSize: 12, marginTop: 10, fontFamily: FONT }}>
+          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 9, padding: '9px 13px', color: '#dc2626', fontSize: 12, marginTop: 10, fontFamily: FONT }}>
             ⚠ {sendError}
           </div>
         )}
 
         {sendLink && (
-          <div style={{ background: 'rgba(52,211,153,0.06)', borderRadius: 10, padding: '16px 16px', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12, border: `1px solid rgba(52,211,153,0.2)` }}>
+          <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '16px 16px', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12, border: '1px solid #bbf7d0' }}>
             <div style={{ fontSize: 12, color: C.textSecondary, fontFamily: FONT }}>שלח ללקוח לחתימה על הסכם הרישיון:</div>
             {(sendLink.fields?.num_cars || sendLink.fields?.price_per_car != null) && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {sendLink.fields?.num_cars > 0 && (
-                  <span style={{ fontSize: 11, background: C.primaryDim, color: C.primary, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
+                  <span style={{ fontSize: 11, background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
                     🚗 {sendLink.fields.num_cars} רכבים
                   </span>
                 )}
                 {sendLink.fields?.price_per_car != null && (
-                  <span style={{ fontSize: 11, background: 'rgba(52,211,153,0.14)', color: C.success, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
+                  <span style={{ fontSize: 11, background: '#d1fae5', color: '#065f46', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
                     ₪{sendLink.fields.price_per_car} לרכב
                   </span>
                 )}
-                <span style={{ fontSize: 11, background: 'rgba(251,191,36,0.14)', color: C.warning, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
+                <span style={{ fontSize: 11, background: '#fef3c7', color: '#b45309', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
                   💾 {sendLink.fields?.free_storage_gb ?? 10} GB חינם
                   {sendLink.fields?.price_extra_gb ? ` · ₪${sendLink.fields.price_extra_gb}/GB נוסף` : ''}
                 </span>
@@ -1119,7 +1122,7 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: 10, background: 'rgba(251,191,36,0.16)', color: C.warning, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>⏳ ממתין</span>
+                    <span style={{ fontSize: 10, background: '#fef3c7', color: '#b45309', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>⏳ ממתין</span>
                     <button onClick={() => { navigator.clipboard.writeText(lu) }} className="crm-btn-ghost" style={{ ...btnGhost, fontSize: 12 }}>העתק קישור</button>
                   </div>
                 </div>
@@ -1161,7 +1164,7 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 10, background: 'rgba(52,211,153,0.14)', color: C.success, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>✓ חתום</span>
+              <span style={{ fontSize: 10, background: '#d1fae5', color: '#065f46', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>✓ חתום</span>
               <button onClick={() => setViewing(viewing?.id === a.id ? null : a)} className="crm-btn-ghost" style={{ ...btnGhost, fontSize: 12 }}>צפה</button>
             </div>
           </div>
@@ -1178,7 +1181,7 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
                   ['📧 אימייל',    a.data?.email],
                   ['📅 תאריך',     a.data?.sign_date],
                 ].filter(([, v]) => v).map(([k, v]) => (
-                  <div key={k} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 9, padding: '10px 13px', border: `1px solid ${C.border}` }}>
+                  <div key={k} style={{ background: '#f8fafc', borderRadius: 9, padding: '10px 13px', border: '1px solid #e2e8f0' }}>
                     <div style={lbl}>{k}</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, fontFamily: FONT }}>{v}</div>
                   </div>
@@ -1189,16 +1192,16 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
                   <div style={lbl}>תמחור</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {a.form_links.fields.num_cars > 0 && (
-                      <span style={{ fontSize: 11, background: C.primaryDim, color: C.primary, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
+                      <span style={{ fontSize: 11, background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
                         🚗 {a.form_links.fields.num_cars} רכבים
                       </span>
                     )}
                     {a.form_links.fields.price_per_car != null && (
-                      <span style={{ fontSize: 11, background: 'rgba(52,211,153,0.14)', color: C.success, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
+                      <span style={{ fontSize: 11, background: '#d1fae5', color: '#065f46', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
                         ₪{a.form_links.fields.price_per_car} לרכב
                       </span>
                     )}
-                    <span style={{ fontSize: 11, background: 'rgba(251,191,36,0.14)', color: C.warning, borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
+                    <span style={{ fontSize: 11, background: '#fef3c7', color: '#b45309', borderRadius: 20, padding: '3px 10px', fontWeight: 700, fontFamily: FONT }}>
                       💾 {a.form_links.fields.free_storage_gb ?? 10} GB חינם
                       {a.form_links.fields.price_extra_gb ? ` · ₪${a.form_links.fields.price_extra_gb}/GB נוסף` : ''}
                     </span>
