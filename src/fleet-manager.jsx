@@ -1709,10 +1709,13 @@ function EditableCarRow({ car, branches, drivers, onSave, onCancel, t, rtl, mobi
   )
 }
 
-function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onViewDetail, t, rtl, mobile }) {
+function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, onEdit, onDelete, onViewDetail, t, rtl, mobile, score }) {
   const [hover, setHover] = useState(false)
   const td = mkTd(rtl, mobile)
   const statusColor = DRIVER_STATUS_COLOR[driver.status] || C.success
+  const safeScore = score ?? 100
+  const scoreColor = safeScore >= 80 ? '#059669' : safeScore >= 60 ? '#d97706' : '#dc2626'
+  const scoreBg    = safeScore >= 80 ? '#d1fae5' : safeScore >= 60 ? '#fef3c7' : '#fee2e2'
   return (
     <tr onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{ background: selected ? C.primary + '08' : hover ? C.rowHover : C.surface, transition: 'background 0.12s' }}>
@@ -1739,6 +1742,12 @@ function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, on
         {getBranchName(driver.branch_id) !== '—'
           ? <Badge label={getBranchName(driver.branch_id)} color={branchColor(getBranchIdx(driver.branch_id))} />
           : <span style={{ color: C.textMuted }}>—</span>}
+      </td>
+      <td style={td}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: scoreBg, color: scoreColor, borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 800 }}>
+          <span style={{ fontSize: 14 }}>{safeScore >= 80 ? '🟢' : safeScore >= 60 ? '🟡' : '🔴'}</span>
+          {safeScore}/100
+        </span>
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
@@ -3542,6 +3551,117 @@ function filterByDate(items, filter) {
   })
 }
 
+function FleetCalendar({ companyId, rtl }) {
+  const today = new Date()
+  const [cur, setCur] = useState({ year: today.getFullYear(), month: today.getMonth() })
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!companyId) return
+    setLoading(true)
+    const from = `${cur.year}-${String(cur.month + 1).padStart(2,'0')}-01`
+    const lastDay = new Date(cur.year, cur.month + 1, 0).getDate()
+    const to   = `${cur.year}-${String(cur.month + 1).padStart(2,'0')}-${lastDay}`
+    Promise.all([
+      supabase.from('maintenance').select('id,service_date,type,notes').eq('company_id', companyId).gte('service_date', from).lte('service_date', to),
+      supabase.from('traffic_violations').select('id,violation_date,violation_type,amount').eq('company_id', companyId).gte('violation_date', from).lte('violation_date', to),
+      supabase.from('costs').select('id,date,category,amount').eq('company_id', companyId).gte('date', from).lte('date', to),
+    ]).then(([{ data: m }, { data: v }, { data: c }]) => {
+      const ev = []
+      ;(m || []).forEach(r => ev.push({ date: r.service_date, label: r.type || 'תחזוקה', color: '#2563eb', icon: '🔧' }))
+      ;(v || []).forEach(r => ev.push({ date: r.violation_date, label: r.violation_type || 'קנס', color: '#dc2626', icon: '🚨' }))
+      ;(c || []).forEach(r => ev.push({ date: r.date, label: r.category || 'עלות', color: '#d97706', icon: '💰' }))
+      setEvents(ev)
+      setLoading(false)
+    })
+  }, [companyId, cur.year, cur.month])
+
+  function prevMonth() { setCur(p => p.month === 0 ? { year: p.year - 1, month: 11 } : { ...p, month: p.month - 1 }) }
+  function nextMonth() { setCur(p => p.month === 11 ? { year: p.year + 1, month: 0 } : { ...p, month: p.month + 1 }) }
+
+  const monthNames = rtl
+    ? ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
+    : ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const dayNames = rtl ? ['א','ב','ג','ד','ה','ו','ש'] : ['Su','Mo','Tu','We','Th','Fr','Sa']
+
+  const firstDay = new Date(cur.year, cur.month, 1).getDay()
+  const daysInMonth = new Date(cur.year, cur.month + 1, 0).getDate()
+  const cells = []
+  for (let i = 0; i < firstDay; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  const evByDay = {}
+  events.forEach(ev => {
+    const day = parseInt(ev.date?.split('-')[2] || '0', 10)
+    if (!evByDay[day]) evByDay[day] = []
+    evByDay[day].push(ev)
+  })
+
+  const isToday = (d) => d && cur.year === today.getFullYear() && cur.month === today.getMonth() && d === today.getDate()
+
+  return (
+    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, marginBottom: 20 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <button onClick={prevMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+        <div style={{ fontWeight: 800, fontSize: 15, color: C.textPrimary }}>
+          📅 {monthNames[cur.month]} {cur.year}
+          {loading && <span style={{ fontSize: 11, color: C.textMuted, marginRight: 8, marginLeft: 8 }}>…</span>}
+        </div>
+        <button onClick={nextMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+        {dayNames.map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: C.textMuted, padding: '4px 0' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        {cells.map((day, i) => {
+          const dayEvs = day ? (evByDay[day] || []) : []
+          return (
+            <div key={i} style={{
+              minHeight: 62, borderRadius: 7, padding: '4px 5px',
+              background: isToday(day) ? C.primary + '12' : day ? C.bg : 'transparent',
+              border: isToday(day) ? `1.5px solid ${C.primary}` : `1px solid ${day ? C.border : 'transparent'}`,
+              position: 'relative',
+            }}>
+              {day && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: isToday(day) ? 800 : 500, color: isToday(day) ? C.primary : C.textSecondary, marginBottom: 3 }}>{day}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {dayEvs.slice(0, 3).map((ev, j) => (
+                      <div key={j} title={ev.label} style={{ fontSize: 9, fontWeight: 700, color: ev.color, background: ev.color + '18', borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {ev.icon} {ev.label}
+                      </div>
+                    ))}
+                    {dayEvs.length > 3 && <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700 }}>+{dayEvs.length - 3}</div>}
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+        {[['🔧', rtl ? 'תחזוקה' : 'Maintenance', '#2563eb'], ['🚨', rtl ? 'קנסות' : 'Violations', '#dc2626'], ['💰', rtl ? 'עלויות' : 'Costs', '#d97706']].map(([icon, label, color]) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.textSecondary }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: color, display: 'inline-block' }} />
+            {icon} {label}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, setDashFilter, onExport, onNavigate }) {
   const isMobile = useIsMobile()
   const [monthlyBudget,      setMonthlyBudget]      = useState(null)
@@ -3894,6 +4014,9 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
           )
         }
       </div>
+
+      {/* Fleet Calendar */}
+      {companyId && <FleetCalendar companyId={companyId} rtl={rtl} />}
     </div>
   )
 }
@@ -6068,14 +6191,20 @@ function NotificationBell({ companyId, userId, rtl }) {
   const [pushBusy,    setPushBusy]    = useState(false)
   const ref = useRef()
 
-  // Realtime: new form submissions
+  // Realtime: new form submissions + new violations
   useEffect(() => {
     if (!companyId) return
     const ch = supabase
       .channel('notif-' + companyId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'form_submissions', filter: `company_id=eq.${companyId}` }, p => {
         const s = p.new
-        setNotes(prev => [{ id: s.id, msg: `${s.submitter_name || (rtl ? 'נהג' : 'Driver')} — ${s.type}`, time: new Date() }, ...prev].slice(0, 30))
+        setNotes(prev => [{ id: s.id, icon: '📋', msg: `${s.submitter_name || (rtl ? 'נהג' : 'Driver')} — ${s.type}`, time: new Date() }, ...prev].slice(0, 50))
+        setUnread(n => n + 1)
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'traffic_violations', filter: `company_id=eq.${companyId}` }, p => {
+        const v = p.new
+        const src = v.fine_source === 'municipal' ? (rtl ? 'עירייה' : 'Municipal') : (rtl ? 'משטרה' : 'Police')
+        setNotes(prev => [{ id: v.id, icon: '🚨', msg: `${rtl ? 'קנס חדש' : 'New fine'} · ${src}${v.plate ? ' · ' + v.plate : ''}${v.amount ? ' · ₪' + v.amount : ''}`, time: new Date() }, ...prev].slice(0, 50))
         setUnread(n => n + 1)
       })
       .subscribe()
@@ -6158,9 +6287,12 @@ function NotificationBell({ companyId, userId, rtl }) {
           ) : (
             <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               {notes.map(n => (
-                <div key={n.id} style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 13 }}>
-                  <div style={{ color: C.textPrimary, fontWeight: 500 }}>{n.msg}</div>
-                  <div style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{n.time.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</div>
+                <div key={n.id} style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 13, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{n.icon || '🔔'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: C.textPrimary, fontWeight: 500, wordBreak: 'break-word' }}>{n.msg}</div>
+                    <div style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{n.time.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -6227,7 +6359,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
   const [signTarget, setSignTarget] = useState(null)
   const [signature, setSignature]   = useState('')
   const [saving, setSaving]         = useState(false)
-  const [form, setForm] = useState({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', ticket_number: '', location: '', amount: '', notes: '', driver_id: '', payment_status: 'unpaid' })
+  const [form, setForm] = useState({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_source: 'police', fine_number: '', ticket_number: '', location: '', amount: '', notes: '', driver_id: '', payment_status: 'unpaid' })
   const [addError, setAddError]     = useState('')
   const [matching, setMatching]     = useState(false)
   const [filterPayStatus, setFilterPayStatus] = useState('')
@@ -6273,6 +6405,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
       driver_id:      form.driver_id || null,
       violation_date: form.violation_date,
       violation_type: form.violation_type,
+      fine_source:    form.fine_source || 'police',
       fine_number:    form.fine_number || null,
       location:       form.location   || null,
       amount:         form.amount ? parseFloat(form.amount) : null,
@@ -6285,7 +6418,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
     if (error) { setAddError(friendlyDbError(error, rtl)); return }
     setViolations(p => [data[0], ...p])
     setShowAdd(false)
-    setForm({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_number: '', ticket_number: '', location: '', amount: '', notes: '', driver_id: '', payment_status: 'unpaid' })
+    setForm({ plate: '', car_id: '', violation_date: new Date().toISOString().slice(0,10), violation_type: VIOLATION_TYPES_HE[0], fine_source: 'police', fine_number: '', ticket_number: '', location: '', amount: '', notes: '', driver_id: '', payment_status: 'unpaid' })
   }
 
   async function saveSignature() {
@@ -6395,6 +6528,13 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג עבירה' : 'Violation Type'}</label>
                 <select style={inp} value={form.violation_type} onChange={e => set('violation_type', e.target.value)}>
                   {(rtl ? VIOLATION_TYPES_HE : VIOLATION_TYPES_EN).map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'גורם מוציא' : 'Issued By'}</label>
+                <select style={inp} value={form.fine_source} onChange={e => set('fine_source', e.target.value)}>
+                  <option value="police">{rtl ? '👮 משטרה' : '👮 Police'}</option>
+                  <option value="municipal">{rtl ? '🏛 עירייה' : '🏛 Municipal'}</option>
                 </select>
               </div>
               <div>
@@ -7452,9 +7592,10 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
 }
 
 function FleetManager({ session, profile, isMaster, companyId, onSignOut, initialLang, onOpenCRM }) {
-  const [branches, setBranches]   = useState([])
-  const [drivers, setDrivers]     = useState([])
-  const [cars, setCars]           = useState([])
+  const [branches, setBranches]         = useState([])
+  const [drivers, setDrivers]           = useState([])
+  const [cars, setCars]                 = useState([])
+  const [driverScores, setDriverScores] = useState({})
   const [activeTab, setActiveTab] = useState('dashboard')
   const [editingId, setEditingId] = useState(null)
   const [loading, setLoading]     = useState(true)
@@ -7510,16 +7651,26 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     setLoading(true)
     setBranches([]); setDrivers([]); setCars([])
     if (!activeCompanyId) { setLoading(false); return }
-    const [{ data: b }, { data: d }, { data: c }, { data: co }, { data: cl }] = await Promise.all([
+    const [{ data: b }, { data: d }, { data: c }, { data: co }, { data: cl }, { data: viol }] = await Promise.all([
       supabase.from('branches').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('drivers').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('cars').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('companies').select('max_cars, max_users').eq('id', activeCompanyId).maybeSingle(),
       supabase.from('custom_lists').select('*').eq('company_id', activeCompanyId).order('sort_order'),
+      supabase.from('traffic_violations').select('driver_id,fine_source').eq('company_id', activeCompanyId).not('driver_id', 'is', null),
     ])
     if (b) setBranches(b)
     if (d) setDrivers(d)
     if (c) setCars(c)
+    if (viol) {
+      const scores = {}
+      viol.forEach(v => {
+        if (!scores[v.driver_id]) scores[v.driver_id] = 100
+        scores[v.driver_id] -= v.fine_source === 'municipal' ? 5 : 10
+      })
+      Object.keys(scores).forEach(id => { scores[id] = Math.max(0, scores[id]) })
+      setDriverScores(scores)
+    }
     if (co) setCompanyLimits(co)
     if (cl) {
       const grouped = {}
@@ -8278,6 +8429,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         <th style={mkTh(rtl, false)}>{t.phone}</th>
                         <th style={mkTh(rtl, false)}>{t.driverStatus}</th>
                         <th style={mkTh(rtl, false)}>{t.branch}</th>
+                        <th style={mkTh(rtl, false)}>{rtl ? 'ציון בטיחות' : 'Safety Score'}</th>
                         <th style={{ ...mkTh(rtl, false), width: 140 }}>{t.actions}</th>
                       </>}
                       {activeTab === 'branches' && <>
@@ -8315,7 +8467,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         ? <EditableDriverRow key={driver.id} driver={driver} branches={branches} onSave={updateDriver} onCancel={() => setEditingId(null)} t={t} rtl={rtl} mobile={false} customLists={customLists} />
                         : <DriverRow key={driver.id} driver={driver} getBranchName={getBranchName} getBranchIdx={getBranchIdx}
                             selected={selectedIds.includes(driver.id)} onSelect={() => toggleSelect(driver.id)}
-                            onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onViewDetail={() => setDetailDriver(driver)} t={t} rtl={rtl} mobile={false} />
+                            onEdit={() => setEditingId(driver.id)} onDelete={() => deleteDriver(driver.id)} onViewDetail={() => setDetailDriver(driver)} t={t} rtl={rtl} mobile={false}
+                            score={driverScores[driver.id] ?? 100} />
                     )}
                     {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && (
                       <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
