@@ -7204,7 +7204,8 @@ function ConnectionManager({ companyId, rtl }) {
 
   async function deleteConnection(id) {
     setDeletingId(id)
-    await supabase.rpc('delete_integration_connection', { p_id: id })
+    const { error } = await supabase.rpc('delete_integration_connection', { p_id: id })
+    if (error) { alert(error.message); setDeletingId(null); return }
     setConnections(prev => prev.filter(c => c.id !== id))
     setDeletingId(null)
   }
