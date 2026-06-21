@@ -7649,16 +7649,6 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const rtl = lang === 'he'
   const activeCompanyId = isMaster ? viewCompanyId : companyId
 
-  // ── Session inactivity timeout (30 min) ───────────────────────────────────
-  useEffect(() => {
-    const TIMEOUT_MS = 30 * 60 * 1000
-    let timer = setTimeout(onSignOut, TIMEOUT_MS)
-    const reset = () => { clearTimeout(timer); timer = setTimeout(onSignOut, TIMEOUT_MS) }
-    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll']
-    events.forEach(e => window.addEventListener(e, reset, { passive: true }))
-    return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)) }
-  }, [])
-
   useEffect(() => { loadAll() }, [activeCompanyId])
 
   // ── Real-time sync ────────────────────────────────────────────────────────

@@ -455,10 +455,10 @@ function LoginScreen({ lang, setLang, notice }) {
     setLoading(true)
 
     if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
       if (error) setError(error.message)
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { error } = await supabase.auth.signUp({ email, password, options: { captchaToken } })
       if (error) setError(error.message)
       else { setEmail(''); setPassword(''); setMode('login'); setSuccess(t.accountCreated) }
     }
