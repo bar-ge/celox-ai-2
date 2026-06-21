@@ -1951,12 +1951,15 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
 }
 
 function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }) {
-  const [form, setForm] = useState({ name: '', license: '', license_levels: [], phone: '', status: 'Active', branch_id: '' })
+  const [form, setForm] = useState({ name: '', license: '', license_levels: [], phone: '', status: 'Active', branch_id: '', consent: false })
   const [otherText, setOtherText] = useState('')
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
-  function submit() { if (form.name.trim()) onAdd({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText) }) }
+  function submit() {
+    if (form.name.trim()) onAdd({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText), consent_given_at: form.consent ? new Date().toISOString() : null })
+  }
   return (
+    <>
     <tr style={{ background: C.rowAdd }}>
       <td style={td} />
       <td style={td}><input autoFocus placeholder={t.name} value={form.name} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })} style={inp} onKeyDown={e => e.key === 'Enter' && submit()} /></td>
@@ -1978,6 +1981,15 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }
       <td style={td}><select value={form.branch_id} onChange={e => setForm({ ...form, branch_id: e.target.value })} style={inp}><option value="">{t.noBranch}</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}><span style={{ display: 'flex', gap: 6 }}><ActionBtn variant="save" onClick={submit}>{t.add}</ActionBtn><ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn></span></td>
     </tr>
+    <tr style={{ background: C.rowAdd }}>
+      <td colSpan={8} style={{ ...td, paddingTop: 0, paddingBottom: 10 }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: form.consent ? C.success : C.textSecondary, fontWeight: form.consent ? 600 : 400 }}>
+          <input type="checkbox" checked={form.consent} onChange={e => setForm({ ...form, consent: e.target.checked })} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: C.success }} />
+          {rtl ? '✅ הנהג נתן הסכמה לאיסוף נתוני נסיעה (GDPR / חוק הגנת הפרטיות)' : '✅ Driver has given consent for data collection (Privacy Law compliance)'}
+        </label>
+      </td>
+    </tr>
+    </>
   )
 }
 
@@ -7150,7 +7162,7 @@ function ConnectionManager({ companyId, rtl }) {
 
   useEffect(() => {
     if (!companyId) return
-    supabase.from('integration_connections').select('*').eq('company_id', companyId).order('created_at').then(({ data }) => setConnections(data || []))
+    supabase.rpc('get_my_connections', { p_company_id: companyId }).then(({ data }) => setConnections(data || []))
   }, [companyId])
 
   function openChooser() { setView('chooser') }
@@ -7176,21 +7188,23 @@ function ConnectionManager({ companyId, rtl }) {
     const name = formValues['connection_name'] || selected.label
     const creds = { ...formValues }
     delete creds['connection_name']
-    const { data, error } = await supabase.from('integration_connections').insert({
-      company_id: companyId,
-      integration_key: selected.key,
-      name,
-      credentials: creds
-    }).select().single()
+    const { data: newId, error } = await supabase.rpc('save_integration_connection', {
+      p_company_id: companyId,
+      p_integration_key: selected.key,
+      p_name: name,
+      p_credentials: creds
+    })
     setSaving(false)
     if (error) { alert(error.message); return }
-    setConnections(prev => [...prev, data])
+    // Reload list to get the new connection
+    const { data: updated } = await supabase.rpc('get_my_connections', { p_company_id: companyId })
+    setConnections(updated || [])
     backToList()
   }
 
   async function deleteConnection(id) {
     setDeletingId(id)
-    await supabase.from('integration_connections').delete().eq('id', id)
+    await supabase.rpc('delete_integration_connection', { p_id: id })
     setConnections(prev => prev.filter(c => c.id !== id))
     setDeletingId(null)
   }
@@ -7345,11 +7359,13 @@ function ConnectionManager({ companyId, rtl }) {
 function IntegrationsTab({ companyId, rtl }) {
   const [webhookCopied, setWebhookCopied] = useState(false)
   const [costs, setCosts] = useState([])
-  const webhookUrl = `https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/gps-ingest?company_id=${companyId}`
+  const [webhookToken, setWebhookToken] = useState('')
+  const webhookUrl = `https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/gps-ingest?company_id=${companyId}&token=${webhookToken}`
 
   useEffect(() => {
     if (!companyId) return
     supabase.from('costs').select('*').eq('company_id', companyId).order('date', { ascending: false }).then(({ data }) => setCosts(data || []))
+    supabase.from('companies').select('webhook_token').eq('id', companyId).single().then(({ data }) => setWebhookToken(data?.webhook_token || ''))
   }, [companyId])
 
   function copyWebhook() {
@@ -7632,6 +7648,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const rtl = lang === 'he'
   const activeCompanyId = isMaster ? viewCompanyId : companyId
 
+  // ── Session inactivity timeout (30 min) ───────────────────────────────────
+  useEffect(() => {
+    const TIMEOUT_MS = 30 * 60 * 1000
+    let timer = setTimeout(onSignOut, TIMEOUT_MS)
+    const reset = () => { clearTimeout(timer); timer = setTimeout(onSignOut, TIMEOUT_MS) }
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll']
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }))
+    return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)) }
+  }, [])
+
   useEffect(() => { loadAll() }, [activeCompanyId])
 
   // ── Real-time sync ────────────────────────────────────────────────────────
@@ -7838,7 +7864,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
 
   function cleanCar(f)    { return { plate: f.plate, make: f.make, model: f.model, year: f.year ? parseInt(f.year, 10) : null, status: f.status || 'Available', fuel: f.fuel || 'Petrol', branch_id: f.branch_id || null, driver_id: f.driver_id || null, mileage: f.mileage ? parseInt(f.mileage, 10) : 0, company_id: activeCompanyId } }
-  function cleanDriver(f) { return { name: f.name, license: f.license, license_expiry: f.license_expiry || null, license_levels: f.license_levels || [], phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId } }
+  function cleanDriver(f) { return { name: f.name, license: f.license, license_expiry: f.license_expiry || null, license_levels: f.license_levels || [], phone: f.phone || null, status: f.status || 'Active', branch_id: f.branch_id || null, company_id: activeCompanyId, consent_given_at: f.consent_given_at || null } }
   function cleanBranch(f) { return { name: f.name, city: f.city, address: f.address || null, manager: f.manager || null, phone: f.phone || null, company_id: activeCompanyId } }
 
   const [crudError, setCrudError] = useState('')
