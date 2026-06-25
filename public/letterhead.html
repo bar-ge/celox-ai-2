@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>נייר מכתבים — Celox AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Heebo', Arial, sans-serif;
+      background: #e8ecf0;
+      color: #0f172a;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── Page shell ───────────────────────────────── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: #ffffff;
+      margin: 24px auto;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Header ───────────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0f172a 100%);
+      padding: 28px 36px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      position: relative;
+    }
+
+    /* subtle dot-grid overlay */
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(37,99,235,0.07) 1px, transparent 1px) 0 0 / 22px 22px;
+      pointer-events: none;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2563eb, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    .brand-text {
+      line-height: 1.2;
+    }
+
+    .brand-name {
+      font-size: 22px;
+      font-weight: 900;
+      color: #f8fafc;
+      letter-spacing: -0.4px;
+    }
+
+    .brand-tagline {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.05em;
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    .header-contact {
+      text-align: left;
+      direction: ltr;
+    }
+
+    .header-contact p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.8;
+      font-weight: 400;
+    }
+
+    .header-contact p strong {
+      color: rgba(255,255,255,0.85);
+      font-weight: 600;
+    }
+
+    /* ── Blue accent bar ──────────────────────────── */
+    .accent-bar {
+      height: 4px;
+      background: linear-gradient(90deg, #2563eb 0%, #6366f1 50%, #2563eb 100%);
+    }
+
+    /* ── Meta row (date / subject) ────────────────── */
+    .meta-row {
+      padding: 22px 36px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .meta-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .meta-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .meta-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+      min-width: 180px;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 3px;
+    }
+
+    .ref-badge {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #2563eb;
+      white-space: nowrap;
+      direction: ltr;
+    }
+
+    /* ── Recipient block ──────────────────────────── */
+    .recipient {
+      padding: 20px 36px 10px;
+    }
+
+    .recipient-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 6px;
+    }
+
+    .recipient-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+      min-width: 260px;
+      display: inline-block;
+    }
+
+    .recipient-address {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    /* ── Subject ──────────────────────────────────── */
+    .subject-row {
+      padding: 10px 36px 18px;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .subject-tag {
+      font-size: 9px;
+      font-weight: 900;
+      color: #2563eb;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 4px;
+      padding: 2px 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .subject-text {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      border-bottom: 1.5px solid #0f172a;
+      padding-bottom: 2px;
+      flex: 1;
+    }
+
+    /* ── Salutation ───────────────────────────────── */
+    .salutation {
+      padding: 0 36px 8px;
+      font-size: 13px;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    /* ── Body content ─────────────────────────────── */
+    .body-content {
+      flex: 1;
+      padding: 10px 36px 32px;
+      font-size: 13px;
+      line-height: 1.95;
+      color: #334155;
+    }
+
+    .body-content p {
+      margin-bottom: 14px;
+    }
+
+    /* Editable lines (the dashed underlines) */
+    .text-line {
+      display: block;
+      border-bottom: 1px dashed #e2e8f0;
+      min-height: 26px;
+      margin-bottom: 4px;
+      padding-bottom: 2px;
+    }
+
+    .text-line:empty::after {
+      content: ' ';
+    }
+
+    /* ── Signature block ──────────────────────────── */
+    .signature-block {
+      padding: 16px 36px 28px;
+      display: flex;
+      gap: 60px;
+      align-items: flex-end;
+    }
+
+    .sig-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sig-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .sig-line {
+      width: 180px;
+      border-bottom: 1px solid #0f172a;
+      height: 36px;
+    }
+
+    .sig-name {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .stamp-circle {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 1.5px dashed #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .stamp-text {
+      font-size: 9px;
+      color: #cbd5e1;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    /* ── Footer ───────────────────────────────────── */
+    .footer {
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      padding: 14px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-logo {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      background: linear-gradient(135deg, #2563eb, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .footer-name {
+      font-size: 11px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .footer-links {
+      font-size: 10px;
+      color: #94a3b8;
+      direction: ltr;
+      text-align: left;
+      line-height: 1.7;
+    }
+
+    .footer-links a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .page-num {
+      font-size: 10px;
+      color: #94a3b8;
+      direction: ltr;
+    }
+
+    /* ── Print styles ─────────────────────────────── */
+    @media print {
+      body { background: none; }
+      .page {
+        margin: 0;
+        box-shadow: none;
+        width: 100%;
+        min-height: 100vh;
+      }
+      .no-print { display: none !important; }
+    }
+
+    /* ── Toolbar (screen only) ────────────────────── */
+    .toolbar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      border-radius: 40px;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      z-index: 999;
+      direction: ltr;
+    }
+
+    .toolbar span {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      font-family: 'Heebo', sans-serif;
+    }
+
+    .print-btn {
+      background: linear-gradient(135deg, #2563eb, #6366f1);
+      color: #fff;
+      border: none;
+      border-radius: 24px;
+      padding: 8px 22px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Heebo', sans-serif;
+      letter-spacing: 0.01em;
+    }
+
+    .print-btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<!-- ── Toolbar ───────────────────────────────────── -->
+<div class="toolbar no-print">
+  <span>Celox AI · Letterhead Template</span>
+  <button class="print-btn" onclick="window.print()">🖨 הדפסה / Print</button>
+</div>
+
+<!-- ── A4 Page ────────────────────────────────────── -->
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <div class="logo-mark">
+        <svg width="28" height="28" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="15" width="22" height="7" rx="3.5" fill="white" fill-opacity="0.9"/>
+          <rect x="6" y="10" width="14" height="7" rx="2" fill="white"/>
+          <circle cx="7.5" cy="22" r="2.5" fill="white" fill-opacity="0.6"/>
+          <circle cx="18.5" cy="22" r="2.5" fill="white" fill-opacity="0.6"/>
+          <rect x="10" y="6" width="6" height="5" rx="1" fill="white" fill-opacity="0.7"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Celox AI</div>
+        <div class="brand-tagline">Fleet management, simplified.</div>
+      </div>
+    </div>
+    <div class="header-contact">
+      <p><strong>Celox AI Ltd.</strong></p>
+      <p>Israel</p>
+      <p><strong>Email:</strong> privacy@celoxai.com</p>
+      <p><strong>Web:</strong> celoxai.com</p>
+    </div>
+  </div>
+
+  <!-- Accent bar -->
+  <div class="accent-bar"></div>
+
+  <!-- Meta row -->
+  <div class="meta-row">
+    <div style="display:flex; gap:32px;">
+      <div class="meta-block">
+        <span class="meta-label">תאריך / Date</span>
+        <span class="meta-value" id="doc-date"></span>
+      </div>
+      <div class="meta-block">
+        <span class="meta-label">מספר מסמך / Doc No.</span>
+        <span class="meta-value">&nbsp;</span>
+      </div>
+    </div>
+    <div class="ref-badge">CeloxAI-LTR-2026</div>
+  </div>
+
+  <!-- Recipient -->
+  <div class="recipient">
+    <div class="recipient-label">לכבוד / To</div>
+    <div class="recipient-name">&nbsp;</div>
+    <div class="recipient-address">
+      <span class="text-line">&nbsp;</span>
+      <span class="text-line">&nbsp;</span>
+    </div>
+  </div>
+
+  <!-- Subject -->
+  <div class="subject-row">
+    <span class="subject-tag">הנדון</span>
+    <span class="subject-text">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+  </div>
+
+  <!-- Salutation -->
+  <div class="salutation">שלום רב,</div>
+
+  <!-- Body -->
+  <div class="body-content">
+    <!-- 12 blank editable lines -->
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <span class="text-line">&nbsp;</span>
+    <br/>
+    <p style="font-size:13px; color:#475569;">בכבוד רב,</p>
+  </div>
+
+  <!-- Signature -->
+  <div class="signature-block">
+    <div class="sig-col">
+      <span class="sig-label">חתימה / Signature</span>
+      <div class="sig-line"></div>
+      <span class="sig-name">Celox AI Ltd.</span>
+    </div>
+    <div class="sig-col">
+      <span class="sig-label">שם / Name</span>
+      <div class="sig-line"></div>
+      <span class="sig-name">&nbsp;</span>
+    </div>
+    <div class="sig-col" style="margin-right:auto;">
+      <span class="sig-label">חותמת / Stamp</span>
+      <div class="stamp-circle">
+        <span class="stamp-text">חותמת<br/>רשמית</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <svg width="12" height="12" viewBox="0 0 26 26" fill="none">
+          <rect x="2" y="15" width="22" height="7" rx="3.5" fill="white" fill-opacity="0.9"/>
+          <rect x="6" y="10" width="14" height="7" rx="2" fill="white"/>
+          <circle cx="7.5" cy="22" r="2.5" fill="white" fill-opacity="0.6"/>
+          <circle cx="18.5" cy="22" r="2.5" fill="white" fill-opacity="0.6"/>
+          <rect x="10" y="6" width="6" height="5" rx="1" fill="white" fill-opacity="0.7"/>
+        </svg>
+      </div>
+      <span class="footer-name">Celox AI Ltd.</span>
+    </div>
+    <div class="footer-links">
+      privacy@celoxai.com &nbsp;|&nbsp;
+      <a href="https://celoxai.com">celoxai.com</a> &nbsp;|&nbsp;
+      Israel
+    </div>
+    <div class="page-num">עמוד 1 מתוך 1</div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+  // Auto-fill today's date in Hebrew format
+  const dateEl = document.getElementById('doc-date')
+  if (dateEl) {
+    const d = new Date()
+    dateEl.textContent = d.toLocaleDateString('he-IL', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    })
+  }
+</script>
+</body>
+</html>
