@@ -3,37 +3,414 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>מדיניות פרטיות — Celox AI Fleet Manager</title>
+  <title>Privacy Policy — Celox AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1e293b; line-height: 1.7; }
-    h1 { color: #2563eb; }
-    h2 { margin-top: 2em; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Heebo', Arial, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      line-height: 1.8;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-mark {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, #6366f1);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .header-text { color: #f8fafc; }
+    .header-text .name { font-size: 18px; font-weight: 900; }
+    .header-text .sub  { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 1px; }
+
+    .header-nav {
+      margin-right: auto;
+      display: flex; gap: 16px;
+    }
+    .header-nav a {
+      color: rgba(255,255,255,0.55); font-size: 13px; text-decoration: none; font-weight: 600;
+    }
+    .header-nav a:hover { color: #fff; }
+    .header-nav a.active { color: #60a5fa; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #2563eb 0%, #6366f1 100%);
+      padding: 52px 32px 48px;
+      text-align: center;
+      color: #fff;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 { font-size: 32px; font-weight: 900; margin-bottom: 10px; }
+    .hero p  { font-size: 14px; color: rgba(255,255,255,0.75); }
+
+    /* ── Content ── */
+    .content {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    .lang-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+    .lang-btn {
+      padding: 6px 18px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #64748b;
+      font-family: 'Heebo', sans-serif;
+      transition: all 0.15s;
+    }
+    .lang-btn.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
+
+    .doc { display: none; }
+    .doc.visible { display: block; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 36px 40px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+      margin-bottom: 16px;
+    }
+
+    .section-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 900;
+      margin-left: 10px;
+      flex-shrink: 0;
+    }
+
+    h2 {
+      font-size: 17px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+    }
+
+    p { font-size: 14px; color: #475569; margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 12px;
+    }
+    ul li {
+      font-size: 14px;
+      color: #475569;
+      padding: 5px 0 5px 0;
+      padding-right: 22px;
+      position: relative;
+    }
+    ul li::before {
+      content: '•';
+      position: absolute;
+      right: 6px;
+      color: #2563eb;
+      font-weight: 900;
+    }
+
+    .highlight {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #1e40af;
+      margin-bottom: 12px;
+    }
+
+    .contact-card {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 24px 28px;
+      color: #f8fafc;
+    }
+    .contact-card h2 { color: #f8fafc; }
+    .contact-card p  { color: #94a3b8; }
+    .contact-card a  { color: #60a5fa; text-decoration: none; font-weight: 600; }
+
+    .updated {
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: center;
+      margin-top: 32px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      background: #0f172a;
+      padding: 24px 32px;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+    }
+    .footer a { color: rgba(255,255,255,0.55); text-decoration: none; margin: 0 8px; }
+    .footer a:hover { color: #fff; }
   </style>
 </head>
 <body>
-  <h1>מדיניות פרטיות</h1>
-  <p>עדכון אחרון: מאי 2025</p>
 
-  <p>Celox AI Fleet Manager ("האפליקציה") מיועדת לניהול צי רכבים עבור עסקים. מדיניות פרטיות זו מסבירה כיצד אנו אוספים, משתמשים ומגנים על המידע שלך.</p>
+<!-- Header -->
+<div class="header">
+  <div class="logo-mark">
+    <svg width="22" height="22" viewBox="0 0 26 26" fill="none">
+      <rect x="2" y="15" width="22" height="7" rx="3.5" fill="white" fill-opacity="0.9"/>
+      <rect x="6" y="10" width="14" height="7" rx="2" fill="white"/>
+      <circle cx="7.5" cy="22" r="2.5" fill="white" fill-opacity="0.6"/>
+      <circle cx="18.5" cy="22" r="2.5" fill="white" fill-opacity="0.6"/>
+      <rect x="10" y="6" width="6" height="5" rx="1" fill="white" fill-opacity="0.7"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <div class="name">Celox AI</div>
+    <div class="sub">Fleet management, simplified.</div>
+  </div>
+  <nav class="header-nav">
+    <a href="https://celoxai.com">בית</a>
+    <a href="/privacy.html" class="active">פרטיות</a>
+    <a href="/terms.html">תנאי שימוש</a>
+  </nav>
+</div>
 
-  <h2>מידע שאנו אוספים</h2>
-  <ul>
-    <li>פרטי התחברות (אימייל וסיסמה) לצורך אימות משתמש</li>
-    <li>מידע על רכבים, נהגים ועלויות שהוזנו על ידך במערכת</li>
-    <li>נתוני שימוש בסיסיים לצורך שיפור השירות</li>
-  </ul>
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">Legal</div>
+  <h1>מדיניות פרטיות<br/><span style="font-size:22px;font-weight:600;opacity:0.85">Privacy Policy</span></h1>
+  <p>celoxai.com | privacy@celoxai.com</p>
+</div>
 
-  <h2>שימוש במידע</h2>
-  <p>המידע שנאסף משמש אך ורק לצורך הפעלת שירות ניהול הצי ולא יועבר לצדדים שלישיים ללא הסכמתך.</p>
+<!-- Content -->
+<div class="content">
 
-  <h2>אבטחת מידע</h2>
-  <p>אנו משתמשים בשירותי Supabase עם הצפנה מלאה לאחסון הנתונים. כל הנתונים מועברים באמצעות חיבור מאובטח (HTTPS).</p>
+  <div class="lang-toggle">
+    <button class="lang-btn active" onclick="showLang('he', this)">עברית</button>
+    <button class="lang-btn" onclick="showLang('en', this)">English</button>
+  </div>
 
-  <h2>שמירת נתונים</h2>
-  <p>הנתונים נשמרים כל עוד החשבון פעיל. ניתן לבקש מחיקת כל הנתונים בכל עת על ידי פנייה אלינו.</p>
+  <!-- ── HEBREW ── -->
+  <div id="doc-he" class="doc visible">
 
-  <h2>יצירת קשר</h2>
-  <p>לכל שאלה בנוגע למדיניות פרטיות זו, ניתן לפנות אלינו בכתובת:<br/>
-  <a href="mailto:bar.gershenzon@gmail.com">bar.gershenzon@gmail.com</a></p>
+    <div class="card">
+      <h2><span class="section-num">1</span>מבוא</h2>
+      <p>Celox AI Ltd. ("Celox AI", "אנחנו") מפעילה פלטפורמת SaaS לניהול צי רכבים בכתובת <strong>celoxai.com</strong>. מדיניות פרטיות זו מסבירה כיצד אנו אוספים, משתמשים ומגנים על המידע האישי שלך בהתאם לחוק הגנת הפרטיות (תשמ"א-1981) ותקנות אבטחת מידע 2017.</p>
+      <div class="highlight">📅 עדכון אחרון: יוני 2026</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">2</span>מידע שאנו אוספים</h2>
+      <p><strong>מידע שאתה מספק:</strong></p>
+      <ul>
+        <li>שם, כתובת אימייל וסיסמה (לצורך יצירת חשבון)</li>
+        <li>כניסה דרך Google או Microsoft (שם, אימייל ותמונת פרופיל בלבד)</li>
+        <li>פרטי רכבים, נהגים, תחזוקה, דו"חות תנועה ועלויות</li>
+        <li>נתוני מיקום GPS של רכבים (אם מחובר)</li>
+      </ul>
+      <p><strong>מידע שנאסף אוטומטית:</strong></p>
+      <ul>
+        <li>לוגים של פעילות משתמש לצורכי אבטחה</li>
+        <li>נתוני שימוש בסיסיים לשיפור השירות</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">3</span>כיצד אנו משתמשים במידע</h2>
+      <ul>
+        <li>הפעלת שירות ניהול הצי ואימות משתמשים</li>
+        <li>שליחת התראות ועדכונים הקשורים לשירות</li>
+        <li>שיפור ופיתוח המוצר</li>
+        <li>עמידה בדרישות חוקיות ורגולטוריות</li>
+      </ul>
+      <p>אנו <strong>לא מוכרים</strong> ו<strong>לא משתפים</strong> מידע אישי עם צדדים שלישיים למטרות מסחריות.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">4</span>שימוש ב-Google OAuth</h2>
+      <p>כאשר אתה מתחבר דרך Google, אנו מקבלים מ-Google את הפרטים הבאים בלבד: <strong>שם, כתובת אימייל ותמונת פרופיל</strong>. אנו לא ניגשים לנתוני Google אחרים (Gmail, Drive, Calendar וכדומה). המידע משמש אך ורק לזיהוי ולכניסה למערכת.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">5</span>אחסון ואבטחה</h2>
+      <ul>
+        <li>הנתונים מאוחסנים ב-<strong>Supabase</strong> (שרתים ביפן / AWS)</li>
+        <li>הצפנה מלאה בתעבורה (TLS) ובאחסון (AES-256)</li>
+        <li>הרשאות גישה מבוססות-חברה (Row Level Security)</li>
+        <li>אישורי גישה לאינטגרציות מוצפנים עם pgcrypto</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">6</span>שמירת מידע</h2>
+      <p>המידע נשמר כל עוד חשבונך פעיל. בעת מחיקת חשבון, המידע האישי יימחק תוך 30 יום, למעט מידע הנדרש לצורך עמידה בחוק.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">7</span>הזכויות שלך</h2>
+      <ul>
+        <li><strong>עיון:</strong> בקשה לקבל עותק של המידע שלך</li>
+        <li><strong>תיקון:</strong> עדכון מידע שגוי</li>
+        <li><strong>מחיקה:</strong> בקשה למחיקת חשבון ומידע</li>
+        <li><strong>ניוד:</strong> קבלת המידע בפורמט מובנה</li>
+      </ul>
+      <p>לממש זכויות אלה, פנה אלינו בכתובת <strong>privacy@celoxai.com</strong></p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">8</span>קובצי Cookie</h2>
+      <p>אנו משתמשים ב-cookies חיוניים לצורך ניהול הסשן בלבד. איננו משתמשים ב-cookies לצורכי פרסום.</p>
+    </div>
+
+    <div class="contact-card">
+      <h2 style="margin-bottom:10px">יצירת קשר</h2>
+      <p>לשאלות בנושא פרטיות:</p>
+      <p style="margin-top:8px"><a href="mailto:privacy@celoxai.com">privacy@celoxai.com</a></p>
+      <p>Celox AI Ltd., ישראל</p>
+    </div>
+
+  </div>
+
+  <!-- ── ENGLISH ── -->
+  <div id="doc-en" class="doc">
+
+    <div class="card">
+      <h2><span class="section-num">1</span>Introduction</h2>
+      <p>Celox AI Ltd. ("Celox AI", "we", "us") operates a SaaS fleet management platform at <strong>celoxai.com</strong>. This Privacy Policy explains how we collect, use, and protect your personal information in accordance with the Israeli Privacy Protection Law (1981) and the Security Regulations (2017).</p>
+      <div class="highlight">📅 Last updated: June 2026</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">2</span>Information We Collect</h2>
+      <p><strong>Information you provide:</strong></p>
+      <ul>
+        <li>Name, email address, and password (for account creation)</li>
+        <li>Google or Microsoft sign-in (name, email, and profile picture only)</li>
+        <li>Vehicle, driver, maintenance, violation, and cost data you enter</li>
+        <li>GPS location data for vehicles (if connected)</li>
+      </ul>
+      <p><strong>Automatically collected:</strong></p>
+      <ul>
+        <li>Activity logs for security purposes</li>
+        <li>Basic usage data to improve the service</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">3</span>How We Use Your Information</h2>
+      <ul>
+        <li>Operating the fleet management service and authenticating users</li>
+        <li>Sending service-related notifications and updates</li>
+        <li>Improving and developing the product</li>
+        <li>Complying with legal and regulatory requirements</li>
+      </ul>
+      <p>We do <strong>not sell</strong> or <strong>share</strong> personal information with third parties for commercial purposes.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">4</span>Google OAuth Usage</h2>
+      <p>When you sign in via Google, we receive only: <strong>your name, email address, and profile picture</strong>. We do not access any other Google data (Gmail, Drive, Calendar, etc.). This information is used solely for authentication and account identification.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">5</span>Storage &amp; Security</h2>
+      <ul>
+        <li>Data stored on <strong>Supabase</strong> (Japan / AWS infrastructure)</li>
+        <li>Encryption in transit (TLS) and at rest (AES-256)</li>
+        <li>Company-based access control (Row Level Security)</li>
+        <li>Integration credentials encrypted with pgcrypto</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">6</span>Data Retention</h2>
+      <p>Data is retained for as long as your account is active. Upon account deletion, personal data is removed within 30 days, except where retention is required by law.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">7</span>Your Rights</h2>
+      <ul>
+        <li><strong>Access:</strong> Request a copy of your data</li>
+        <li><strong>Correction:</strong> Update inaccurate information</li>
+        <li><strong>Deletion:</strong> Request account and data deletion</li>
+        <li><strong>Portability:</strong> Receive your data in a structured format</li>
+      </ul>
+      <p>To exercise these rights, contact us at <strong>privacy@celoxai.com</strong></p>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">8</span>Cookies</h2>
+      <p>We use only essential cookies for session management. We do not use cookies for advertising purposes.</p>
+    </div>
+
+    <div class="contact-card">
+      <h2 style="margin-bottom:10px">Contact Us</h2>
+      <p>For privacy-related questions:</p>
+      <p style="margin-top:8px"><a href="mailto:privacy@celoxai.com">privacy@celoxai.com</a></p>
+      <p>Celox AI Ltd., Israel</p>
+    </div>
+
+  </div>
+
+  <p class="updated">© 2026 Celox AI Ltd. · <a href="/terms.html" style="color:#2563eb">Terms of Service</a></p>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div>© 2026 Celox AI Ltd. · Israel</div>
+  <div style="margin-top:6px">
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/terms.html">Terms of Service</a>
+    <a href="mailto:privacy@celoxai.com">privacy@celoxai.com</a>
+  </div>
+</div>
+
+<script>
+  function showLang(lang, btn) {
+    document.querySelectorAll('.doc').forEach(d => d.classList.remove('visible'))
+    document.getElementById('doc-' + lang).classList.add('visible')
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+  }
+</script>
 </body>
 </html>
