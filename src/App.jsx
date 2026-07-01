@@ -1,12 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { supabase } from './supabaseClient'
-import FleetManager from './fleet-manager'
-import PublicForm from './PublicForm'
-import CRM from './CRM'
-import ContactForm from './ContactForm'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { friendlyDbError } from './validators'
 import './App.css'
+
+const FleetManager = lazy(() => import('./fleet-manager'))
+const PublicForm   = lazy(() => import('./PublicForm'))
+const CRM          = lazy(() => import('./CRM'))
+const ContactForm  = lazy(() => import('./ContactForm'))
+
+const AppLoader = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f1f5f9' }}>
+    <div style={{ width: 36, height: 36, border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  </div>
+)
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
@@ -806,9 +814,9 @@ function JoinCompanyScreen({ session, onDone, onSignOut, lang, setLang }) {
 // ── Root App ───────────────────────────────────────────────────────────────
 export default function App() {
   // Public routes — no auth needed
-  if (window.location.pathname === '/contact') return <ContactForm />
+  if (window.location.pathname === '/contact') return <Suspense fallback={null}><ContactForm /></Suspense>
   const formToken = window.location.pathname.match(/^\/form\/([0-9a-f-]{36})$/i)?.[1]
-  if (formToken) return <PublicForm token={formToken} />
+  if (formToken) return <Suspense fallback={null}><PublicForm token={formToken} /></Suspense>
 
   const [session, setSession]         = useState(undefined)
   const [profile, setProfile]         = useState(undefined)
@@ -952,11 +960,11 @@ export default function App() {
   }
 
   if (isMaster && crmMode) {
-    return <CRM session={session} onBack={() => setCrmMode(false)} />
+    return <Suspense fallback={<AppLoader />}><CRM session={session} onBack={() => setCrmMode(false)} /></Suspense>
   }
 
   return (
-    <>
+    <Suspense fallback={<AppLoader />}>
       <FleetManager
         session={session}
         profile={profile}
@@ -966,6 +974,6 @@ export default function App() {
         initialLang={lang}
         onOpenCRM={isMaster ? () => setCrmMode(true) : undefined}
       />
-    </>
+    </Suspense>
   )
 }

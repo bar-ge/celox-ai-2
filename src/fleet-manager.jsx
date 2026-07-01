@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient'
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import ExcelJS from 'exceljs'
+
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, friendlyDbError } from './validators'
 
 async function xlsxDownload(wb, filename) {
@@ -3465,6 +3465,7 @@ function ActivityLogSection({ companyId, t }) {
       'User': l.user_email,
       'Date': new Date(l.created_at).toLocaleString('he-IL'),
     }))
+    const ExcelJS = (await import('exceljs')).default
     const wb = new ExcelJS.Workbook()
     xlsxAddSheet(wb, 'Activity Log', rows)
     await xlsxDownload(wb, `activity-log-${new Date().toISOString().slice(0,10)}.xlsx`)
@@ -4630,6 +4631,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       })
       return row
     })
+    const ExcelJS = (await import('exceljs')).default
     const wb = new ExcelJS.Workbook()
     xlsxAddSheet(wb, 'Submissions', rows)
     await xlsxDownload(wb, `${link.title || meta?.labelEn}-submissions.xlsx`)
@@ -5592,6 +5594,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
       supabase.from('activity_log').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(1000),
     ])
 
+    const ExcelJS = (await import('exceljs')).default
     const wb = new ExcelJS.Workbook()
     xlsxAddSheet(wb, 'Cars',         carsRes.data   || [])
     xlsxAddSheet(wb, 'Drivers',      driversRes.data || [])
@@ -7389,6 +7392,7 @@ function IntegrationsTab({ companyId, rtl }) {
 
   async function exportAccountingExcelInteg() {
     const catLabel = { Fuel: rtl?'דלק':'Fuel', Insurance: rtl?'ביטוח':'Insurance', Fine: rtl?'קנס':'Fine', Repair: rtl?'תיקון':'Repair', Other: rtl?'אחר':'Other' }
+    const ExcelJS = (await import('exceljs')).default
     const wb = new ExcelJS.Workbook()
     const ws = wb.addWorksheet(rtl ? 'הוצאות' : 'Costs')
     const cols = rtl ? ['תאריך', 'קטגוריה', 'סכום', 'מרכז עלות', 'תיאור'] : ['Date', 'Category', 'Amount', 'Cost Center', 'Description']
@@ -7723,6 +7727,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   // ── Export to Excel ───────────────────────────────────────────────────────
   async function exportExcel(tab) {
+    const ExcelJS = (await import('exceljs')).default
     const wb = new ExcelJS.Workbook()
     const date = new Date().toISOString().slice(0, 10)
     if (!tab || tab === 'cars') {
