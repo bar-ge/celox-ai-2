@@ -3624,12 +3624,12 @@ function FleetCalendar({ companyId, rtl }) {
     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, marginBottom: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <button onClick={prevMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+        <button onClick={prevMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 40, height: 40, cursor: 'pointer', fontSize: 18, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div style={{ fontWeight: 800, fontSize: 15, color: C.textPrimary }}>
           📅 {monthNames[cur.month]} {cur.year}
           {loading && <span style={{ fontSize: 11, color: C.textMuted, marginRight: 8, marginLeft: 8 }}>…</span>}
         </div>
-        <button onClick={nextMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+        <button onClick={nextMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 40, height: 40, cursor: 'pointer', fontSize: 18, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
       </div>
 
       {/* Day headers */}
@@ -6278,7 +6278,7 @@ function NotificationBell({ companyId, userId, rtl }) {
     setPushBusy(false)
   }
 
-  const bellBtn = { position: 'relative', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }
+  const bellBtn = { position: 'relative', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }
 
   return (
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
@@ -8103,8 +8103,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <button onClick={onOpenCRM} style={{
               background: 'linear-gradient(135deg,#6366f1,#2563eb)', border: 'none',
               color: '#fff', borderRadius: 5,
-              padding: isMobile ? '3px 7px' : '4px 9px',
-              fontSize: isMobile ? 11 : 12, fontWeight: 700, cursor: 'pointer',
+              padding: isMobile ? '11px 13px' : '4px 9px',
+              fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}>
               {isMobile ? '📊' : '📊 CRM'}
@@ -8114,8 +8114,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             <button onClick={onSignOut} style={{
               background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
               color: C.navText, borderRadius: 5,
-              padding: isMobile ? '3px 7px' : '4px 9px',
-              fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer',
+              padding: isMobile ? '11px 13px' : '4px 9px',
+              fontSize: isMobile ? 13 : 12, fontWeight: 600, cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}>
               {isMobile ? '↩' : t.signOut}
@@ -8124,9 +8124,9 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           <div style={{ display: 'flex', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden' }}>
             {['en', 'he'].map(l => (
               <button key={l} onClick={() => { setLang(l); localStorage.setItem('fleet_lang', l) }} style={{
-                padding: isMobile ? '3px 6px' : '4px 10px',
+                padding: isMobile ? '12px 11px' : '4px 10px',
                 border: 'none', cursor: 'pointer',
-                fontSize: isMobile ? 10 : 11, fontWeight: 700, letterSpacing: '0.04em',
+                fontSize: isMobile ? 11 : 11, fontWeight: 700, letterSpacing: '0.04em',
                 background: lang === l ? 'rgba(255,255,255,0.2)' : 'transparent',
                 color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
                 transition: 'background 0.15s, color 0.15s, transform 0.1s',
@@ -8151,18 +8151,18 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
             const isActive = activeTab === item.id
             return (
               <button key={item.id} onClick={() => switchTab(item.id)} style={{
-                flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', gap: 2, padding: '6px 2px',
+                flex: '1 0 auto', minWidth: 52, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 2, padding: '11px 4px',
                 border: 'none', cursor: 'pointer', background: 'transparent',
                 color: isActive ? '#fff' : C.navText,
                 borderTop: isActive ? `2px solid ${C.primary}` : '2px solid transparent',
                 transition: 'color 0.15s, transform 0.1s',
               }}>
                 <span style={{ display: 'flex', transition: 'transform 0.15s ease-out', transform: isActive ? 'translateY(-1px)' : 'translateY(0)' }}>
-                  <TabIcon id={item.id} size={17} />
+                  <TabIcon id={item.id} size={18} />
                 </span>
                 {isActive && (
-                  <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', padding: '0 2px' }}>{item.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap', padding: '0 2px' }}>{item.label}</span>
                 )}
               </button>
             )
@@ -8171,7 +8171,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       )}
 
       {/* ── CONTENT ───────────────────────────────────────────────────────── */}
-      <div dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: isMobile ? 48 : 0 }}>
+      <div dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: isMobile ? 62 : 0 }}>
 
         {/* Sub-header */}
         <div style={{

@@ -194,7 +194,7 @@ function LangToggle({ lang, setLang }) {
     <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 8, overflow: 'hidden' }}>
       {['en', 'he'].map(l => (
         <button key={l} onClick={() => { setLang(l); localStorage.setItem('fleet_lang', l) }} style={{
-          padding: '5px 14px', border: 'none', cursor: 'pointer',
+          padding: '12px 16px', border: 'none', cursor: 'pointer',
           fontWeight: 700, fontSize: 12, letterSpacing: '0.04em',
           background: lang === l ? 'rgba(255,255,255,0.18)' : 'transparent',
           color: lang === l ? '#fff' : 'rgba(255,255,255,0.45)',
