@@ -1881,6 +1881,7 @@ async function lookupPlate(rawPlate, signal) {
 function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', mileage: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
   const [lookupState, setLookupState] = useState('idle') // idle | loading | found | notfound
+  const [reqError, setReqError] = useState(false)
   const abortRef = useRef(null)
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
@@ -1901,8 +1902,12 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
     setTimeout(() => setLookupState('idle'), 3000)
   }
 
-  function submit() { if (form.plate.trim() && form.make.trim() && form.model.trim()) onAdd(form) }
+  function submit() {
+    if (form.plate.trim() && form.make.trim() && form.model.trim()) { onAdd(form) }
+    else { setReqError(true); setTimeout(() => setReqError(false), 4000) }
+  }
   return (
+    <>
     <tr style={{ background: C.rowAdd }}>
       <td style={td} />
       <td style={td}>
@@ -1940,16 +1945,24 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
       <td style={td}><select value={form.driver_id} onChange={e => setForm({ ...form, driver_id: e.target.value })} style={inp}><option value="">{t.noDriver}</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}><span style={{ display: 'flex', gap: 6 }}><ActionBtn variant="save" onClick={submit}>{t.add}</ActionBtn><ActionBtn variant="cancel" onClick={onCancel}>{t.cancel}</ActionBtn></span></td>
     </tr>
+    {reqError && (
+      <tr style={{ background: C.rowAdd }}>
+        <td colSpan={10} style={{ ...td, color: C.danger, fontSize: 12, fontWeight: 700 }}>{t.requiredFields}</td>
+      </tr>
+    )}
+    </>
   )
 }
 
 function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ name: '', license: '', license_levels: [], phone: '', status: 'Active', branch_id: '', consent: false })
   const [otherText, setOtherText] = useState('')
+  const [reqError, setReqError] = useState(false)
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   function submit() {
-    if (form.name.trim()) onAdd({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText), consent_given_at: form.consent ? new Date().toISOString() : null })
+    if (form.name.trim()) { onAdd({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText), consent_given_at: form.consent ? new Date().toISOString() : null }) }
+    else { setReqError(true); setTimeout(() => setReqError(false), 4000) }
   }
   return (
     <>
@@ -1982,6 +1995,11 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }
         </label>
       </td>
     </tr>
+    {reqError && (
+      <tr style={{ background: C.rowAdd }}>
+        <td colSpan={8} style={{ ...td, color: C.danger, fontSize: 12, fontWeight: 700 }}>{rtl ? 'שם הוא שדה חובה.' : 'Name is required.'}</td>
+      </tr>
+    )}
     </>
   )
 }
@@ -7611,6 +7629,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [showAdd, setShowAdd]     = useState(false)
   const [search, setSearch]       = useState('')
   const [lang, setLang]           = useState(() => localStorage.getItem('fleet_lang') || initialLang || 'en')
+  useEffect(() => { document.documentElement.lang = lang }, [lang])
   const isMobile                  = useIsMobile()
   const isNarrow                  = useIsNarrow()
   const [filesFor, setFilesFor]   = useState(null)

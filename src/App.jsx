@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react'
 import { supabase } from './supabaseClient'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { friendlyDbError } from './validators'
@@ -39,6 +39,7 @@ const L = {
     signInGoogle: 'Continue with Google',
     signInMicrosoft: 'Continue with Microsoft',
     signIn: 'Sign In', signUp: 'Sign Up',
+    tagline: 'Fleet management, simplified.',
     signInSub: 'Sign in to your workspace',
     signUpSub: 'Create your account',
     email: 'Email', password: 'Password',
@@ -65,6 +66,10 @@ const L = {
     pwSymbol: 'Symbol (!@#$...)',
     pwTooWeak: 'Password is too weak. Please meet all requirements.',
     captchaRequired: 'Please complete the CAPTCHA verification.',
+    captchaFailed: 'Security check failed to load. Please refresh the page and try again.',
+    invalidCredentials: 'Incorrect email or password.',
+    emailNotConfirmed: 'Your email is not verified yet. Check your inbox for the confirmation link.',
+    userExists: 'A user with this email is already registered.',
     consentRequired: 'You must agree to the Privacy Policy to create an account.',
     consentLabel: 'I have read and agree to the',
     consentLink: 'Privacy Policy',
@@ -91,6 +96,7 @@ const L = {
     signInGoogle: 'המשך עם Google',
     signInMicrosoft: 'המשך עם Microsoft',
     signIn: 'כניסה', signUp: 'הרשמה',
+    tagline: 'ניהול צי רכבים, בפשטות.',
     signInSub: 'התחבר לסביבת העבודה שלך',
     signUpSub: 'צור את החשבון שלך',
     email: 'אימייל', password: 'סיסמה',
@@ -117,6 +123,10 @@ const L = {
     pwSymbol: 'תו מיוחד (!@#$...)',
     pwTooWeak: 'הסיסמה חלשה מדי. אנא עמוד בכל הדרישות.',
     captchaRequired: 'אנא השלם את אימות ה-CAPTCHA.',
+    captchaFailed: 'בדיקת האבטחה לא נטענה. רענן את הדף ונסה שוב.',
+    invalidCredentials: 'אימייל או סיסמה שגויים.',
+    emailNotConfirmed: 'האימייל טרם אומת. בדוק את תיבת הדואר לקישור האימות.',
+    userExists: 'משתמש עם אימייל זה כבר רשום במערכת.',
     consentRequired: 'עליך להסכים למדיניות הפרטיות כדי ליצור חשבון.',
     consentLabel: 'קראתי ואני מסכים/ה ל',
     consentLink: 'מדיניות הפרטיות',
@@ -198,7 +208,7 @@ function LangToggle({ lang, setLang }) {
 }
 
 // ── Logo ───────────────────────────────────────────────────────────────────
-function Logo() {
+function Logo({ tagline = 'Fleet management, simplified.' }) {
   return (
     <div style={{ textAlign: 'center', marginBottom: 32 }}>
       <div style={{
@@ -217,7 +227,7 @@ function Logo() {
       </div>
       <h1 style={{ fontSize: 26, fontWeight: 900, color: '#f8fafc', margin: '0 0 6px', letterSpacing: '-0.6px' }}>Celox AI</h1>
       <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: 0, letterSpacing: '0.02em' }}>
-        Fleet management, simplified.
+        {tagline}
       </p>
     </div>
   )
@@ -364,7 +374,7 @@ function UnverifiedScreen({ email, lang, setLang, onResend, onSignOut }) {
   }
   return (
     <Page lang={lang} setLang={setLang}>
-      <Logo />
+      <Logo tagline={t.tagline} />
       <Card>
         <div style={{ textAlign: 'center', padding: '8px 0 24px' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
@@ -411,7 +421,7 @@ function PasswordResetScreen({ lang, setLang, onDone }) {
 
   return (
     <Page lang={lang} setLang={setLang}>
-      <Logo />
+      <Logo tagline={t.tagline} />
       <Card>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: C.text }}>{t.resetPassword}</h2>
@@ -460,6 +470,24 @@ function LoginScreen({ lang, setLang, notice }) {
   const { score } = getPasswordStrength(password)
   const isStrongEnough = score >= 4
 
+  // Stable Turnstile props — new identities on re-render make the widget
+  // reset mid-load, aborting the challenge iframe in a loop.
+  const turnstileOptions   = useMemo(() => ({ theme: 'light' }), [])
+  const captchaFailedMsg   = useRef('')
+  useEffect(() => { captchaFailedMsg.current = t.captchaFailed }, [t.captchaFailed])
+  const onCaptchaSuccess   = useCallback(token => { setCaptchaToken(token); setError(e => e === captchaFailedMsg.current ? '' : e) }, [])
+  const onCaptchaExpire    = useCallback(() => setCaptchaToken(''), [])
+  const onCaptchaError     = useCallback(() => { setCaptchaToken(''); setError(captchaFailedMsg.current) }, [])
+
+  // Map raw Supabase auth errors to localized messages; fall back to the raw text.
+  function friendlyAuthError(error) {
+    const m = error?.message || ''
+    if (/invalid login credentials/i.test(m)) return t.invalidCredentials
+    if (/email not confirmed/i.test(m))       return t.emailNotConfirmed
+    if (/already registered/i.test(m))        return t.userExists
+    return m
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError(''); setSuccess('')
@@ -470,10 +498,10 @@ function LoginScreen({ lang, setLang, notice }) {
 
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
-      if (error) setError(error.message)
+      if (error) setError(friendlyAuthError(error))
     } else {
       const { error } = await supabase.auth.signUp({ email, password, options: { captchaToken } })
-      if (error) setError(error.message)
+      if (error) setError(friendlyAuthError(error))
       else { setEmail(''); setPassword(''); setMode('login'); setSuccess(t.accountCreated) }
     }
     captchaRef.current?.reset()
@@ -505,7 +533,7 @@ function LoginScreen({ lang, setLang, notice }) {
 
   return (
     <Page lang={lang} setLang={setLang}>
-      <Logo />
+      <Logo tagline={t.tagline} />
       <Card>
         {forgotMode ? (
           <>
@@ -578,15 +606,15 @@ function LoginScreen({ lang, setLang, notice }) {
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <Turnstile
                   siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={token => setCaptchaToken(token)}
-                  onExpire={() => setCaptchaToken('')}
-                  onError={() => setCaptchaToken('')}
+                  onSuccess={onCaptchaSuccess}
+                  onExpire={onCaptchaExpire}
+                  onError={onCaptchaError}
                   ref={captchaRef}
-                  options={{ theme: 'light' }}
+                  options={turnstileOptions}
                 />
               </div>
               <button type="submit"
-                disabled={loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough)))}
+                disabled={loading || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough)))}
                 style={primaryBtn(loading || !captchaToken || (mode === 'signup' && (!consentChecked || (password.length > 0 && !isStrongEnough))))}>
                 {loading ? '…' : mode === 'login' ? t.submitSignIn : t.submitSignUp}
               </button>
@@ -744,7 +772,7 @@ function JoinCompanyScreen({ session, onDone, onSignOut, lang, setLang }) {
 
   return (
     <Page lang={lang} setLang={setLang}>
-      <Logo />
+      <Logo tagline={t.tagline} />
       <Card>
         <Tabs
           options={[['code', t.joinWithCode], ['invites', t.pendingInvites]]}
@@ -826,6 +854,8 @@ export default function App() {
   const [crmMode, setCrmMode]         = useState(false)
   const t = L[lang]
 
+  useEffect(() => { document.documentElement.lang = lang }, [lang])
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session ?? null)
@@ -842,7 +872,7 @@ export default function App() {
         fetchProfile(session)
         // Log sign-in event (fire and forget)
         if (event === 'SIGNED_IN') {
-          supabase.rpc('log_auth_event', { p_event: 'sign_in', p_email: session.user.email }).catch(() => {})
+          supabase.rpc('log_auth_event', { p_event: 'sign_in', p_email: session.user.email }).then(null, () => {})
         }
       } else {
         setProfile(null)
@@ -874,7 +904,7 @@ export default function App() {
   async function handleSignOut() {
     try {
       if (session) {
-        supabase.rpc('log_auth_event', { p_event: 'sign_out', p_email: session.user.email }).catch(() => {})
+        supabase.rpc('log_auth_event', { p_event: 'sign_out', p_email: session.user.email }).then(null, () => {})
       }
       await supabase.auth.signOut()
     } catch {

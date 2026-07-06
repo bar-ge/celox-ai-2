@@ -93,7 +93,7 @@ const T = {
       success: '✓ ההודעה נשלחה! נחזור אליך בקרוב.',
       error: 'אירעה שגיאה. נסה שוב.',
     },
-    footer: '© 2025 Celox AI · כל הזכויות שמורות',
+    footer: `© ${new Date().getFullYear()} Celox AI · כל הזכויות שמורות`,
   },
   en: {
     dir: 'ltr', langBtn: 'עב',
@@ -151,7 +151,7 @@ const T = {
       success: "✓ Message sent! We'll be in touch soon.",
       error: 'Something went wrong. Please try again.',
     },
-    footer: '© 2025 Celox AI · All rights reserved',
+    footer: `© ${new Date().getFullYear()} Celox AI · All rights reserved`,
   },
 }
 
@@ -403,6 +403,8 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
         }}>
           {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
             <div key={id} onClick={() => scrollTo(id)}
+              role="button" tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); scrollTo(id) } }}
               style={{ padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.07)', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.8)', cursor: 'pointer' }}>
               {t.nav[k]}
             </div>
@@ -775,6 +777,8 @@ export default function LandingPage() {
   const [navSolid, setNavSolid]     = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = T[lang]
+
+  useEffect(() => { document.documentElement.lang = lang }, [lang])
 
   useEffect(() => {
     const style = Object.assign(document.createElement('style'), { id: 'lp-css', textContent: CSS })
