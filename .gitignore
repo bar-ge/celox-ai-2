@@ -31,3 +31,7 @@ android/local.properties
 android/upload.keystore
 android/.gradle/
 android/app/build/
+
+# Claude Code local permission settings (machine/session-specific)
+.claude/settings.local.json
+.claude/settings.json
