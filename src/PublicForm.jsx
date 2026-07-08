@@ -66,14 +66,20 @@ const FORM_META = {
 // ── File upload helper ────────────────────────────────────────────────────────
 async function uploadFiles(files, companyId, formLinkId) {
   const uploaded = []
+  const failed = []
   for (const file of files) {
     const safeName = file.name.replace(/[^\w.\-]/g, '_')
     const path = `form-submissions/${companyId}/${formLinkId}/${Date.now()}_${safeName}`
     const { error } = await supabase.storage.from('fleet-documents').upload(path, file)
-    if (!error) {
-      const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(path, 60 * 60 * 24 * 365)
-      uploaded.push({ name: file.name, url: data?.signedUrl || path, path })
-    }
+    if (error) { console.error('[upload]', file.name, error); failed.push(file.name); continue }
+    const { data } = await supabase.storage.from('fleet-documents').createSignedUrl(path, 60 * 60 * 24 * 365)
+    uploaded.push({ name: file.name, url: data?.signedUrl || path, path })
+  }
+  // Surface failures loudly — never let the form report success with silently dropped files.
+  if (failed.length) {
+    const err = new Error(`נכשלה העלאת ${failed.length} קבצים (${failed.join(', ')}). בדוק את החיבור ונסה שוב.`)
+    err.uploaded = uploaded
+    throw err
   }
   return uploaded
 }
@@ -224,7 +230,9 @@ function CarChecklistForm({ link, onSubmit, submitting }) {
     if (isEmpty(form.plate)) { setFormError('נא להזין מספר לוחית רישוי'); return }
     if (!isIsraeliPlate(form.plate)) { setFormError('לוחית רישוי לא תקינה (7–8 ספרות)'); return }
     if (form.year && !isYear(form.year)) { setFormError('שנת ייצור לא תקינה (1900–2099)'); return }
-    const attachments = await uploadFiles(files, link.company_id, link.id)
+    let attachments
+    try { attachments = await uploadFiles(files, link.company_id, link.id) }
+    catch (err) { setFormError(err.message); return }
     onSubmit({ ...form, attachments })
   }
 
@@ -406,7 +414,9 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
     if (!isIsraeliPlate(form.plate)) { setFormError('לוחית רישוי לא תקינה (7–8 ספרות)'); return }
     const km = form.handover_type === 'taking' ? form.mileage_before : form.mileage_after
     if (km && !isPositive(km)) { setFormError('קילומטראז׳ חייב להיות מספר חיובי'); return }
-    const attachments = await uploadFiles(files, link.company_id, link.id)
+    let attachments
+    try { attachments = await uploadFiles(files, link.company_id, link.id) }
+    catch (err) { setFormError(err.message); return }
     onSubmit({ ...form, attachments })
   }
 
@@ -580,7 +590,9 @@ function YearlyTrainingForm({ link, onSubmit, submitting }) {
     if (isEmpty(form.training_date)) { setFormError('נא לבחור תאריך הכשרה'); return }
     if (!form.confirmed) { setFormError('יש לאשר קריאת ההצהרה לפני השליחה'); return }
     if (!form.signature) { setFormError('יש להוסיף חתימה דיגיטלית לפני השליחה'); return }
-    const attachments = await uploadFiles(files, link.company_id, link.id)
+    let attachments
+    try { attachments = await uploadFiles(files, link.company_id, link.id) }
+    catch (err) { setFormError(err.message); return }
     onSubmit({ ...form, attachments })
   }
 
@@ -692,7 +704,9 @@ function CustomForm({ link, onSubmit, submitting }) {
         return
       }
     }
-    const attachments = await uploadFiles(files, link.company_id, link.id)
+    let attachments
+    try { attachments = await uploadFiles(files, link.company_id, link.id) }
+    catch (err) { setFormError(err.message); return }
     const data = {}
     fields.forEach(f => {
       const key = f.type === 'preset' ? f.preset : f.id
@@ -821,7 +835,9 @@ function AccidentReportPublicForm({ link, onSubmit, submitting }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const attachments = await uploadFiles(files, link.company_id, link.id)
+    let attachments
+    try { attachments = await uploadFiles(files, link.company_id, link.id) }
+    catch (err) { setFormError(err.message); return }
     onSubmit({ ...form, attachments })
   }
 
@@ -1190,7 +1206,9 @@ function PeriodicInspectionForm({ link, onSubmit, submitting }) {
     if (!form.submitter_name?.trim()) { setFormError('נא להזין שם מלא'); return }
     if (!form.plate?.trim())          { setFormError('נא להזין לוחית רישוי'); return }
     if (!form.signature)              { setFormError('נא לחתום לפני השליחה'); return }
-    const attachments = await uploadFiles(files, link.company_id, link.id)
+    let attachments
+    try { attachments = await uploadFiles(files, link.company_id, link.id) }
+    catch (err) { setFormError(err.message); return }
     onSubmit({ ...form, attachments })
   }
 

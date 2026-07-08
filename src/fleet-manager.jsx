@@ -6818,9 +6818,11 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
     setSending(true); setSendError(''); setSent('')
     const html = reportType === 'fleet_status' ? buildFleetHtml() : reportType === 'cost_summary' ? buildCostHtml() : buildExpiryHtml()
     const subjectMap = { fleet_status: 'דוח סטטוס צי', cost_summary: 'סיכום עלויות', expiry_alerts: 'התראות תפוגה' }
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setSending(false); setSendError(rtl ? 'ההתחברות פגה. התחבר מחדש.' : 'Session expired. Please sign in again.'); return }
     const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/send-report', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ to: toList, subject: `${subjectMap[reportType]} – ${new Date().toLocaleDateString('he-IL')}`, html }),
     })
     setSending(false)

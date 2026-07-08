@@ -743,26 +743,23 @@ function JoinCompanyScreen({ session, onDone, onSignOut, lang, setLang }) {
   async function joinByCode(e) {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { data: companyId, error: ce } = await supabase.rpc('verify_invite_code', { p_code: inviteCode.trim() })
+    // Server-side RPC verifies the code, rate-limits, and assigns the profile
+    // (company_id + role) atomically. The client can no longer set these itself.
+    const { data: companyId, error: ce } = await supabase.rpc('join_company_by_code', { p_code: inviteCode.trim() })
     if (ce || !companyId) { setError(ce?.message || t.codeNotFound); setLoading(false); return }
-    await assignToCompany(companyId, 'member')
+    await afterJoin(companyId)
   }
 
   async function acceptInvite(inv) {
-    setLoading(true)
-    await supabase.from('invites').delete().eq('id', inv.id)
-    await assignToCompany(inv.company_id, 'member')
+    setError(''); setLoading(true)
+    // Server-side RPC verifies the invite belongs to the caller, then assigns the profile.
+    const { data: companyId, error: ie } = await supabase.rpc('accept_company_invite', { p_invite_id: inv.id })
+    if (ie || !companyId) { setError(friendlyDbError(ie, lang === 'he')); setLoading(false); return }
+    await afterJoin(companyId)
   }
 
-  async function assignToCompany(companyId, role) {
-    const { error: pe } = await supabase.from('profiles').upsert({
-      id: session.user.id,
-      email: session.user.email,
-      company_id: companyId,
-      role,
-    })
-    if (pe) { setError(friendlyDbError(pe, lang === 'he')); setLoading(false); return }
-    // Notify company admins that a new member joined
+  async function afterJoin(companyId) {
+    // Notify company admins that a new member joined (best-effort; auth header sent automatically)
     supabase.functions.invoke('send-notification', {
       body: { type: 'member_joined', payload: { new_member_email: session.user.email, company_id: companyId } },
     }).catch(() => {})

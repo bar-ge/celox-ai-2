@@ -7,6 +7,10 @@ const FROM_EMAIL     = 'Celox AI <noreply@celoxai.com>'
 const APP_URL        = 'https://celoxai.com'
 const MASTER_EMAIL   = 'bar.gershenzon@gmail.com'
 
+// HTML-escape any value interpolated into an email body (prevents markup/link injection)
+const ESC_MAP: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+function esc(v: unknown): string { return String(v ?? '').replace(/[&<>"']/g, (c) => ESC_MAP[c]) }
+
 // ── Shared layout wrapper ─────────────────────────────────────────────────────
 function layout(body: string, dir: string) {
   return `<!DOCTYPE html><html dir="${dir}" lang="${dir === 'rtl' ? 'he' : 'en'}">
@@ -44,7 +48,7 @@ function section(title: string, content: string) {
 function buildInvite(p: any, isHe: boolean, dir: string) {
   const body = isHe
     ? `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">הוזמנת להצטרף 🎉</h2>
-       <p style="margin:0 0 16px"><strong>${p.inviterEmail}</strong> הזמין אותך להצטרף לחברה <strong>${p.companyName}</strong> ב-Celox AI Fleet Manager.</p>
+       <p style="margin:0 0 16px"><strong>${esc(p.inviterEmail)}</strong> הזמין אותך להצטרף לחברה <strong>${esc(p.companyName)}</strong> ב-Celox AI Fleet Manager.</p>
        ${section('מה הלאה?', `<ol style="margin:0;padding-inline-start:20px;color:#475569">
          <li style="margin-bottom:6px">לחץ על הכפתור למטה כדי ליצור חשבון</li>
          <li style="margin-bottom:6px">הכנס את כתובת האימייל הזו</li>
@@ -52,7 +56,7 @@ function buildInvite(p: any, isHe: boolean, dir: string) {
        </ol>`)}
        ${btn('הצטרף עכשיו', APP_URL)}`
     : `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">You've been invited 🎉</h2>
-       <p style="margin:0 0 16px"><strong>${p.inviterEmail}</strong> invited you to join <strong>${p.companyName}</strong> on Celox AI Fleet Manager.</p>
+       <p style="margin:0 0 16px"><strong>${esc(p.inviterEmail)}</strong> invited you to join <strong>${esc(p.companyName)}</strong> on Celox AI Fleet Manager.</p>
        ${section('Next steps', `<ol style="margin:0;padding-inline-start:20px;color:#475569">
          <li style="margin-bottom:6px">Click the button below to create an account</li>
          <li style="margin-bottom:6px">Use this email address to sign up</li>
@@ -65,11 +69,11 @@ function buildInvite(p: any, isHe: boolean, dir: string) {
 function buildMemberJoined(p: any, isHe: boolean, dir: string) {
   const body = isHe
     ? `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">חבר חדש הצטרף 👋</h2>
-       <p>${section('', `<span style="font-weight:700">${p.newMemberEmail}</span> הצטרף לחברה <span style="font-weight:700">${p.companyName}</span>`)}</p>
+       <p>${section('', `<span style="font-weight:700">${esc(p.newMemberEmail)}</span> הצטרף לחברה <span style="font-weight:700">${esc(p.companyName)}</span>`)}</p>
        <p style="color:#64748b;font-size:13px">תוכל לנהל הרשאות בהגדרות.</p>
        ${btn('פתח הגדרות', `${APP_URL}?tab=settings`)}`
     : `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">New member joined 👋</h2>
-       <p>${section('', `<span style="font-weight:700">${p.newMemberEmail}</span> joined <span style="font-weight:700">${p.companyName}</span>`)}</p>
+       <p>${section('', `<span style="font-weight:700">${esc(p.newMemberEmail)}</span> joined <span style="font-weight:700">${esc(p.companyName)}</span>`)}</p>
        <p style="color:#64748b;font-size:13px">You can manage permissions in Settings.</p>
        ${btn('Open settings', `${APP_URL}?tab=settings`)}`
   return layout(body, dir)
@@ -77,34 +81,34 @@ function buildMemberJoined(p: any, isHe: boolean, dir: string) {
 
 function buildStatusChanged(p: any, isHe: boolean, dir: string) {
   const statusHe: Record<string, string> = { Available: 'פנוי', 'In Use': 'בשימוש', Maintenance: 'תחזוקה' }
-  const fmt = (s: string) => isHe ? (statusHe[s] ?? s) : s
+  const fmt = (s: string) => esc(isHe ? (statusHe[s] ?? s) : s)
   const body = isHe
     ? `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">שינוי סטטוס רכב 🔄</h2>
        ${section('פרטי הרכב', `
          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-           <span style="font-size:20px;font-weight:900;letter-spacing:2px">${p.plate}</span>
-           <span style="color:#64748b">${p.make} ${p.model}</span>
+           <span style="font-size:20px;font-weight:900;letter-spacing:2px">${esc(p.plate)}</span>
+           <span style="color:#64748b">${esc(p.make)} ${esc(p.model)}</span>
          </div>
          <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
            <span style="background:#fef2f2;color:#dc2626;padding:4px 10px;border-radius:6px;font-weight:700;font-size:13px">${fmt(p.oldStatus)}</span>
            <span style="color:#94a3b8">→</span>
            <span style="background:#f0fdf4;color:#16a34a;padding:4px 10px;border-radius:6px;font-weight:700;font-size:13px">${fmt(p.newStatus)}</span>
          </div>
-         <div style="margin-top:8px;font-size:12px;color:#94a3b8">שונה על ידי ${p.changedByEmail}</div>
+         <div style="margin-top:8px;font-size:12px;color:#94a3b8">שונה על ידי ${esc(p.changedByEmail)}</div>
        `)}
        ${btn('פתח את הצי', APP_URL)}`
     : `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">Vehicle status changed 🔄</h2>
        ${section('Vehicle details', `
          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-           <span style="font-size:20px;font-weight:900;letter-spacing:2px">${p.plate}</span>
-           <span style="color:#64748b">${p.make} ${p.model}</span>
+           <span style="font-size:20px;font-weight:900;letter-spacing:2px">${esc(p.plate)}</span>
+           <span style="color:#64748b">${esc(p.make)} ${esc(p.model)}</span>
          </div>
          <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
            <span style="background:#fef2f2;color:#dc2626;padding:4px 10px;border-radius:6px;font-weight:700;font-size:13px">${fmt(p.oldStatus)}</span>
            <span style="color:#94a3b8">→</span>
            <span style="background:#f0fdf4;color:#16a34a;padding:4px 10px;border-radius:6px;font-weight:700;font-size:13px">${fmt(p.newStatus)}</span>
          </div>
-         <div style="margin-top:8px;font-size:12px;color:#94a3b8">Changed by ${p.changedByEmail}</div>
+         <div style="margin-top:8px;font-size:12px;color:#94a3b8">Changed by ${esc(p.changedByEmail)}</div>
        `)}
        ${btn('Open fleet', APP_URL)}`
   return layout(body, dir)
@@ -118,8 +122,8 @@ function buildFormSubmitted(p: any, isHe: boolean, dir: string) {
       const val = Array.isArray(v) ? (v as string[]).join(', ') : String(v ?? '')
       if (!val) return ''
       return `<tr style="border-bottom:1px solid #f1f5f9">
-        <td style="padding:7px 10px;color:#64748b;font-weight:600;white-space:nowrap">${k}</td>
-        <td style="padding:7px 10px;color:#0f172a">${val}</td>
+        <td style="padding:7px 10px;color:#64748b;font-weight:600;white-space:nowrap">${esc(k)}</td>
+        <td style="padding:7px 10px;color:#0f172a">${esc(val)}</td>
       </tr>`
     }).filter(Boolean).join('')
 
@@ -130,15 +134,15 @@ function buildFormSubmitted(p: any, isHe: boolean, dir: string) {
   const body = isHe
     ? `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">טופס חדש נשלח 📋</h2>
        ${section('פרטי הגשה', `
-         <div><span style="color:#64748b">טופס:</span> <strong>${p.formTitle}</strong></div>
-         <div style="margin-top:4px"><span style="color:#64748b">ממלא:</span> <strong>${p.submitterName}</strong></div>
+         <div><span style="color:#64748b">טופס:</span> <strong>${esc(p.formTitle)}</strong></div>
+         <div style="margin-top:4px"><span style="color:#64748b">ממלא:</span> <strong>${esc(p.submitterName)}</strong></div>
        `)}
        ${rows ? section('תוכן הטופס', `<table style="width:100%;border-collapse:collapse">${rows}</table>${attachments}`) : ''}
        ${btn('צפה בהגשות', `${APP_URL}?tab=forms`)}`
     : `<h2 style="margin:0 0 8px;font-size:18px;color:#0f172a">New form submission 📋</h2>
        ${section('Submission details', `
-         <div><span style="color:#64748b">Form:</span> <strong>${p.formTitle}</strong></div>
-         <div style="margin-top:4px"><span style="color:#64748b">Submitted by:</span> <strong>${p.submitterName}</strong></div>
+         <div><span style="color:#64748b">Form:</span> <strong>${esc(p.formTitle)}</strong></div>
+         <div style="margin-top:4px"><span style="color:#64748b">Submitted by:</span> <strong>${esc(p.submitterName)}</strong></div>
        `)}
        ${rows ? section('Form contents', `<table style="width:100%;border-collapse:collapse">${rows}</table>${attachments}`) : ''}
        ${btn('View submissions', `${APP_URL}?tab=forms`)}`
@@ -148,8 +152,8 @@ function buildFormSubmitted(p: any, isHe: boolean, dir: string) {
 function row(label: string, value: string | number | null | undefined) {
   if (value == null || value === '') return ''
   return `<tr style="border-bottom:1px solid #f1f5f9">
-    <td style="padding:7px 12px;color:#64748b;font-weight:600;white-space:nowrap">${label}</td>
-    <td style="padding:7px 12px;color:#0f172a">${value}</td>
+    <td style="padding:7px 12px;color:#64748b;font-weight:600;white-space:nowrap">${esc(label)}</td>
+    <td style="padding:7px 12px;color:#0f172a">${esc(value)}</td>
   </tr>`
 }
 
@@ -178,7 +182,7 @@ function buildLicenseSigned(p: any) {
       ${row('תאריך', p.sign_date)}
     </table>`)}
     ${pricingRows ? section('תמחור', `<table style="width:100%;border-collapse:collapse">${pricingRows}</table>`) : ''}
-    ${p.notes ? section('הערות', `<p style="margin:0;color:#475569">${p.notes}</p>`) : ''}
+    ${p.notes ? section('הערות', `<p style="margin:0;color:#475569">${esc(p.notes)}</p>`) : ''}
     ${btn('פתח CRM', `${APP_URL}?tab=crm`)}
   `
   return layout(body, 'rtl')
@@ -232,11 +236,22 @@ Deno.serve(async (req) => {
   let html = ''
 
   if (type === 'invite_sent') {
+    // Arbitrary-recipient send from our verified domain → require the caller to be an
+    // authenticated admin of the target company, and trust the JWT for the inviter identity.
+    const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
+    const { data: { user } } = jwt ? await supabase.auth.getUser(jwt) : { data: { user: null } }
+    if (!user) return json({ ok: false, reason: 'unauthorized' }, 401)
+    const { data: caller } = await supabase
+      .from('profiles').select('role, company_id').eq('id', user.id).maybeSingle()
+    const isMaster = user.email === MASTER_EMAIL
+    if (!isMaster && !(caller?.role === 'admin' && caller?.company_id === payload.company_id)) {
+      return json({ ok: false, reason: 'forbidden' }, 403)
+    }
     to = payload.email
     subject = isHe
       ? `הוזמנת להצטרף ל-${company?.name ?? 'Celox AI'}`
       : `You've been invited to join ${company?.name ?? 'Celox AI'}`
-    html = buildInvite({ inviterEmail: payload.invited_by_email, companyName: company?.name ?? '' }, isHe, dir)
+    html = buildInvite({ inviterEmail: user.email, companyName: company?.name ?? '' }, isHe, dir)
 
   } else {
     // All other types → company admin
