@@ -1,10 +1,30 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const FROM_EMAIL     = 'Celox AI <noreply@celoxai.com>'
-const TO_EMAIL       = 'support@celoxai.com'
+const RESEND_API_KEY   = Deno.env.get('RESEND_API_KEY') ?? ''
+const TURNSTILE_SECRET = Deno.env.get('TURNSTILE_SECRET_KEY') ?? ''
+const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
+const SERVICE_KEY      = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const FROM_EMAIL       = 'Celox AI <noreply@celoxai.com>'
+const TO_EMAIL         = 'support@celoxai.com'
 
 const ALLOWED_ORIGINS = ['https://celoxai.com', 'https://www.celoxai.com', 'http://localhost:5173', 'http://localhost:4173']
+
+// Verify a Cloudflare Turnstile token server-side. Fails closed if the secret is
+// unset so the CAPTCHA can never be silently bypassed.
+async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
+  if (!TURNSTILE_SECRET) { console.error('TURNSTILE_SECRET_KEY not configured'); return false }
+  if (!token) return false
+  try {
+    const form = new URLSearchParams({ secret: TURNSTILE_SECRET, response: token })
+    if (ip && ip !== 'unknown') form.append('remoteip', ip)
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form,
+    })
+    const data = await res.json()
+    return data?.success === true
+  } catch (e) { console.error('Turnstile verify failed', e); return false }
+}
 
 function corsHeaders(origin: string) {
   const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
@@ -67,21 +87,45 @@ serve(async (req) => {
     )
   }
 
-  const { name, company, phone, email, message } = body
+  const { name, company, phone, email, message, fleet_size, cfToken } = body
 
-  // Basic server-side validation
-  if (!name?.trim() || !phone?.trim() || !email?.trim()) {
+  // Verify the CAPTCHA before doing anything else (fails closed).
+  const ok = await verifyTurnstile(cfToken ?? '', ip)
+  if (!ok) {
+    return new Response(
+      JSON.stringify({ ok: false, reason: 'captcha' }),
+      { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Basic server-side validation: require a name plus at least one contact method.
+  if (!name?.trim() || (!phone?.trim() && !email?.trim())) {
     return new Response(
       JSON.stringify({ ok: false }),
       { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
     )
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+  if (email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return new Response(
       JSON.stringify({ ok: false }),
       { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
     )
   }
+
+  // Capture the lead in the CRM (service role — the anon insert policy is removed).
+  try {
+    const sb = createClient(SUPABASE_URL, SERVICE_KEY)
+    await sb.from('crm_leads').insert({
+      name: name.trim(),
+      company_name: company?.trim() || null,
+      phone: phone?.trim() || null,
+      email: email?.trim() || null,
+      fleet_size: fleet_size || null,
+      message: message?.trim() || null,
+      source: 'contact_form',
+      status: 'new',
+    })
+  } catch (e) { console.error('crm_leads insert failed', e) }
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
@@ -98,7 +142,7 @@ serve(async (req) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: FROM_EMAIL, to: TO_EMAIL, reply_to: email.trim(),
+      from: FROM_EMAIL, to: TO_EMAIL, ...(email?.trim() ? { reply_to: email.trim() } : {}),
       subject: `📬 פנייה חדשה מ־${name}${company ? ` (${company})` : ''}`,
       html,
     }),

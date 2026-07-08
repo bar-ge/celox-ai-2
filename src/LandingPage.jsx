@@ -641,7 +641,7 @@ function ContactSection({ t }) {
       const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/contact-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, cfToken: captchaToken }),
       })
       captchaRef.current?.reset()
       setCaptchaToken('')

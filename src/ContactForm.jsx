@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import { Turnstile } from '@marsidev/react-turnstile'
-import { supabase } from './supabaseClient'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
@@ -47,19 +46,28 @@ export default function ContactForm() {
     if (!captchaToken) { setError('נא לאמת שאינך רובוט.'); return }
     if (!checkRateLimit()) { setError('שלחת יותר מדי בקשות. נסה שוב מאוחר יותר.'); return }
     setError(''); setSubmitting(true)
-    const { error: dbErr } = await supabase.from('crm_leads').insert({
-      name: form.name.trim(),
-      company_name: form.company_name.trim() || null,
-      phone: form.phone.trim() || null,
-      email: form.email.trim() || null,
-      fleet_size: form.fleet_size || null,
-      message: form.message.trim() || null,
-      source: 'contact_form',
-      status: 'new',
-    })
+    // Route through the edge function so the CAPTCHA is verified server-side and the
+    // lead is inserted with the service role (the anon crm_leads insert is removed).
+    let ok = false
+    try {
+      const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/contact-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          company: form.company_name.trim() || null,
+          phone: form.phone.trim() || null,
+          email: form.email.trim() || null,
+          fleet_size: form.fleet_size || null,
+          message: form.message.trim() || null,
+          cfToken: captchaToken,
+        }),
+      })
+      ok = r.ok
+    } catch { ok = false }
     turnstileRef.current?.reset()
     setCaptchaToken('')
-    if (dbErr) { setError('שגיאה בשליחה. נסה שוב.'); setSubmitting(false); return }
+    if (!ok) { setError('שגיאה בשליחה. נסה שוב.'); setSubmitting(false); return }
     setDone(true); setSubmitting(false)
   }
 
