@@ -12,7 +12,13 @@ if ('serviceWorker' in navigator) {
 }
 
 const path = window.location.pathname
-const Root = path === '/privacy' ? PrivacyPage : (path === '/' || path === '') ? LandingPage : App
+// If an OAuth / password-recovery callback lands on "/" (e.g. Supabase falls back to
+// the Site URL), still mount the app so the session in the URL is processed, instead
+// of showing the marketing landing page.
+const isAuthCallback = /[?&](code|error|error_description)=/.test(window.location.search)
+  || /access_token=|refresh_token=|type=recovery/.test(window.location.hash)
+const isHome = path === '/' || path === ''
+const Root = path === '/privacy' ? PrivacyPage : (isHome && !isAuthCallback) ? LandingPage : App
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

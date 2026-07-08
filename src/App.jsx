@@ -513,7 +513,7 @@ function LoginScreen({ lang, setLang, notice }) {
     e.preventDefault()
     setError(''); setSuccess(''); setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/?reset=1',
+      redirectTo: window.location.origin + '/app?reset=1',
     })
     setLoading(false)
     if (error) setError(error.message)
@@ -526,7 +526,7 @@ function LoginScreen({ lang, setLang, notice }) {
     setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: window.location.origin + '/app' },
     })
     if (error) setError(error.message)
   }
