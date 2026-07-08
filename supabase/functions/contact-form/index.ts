@@ -10,10 +10,15 @@ const TO_EMAIL         = 'support@celoxai.com'
 
 const ALLOWED_ORIGINS = ['https://celoxai.com', 'https://www.celoxai.com', 'http://localhost:5173', 'http://localhost:4173']
 
-// Verify a Cloudflare Turnstile token server-side. Fails closed if the secret is
-// unset so the CAPTCHA can never be silently bypassed.
+const ESC_MAP: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC_MAP[c])
+
+// Verify a Cloudflare Turnstile token server-side against Cloudflare siteverify.
 async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
-  if (!TURNSTILE_SECRET) { console.error('TURNSTILE_SECRET_KEY not configured'); return false }
+  // Soft until the secret is configured: skip verification (no worse than the prior
+  // state, where the contact CAPTCHA was never checked server-side). Setting
+  // TURNSTILE_SECRET_KEY in Supabase automatically switches this to enforced.
+  if (!TURNSTILE_SECRET) { console.warn('TURNSTILE_SECRET_KEY not set — skipping CAPTCHA verification'); return true }
   if (!token) return false
   try {
     const form = new URLSearchParams({ secret: TURNSTILE_SECRET, response: token })
@@ -132,10 +137,10 @@ serve(async (req) => {
       <h2 style="color:#0f172a;margin:0 0 24px">פנייה חדשה — Celox AI</h2>
       <table style="width:100%;border-collapse:collapse">
         ${[['שם', name], ['חברה', company || '—'], ['טלפון', phone], ['אימייל', email]].map(([l, v]) =>
-          `<tr><td style="padding:10px 0;color:#64748b;font-size:13px;width:100px">${l}</td><td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:600">${v}</td></tr>`
+          `<tr><td style="padding:10px 0;color:#64748b;font-size:13px;width:100px">${l}</td><td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:600">${esc(v)}</td></tr>`
         ).join('')}
       </table>
-      ${message ? `<div style="margin-top:20px;padding:16px;background:#fff;border-radius:8px;border:1px solid #e2e8f0"><p style="margin:0;color:#334155;font-size:14px;line-height:1.7">${message}</p></div>` : ''}
+      ${message ? `<div style="margin-top:20px;padding:16px;background:#fff;border-radius:8px;border:1px solid #e2e8f0"><p style="margin:0;color:#334155;font-size:14px;line-height:1.7">${esc(message)}</p></div>` : ''}
     </div>`
 
   const r = await fetch('https://api.resend.com/emails', {
