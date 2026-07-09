@@ -3440,6 +3440,154 @@ function AlertsPanel({ rtl, companyId }) {
   )
 }
 
+// ── Unified Alerts Tab — one filterable/sortable view across every expiry type ──
+function AlertsTab({ companyId, rtl }) {
+  const [alerts, setAlerts]   = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filterType, setFilterType] = useState('')
+  const [filterSev, setFilterSev]   = useState('')
+  const [search, setSearch]         = useState('')
+  const [sortKey, setSortKey]       = useState('date')
+  const [sortDir, setSortDir]       = useState('asc')
+
+  useEffect(() => { load() }, [companyId])
+
+  async function load() {
+    if (!companyId) return
+    setLoading(true)
+    const { data, error } = await supabase.rpc('get_expiry_alerts')
+    if (error) console.error('get_expiry_alerts failed:', error.message)
+    setAlerts(data || [])
+    setLoading(false)
+  }
+
+  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification' }
+  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓' }
+
+  const filtered = alerts
+    .filter(a => !filterType || a.type === filterType)
+    .filter(a => !filterSev || a.severity === filterSev)
+    .filter(a => !search || (a.label || '').toLowerCase().includes(search.toLowerCase()) || (a.entity_name || '').toLowerCase().includes(search.toLowerCase()))
+    .slice()
+    .sort((a, b) => {
+      let av = a[sortKey], bv = b[sortKey]
+      if (sortKey === 'date') { av = new Date(av); bv = new Date(bv) }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1
+      if (av > bv) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+
+  function toggleSort(key) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  async function exportAlerts() {
+    const ExcelJS = (await import('exceljs')).default
+    const wb = new ExcelJS.Workbook()
+    xlsxAddSheet(wb, rtl ? 'התראות' : 'Alerts', filtered.map(a => ({
+      [rtl ? 'סוג' : 'Type']: typeLabel[a.type] || a.type,
+      [rtl ? 'תיאור' : 'Description']: a.label,
+      [rtl ? 'ישות' : 'Entity']: a.entity_name || '',
+      [rtl ? 'תאריך' : 'Date']: fmtDate(a.date),
+      [rtl ? 'סטטוס' : 'Status']: a.severity === 'overdue' ? (rtl ? 'באיחור' : 'Overdue') : (rtl ? 'מתקרב' : 'Upcoming'),
+    })))
+    const buf = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buf], { type: 'application/octet-stream' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url; link.download = `alerts_${new Date().toISOString().slice(0, 10)}.xlsx`; link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const overdueCount  = alerts.filter(a => a.severity === 'overdue').length
+  const upcomingCount = alerts.length - overdueCount
+  const inp = { padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, outline: 'none', background: C.surface, color: C.textPrimary }
+  const columns = [['type', rtl ? 'סוג' : 'Type'], ['label', rtl ? 'תיאור' : 'Description'], ['entity_name', rtl ? 'ישות' : 'Entity'], ['date', rtl ? 'תאריך' : 'Date']]
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '⏰ כל ההתראות' : '⏰ All Alerts'}</h2>
+          <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'תצוגה מאוחדת: תחזוקה, מסמכים, רישיונות והכשרות' : 'Unified view: maintenance, documents, licenses, certifications'}</p>
+        </div>
+        <button onClick={exportAlerts} disabled={!filtered.length} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: filtered.length ? 'pointer' : 'not-allowed', color: C.textSecondary, opacity: filtered.length ? 1 : 0.5 }}>
+          {rtl ? '📥 ייצוא Excel' : '📥 Export Excel'}
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12, marginBottom: 20 }}>
+        {[
+          { label: rtl ? 'סה"כ התראות' : 'Total Alerts', value: alerts.length, color: C.primary },
+          { label: rtl ? 'באיחור' : 'Overdue', value: overdueCount, color: C.danger },
+          { label: rtl ? 'מתקרב (30 יום)' : 'Upcoming (30d)', value: upcomingCount, color: C.warning },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px' }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color }}>{value}</div>
+            <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={rtl ? 'חיפוש...' : 'Search...'} style={{ ...inp, flex: 1, minWidth: 160 }} />
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={inp}>
+          <option value="">{rtl ? 'כל הסוגים' : 'All types'}</option>
+          <option value="maintenance">{typeLabel.maintenance}</option>
+          <option value="document">{typeLabel.document}</option>
+          <option value="license">{typeLabel.license}</option>
+          <option value="certification">{typeLabel.certification}</option>
+        </select>
+        <select value={filterSev} onChange={e => setFilterSev(e.target.value)} style={inp}>
+          <option value="">{rtl ? 'כל הסטטוסים' : 'All statuses'}</option>
+          <option value="overdue">{rtl ? 'באיחור' : 'Overdue'}</option>
+          <option value="warning">{rtl ? 'מתקרב' : 'Upcoming'}</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>{rtl ? 'טוען...' : 'Loading...'}</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{rtl ? 'אין התראות פעילות' : 'No active alerts'}</div>
+        </div>
+      ) : (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: C.bg }}>
+                  {columns.map(([key, label]) => (
+                    <th key={key} onClick={() => toggleSort(key)} style={{ padding: '10px 14px', textAlign: rtl ? 'right' : 'left', fontWeight: 700, color: C.textSecondary, cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: `1px solid ${C.border}` }}>
+                      {label} {sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                    </th>
+                  ))}
+                  <th style={{ padding: '10px 14px', textAlign: rtl ? 'right' : 'left', fontWeight: 700, color: C.textSecondary, borderBottom: `1px solid ${C.border}` }}>{rtl ? 'סטטוס' : 'Status'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{typeIcon[a.type] || '⚠'} {typeLabel[a.type] || a.type}</td>
+                    <td style={{ padding: '9px 14px' }}>{a.label}</td>
+                    <td style={{ padding: '9px 14px' }}>{a.entity_name || '—'}</td>
+                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(a.date)}</td>
+                    <td style={{ padding: '9px 14px' }}>
+                      <Badge label={a.severity === 'overdue' ? (rtl ? 'באיחור' : 'Overdue') : (rtl ? 'מתקרב' : 'Upcoming')} color={a.severity === 'overdue' ? C.danger : C.warning} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Activity Log section ─────────────────────────────────────────────────────
 function ActivityLogSection({ companyId, t }) {
   const [logs, setLogs] = useState([])
@@ -4445,6 +4593,22 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
     setAccidentReports(p => p.map(r => r.id === rep.id ? { ...r, status: next } : r))
   }
 
+  async function saveClaimInfo(e, repId) {
+    e.preventDefault()
+    const f = e.target
+    const patch = {
+      insurance_company:  f.insurance_company.value.trim() || null,
+      policy_number:      f.policy_number.value.trim() || null,
+      deductible_pct:     f.deductible_pct.value ? parseFloat(f.deductible_pct.value) : null,
+      police_file_number: f.police_file_number.value.trim() || null,
+      claim_file_number:  f.claim_file_number.value.trim() || null,
+      claim_status:       f.claim_status.value,
+    }
+    const { data, error } = await supabase.from('accident_reports').update(patch).eq('id', repId).select()
+    if (data?.[0]) setAccidentReports(p => p.map(r => r.id === repId ? data[0] : r))
+    else if (error) console.error('saveClaimInfo failed:', error.message)
+  }
+
   async function openAccFormShare() {
     setAccFormShareBusy(true)
     // Reuse existing reusable accident_report link if one exists
@@ -5098,6 +5262,27 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       </div>
                     </div>
                   )}
+                  {/* Insurance claim follow-up — admin-side fields, filled in after the driver's initial field report */}
+                  <form onSubmit={e => saveClaimInfo(e, rep.id)} style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{rtl ? 'ניהול תביעת ביטוח' : 'Insurance Claim'}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input name="insurance_company" defaultValue={rep.insurance_company || ''} placeholder={rtl ? 'חברת ביטוח' : 'Insurance company'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <input name="policy_number" defaultValue={rep.policy_number || ''} placeholder={rtl ? 'מספר פוליסה' : 'Policy number'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <input name="deductible_pct" type="number" step="0.1" defaultValue={rep.deductible_pct ?? ''} placeholder={rtl ? 'אחוז השתתפות עצמית' : 'Deductible %'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <input name="police_file_number" defaultValue={rep.police_file_number || ''} placeholder={rtl ? 'מספר תיק משטרה' : 'Police file #'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <input name="claim_file_number" defaultValue={rep.claim_file_number || ''} placeholder={rtl ? 'מספר תיק תביעה' : 'Claim file #'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <select name="claim_status" defaultValue={rep.claim_status || 'open'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }}>
+                        <option value="open">{rtl ? 'פתוחה' : 'Open'}</option>
+                        <option value="submitted">{rtl ? 'הוגשה' : 'Submitted'}</option>
+                        <option value="approved">{rtl ? 'אושרה' : 'Approved'}</option>
+                        <option value="rejected">{rtl ? 'נדחתה' : 'Rejected'}</option>
+                        <option value="closed">{rtl ? 'נסגרה' : 'Closed'}</option>
+                      </select>
+                    </div>
+                    <button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      {rtl ? 'שמור פרטי תביעה' : 'Save claim details'}
+                    </button>
+                  </form>
                   <button onClick={() => setViewAccidentReport(null)} style={{ marginTop: 4, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: C.textSecondary }}>
                     {t.cancel}
                   </button>
@@ -6719,6 +6904,302 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
   )
 }
 
+// ── Procurement Tab — light suppliers / purchase-orders / invoices tracker ─────
+// Intentionally minimal: no line-item pricing engine or multi-tier approval —
+// that's a different buyer (accounting), not the safety-officer persona.
+function ProcurementTab({ cars, companyId, rtl }) {
+  const [sub, setSub] = useState('suppliers')
+  const [suppliers, setSuppliers] = useState([])
+  const [orders, setOrders]       = useState([])
+  const [invoices, setInvoices]   = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [showAdd, setShowAdd]     = useState(false)
+  const [error, setError]         = useState('')
+
+  const [supplierForm, setSupplierForm] = useState({ name: '', contact_name: '', phone: '', email: '', notes: '' })
+  const [orderForm, setOrderForm]       = useState({ supplier_id: '', car_id: '', order_date: new Date().toISOString().slice(0, 10), expected_date: '', amount: '', status: 'draft', description: '' })
+  const [invoiceForm, setInvoiceForm]   = useState({ supplier_id: '', po_id: '', invoice_number: '', invoice_date: new Date().toISOString().slice(0, 10), due_date: '', amount: '', status: 'unpaid' })
+
+  useEffect(() => { load() }, [companyId])
+
+  async function load() {
+    if (!companyId) return
+    setLoading(true)
+    const [s, o, i] = await Promise.all([
+      supabase.from('suppliers').select('*').eq('company_id', companyId).order('name'),
+      supabase.from('purchase_orders').select('*').eq('company_id', companyId).order('order_date', { ascending: false }),
+      supabase.from('supplier_invoices').select('*').eq('company_id', companyId).order('invoice_date', { ascending: false }),
+    ])
+    setSuppliers(s.data || []); setOrders(o.data || []); setInvoices(i.data || [])
+    setLoading(false)
+  }
+
+  const supplierName = id => suppliers.find(s => s.id === id)?.name || '—'
+  const carPlate = id => id ? (formatPlate(cars.find(c => String(c.id) === String(id))?.plate) || id) : '—'
+  const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+  const label = { fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4, display: 'block' }
+
+  async function addSupplier(e) {
+    e.preventDefault(); setError('')
+    if (!supplierForm.name.trim()) { setError(rtl ? 'שם ספק הוא שדה חובה' : 'Supplier name is required'); return }
+    const { data, error: err } = await supabase.from('suppliers').insert([{ company_id: companyId, ...supplierForm }]).select()
+    if (err) { setError(friendlyDbError(err, rtl)); return }
+    setSuppliers(p => [...p, data[0]].sort((a, b) => a.name.localeCompare(b.name)))
+    setSupplierForm({ name: '', contact_name: '', phone: '', email: '', notes: '' }); setShowAdd(false)
+  }
+
+  async function addOrder(e) {
+    e.preventDefault(); setError('')
+    if (!orderForm.supplier_id) { setError(rtl ? 'יש לבחור ספק' : 'Supplier is required'); return }
+    const { data, error: err } = await supabase.from('purchase_orders').insert([{
+      company_id: companyId,
+      supplier_id: orderForm.supplier_id,
+      car_id: orderForm.car_id ? parseInt(orderForm.car_id, 10) : null,
+      order_date: orderForm.order_date,
+      expected_date: orderForm.expected_date || null,
+      amount: orderForm.amount ? parseFloat(orderForm.amount) : null,
+      status: orderForm.status,
+      description: orderForm.description || null,
+    }]).select()
+    if (err) { setError(friendlyDbError(err, rtl)); return }
+    setOrders(p => [data[0], ...p])
+    setOrderForm({ supplier_id: '', car_id: '', order_date: new Date().toISOString().slice(0, 10), expected_date: '', amount: '', status: 'draft', description: '' }); setShowAdd(false)
+  }
+
+  async function addInvoice(e) {
+    e.preventDefault(); setError('')
+    if (!invoiceForm.supplier_id) { setError(rtl ? 'יש לבחור ספק' : 'Supplier is required'); return }
+    const { data, error: err } = await supabase.from('supplier_invoices').insert([{
+      company_id: companyId,
+      supplier_id: invoiceForm.supplier_id,
+      po_id: invoiceForm.po_id || null,
+      invoice_number: invoiceForm.invoice_number || null,
+      invoice_date: invoiceForm.invoice_date || null,
+      due_date: invoiceForm.due_date || null,
+      amount: invoiceForm.amount ? parseFloat(invoiceForm.amount) : 0,
+      status: invoiceForm.status,
+    }]).select()
+    if (err) { setError(friendlyDbError(err, rtl)); return }
+    setInvoices(p => [data[0], ...p])
+    setInvoiceForm({ supplier_id: '', po_id: '', invoice_number: '', invoice_date: new Date().toISOString().slice(0, 10), due_date: '', amount: '', status: 'unpaid' }); setShowAdd(false)
+  }
+
+  async function deleteRow(table, id, setter) {
+    if (!window.confirm(rtl ? 'למחוק?' : 'Delete this?')) return
+    await supabase.from(table).delete().eq('id', id)
+    setter(p => p.filter(r => r.id !== id))
+  }
+
+  async function updateOrderStatus(id, status) {
+    const { data } = await supabase.from('purchase_orders').update({ status }).eq('id', id).select()
+    if (data?.[0]) setOrders(p => p.map(o => o.id === id ? data[0] : o))
+  }
+
+  async function updateInvoiceStatus(id, status) {
+    const { data } = await supabase.from('supplier_invoices').update({ status }).eq('id', id).select()
+    if (data?.[0]) setInvoices(p => p.map(inv => inv.id === id ? data[0] : inv))
+  }
+
+  const orderStatusLabel   = { draft: rtl ? 'טיוטה' : 'Draft', sent: rtl ? 'נשלח' : 'Sent', received: rtl ? 'התקבל' : 'Received', cancelled: rtl ? 'בוטל' : 'Cancelled' }
+  const orderStatusColor   = { draft: C.textMuted, sent: C.primary, received: C.success, cancelled: C.danger }
+  const invoiceStatusLabel = { unpaid: rtl ? 'לא שולם' : 'Unpaid', paid: rtl ? 'שולם' : 'Paid', disputed: rtl ? 'במחלוקת' : 'Disputed' }
+  const invoiceStatusColor = { unpaid: C.warning, paid: C.success, disputed: C.danger }
+
+  const subTabs = [
+    ['suppliers', rtl ? 'ספקים' : 'Suppliers', suppliers.length],
+    ['orders', rtl ? 'הזמנות רכש' : 'Purchase Orders', orders.length],
+    ['invoices', rtl ? 'חשבוניות ספק' : 'Supplier Invoices', invoices.length],
+  ]
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '🧾 רכש וספקים' : '🧾 Procurement'}</h2>
+          <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'מעקב קל אחר ספקים, הזמנות רכש וחשבוניות — ללא אישור רב-שלבי או ממשק הנה"ח' : 'Light supplier, PO and invoice tracking — no multi-tier approval or accounting integration'}</p>
+        </div>
+        <button onClick={() => { setShowAdd(p => !p); setError('') }} style={{ background: `linear-gradient(135deg,${C.primary},${C.indigo})`, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          {showAdd ? (rtl ? '✕ ביטול' : '✕ Cancel') : (rtl ? '+ הוסף' : '+ Add')}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 4, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 4, marginBottom: 20, width: 'fit-content' }}>
+        {subTabs.map(([id, lbl, count]) => (
+          <button key={id} onClick={() => { setSub(id); setShowAdd(false); setError('') }} style={{
+            padding: '7px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            background: sub === id ? C.surface : 'transparent', color: sub === id ? C.primary : C.textSecondary,
+          }}>
+            {lbl} {count > 0 && <span style={{ opacity: 0.6 }}>({count})</span>}
+          </button>
+        ))}
+      </div>
+
+      {error && <div style={{ background: C.danger + '10', color: C.danger, borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>{error}</div>}
+
+      {showAdd && sub === 'suppliers' && (
+        <form onSubmit={addSupplier} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
+          <div><span style={label}>{rtl ? 'שם ספק *' : 'Supplier name *'}</span><input value={supplierForm.name} onChange={e => setSupplierForm(p => ({ ...p, name: e.target.value }))} style={inp} autoFocus /></div>
+          <div><span style={label}>{rtl ? 'איש קשר' : 'Contact name'}</span><input value={supplierForm.contact_name} onChange={e => setSupplierForm(p => ({ ...p, contact_name: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'טלפון' : 'Phone'}</span><input value={supplierForm.phone} onChange={e => setSupplierForm(p => ({ ...p, phone: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'אימייל' : 'Email'}</span><input type="email" value={supplierForm.email} onChange={e => setSupplierForm(p => ({ ...p, email: e.target.value }))} style={inp} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><span style={label}>{rtl ? 'הערות' : 'Notes'}</span><input value={supplierForm.notes} onChange={e => setSupplierForm(p => ({ ...p, notes: e.target.value }))} style={inp} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'שמור ספק' : 'Save supplier'}</button></div>
+        </form>
+      )}
+
+      {showAdd && sub === 'orders' && (
+        <form onSubmit={addOrder} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12 }}>
+          <div><span style={label}>{rtl ? 'ספק *' : 'Supplier *'}</span>
+            <select value={orderForm.supplier_id} onChange={e => setOrderForm(p => ({ ...p, supplier_id: e.target.value }))} style={inp}>
+              <option value="">{rtl ? 'בחר ספק' : 'Select supplier'}</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div><span style={label}>{rtl ? 'רכב (אופציונלי)' : 'Vehicle (optional)'}</span>
+            <select value={orderForm.car_id} onChange={e => setOrderForm(p => ({ ...p, car_id: e.target.value }))} style={inp}>
+              <option value="">{rtl ? 'ללא שיוך' : 'No vehicle'}</option>
+              {cars.map(c => <option key={c.id} value={c.id}>{formatPlate(c.plate)} · {c.make} {c.model}</option>)}
+            </select>
+          </div>
+          <div><span style={label}>{rtl ? 'תאריך הזמנה' : 'Order date'}</span><input type="date" value={orderForm.order_date} onChange={e => setOrderForm(p => ({ ...p, order_date: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'תאריך צפוי' : 'Expected date'}</span><input type="date" value={orderForm.expected_date} onChange={e => setOrderForm(p => ({ ...p, expected_date: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'סכום (₪)' : 'Amount'}</span><input type="number" step="0.01" value={orderForm.amount} onChange={e => setOrderForm(p => ({ ...p, amount: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'סטטוס' : 'Status'}</span>
+            <select value={orderForm.status} onChange={e => setOrderForm(p => ({ ...p, status: e.target.value }))} style={inp}>
+              {Object.entries(orderStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}><span style={label}>{rtl ? 'תיאור' : 'Description'}</span><input value={orderForm.description} onChange={e => setOrderForm(p => ({ ...p, description: e.target.value }))} style={inp} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'שמור הזמנה' : 'Save order'}</button></div>
+        </form>
+      )}
+
+      {showAdd && sub === 'invoices' && (
+        <form onSubmit={addInvoice} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12 }}>
+          <div><span style={label}>{rtl ? 'ספק *' : 'Supplier *'}</span>
+            <select value={invoiceForm.supplier_id} onChange={e => setInvoiceForm(p => ({ ...p, supplier_id: e.target.value }))} style={inp}>
+              <option value="">{rtl ? 'בחר ספק' : 'Select supplier'}</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div><span style={label}>{rtl ? 'הזמנת רכש (אופציונלי)' : 'Purchase order (optional)'}</span>
+            <select value={invoiceForm.po_id} onChange={e => setInvoiceForm(p => ({ ...p, po_id: e.target.value }))} style={inp}>
+              <option value="">{rtl ? 'ללא שיוך' : 'No PO'}</option>
+              {orders.filter(o => !invoiceForm.supplier_id || o.supplier_id === invoiceForm.supplier_id).map(o => <option key={o.id} value={o.id}>{fmtDate(o.order_date)} · {supplierName(o.supplier_id)}</option>)}
+            </select>
+          </div>
+          <div><span style={label}>{rtl ? 'מספר חשבונית' : 'Invoice number'}</span><input value={invoiceForm.invoice_number} onChange={e => setInvoiceForm(p => ({ ...p, invoice_number: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'תאריך חשבונית' : 'Invoice date'}</span><input type="date" value={invoiceForm.invoice_date} onChange={e => setInvoiceForm(p => ({ ...p, invoice_date: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'תאריך לתשלום' : 'Due date'}</span><input type="date" value={invoiceForm.due_date} onChange={e => setInvoiceForm(p => ({ ...p, due_date: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'סכום (₪)' : 'Amount'}</span><input type="number" step="0.01" value={invoiceForm.amount} onChange={e => setInvoiceForm(p => ({ ...p, amount: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'סטטוס' : 'Status'}</span>
+            <select value={invoiceForm.status} onChange={e => setInvoiceForm(p => ({ ...p, status: e.target.value }))} style={inp}>
+              {Object.entries(invoiceStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}><button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'שמור חשבונית' : 'Save invoice'}</button></div>
+        </form>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>{rtl ? 'טוען...' : 'Loading...'}</div>
+      ) : sub === 'suppliers' ? (
+        suppliers.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: C.textMuted, fontSize: 14 }}>{rtl ? 'אין ספקים עדיין' : 'No suppliers yet'}</div>
+        ) : (
+          <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ background: C.bg }}>
+                  {[rtl ? 'שם' : 'Name', rtl ? 'איש קשר' : 'Contact', rtl ? 'טלפון' : 'Phone', rtl ? 'אימייל' : 'Email', ''].map((h, i) => (
+                    <th key={i} style={{ padding: '10px 14px', textAlign: rtl ? 'right' : 'left', fontWeight: 700, color: C.textSecondary, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {suppliers.map(s => (
+                    <tr key={s.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{s.name}</td>
+                      <td style={{ padding: '9px 14px' }}>{s.contact_name || '—'}</td>
+                      <td style={{ padding: '9px 14px' }}>{s.phone || '—'}</td>
+                      <td style={{ padding: '9px 14px' }}>{s.email || '—'}</td>
+                      <td style={{ padding: '9px 14px', textAlign: 'end' }}><ActionBtn variant="delete" onClick={() => deleteRow('suppliers', s.id, setSuppliers)}>{rtl ? 'מחק' : 'Delete'}</ActionBtn></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : sub === 'orders' ? (
+        orders.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: C.textMuted, fontSize: 14 }}>{rtl ? 'אין הזמנות רכש עדיין' : 'No purchase orders yet'}</div>
+        ) : (
+          <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ background: C.bg }}>
+                  {[rtl ? 'ספק' : 'Supplier', rtl ? 'רכב' : 'Vehicle', rtl ? 'תאריך' : 'Date', rtl ? 'סכום' : 'Amount', rtl ? 'סטטוס' : 'Status', ''].map((h, i) => (
+                    <th key={i} style={{ padding: '10px 14px', textAlign: rtl ? 'right' : 'left', fontWeight: 700, color: C.textSecondary, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {orders.map(o => (
+                    <tr key={o.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{supplierName(o.supplier_id)}</td>
+                      <td style={{ padding: '9px 14px' }}>{carPlate(o.car_id)}</td>
+                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(o.order_date)}</td>
+                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{o.amount != null ? `₪${Number(o.amount).toLocaleString()}` : '—'}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <select value={o.status} onChange={e => updateOrderStatus(o.id, e.target.value)} style={{ ...inp, width: 'auto', padding: '4px 8px', fontSize: 12, color: orderStatusColor[o.status] || C.textPrimary, fontWeight: 700 }}>
+                          {Object.entries(orderStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: '9px 14px', textAlign: 'end' }}><ActionBtn variant="delete" onClick={() => deleteRow('purchase_orders', o.id, setOrders)}>{rtl ? 'מחק' : 'Delete'}</ActionBtn></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : (
+        invoices.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: C.textMuted, fontSize: 14 }}>{rtl ? 'אין חשבוניות ספק עדיין' : 'No supplier invoices yet'}</div>
+        ) : (
+          <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ background: C.bg }}>
+                  {[rtl ? 'ספק' : 'Supplier', rtl ? 'מס׳ חשבונית' : 'Invoice #', rtl ? 'תאריך' : 'Date', rtl ? 'לתשלום עד' : 'Due', rtl ? 'סכום' : 'Amount', rtl ? 'סטטוס' : 'Status', ''].map((h, i) => (
+                    <th key={i} style={{ padding: '10px 14px', textAlign: rtl ? 'right' : 'left', fontWeight: 700, color: C.textSecondary, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {invoices.map(inv => (
+                    <tr key={inv.id} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 600 }}>{supplierName(inv.supplier_id)}</td>
+                      <td style={{ padding: '9px 14px' }}>{inv.invoice_number || '—'}</td>
+                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(inv.invoice_date)}</td>
+                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(inv.due_date)}</td>
+                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>₪{Number(inv.amount || 0).toLocaleString()}</td>
+                      <td style={{ padding: '9px 14px' }}>
+                        <select value={inv.status} onChange={e => updateInvoiceStatus(inv.id, e.target.value)} style={{ ...inp, width: 'auto', padding: '4px 8px', fontSize: 12, color: invoiceStatusColor[inv.status] || C.textPrimary, fontWeight: 700 }}>
+                          {Object.entries(invoiceStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: '9px 14px', textAlign: 'end' }}><ActionBtn variant="delete" onClick={() => deleteRow('supplier_invoices', inv.id, setInvoices)}>{rtl ? 'מחק' : 'Delete'}</ActionBtn></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
 // ── Reports Tab ───────────────────────────────────────────────────────────────
 function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   const [reportType, setReportType] = useState('fleet_status')
@@ -8010,6 +8491,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     { id: 'costs',       label: t.costsTab,       icon: '💰', count: null },
     { id: 'forms',       label: rtl ? 'טפסים'    : 'Forms',      icon: '📋', count: null },
     { id: 'violations',  label: rtl ? 'קנסות'     : 'Violations',   icon: '🚦', count: null },
+    { id: 'alerts',      label: rtl ? 'התראות'    : 'Alerts',       icon: '⏰', count: null },
+    { id: 'procurement', label: rtl ? 'רכש'       : 'Procurement',  icon: '🧾', count: null },
     { id: 'integrations', label: rtl ? 'אינטגרציות' : 'Integrations', icon: '🔌', count: null },
     { id: 'reports',     label: rtl ? 'דוחות'     : 'Reports',    icon: '📄', count: null },
     { id: 'settings',    label: t.settings,        icon: '⚙️', count: null },
@@ -8284,6 +8767,16 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {/* Violations tab */}
         {activeTab === 'violations' && activeCompanyId && (
           <ViolationsTab cars={cars} drivers={drivers} companyId={activeCompanyId} rtl={rtl} session={session} />
+        )}
+
+        {/* Alerts tab */}
+        {activeTab === 'alerts' && activeCompanyId && (
+          <AlertsTab companyId={activeCompanyId} rtl={rtl} />
+        )}
+
+        {/* Procurement tab */}
+        {activeTab === 'procurement' && activeCompanyId && (
+          <ProcurementTab cars={cars} companyId={activeCompanyId} rtl={rtl} />
         )}
 
         {/* Reports tab */}
