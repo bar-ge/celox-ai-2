@@ -4527,8 +4527,89 @@ const fmtSubVal = v => {
   return SUB_VAL[s] || s
 }
 
+// ── WhatsApp message templates ────────────────────────────────────────────────
+// Per-company templates (saved on companies.whatsapp_templates) with {var} placeholders.
+// A null/blank saved template falls back to the built-in default below.
+const WA_TEMPLATE_TYPES = ['form_link', 'accident', 'report', 'license']
+const WA_TEMPLATE_META = {
+  form_link: {
+    he: 'קישור לטופס', en: 'Form link',
+    vars: [['name', 'שם הנהג'], ['title', 'כותרת הטופס'], ['link', 'קישור'], ['company', 'שם החברה']],
+    defHe: 'שלום {name},\nנשלח אליך קישור למילוי הטופס: {title}\n\n{link}',
+    defEn: 'Hello {name},\nYou have been sent a form to fill out: {title}\n\n{link}',
+  },
+  accident: {
+    he: 'דוח תאונה', en: 'Accident report',
+    vars: [['summary', 'סיכום התאונה'], ['date', 'תאריך'], ['company', 'שם החברה']],
+    defHe: '{summary}',
+    defEn: '{summary}',
+  },
+  report: {
+    he: 'שליחת דוח', en: 'Report',
+    vars: [['content', 'תוכן הדוח'], ['date', 'תאריך'], ['company', 'שם החברה']],
+    defHe: '{content}',
+    defEn: '{content}',
+  },
+  license: {
+    he: 'הסכם רישיון', en: 'License agreement',
+    vars: [['link', 'קישור'], ['company', 'שם החברה']],
+    defHe: 'שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n{link}',
+    defEn: 'Hello,\nAttached is a link to sign the Celox AI Fleet Manager license agreement:\n{link}',
+  },
+}
+function defaultWaTemplate(type, rtl) {
+  const m = WA_TEMPLATE_META[type]
+  return m ? (rtl ? m.defHe : m.defEn) : ''
+}
+function renderWaTemplate(tpl, vars) {
+  return String(tpl || '')
+    .replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? String(vars[k]) : ''))
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+// Resolve a company's template for a type (saved override or built-in default), rendered with vars.
+function buildWaMessage(templates, type, rtl, vars) {
+  const saved = templates && typeof templates[type] === 'string' && templates[type].trim() ? templates[type] : null
+  return renderWaTemplate(saved ?? defaultWaTemplate(type, rtl), vars)
+}
+
+// Edit-before-send modal: pre-filled with the rendered template; user tweaks, then opens WhatsApp.
+function WhatsAppSendModal({ initialText, phone, rtl, onClose }) {
+  const [text, setText] = useState(initialText || '')
+  function openWa() {
+    const base = phone ? `https://wa.me/${String(phone).replace(/\D/g, '')}` : 'https://wa.me/'
+    window.open(`${base}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+    onClose()
+  }
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: C.surface, borderRadius: 14, width: '100%', maxWidth: 440, padding: 20, direction: rtl ? 'rtl' : 'ltr', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>💬</span>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'עריכת הודעת וואטסאפ' : 'Edit WhatsApp message'}</h3>
+        </div>
+        <p style={{ margin: '0 0 12px', fontSize: 12, color: C.textSecondary }}>{rtl ? 'ערוך את הטקסט לפי הצורך ולחץ לפתיחת וואטסאפ.' : 'Edit the text as needed, then open WhatsApp.'}</p>
+        <textarea value={text} onChange={e => setText(e.target.value)}
+          style={{ width: '100%', minHeight: 150, resize: 'vertical', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', color: C.textPrimary, background: C.bg, boxSizing: 'border-box', lineHeight: 1.6 }} />
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+          <button onClick={openWa} disabled={!text.trim()} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: text.trim() ? 'pointer' : 'not-allowed', opacity: text.trim() ? 1 : 0.6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.06L2 22l5.07-1.34C8.5 21.52 10.2 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg>
+            {rtl ? 'פתח בוואטסאפ' : 'Open WhatsApp'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const isMobile = useIsMobile()
+  const [waTemplates, setWaTemplates] = useState(null)
+  const [companyName, setCompanyName] = useState('')
+  const [waModal, setWaModal] = useState(null)
   const [links,         setLinks]         = useState([])
   const [subCounts,     setSubCounts]     = useState({})
   const [loading,       setLoading]       = useState(true)
@@ -4561,7 +4642,14 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   const [printSub,      setPrintSub]      = useState(null)
   const [customFields,  setCustomFields]  = useState([])
   const [customFldType, setCustomFldType] = useState('text')
-  useEffect(() => { load(); loadAccidents() }, [companyId])
+  useEffect(() => { load(); loadAccidents(); loadWaTemplates() }, [companyId])
+
+  async function loadWaTemplates() {
+    if (!companyId) return
+    const { data } = await supabase.from('companies').select('name, whatsapp_templates').eq('id', companyId).single()
+    setWaTemplates(data?.whatsapp_templates || null)
+    setCompanyName(data?.name || '')
+  }
 
   async function loadAccidents() {
     if (!companyId) return
@@ -4650,7 +4738,12 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   }
 
   function sendAccidentWhatsApp(rep) {
-    window.open(`https://wa.me/?text=${encodeURIComponent(accidentSummaryText(rep))}`, '_blank')
+    const msg = buildWaMessage(waTemplates, 'accident', rtl, {
+      summary: accidentSummaryText(rep),
+      date: rep.incident_date ? fmtDate(rep.incident_date) : '',
+      company: companyName,
+    })
+    setWaModal({ text: msg })
   }
 
   function sendAccidentEmail(rep) {
@@ -4772,14 +4865,13 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
   function sendWhatsApp(link) {
     const url = `${window.location.origin}/form/${link.token}`
     const linkedDriver = link.driver_id ? (drivers || []).find(d => String(d.id) === String(link.driver_id)) : null
-    const driverName = linkedDriver?.name || ''
-    const greeting = rtl
-      ? (driverName ? `שלום ${driverName},\n` : 'שלום,\n')
-      : (driverName ? `Hello ${driverName},\n` : 'Hello,\n')
-    const body = rtl
-      ? `נשלח אליך קישור למילוי הטופס: ${link.title}\n\n${url}`
-      : `You have been sent a form to fill out: ${link.title}\n\n${url}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(greeting + body)}`, '_blank')
+    const msg = buildWaMessage(waTemplates, 'form_link', rtl, {
+      name: linkedDriver?.name || '',
+      title: link.title || '',
+      link: url,
+      company: companyName,
+    })
+    setWaModal({ text: msg })
   }
 
   function sendFormEmail(link) {
@@ -5186,6 +5278,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           </div>
         )}
 
+        {waModal && <WhatsAppSendModal initialText={waModal.text} rtl={rtl} onClose={() => setWaModal(null)} />}
+
         {/* View accident detail modal — reads live data so status stays in sync */}
         {viewAccidentReport && (() => {
           const rep = accidentReports.find(r => r.id === viewAccidentReport.id) || viewAccidentReport
@@ -5581,6 +5675,85 @@ function BudgetSettings({ companyId, t, rtl }) {
           {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור' : 'Save')}
         </button>
       </div>
+    </div>
+  )
+}
+
+function WhatsAppTemplatesSettings({ companyId, rtl }) {
+  const [tpls,   setTpls]   = useState({})
+  const [loaded, setLoaded] = useState(false)
+  const [saved,  setSaved]  = useState(false)
+  const refs = useRef({})
+  const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
+
+  useEffect(() => {
+    supabase.from('companies').select('whatsapp_templates').eq('id', companyId).single()
+      .then(({ data }) => { setTpls(data?.whatsapp_templates || {}); setLoaded(true) })
+  }, [companyId])
+
+  async function save() {
+    // Store only non-empty overrides; blanks fall back to defaults at send time.
+    const clean = {}
+    WA_TEMPLATE_TYPES.forEach(type => { if (tpls[type] && tpls[type].trim()) clean[type] = tpls[type] })
+    await supabase.from('companies').update({ whatsapp_templates: Object.keys(clean).length ? clean : null }).eq('id', companyId)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  function insertVar(type, token) {
+    const el = refs.current[type]
+    const cur = tpls[type] ?? defaultWaTemplate(type, rtl)
+    if (el && typeof el.selectionStart === 'number') {
+      const s = el.selectionStart, e = el.selectionEnd
+      const next = cur.slice(0, s) + `{${token}}` + cur.slice(e)
+      setTpls(p => ({ ...p, [type]: next }))
+      requestAnimationFrame(() => { el.focus(); const pos = s + token.length + 2; el.setSelectionRange(pos, pos) })
+    } else {
+      setTpls(p => ({ ...p, [type]: cur + `{${token}}` }))
+    }
+  }
+
+  if (!loaded) return null
+  return (
+    <div style={card}>
+      <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>💬 {rtl ? 'תבניות הודעות וואטסאפ' : 'WhatsApp message templates'}</h3>
+      <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSecondary }}>
+        {rtl
+          ? 'הגדר מראש את מלל הודעות הווטסאפ. השתמש במשתנים ({קישור} וכו׳) שיוחלפו אוטומטית בעת השליחה. אפשר גם לערוך את ההודעה לפני כל שליחה.'
+          : 'Pre-define your WhatsApp message text. Use variables (which are auto-filled on send). You can still edit each message before sending.'}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {WA_TEMPLATE_TYPES.map(type => {
+          const meta = WA_TEMPLATE_META[type]
+          const val = tpls[type] ?? defaultWaTemplate(type, rtl)
+          return (
+            <div key={type}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 6 }}>{rtl ? meta.he : meta.en}</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+                {meta.vars.map(([token, labelHe]) => (
+                  <button key={token} type="button" onClick={() => insertVar(type, token)}
+                    title={rtl ? `הוסף ${labelHe}` : `Insert ${token}`}
+                    style={{ background: C.primary + '10', color: C.primary, border: `1px solid ${C.primary}30`, borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace' }}>
+                    {`{${token}}`}<span style={{ fontFamily: 'inherit', opacity: 0.7, marginInlineStart: 4 }}>{rtl ? labelHe : ''}</span>
+                  </button>
+                ))}
+              </div>
+              <textarea
+                ref={el => { refs.current[type] = el }}
+                value={val}
+                onChange={e => setTpls(p => ({ ...p, [type]: e.target.value }))}
+                dir={rtl ? 'rtl' : 'ltr'}
+                style={{ width: '100%', minHeight: 72, resize: 'vertical', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', color: C.textPrimary, background: '#f8fafc', boxSizing: 'border-box', lineHeight: 1.6 }} />
+              <button type="button" onClick={() => setTpls(p => ({ ...p, [type]: defaultWaTemplate(type, rtl) }))}
+                style={{ background: 'transparent', border: 'none', color: C.textSecondary, fontSize: 11, cursor: 'pointer', marginTop: 4, padding: 0, textDecoration: 'underline' }}>
+                {rtl ? 'איפוס לברירת מחדל' : 'Reset to default'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+      <button onClick={save} style={{ marginTop: 18, background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
+        {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור תבניות' : 'Save templates')}
+      </button>
     </div>
   )
 }
@@ -6024,6 +6197,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Email notifications — admin only */}
           {isAdmin && companyId && (
             <EmailNotifSettings companyId={companyId} company={company} t={t} rtl={rtl} />
+          )}
+
+          {/* WhatsApp message templates — admin only */}
+          {isAdmin && companyId && (
+            <WhatsAppTemplatesSettings companyId={companyId} rtl={rtl} />
           )}
 
           {/* Export all data — admin only */}
@@ -7210,10 +7388,15 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   const [dateFrom, setDateFrom]     = useState(new Date(Date.now() - 30*24*3600*1000).toISOString().slice(0,10))
   const [dateTo, setDateTo]         = useState(new Date().toISOString().slice(0,10))
   const [costs, setCosts]           = useState([])
+  const [waTemplates, setWaTemplates] = useState(null)
+  const [companyName, setCompanyName] = useState('')
+  const [waModal, setWaModal]       = useState(null)
 
   useEffect(() => {
     if (!companyId) return
     supabase.from('costs').select('*').eq('company_id', companyId).then(({ data }) => setCosts(data || []))
+    supabase.from('companies').select('name, whatsapp_templates').eq('id', companyId).single()
+      .then(({ data }) => { setWaTemplates(data?.whatsapp_templates || null); setCompanyName(data?.name || '') })
   }, [companyId])
 
   const REPORT_TYPES = [
@@ -7312,8 +7495,12 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   }
 
   function openWhatsApp() {
-    const text = encodeURIComponent(buildWhatsAppText())
-    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
+    const msg = buildWaMessage(waTemplates, 'report', rtl, {
+      content: buildWhatsAppText(),
+      date: new Date().toLocaleDateString('he-IL'),
+      company: companyName,
+    })
+    setWaModal({ text: msg })
   }
 
   const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
@@ -7376,6 +7563,7 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
           </button>
         </div>
       </div>
+      {waModal && <WhatsAppSendModal initialText={waModal.text} rtl={rtl} onClose={() => setWaModal(null)} />}
     </div>
   )
 }

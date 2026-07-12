@@ -915,9 +915,36 @@ function LeadsView({ leads, session, onUpdate }) {
   )
 }
 
+// ── WhatsApp license message (edit-before-send) ───────────────────────────────
+const CRM_LICENSE_WA_DEFAULT = 'שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n{link}'
+function renderCrmTpl(tpl, vars) {
+  return String(tpl || '').replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? String(vars[k]) : '')).replace(/\n{3,}/g, '\n\n').trim()
+}
+function WaEditModal({ initialText, onClose }) {
+  const [text, setText] = useState(initialText || '')
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, direction: 'rtl', fontFamily: FONT }}>
+      <div style={{ background: C.surface, borderRadius: 14, width: '100%', maxWidth: 440, padding: 20, boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 800, color: C.textPrimary }}>💬 עריכת הודעת וואטסאפ</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 12, color: C.textMuted }}>ערוך את הטקסט לפי הצורך ולחץ לפתיחת וואטסאפ.</p>
+        <textarea value={text} onChange={e => setText(e.target.value)}
+          style={{ width: '100%', minHeight: 150, resize: 'vertical', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, fontFamily: FONT, color: C.textPrimary, background: C.bg, boxSizing: 'border-box', lineHeight: 1.6 }} />
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer'); onClose() }} disabled={!text.trim()}
+            style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: text.trim() ? 'pointer' : 'not-allowed', opacity: text.trim() ? 1 : 0.6 }}>פתח בוואטסאפ</button>
+          <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Agreements ────────────────────────────────────────────────────────────────
 function AgreementsView({ agreements, pendingLinks = [], companies, session, onUpdate }) {
   const [search,            setSearch]            = useState('')
+  const [waModal,           setWaModal]           = useState(null)
+  const [licenseTpl,        setLicenseTpl]        = useState(null)
   const [viewing,           setViewing]           = useState(null)
   const [sendCompany,       setSendCompany]       = useState('')
   const [sendNumCars,       setSendNumCars]       = useState('')
@@ -929,6 +956,12 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
   const [sendBusy,          setSendBusy]          = useState(false)
   const [sendCopied,        setSendCopied]        = useState(false)
   const [sendError,         setSendError]         = useState('')
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+    supabase.from('profiles').select('companies(whatsapp_templates)').eq('id', session.user.id).single()
+      .then(({ data }) => setLicenseTpl(data?.companies?.whatsapp_templates?.license || null))
+  }, [session])
 
   const filtered = agreements.filter(a => {
     const q = search.toLowerCase()
@@ -1086,7 +1119,7 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
-                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`שלום,\nמצורף קישור לחתימה על הסכם רישיון שימוש במערכת Celox AI Fleet Manager:\n${linkUrl}`)}`, '_blank')}
+                onClick={() => setWaModal({ text: renderCrmTpl(licenseTpl && licenseTpl.trim() ? licenseTpl : CRM_LICENSE_WA_DEFAULT, { link: linkUrl }) })}
                 style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 9, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONT }}
               >
                 📲 WhatsApp
@@ -1102,6 +1135,8 @@ function AgreementsView({ agreements, pendingLinks = [], companies, session, onU
           </div>
         )}
       </div>
+
+      {waModal && <WaEditModal initialText={waModal.text} onClose={() => setWaModal(null)} />}
 
       {/* Pending links */}
       {pendingLinks.length > 0 && (
