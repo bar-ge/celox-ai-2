@@ -28,16 +28,16 @@
 | [מדיניות המשכיות עסקית](policies/10-business-continuity-policy.he.md) | ISMS-POL-010 | BCP; תרחישי אסון; תקשורת |
 
 ### הערכת סיכונים, נכסים, ספקים, גיבוי, ביקורת והדרכה
-| תחום | מזהה | מעמד תרגום |
-|------|------|-----------|
-| מרשם סיכונים | ISMS-RA-001 | בהמשך |
-| מצאי נכסים | ISMS-AI-001 | בהמשך |
-| דוח עמידת ספקים | ISMS-SUP-001 | בהמשך |
-| נוהל גיבוי ושחזור | ISMS-BR-001 | בהמשך |
-| דוח בדיקת גיבוי | ISMS-BR-TEST-001 | בהמשך |
-| דוח ביקורת פנימית | ISMS-AUD-001 | בהמשך |
-| הדרכת מודעות אבטחה | ISMS-TRN-001 | בהמשך |
-| רשומת השלמת הדרכה | ISMS-TRN-RECORD-001 | בהמשך |
+| מסמך | מזהה | תיאור |
+|------|------|-------|
+| [מרשם סיכונים](risk-assessment/risk-register.he.md) | ISMS-RA-001 | 10 סיכונים; ניקוד סבירות×השפעה; טיפול |
+| [מצאי נכסים](asset-inventory/asset-inventory.he.md) | ISMS-AI-001 | נכסי מידע, תוכנה, ענן, חומרה, אנשים |
+| [דוח עמידת ספקים](supplier-agreements/supplier-compliance-report.he.md) | ISMS-SUP-001 | Supabase, Vercel, Cloudflare, GitHub, Google, Microsoft |
+| [נוהל גיבוי ושחזור](backup-recovery/backup-recovery-procedure.he.md) | ISMS-BR-001 | סוגי גיבוי, לוחות, שחזור, RTO/RPO |
+| [דוח בדיקת גיבוי](backup-recovery/backup-test-report-2026-06-24.he.md) | ISMS-BR-TEST-001 | אימות גיבוי שנתי |
+| [דוח ביקורת פנימית](audit/internal-audit-report-2026-06-24.he.md) | ISMS-AUD-001 | הערכת בקרות נספח A; 78% עמידה |
+| [הדרכת מודעות אבטחה](training/security-awareness-training.he.md) | ISMS-TRN-001 | 8 מודולים |
+| [רשומת השלמת הדרכה](training/training-completion-record.he.md) | ISMS-TRN-RECORD-001 | רשומות השלמה חתומות |
 
 ---
 
