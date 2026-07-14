@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient'
 
 // ── Premium styles injection ──────────────────────────────────────────────────
 const INJECTED_STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap');
 
   @keyframes crmFadeUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -18,8 +18,8 @@ const INJECTED_STYLES = `
   }
 
   .crm-root * { box-sizing: border-box; }
-  .crm-root { font-family: 'Figtree', 'Segoe UI', system-ui, sans-serif; }
-  .crm-display { font-family: 'Bricolage Grotesque', 'Figtree', system-ui, sans-serif !important; }
+  .crm-root { font-family: 'Rubik', 'Segoe UI', system-ui, sans-serif; }
+  .crm-display { font-family: 'Rubik', system-ui, sans-serif !important; font-weight: 700; letter-spacing: -0.02em; }
 
   .crm-card {
     transition: background 0.22s cubic-bezier(0.32,0.72,0,1),
@@ -156,7 +156,7 @@ const LEAD_STATUS_META = {
 }
 
 // ── Style constants ───────────────────────────────────────────────────────────
-const FONT = "'Figtree','Segoe UI',system-ui,sans-serif"
+const FONT = "'Rubik','Segoe UI',system-ui,sans-serif"
 
 const card = {
   background: '#ffffff',

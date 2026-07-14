@@ -686,11 +686,10 @@ const inlineInput = (rtl) => ({
 function Badge({ label, color }) {
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      background: color + '15', color,
-      border: `1px solid ${color}30`,
-      borderRadius: 6, padding: '3px 10px',
-      fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '0.01em',
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      background: color + '1f', color,
+      borderRadius: 999, padding: '4px 11px',
+      fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '0.005em',
     }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
       {label}
@@ -8701,7 +8700,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   return (
     // Outer wrapper: always LTR so the nav never flips
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Heebo','Plus Jakarta Sans',system-ui,sans-serif", background: C.bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Rubik',system-ui,sans-serif", background: C.bg }}>
 
       {/* ── TOP NAVIGATION BAR ────────────────────────────────────────────── */}
       <nav style={{

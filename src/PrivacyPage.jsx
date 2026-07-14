@@ -194,7 +194,7 @@ const T = {
 }
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap');
 
   html,body { margin:0; padding:0; overflow-x:hidden }
 
@@ -356,7 +356,7 @@ export default function PrivacyPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: 'oklch(99% 0.004 260)', color: 'oklch(18% 0.02 260)', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Rubik', Arial, sans-serif", direction: t.dir, background: 'oklch(99% 0.004 260)', color: 'oklch(18% 0.02 260)', minHeight: '100vh' }}>
 
       {/* Nav */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'oklch(99% 0.004 260)', borderBottom: '1px solid oklch(91% 0.008 260)', padding: '0 48px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
