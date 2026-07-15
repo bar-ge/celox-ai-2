@@ -312,9 +312,9 @@ const T = {
     noAccidentReports:'No accident reports yet.',
     accidentFiles:'Files', viewReport:'View',
     accidentOnHold:'On Hold', accidentOpen:'Open', accidentClosed:'Closed',
-    holdReport:'⏸ Hold', resumeReport:'▶ Resume',
-    sendEmailReport:'📧 Email', sendViaEmail:'Send via Email',
-    viewDetails:'👁 View Details',
+    holdReport:'Hold', resumeReport:'Resume',
+    sendEmailReport:'Email', sendViaEmail:'Send via Email',
+    viewDetails:'View Details',
     // legal & privacy
     legalTitle:'Legal', legalDesc:'Read our policies on data protection and terms of use.',
     legalContact:'Questions? Contact us at',
@@ -508,9 +508,9 @@ const T = {
     noAccidentReports:'אין דוחות תאונה עדיין.',
     accidentFiles:'קבצים', viewReport:'צפה',
     accidentOnHold:'בהמתנה', accidentOpen:'פתוח', accidentClosed:'סגור',
-    holdReport:'⏸ השהה', resumeReport:'▶ המשך',
-    sendEmailReport:'📧 אימייל', sendViaEmail:'שלח באימייל',
-    viewDetails:'👁 פרטים',
+    holdReport:'השהה', resumeReport:'המשך',
+    sendEmailReport:'אימייל', sendViaEmail:'שלח באימייל',
+    viewDetails:'פרטים',
     // legal & privacy
     legalTitle:'משפטי', legalDesc:'קרא את המדיניות שלנו בנושא הגנת נתונים ותנאי שימוש.',
     legalContact:'שאלות? צור קשר:',
@@ -608,7 +608,96 @@ function TabIcon({ id, size = 15 }) {
   if (id === 'reports') return (
     <svg style={s} viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M5 8h6M5 10.5h4M5 5.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
   )
+  if (id === 'forms')        return <Icon name="clipboard" size={size} />
+  if (id === 'alerts')       return <Icon name="bell" size={size} />
+  if (id === 'procurement')  return <Icon name="receipt" size={size} />
+  if (id === 'integrations') return <Icon name="plug" size={size} />
   return <span style={{ fontSize: size }}></span>
+}
+
+// ── Icon set (line icons, monday.com style — replaces decorative emoji) ───────
+const ICON_PATHS = {
+  car:        '<path d="M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0"/><path d="M5 17H3v-5l2-5h9l4 5h1a2 2 0 0 1 2 2v3h-2M9 17h6"/>',
+  user:       '<circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/>',
+  building:   '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h.01M8 12h.01M8 16h.01M11 8h.01M11 12h.01M11 16h.01"/>',
+  tool:       '<path d="M14.7 6.3a4 4 0 0 0-5.3 5l-6 6a1.5 1.5 0 0 0 2.1 2.1l6-6a4 4 0 0 0 5-5.3l-2.4 2.4-2.1-.6-.6-2.1z"/>',
+  coin:       '<circle cx="12" cy="12" r="9"/><path d="M14.8 9a3 3 0 0 0-5.6 1.5c0 3 5.6 1.5 5.6 4.5a3 3 0 0 1-5.6 1.5M12 6.5v11"/>',
+  paperclip:  '<path d="M15 7l-6.5 6.5a2.1 2.1 0 0 0 3 3L18 9.5A4 4 0 0 0 12.3 3.9L5.8 10.4a6 6 0 0 0 8.5 8.5l5-5"/>',
+  clipboard:  '<path d="M9 4h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M8.5 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2.5"/><path d="M9 12h6M9 16h4"/>',
+  bell:       '<path d="M10 5a2 2 0 0 1 4 0 7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/>',
+  alert:      '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  certificate:'<rect x="4" y="3" width="16" height="14" rx="1"/><path d="M8 8h8M8 11h5M8 21l4-2 4 2"/>',
+  award:      '<circle cx="12" cy="9" r="6"/><path d="M9 14.5 8 21l4-2.5L16 21l-1-6.5"/>',
+  calendar:   '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/>',
+  download:   '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 3v12M8 11l4 4 4-4"/>',
+  upload:     '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 15V3M8 7l4-4 4 4"/>',
+  send:       '<path d="M10 14 21 3M21 3l-6.5 18a1 1 0 0 1-1.8.1L10 14 3 11.7a1 1 0 0 1 .1-1.8L21 3z"/>',
+  gas:        '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h13M14 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V9l-3-3M7 8h4"/>',
+  phone:      '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  mail:       '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  link:       '<path d="M9 15l6-6M10.5 6l.7-.7a4 4 0 0 1 5.5 5.5l-.7.7M13.5 18l-.7.7a4 4 0 0 1-5.5-5.5l.7-.7"/>',
+  printer:    '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/>',
+  search:     '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  eye:        '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  pencil:     '<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/>',
+  trash:      '<path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6"/>',
+  x:          '<path d="M6 6l12 12M18 6 6 18"/>',
+  check:      '<path d="M5 12l5 5L20 7"/>',
+  plus:       '<path d="M12 5v14M5 12h14"/>',
+  pause:      '<path d="M8 5v14M16 5v14"/>',
+  play:       '<path d="M7 5v14l12-7z"/>',
+  next:       '<path d="M6 5v14M18 5v14l-8-7z" transform="scale(-1,1) translate(-24,0)"/>',
+  camera:     '<path d="M5 7h3l2-2h4l2 2h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.2"/>',
+  file:       '<path d="M14 3v4a1 1 0 0 0 1 1h4M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z"/>',
+  fileText:   '<path d="M14 3v4a1 1 0 0 0 1 1h4M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z"/><path d="M9 13h6M9 17h4"/>',
+  book:       '<path d="M5 4a2 2 0 0 1 2-2h12v18H7a2 2 0 0 0-2 2V4z"/><path d="M19 20H7a2 2 0 0 0-2 2"/>',
+  receipt:    '<path d="M5 21V4a1 1 0 0 1 1.5-.9l1.5.9 2-1 2 1 2-1 2 1 1.5-.9A1 1 0 0 1 20 4v17l-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M9 8h6M9 12h6"/>',
+  chart:      '<path d="M6 20v-6M12 20V8M18 20v-9M3 20h18"/>',
+  spreadsheet:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>',
+  message:    '<path d="M4 18V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8l-4 4z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/>',
+  lock:       '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  shield:     '<path d="M12 3l7 3v5c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z"/>',
+  shieldCheck:'<path d="M12 3l7 3v5c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
+  folder:     '<path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/>',
+  image:      '<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="M4 16l4-4 5 5M14 14l2-2 4 4"/>',
+  id:         '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5.5 16c0-1.4 1.5-2.3 3.5-2.3s3.5.9 3.5 2.3M15 10h4M15 13h3"/>',
+  hash:       '<path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/>',
+  ambulance:  '<path d="M7 18a2 2 0 1 0 4 0M15 18a2 2 0 1 0 4 0"/><path d="M5 18H3V9a1 1 0 0 1 1-1h10l4 4v6h-2M11 18h4M8.5 4.5v4M6.5 6.5h4"/>',
+  qr:         '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/>',
+  clock:      '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  copy:       '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+  settings:   '<path d="M10.3 4.3a2 2 0 0 1 3.4 0l.2.4a2 2 0 0 0 2.4 1l.4-.1a2 2 0 0 1 2.4 2.4l-.1.4a2 2 0 0 0 1 2.4l.4.2a2 2 0 0 1 0 3.4l-.4.2a2 2 0 0 0-1 2.4l.1.4a2 2 0 0 1-2.4 2.4l-.4-.1a2 2 0 0 0-2.4 1l-.2.4a2 2 0 0 1-3.4 0l-.2-.4a2 2 0 0 0-2.4-1l-.4.1a2 2 0 0 1-2.4-2.4l.1-.4a2 2 0 0 0-1-2.4l-.4-.2a2 2 0 0 1 0-3.4l.4-.2a2 2 0 0 0 1-2.4l-.1-.4a2 2 0 0 1 2.4-2.4l.4.1a2 2 0 0 0 2.4-1z"/><circle cx="12" cy="12" r="3"/>',
+  users:      '<circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><path d="M16 5a3.5 3.5 0 0 1 0 7M21 20v-1a6 6 0 0 0-3-5.2"/>',
+  box:        '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+  traffic:    '<rect x="8" y="3" width="8" height="18" rx="3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="16.5" r="1.3"/>',
+  scale:      '<path d="M12 3v18M7 21h10M6 6h12M6 6l-3 6a3 3 0 0 0 6 0zM18 6l-3 6a3 3 0 0 0 6 0z"/>',
+  undo:       '<path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  plug:       '<path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0V8zM12 17v5"/>',
+  save:       '<path d="M5 4h11l3 3v13H5zM8 4v5h7M8 20v-5h8v5"/>',
+  eyeOff:     '<path d="M10.6 6.1A9 9 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.3 3M6.2 6.2A15 15 0 0 0 2.5 12s3.5 6 9.5 6a9 9 0 0 0 3.4-.6"/><path d="M4 4l16 16"/>',
+}
+function Icon({ name, size = 16, color = 'currentColor', style }) {
+  const p = ICON_PATHS[name]
+  if (!p) return <span style={{ fontSize: size }} />
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ flexShrink: 0, verticalAlign: 'middle', ...style }}
+      dangerouslySetInnerHTML={{ __html: p }} />
+  )
+}
+// Emoji → icon-name map, so config objects that stored an emoji keep working.
+const EMOJI_ICON = {
+  '📋':'clipboard','🚗':'car','🚘':'car','🎓':'certificate','🚨':'alert','🛠️':'tool','🛠':'tool',
+  '🔍':'search','👤':'user','🏢':'building','🔧':'tool','💰':'coin','📎':'paperclip','📝':'fileText',
+  '📄':'file','📞':'phone','🔢':'hash','📅':'calendar','📆':'calendar','⛽':'gas','✅':'check','🏅':'award',
+  '📚':'book','🧾':'receipt','📊':'chart','📥':'download','📤':'send','🖨️':'printer','🖨':'printer',
+  '🔗':'link','📷':'camera','📁':'folder','🖼️':'image','🖼':'image','🪪':'id','💬':'message','🔔':'bell',
+  '🔒':'lock','⏰':'bell','👮':'shield','🚑':'ambulance','⏭':'next','⚠️':'alert','⚠':'alert','📲':'download','⏳':'clock','🚙':'car',
+  '⚙️':'settings','⚙':'settings','🧑‍✈️':'user','✍️':'pencil','🚦':'traffic','🗂':'folder','🗂️':'folder','📦':'box','📨':'mail','👥':'users','🔕':'bell','⚖️':'scale','⚖':'scale','🔧':'tool','💾':'box','🏢':'building','🔌':'plug','📡':'plug','⛽':'gas','🙈':'eye','🖨️':'printer',
+}
+function EIcon({ e, size = 16, color, style }) {
+  return <Icon name={EMOJI_ICON[e] || 'file'} size={size} color={color} style={style} />
 }
 
 // ── Plate number formatter ───────────────────────────────────────────────────
@@ -838,7 +927,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
         {/* Header */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary }}>📎 {t.files}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 15, color: C.textPrimary }}><Icon name="paperclip" size={16} color={C.textSecondary} />{t.files}</div>
             <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{entityLabel}</div>
           </div>
           <button onClick={onClose} style={{ ...closeBtn, padding: 4 }}>×</button>
@@ -855,7 +944,7 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
             return (
               <div key={doc.id} style={rowStyle}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{getFileIcon(doc.name)}</span>
+                  <span style={{ flexShrink: 0, marginTop: 2 }}><EIcon e={getFileIcon(doc.name)} size={20} color={C.textSecondary} /></span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
                     <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -868,9 +957,9 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-                    <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }} style={{ ...btnGhost, padding: '5px 8px', fontSize: 13 }}>📅</button>
-                    <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↓</button>
-                    <button onClick={() => deleteFile(doc)} style={{ ...btnDanger, padding: '5px 10px', fontSize: 12 }}>✕</button>
+                    <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }} style={{ ...btnGhost, padding: '5px 8px', fontSize: 13 }}><Icon name="calendar" size={14} /></button>
+                    <button onClick={() => downloadFile(doc)} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}><Icon name="download" size={14} /></button>
+                    <button onClick={() => deleteFile(doc)} style={{ ...btnDanger, padding: '5px 10px', fontSize: 12 }}><Icon name="x" size={15} /></button>
                   </div>
                 </div>
                 {/* Inline expiry editor */}
@@ -893,9 +982,9 @@ function FilesModal({ entity, entityType, companyId, onClose, t, isMobile }) {
         <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.border}` }}>
           {pendingFile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 13, color: C.textPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.textPrimary, fontWeight: 600 }}><Icon name="paperclip" size={15} color={C.textSecondary} />{pendingFile.name}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>📅 {t.expiryDate}</label>
+                <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}><Icon name="calendar" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.expiryDate}</label>
                 <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
                   style={{ flex: 1, padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
               </div>
@@ -986,7 +1075,7 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
               onClick={() => setExpanded(isOpen ? null : sub.id)}
               style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
             >
-              <span style={{ fontSize: 18 }}>{meta.icon}</span>
+              <EIcon e={meta.icon} size={18} color={C.primary} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{sub.submitter_name || meta.he}</div>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
@@ -1010,7 +1099,7 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
                       {sub.data.attachments.map((a, i) => (
                         <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
                           style={{ background: C.primary, color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          📎 {a.name}
+                          <Icon name="paperclip" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{a.name}
                         </a>
                       ))}
                     </div>
@@ -1133,7 +1222,7 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
         return (
           <div key={doc.id} style={row}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{getFileIcon(doc.name)}</span>
+              <span style={{ flexShrink: 0, marginTop: 2 }}><EIcon e={getFileIcon(doc.name)} size={18} color={C.textSecondary} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
                 <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1143,11 +1232,11 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
               </div>
               <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                 <button onClick={() => { setEditingExpiry(doc.id); setEditExpiryVal(doc.expires_at || '') }}
-                  style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 7px', cursor: 'pointer', fontSize: 12 }}>📅</button>
+                  style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 7px', cursor: 'pointer', fontSize: 12 }}><Icon name="calendar" size={14} /></button>
                 <button onClick={() => downloadFile(doc)}
-                  style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↓</button>
+                  style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}><Icon name="download" size={14} /></button>
                 <button onClick={() => deleteFile(doc)}
-                  style={{ background: C.danger + '18', color: C.danger, border: 'none', borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>✕</button>
+                  style={{ background: C.danger + '18', color: C.danger, border: 'none', borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}><Icon name="x" size={15} /></button>
               </div>
             </div>
             {editingExpiry === doc.id && (
@@ -1171,7 +1260,7 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 13, color: C.textPrimary, fontWeight: 600 }}>📎 {pendingFile.name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 12, color: C.textMuted, whiteSpace: 'nowrap' }}>📅 {t.expiryDate}</label>
+              <label style={{ fontSize: 12, color: C.textMuted, whiteSpace: 'nowrap' }}><Icon name="calendar" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.expiryDate}</label>
               <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
             </div>
@@ -1212,7 +1301,7 @@ function PhotoThumb({ path, onUpload, t }) {
         onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
         {url
           ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ fontSize: 14 }}>📷</span>}
+          : <Icon name="camera" size={15} color={C.textMuted} />}
       </div>
       <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
         onChange={e => { const f = e.target.files[0]; if (f) onUpload(f); e.target.value = '' }} />
@@ -1320,12 +1409,12 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             </div>
             <div style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{car.make} {car.model} {car.year ? `(${car.year})` : ''}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Tab bar */}
         <div style={tabBar}>
-          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['maintenance', `🔧 ${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`], ['costs', `💰 ${rtl ? 'עלויות' : 'Costs'} (${costs.length})`], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+          {[['overview', (rtl ? 'סקירה' : 'Overview')], ['maintenance', `${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`], ['costs', `${rtl ? 'עלויות' : 'Costs'} (${costs.length})`], ['documents', `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -1398,8 +1487,8 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                         <span style={{ background: statusBg(r.status), color: statusClr(r.status), borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>{r.status}</span>
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: C.textSecondary }}>
-                        {r.date && <span>📅 {r.date}</span>}
-                        {r.next_due && <span>⏭ {r.next_due}</span>}
+                        {r.date && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} />{r.date}</span>}
+                        {r.next_due && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} />{r.next_due}</span>}
                         {r.cost    && <span>₪{Number(r.cost).toLocaleString()}</span>}
                         {r.mileage && <span>{Number(r.mileage).toLocaleString()} km</span>}
                       </div>
@@ -1431,7 +1520,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                           <span style={{ fontWeight: 800, fontSize: 15, color: C.primary }}>₪{Number(r.amount).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 12, fontSize: 12, color: C.textSecondary }}>
-                          {r.date && <span>📅 {r.date}</span>}
+                          {r.date && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} />{r.date}</span>}
                         </div>
                         {r.description && <div style={{ marginTop: 6, fontSize: 13, color: C.textMuted, fontStyle: 'italic' }}>{r.description}</div>}
                       </div>
@@ -1493,12 +1582,12 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
               {[driver.license, driver.phone, getBranchName(driver.branch_id) !== '—' && getBranchName(driver.branch_id)].filter(Boolean).join(' · ')}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Tab bar */}
         <div style={tabBar}>
-          {[['overview', '📋 ' + (rtl ? 'סקירה' : 'Overview')], ['certifications', `🏅 ${rtl ? 'הסמכות' : 'Certifications'}`], ['training', `📚 ${rtl ? 'הדרכות' : 'Training'}`], ['documents', `📎 ${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+          {[['overview', (rtl ? 'סקירה' : 'Overview')], ['certifications', `${rtl ? 'הסמכות' : 'Certifications'}`], ['training', `${rtl ? 'הדרכות' : 'Training'}`], ['documents', `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -1620,13 +1709,13 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
             <input autoFocus type="number" value={kmVal} onChange={e => setKmVal(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveKm(); if (e.key === 'Escape') setEditingKm(false) }}
               style={{ width: 70, padding: '3px 6px', border: `1px solid ${C.primary}`, borderRadius: 5, fontSize: 12, outline: 'none' }} />
-            <button onClick={saveKm} style={{ background: C.success, color: '#fff', border: 'none', borderRadius: 4, padding: '3px 7px', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>✓</button>
-            <button onClick={() => setEditingKm(false)} style={{ background: C.border, color: C.textSecondary, border: 'none', borderRadius: 4, padding: '3px 7px', fontSize: 11, cursor: 'pointer' }}>✕</button>
+            <button onClick={saveKm} style={{ background: C.success, color: '#fff', border: 'none', borderRadius: 4, padding: '3px 7px', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}><Icon name="check" size={15} /></button>
+            <button onClick={() => setEditingKm(false)} style={{ background: C.border, color: C.textSecondary, border: 'none', borderRadius: 4, padding: '3px 7px', fontSize: 11, cursor: 'pointer' }}><Icon name="x" size={15} /></button>
           </span>
         ) : (
           <span style={{ fontSize: 13, color: car.mileage ? C.textPrimary : C.textMuted }}>
             {car.mileage ? car.mileage.toLocaleString() : '—'}
-            <span style={{ fontSize: 10, color: C.textMuted, marginInlineStart: 3 }}>✏️</span>
+            <Icon name="pencil" size={11} color={C.textMuted} style={{ marginInlineStart: 3 }} />
           </span>
         )}
       </td>
@@ -1650,7 +1739,7 @@ function CarRow({ car, getBranchName, getBranchIdx, drivers, selected, onSelect,
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
-            {rtl ? '👁 פרטים' : '👁 View'}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="eye" size={13} />{rtl ? 'פרטים' : 'View'}</span>
           </button>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
@@ -1737,14 +1826,14 @@ function DriverRow({ driver, getBranchName, getBranchIdx, selected, onSelect, on
       </td>
       <td style={td}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: scoreBg, color: scoreColor, borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 800 }}>
-          <span style={{ fontSize: 14 }}>{safeScore >= 80 ? '🟢' : safeScore >= 60 ? '🟡' : '🔴'}</span>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', display: 'inline-block', flexShrink: 0, background: safeScore >= 80 ? C.success : safeScore >= 60 ? C.warning : C.danger }} />
           {safeScore}/100
         </span>
       </td>
       <td style={{ ...td, whiteSpace: 'nowrap' }}>
         <span style={{ display: 'flex', gap: 6, justifyContent: rtl ? 'flex-end' : 'flex-start' }}>
           <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
-            {rtl ? '👁 פרטים' : '👁 View'}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="eye" size={13} />{rtl ? 'פרטים' : 'View'}</span>
           </button>
           <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
           <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
@@ -1918,7 +2007,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
             fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
             opacity: lookupState === 'loading' ? 0.7 : 1,
           }}>
-            {lookupState === 'loading' ? '⏳' : lookupState === 'found' ? '✓' : lookupState === 'notfound' ? '✗' : '🔍'}
+            {lookupState === 'loading' ? '…' : lookupState === 'found' ? <Icon name="check" size={14} /> : lookupState === 'notfound' ? <Icon name="x" size={14} /> : <Icon name="search" size={14} />}
           </button>
         </div>
       </td>
@@ -1990,7 +2079,7 @@ function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }
       <td colSpan={8} style={{ ...td, paddingTop: 0, paddingBottom: 10 }}>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: form.consent ? C.success : C.textSecondary, fontWeight: form.consent ? 600 : 400 }}>
           <input type="checkbox" checked={form.consent} onChange={e => setForm({ ...form, consent: e.target.checked })} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: C.success }} />
-          {rtl ? '✅ הנהג נתן הסכמה לאיסוף נתוני נסיעה (GDPR / חוק הגנת הפרטיות)' : '✅ Driver has given consent for data collection (Privacy Law compliance)'}
+          {rtl ? 'הנהג נתן הסכמה לאיסוף נתוני נסיעה (GDPR / חוק הגנת הפרטיות)' : 'Driver has given consent for data collection (Privacy Law compliance)'}
         </label>
       </td>
     </tr>
@@ -2027,7 +2116,7 @@ function MobileCarCard({ car, getBranchName, getBranchIdx, drivers, selected, on
       </div>
       <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
         <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
-          {rtl ? '👁 פרטים' : '👁 View'}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="eye" size={13} />{rtl ? 'פרטים' : 'View'}</span>
         </button>
         <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
         <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
@@ -2055,7 +2144,7 @@ function MobileDriverCard({ driver, getBranchName, getBranchIdx, selected, onSel
       </div>
       <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
         <button onClick={onViewDetail} style={{ background: C.primary + '15', border: `1px solid ${C.primary}30`, color: C.primary, borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
-          {rtl ? '👁 פרטים' : '👁 View'}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="eye" size={13} />{rtl ? 'פרטים' : 'View'}</span>
         </button>
         <ActionBtn variant="edit" onClick={onEdit}>{t.edit}</ActionBtn>
         <ActionBtn variant="delete" onClick={onDelete}>{t.delete}</ActionBtn>
@@ -2074,8 +2163,8 @@ function MobileBranchCard({ branch, index, selected, onSelect, onEdit, onDelete,
       </div>
       {(branch.manager || branch.phone) && (
         <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 10, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {branch.manager && <span>👤 {branch.manager}</span>}
-          {branch.phone   && <span>📞 {branch.phone}</span>}
+          {branch.manager && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="user" size={13} color={C.textMuted} />{branch.manager}</span>}
+          {branch.phone   && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="phone" size={13} color={C.textMuted} />{branch.phone}</span>}
         </div>
       )}
       <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
@@ -2414,7 +2503,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
             <div style={{ height: 3, background: s.color }} />
             <div style={{ padding: '16px 20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: 22 }}>{s.icon}</span>
+                <EIcon e={s.icon} size={22} color={s.color} />
                 <span style={{ fontSize: 30, fontWeight: 800, color: s.color }}>{s.value}</span>
               </div>
               <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, fontWeight: 500 }}>{s.label}</p>
@@ -2426,7 +2515,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
       {/* Add service record form */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', overflow: 'hidden', marginBottom: 20 }}>
         <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>🔧 {t.maintenanceTab}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fff', fontWeight: 700, fontSize: 13 }}><Icon name="tool" size={15} />{t.maintenanceTab}</span>
           <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
             {showAdd ? t.cancel : t.newItem}
           </button>
@@ -2505,7 +2594,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
       {/* ── Maintenance Plans ── */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', overflow: 'hidden', marginTop: 8 }}>
         <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>📆 {t.maintenancePlans}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fff', fontWeight: 700, fontSize: 13 }}><Icon name="calendar" size={15} />{t.maintenancePlans}</span>
           <button onClick={() => setShowPlanAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
             {showPlanAdd ? t.cancel : t.newPlan}
           </button>
@@ -2574,10 +2663,10 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
                     <td style={mkTd(rtl, isMobile)}>{pl.km_interval ? pl.km_interval.toLocaleString() : '—'}</td>
                     <td style={mkTd(rtl, isMobile)}>{pl.month_interval || '—'}</td>
                     <td style={mkTd(rtl, isMobile)}>
-                      {nextKm ? <span style={{ color: isKmDue ? C.danger : C.textPrimary, fontWeight: isKmDue ? 700 : 400 }}>{nextKm.toLocaleString()} {isKmDue ? '⚠️' : ''}</span> : '—'}
+                      {nextKm ? <span style={{ color: isKmDue ? C.danger : C.textPrimary, fontWeight: isKmDue ? 700 : 400 }}>{nextKm.toLocaleString()} {isKmDue ? <Icon name="alert" size={12} color={C.danger} style={{ marginInlineStart: 3, verticalAlign: '-1px' }} /> : ''}</span> : '—'}
                     </td>
                     <td style={mkTd(rtl, isMobile)}>
-                      {nextDate ? <span style={{ color: isDateDue ? C.danger : C.textPrimary, fontWeight: isDateDue ? 700 : 400 }}>{fmtDate(nextDate)} {isDateDue ? '⚠️' : ''}</span> : '—'}
+                      {nextDate ? <span style={{ color: isDateDue ? C.danger : C.textPrimary, fontWeight: isDateDue ? 700 : 400 }}>{fmtDate(nextDate)} {isDateDue ? <Icon name="alert" size={12} color={C.danger} style={{ marginInlineStart: 3, verticalAlign: '-1px' }} /> : ''}</span> : '—'}
                     </td>
                     <td style={mkTd(rtl, isMobile)}>
                       <span style={{ display: 'flex', gap: 6 }}>
@@ -2792,10 +2881,10 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
         {/* Header */}
         <div style={{ background:gradient, padding:'14px 20px', borderRadius:'16px 16px 0 0', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
           <div>
-            <span style={{ color:'#fff', fontWeight:700, fontSize:15 }}>📥 {title}</span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:6, color:'#fff', fontWeight:700, fontSize:15 }}><Icon name="download" size={16} />{title}</span>
             <p style={{ margin:'2px 0 0', fontSize:11, color:'rgba(255,255,255,0.75)' }}>{hint}</p>
           </div>
-          <button onClick={() => { reset(); onClose() }} style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'#fff', borderRadius:6, padding:'4px 12px', cursor:'pointer', fontWeight:700 }}>✕</button>
+          <button onClick={() => { reset(); onClose() }} style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'#fff', borderRadius:6, padding:'4px 12px', cursor:'pointer', fontWeight:700 }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Body */}
@@ -2815,7 +2904,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
           {rows.length > 0 && !done && (
             <>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, flexWrap:'wrap', gap:8 }}>
-                <p style={{ margin:0, fontSize:12, color:C.textMuted }}>✏️ {t.csvEditNote}</p>
+                <p style={{ display: 'flex', alignItems: 'center', gap: 5, margin:0, fontSize:12, color:C.textMuted }}><Icon name="pencil" size={13} />{t.csvEditNote}</p>
                 {type === 'cars' && (
                   <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, fontWeight:600, color: updateMode ? C.primary : C.textSecondary }}>
                     <input type="checkbox" checked={updateMode} onChange={e => setUpdateMode(e.target.checked)} style={{ cursor:'pointer' }} />
@@ -2898,7 +2987,7 @@ function CsvEntityImportModal({ open, onClose, type, branches, cars: existingCar
                             </td>
                           </>}
                           <td style={{ ...td, width:36, textAlign:'center' }}>
-                            <button onClick={() => removeRow(r._id)} title="Remove row" style={{ background:'none', border:'none', color:C.danger, cursor:'pointer', fontSize:15, lineHeight:1 }}>✕</button>
+                            <button onClick={() => removeRow(r._id)} title="Remove row" style={{ background:'none', border:'none', color:C.danger, cursor:'pointer', fontSize:15, lineHeight:1 }}><Icon name="x" size={15} /></button>
                           </td>
                         </tr>
                       )
@@ -3033,8 +3122,8 @@ function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImp
       <div style={box}>
         {/* Header */}
         <div style={{ background: gradient, padding:'16px 20px', borderRadius:'16px 16px 0 0', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
-          <span style={{ color:'#fff', fontWeight:700, fontSize:15 }}>📥 {t.csvImportTitle}</span>
-          <button onClick={() => { reset(); onClose() }} style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'#fff', borderRadius:6, padding:'4px 12px', cursor:'pointer', fontWeight:700 }}>✕</button>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6, color:'#fff', fontWeight:700, fontSize:15 }}><Icon name="download" size={16} />{t.csvImportTitle}</span>
+          <button onClick={() => { reset(); onClose() }} style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'#fff', borderRadius:6, padding:'4px 12px', cursor:'pointer', fontWeight:700 }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Body */}
@@ -3222,11 +3311,11 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       {/* Add form */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.06)', marginBottom: 20 }}>
         <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>💰 {t.costsTab}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fff', fontWeight: 700, fontSize: 13 }}><Icon name="coin" size={15} />{t.costsTab}</span>
           <div style={{ display: 'flex', gap: 8 }}>
             {costs.length > 0 && (
               <button onClick={exportAccountingCsv} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.15)' }}>
-                📥 {rtl ? 'ייצוא הנהלת חשבונות' : 'Export CSV'}
+                <Icon name="download" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'ייצוא הנהלת חשבונות' : 'Export CSV'}
               </button>
             )}
             <button onClick={() => setShowAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
@@ -3282,7 +3371,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
             </div>
             {addError && (
               <div style={{ gridColumn: '1 / -1', padding: '8px 12px', background: C.danger + '10', border: `1px solid ${C.danger}30`, borderRadius: 8, fontSize: 13, color: C.danger, fontWeight: 600 }}>
-                ⚠ {addError}
+                <Icon name="alert" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{addError}
               </div>
             )}
           </form>
@@ -3293,8 +3382,8 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       {selectedCostIds.length > 0 && (
         <div style={{ background: C.primary + '10', border: `1px solid ${C.primary}30`, borderRadius: 8, padding: '8px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>{selectedCostIds.length} {t.itemsSelected}</span>
-          <button onClick={bulkDelCosts} style={{ ...btnDanger, padding: '5px 14px', fontSize: 12 }}>🗑 {t.bulkDelete}</button>
-          <button onClick={() => setSelectedCostIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 12 }}>✕</button>
+          <button onClick={bulkDelCosts} style={{ ...btnDanger, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 14px', fontSize: 12 }}><Icon name="trash" size={14} />{t.bulkDelete}</button>
+          <button onClick={() => setSelectedCostIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 12 }}><Icon name="x" size={15} /></button>
         </div>
       )}
 
@@ -3306,7 +3395,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
             {allCostCenters.map(cc => <option key={cc} value={cc}>{cc}</option>)}
           </select>
           <button onClick={() => setShowByCostCenter(p => !p)} style={{ background: showByCostCenter ? C.primary : C.bg, color: showByCostCenter ? '#fff' : C.textPrimary, border: `1px solid ${showByCostCenter ? C.primary : C.border}`, borderRadius: 7, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-            📊 {rtl ? 'לפי מרכז עלות' : 'By Cost Center'}
+            <Icon name="chart" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'לפי מרכז עלות' : 'By Cost Center'}
           </button>
         </div>
       )}
@@ -3408,7 +3497,7 @@ function AlertsPanel({ rtl, companyId }) {
   return (
     <div style={{ background: overdue > 0 ? '#fef2f2' : '#fffbeb', border: `1px solid ${overdue > 0 ? '#fecaca' : '#fde68a'}`, borderRadius: 12, marginBottom: 20, overflow: 'hidden' }}>
       <div onClick={() => setOpen(p => !p)} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-        <span style={{ fontSize: 20 }}>{overdue > 0 ? '🔴' : '🟡'}</span>
+        <span style={{ width: 12, height: 12, borderRadius: '50%', display: 'inline-block', flexShrink: 0, background: overdue > 0 ? C.danger : C.warning }} />
         <div style={{ flex: 1 }}>
           <span style={{ fontWeight: 800, fontSize: 14, color: overdue > 0 ? C.danger : '#92400e' }}>
             {overdue > 0
@@ -3425,7 +3514,7 @@ function AlertsPanel({ rtl, companyId }) {
             const isOverdue = a.severity === 'overdue'
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', background: isOverdue ? '#fee2e2' : '#fef9c3', borderRadius: 7, fontSize: 13 }}>
-                <span>{typeIcon[a.type] || '⚠'}</span>
+                <span><EIcon e={typeIcon[a.type] || '⚠'} size={16} /></span>
                 <span style={{ flex: 1, fontWeight: 600, color: isOverdue ? C.danger : '#92400e' }}>{localizeLabel(a.label)}</span>
                 <span style={{ fontSize: 11, color: isOverdue ? C.danger : '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>
                   {fmtDate(a.date)} {isOverdue ? (rtl ? '(באיחור)' : '(overdue)') : (rtl ? `(${daysLeft} ימים)` : `(${daysLeft}d)`)}
@@ -3508,11 +3597,11 @@ function AlertsTab({ companyId, rtl }) {
     <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '⏰ כל ההתראות' : '⏰ All Alerts'}</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="bell" size={20} color={C.warning} />{rtl ? 'כל ההתראות' : 'All Alerts'}</h2>
           <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'תצוגה מאוחדת: תחזוקה, מסמכים, רישיונות והכשרות' : 'Unified view: maintenance, documents, licenses, certifications'}</p>
         </div>
         <button onClick={exportAlerts} disabled={!filtered.length} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: filtered.length ? 'pointer' : 'not-allowed', color: C.textSecondary, opacity: filtered.length ? 1 : 0.5 }}>
-          {rtl ? '📥 ייצוא Excel' : '📥 Export Excel'}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={14} />{rtl ? 'ייצוא Excel' : 'Export Excel'}</span>
         </button>
       </div>
 
@@ -3549,7 +3638,7 @@ function AlertsTab({ companyId, rtl }) {
         <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>{rtl ? 'טוען...' : 'Loading...'}</div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+          <div style={{ marginBottom: 8 }}><Icon name="check" size={34} color={C.success} /></div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{rtl ? 'אין התראות פעילות' : 'No active alerts'}</div>
         </div>
       ) : (
@@ -3569,7 +3658,7 @@ function AlertsTab({ companyId, rtl }) {
               <tbody>
                 {filtered.map((a, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{typeIcon[a.type] || '⚠'} {typeLabel[a.type] || a.type}</td>
+                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}><EIcon e={typeIcon[a.type] || '⚠'} size={15} style={{ marginInlineEnd: 6 }} />{typeLabel[a.type] || a.type}</td>
                     <td style={{ padding: '9px 14px' }}>{a.label}</td>
                     <td style={{ padding: '9px 14px' }}>{a.entity_name || '—'}</td>
                     <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(a.date)}</td>
@@ -3630,8 +3719,8 @@ function ActivityLogSection({ companyId, t }) {
   return (
     <div style={{ background: C.surface, borderRadius: 8, border: `1px solid ${C.border}`, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📋 {t.activityLog}</h3>
-        {logs.length > 0 && <button onClick={exportLogs} style={{ background: C.success, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>📊 {t.exportExcel}</button>}
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="clipboard" size={16} color={C.textSecondary} />{t.activityLog}</h3>
+        {logs.length > 0 && <button onClick={exportLogs} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.success, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}><Icon name="download" size={14} />{t.exportExcel}</button>}
       </div>
       {logs.length === 0 && !loading ? (
         <p style={{ color: C.textMuted, fontSize: 14 }}>{t.noActivity}</p>
@@ -3773,7 +3862,7 @@ function FleetCalendar({ companyId, rtl }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <button onClick={prevMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 40, height: 40, cursor: 'pointer', fontSize: 18, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div style={{ fontWeight: 800, fontSize: 15, color: C.textPrimary }}>
-          📅 {monthNames[cur.month]} {cur.year}
+          <Icon name="calendar" size={15} style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{monthNames[cur.month]} {cur.year}
           {loading && <span style={{ fontSize: 11, color: C.textMuted, marginRight: 8, marginLeft: 8 }}>…</span>}
         </div>
         <button onClick={nextMonth} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, width: 40, height: 40, cursor: 'pointer', fontSize: 18, color: C.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
@@ -3803,7 +3892,7 @@ function FleetCalendar({ companyId, rtl }) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {dayEvs.slice(0, 3).map((ev, j) => (
                       <div key={j} title={ev.label} style={{ fontSize: 9, fontWeight: 700, color: ev.color, background: ev.color + '18', borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ev.icon} {ev.label}
+                        {ev.label}
                       </div>
                     ))}
                     {dayEvs.length > 3 && <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700 }}>+{dayEvs.length - 3}</div>}
@@ -3820,7 +3909,7 @@ function FleetCalendar({ companyId, rtl }) {
         {[['🔧', rtl ? 'תחזוקה' : 'Maintenance', '#2563eb'], ['🚨', rtl ? 'קנסות' : 'Violations', '#dc2626'], ['💰', rtl ? 'עלויות' : 'Costs', '#d97706']].map(([icon, label, color]) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.textSecondary }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: color, display: 'inline-block' }} />
-            {icon} {label}
+            {label}
           </div>
         ))}
       </div>
@@ -3912,7 +4001,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
           {/* Double-bezel icon */}
           <div style={{ width: 48, height: 48, borderRadius: 12, background: color + '08', border: `1px solid ${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: color + '18', border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{icon}</div>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: color + '18', border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{typeof icon === 'string' && EMOJI_ICON[icon] ? <EIcon e={icon} size={19} color={color} /> : icon}</div>
           </div>
           <p style={{ margin: 0, fontSize: 38, fontWeight: 800, color, lineHeight: 1, letterSpacing: '-1px' }}>{value}</p>
         </div>
@@ -3964,7 +4053,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        <button onClick={onExport} style={{ ...btnPrimary, padding: '7px 16px', fontSize: 12 }}>📥 {t.exportExcel}</button>
+        <button onClick={onExport} style={{ ...btnPrimary, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', fontSize: 12 }}><Icon name="download" size={14} />{t.exportExcel}</button>
       </div>
 
       {/* Stat cards */}
@@ -3998,14 +4087,14 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
       {(openAccidents.length > 0 || pendingFormLinks.length > 0) && (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginBottom: 20, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <div style={{ padding: '12px 18px', background: '#fef9f0', borderBottom: `1px solid #fde68a`, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🔔</span>
+            <Icon name="bell" size={16} color={C.textSecondary} />
             <span style={{ fontWeight: 800, fontSize: 14, color: '#92400e' }}>{rtl ? 'דרוש טיפול' : 'Needs Attention'}</span>
           </div>
           <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {openAccidents.map(acc => (
               <div key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fef2f2', borderRadius: 8, cursor: onNavigate ? 'pointer' : 'default' }}
                 onClick={() => onNavigate?.('forms')}>
-                <span style={{ fontSize: 18, flexShrink: 0 }}>🚨</span>
+                <Icon name="alert" size={18} color={C.danger} style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.danger }}>{rtl ? 'תאונה פתוחה' : 'Open Accident'}{acc.other_plate ? ` · ${acc.other_plate}` : ''}</div>
                   <div style={{ fontSize: 11, color: C.textMuted }}>{fmtDate(acc.incident_date || acc.created_at?.slice(0,10))}</div>
@@ -4016,7 +4105,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
             {pendingFormLinks.map(lnk => (
               <div key={lnk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fffbeb', borderRadius: 8, cursor: onNavigate ? 'pointer' : 'default' }}
                 onClick={() => onNavigate?.('forms')}>
-                <span style={{ fontSize: 18, flexShrink: 0 }}>📋</span>
+                <Icon name="clipboard" size={18} color={C.primary} style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>{lnk.title || (rtl ? 'טופס ממתין' : 'Pending Form')}</div>
                   <div style={{ fontSize: 11, color: C.textMuted }}>{rtl ? 'שויך לנהג ולא הוגש' : 'Assigned to driver — not submitted yet'}</div>
@@ -4032,7 +4121,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
       {monthlyBudget > 0 && (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: '14px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>💰 {rtl ? 'תקציב חודשי' : 'Monthly Budget'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: C.textPrimary }}><Icon name="coin" size={15} color={C.textSecondary} />{rtl ? 'תקציב חודשי' : 'Monthly Budget'}</span>
             <span style={{ fontSize: 13, fontWeight: 800, color: budgetColor }}>
               ₪{monthCostsTotal.toLocaleString()} / ₪{monthlyBudget.toLocaleString()} ({Math.round(budgetPct ?? 0)}%)
             </span>
@@ -4040,7 +4129,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
           <div style={{ height: 10, borderRadius: 5, background: C.border }}>
             <div style={{ height: 10, borderRadius: 5, background: budgetColor, width: `${budgetPct ?? 0}%`, transition: 'width 0.6s ease' }} />
           </div>
-          {budgetPct >= 90 && <div style={{ fontSize: 11, color: C.danger, fontWeight: 700, marginTop: 6 }}>⚠ {rtl ? 'קרוב לגבול התקציב!' : 'Approaching budget limit!'}</div>}
+          {budgetPct >= 90 && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.danger, fontWeight: 700, marginTop: 6 }}><Icon name="alert" size={13} />{rtl ? 'קרוב לגבול התקציב!' : 'Approaching budget limit!'}</div>}
         </div>
       )}
 
@@ -4158,7 +4247,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
                     display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
                     borderBottom: i < recentVehicles.length - 1 ? `1px solid ${C.border}` : 'none',
                   }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 9, background: branchColor(i) + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🚗</div>
+                    <div style={{ width: 36, height: 36, borderRadius: 9, background: branchColor(i) + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="car" size={18} color={branchColor(i)} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {formatPlate(car.plate)} · {car.make} {car.model}
@@ -4246,7 +4335,7 @@ function CustomListsSection({ companyId, t, onCustomListsChange }) {
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: 8 }}>
               {defaults.map(v => (
-                <span key={v} style={defBadge} title={t.defaults}>🔒 {translateListValue(v, t)}</span>
+                <span key={v} style={{ ...defBadge, display: 'inline-flex', alignItems: 'center', gap: 4 }} title={t.defaults}><Icon name="lock" size={11} />{translateListValue(v, t)}</span>
               ))}
               {customs.map(item => (
                 <span key={item.id} style={badge}>
@@ -4352,7 +4441,7 @@ function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose
   )
   const section = (icon, title) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 18, marginBottom: 10 }}>
-      <span style={{ fontSize: 16 }}>{icon}</span>
+      <EIcon e={icon} size={16} color={C.primary} />
       <span style={{ fontSize: 13, fontWeight: 800, color: C.textPrimary }}>{title}</span>
       <div style={{ flex: 1, height: 1, background: C.border }} />
     </div>
@@ -4376,7 +4465,7 @@ function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose
         {/* Header */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: C.textPrimary }}>🚨 {t.accidentFormTitle}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 800, fontSize: 15, color: C.textPrimary }}><Icon name="alert" size={17} color={C.danger} />{t.accidentFormTitle}</div>
             <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{t.accidentFormSub}</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: C.textMuted, lineHeight: 1, padding: 4 }}>×</button>
@@ -4447,7 +4536,7 @@ function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose
             border: `2px dashed ${C.border}`, borderRadius: 8, cursor: 'pointer',
             background: C.bgSubtle, color: C.textSecondary, fontSize: 13, fontWeight: 600,
           }}>
-            <span>📁</span>
+            <Icon name="folder" size={24} color={C.textMuted} />
             <span>{rtl ? 'בחר קבצים' : 'Choose files'}</span>
             <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx" onChange={pickFiles} style={{ display: 'none' }} />
           </label>
@@ -4455,7 +4544,7 @@ function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {files.map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: C.bg, borderRadius: 6, fontSize: 12 }}>
-                  <span>📄</span>
+                  <Icon name="file" size={16} color={C.textMuted} />
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.textPrimary }}>{f.name}</span>
                   <span style={{ color: C.textMuted, flexShrink: 0 }}>{(f.size / 1024).toFixed(0)} KB</span>
                   <button type="button" onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
@@ -4466,7 +4555,7 @@ function AccidentFormModal({ companyId, cars, session, rtl, t, isMobile, onClose
 
           {error && (
             <div style={{ marginTop: 12, padding: '10px 14px', background: C.danger + '10', border: `1px solid ${C.danger}30`, borderRadius: 8, fontSize: 13, color: C.danger, fontWeight: 600 }}>
-              ⚠ {error}
+              <Icon name="alert" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{error}
             </div>
           )}
 
@@ -4586,7 +4675,7 @@ function WhatsAppSendModal({ initialText, phone, rtl, onClose }) {
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: C.surface, borderRadius: 14, width: '100%', maxWidth: 440, padding: 20, direction: rtl ? 'rtl' : 'ltr', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 18 }}>💬</span>
+          <Icon name="message" size={18} color={C.primary} />
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'עריכת הודעת וואטסאפ' : 'Edit WhatsApp message'}</h3>
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 12, color: C.textSecondary }}>{rtl ? 'ערוך את הטקסט לפי הצורך ולחץ לפתיחת וואטסאפ.' : 'Edit the text as needed, then open WhatsApp.'}</p>
@@ -4920,7 +5009,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                 <div style={{ fontSize: 13, color: '#64748b' }}>{printSub.submitter_name} · {new Date(printSub.submitted_at).toLocaleString('he-IL')}</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => window.print()} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🖨️ הדפס</button>
+                <button onClick={() => window.print()} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}><Icon name="printer" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />הדפס</button>
                 <button onClick={() => setPrintSub(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>סגור</button>
               </div>
             </div>
@@ -4934,7 +5023,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
             {printSub.data?.attachments?.length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontWeight: 700, color: '#475569', marginBottom: 8 }}>קבצים מצורפים</div>
-                {printSub.data.attachments.map((a, i) => <div key={i} style={{ fontSize: 13, color: C.primary }}>📎 {a.name}</div>)}
+                {printSub.data.attachments.map((a, i) => <div key={i} style={{ fontSize: 13, color: C.primary }}><Icon name="paperclip" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{a.name}</div>)}
               </div>
             )}
           </div>
@@ -4950,7 +5039,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
             <img src={qrUrl(showQr.token)} alt="QR" style={{ width: 220, height: 220, borderRadius: 10, border: '1px solid #e2e8f0' }} />
             <div style={{ marginTop: 16, fontSize: 11, color: '#94a3b8', wordBreak: 'break-all', direction: 'ltr' }}>{formUrl(showQr.token)}</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
-              <a href={qrUrl(showQr.token)} download={`qr-${showQr.title}.png`} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>⬇️ {rtl ? 'הורד QR' : 'Download QR'}</a>
+              <a href={qrUrl(showQr.token)} download={`qr-${showQr.title}.png`} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={14} />{rtl ? 'הורד QR' : 'Download QR'}</a>
               <button onClick={() => setShowQr(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'סגור' : 'Close'}</button>
             </div>
           </div>
@@ -4976,18 +5065,18 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {subs.length > 0 && (
                   <button onClick={() => exportSubs(filtered, viewSubs)} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                    📊 {rtl ? 'יצא Excel' : 'Export Excel'}
+                    <Icon name="download" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'יצא Excel' : 'Export Excel'}
                   </button>
                 )}
-                <button onClick={() => setViewSubs(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#f8fafc', fontSize: 18 }}>✕</button>
+                <button onClick={() => setViewSubs(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#f8fafc', fontSize: 18 }}><Icon name="x" size={15} /></button>
               </div>
             </div>
             {/* Search & filter bar */}
             <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 8, flexWrap: 'wrap', background: C.bg }}>
-              <input value={subSearch} onChange={e => setSubSearch(e.target.value)} placeholder={rtl ? '🔍 חפש לפי שם...' : '🔍 Search by name...'} style={{ flex: 1, minWidth: 140, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: '#fff' }} />
+              <input value={subSearch} onChange={e => setSubSearch(e.target.value)} placeholder={rtl ? 'חפש לפי שם...' : 'Search by name...'} style={{ flex: 1, minWidth: 140, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: '#fff' }} />
               <input type="date" value={subDateFrom} onChange={e => setSubDateFrom(e.target.value)} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: '#fff' }} />
               <input type="date" value={subDateTo} onChange={e => setSubDateTo(e.target.value)} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: '#fff' }} />
-              {(subSearch || subDateFrom || subDateTo) && <button onClick={() => { setSubSearch(''); setSubDateFrom(''); setSubDateTo('') }} style={{ padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 12, cursor: 'pointer', background: '#fff', color: C.danger }}>✕</button>}
+              {(subSearch || subDateFrom || subDateTo) && <button onClick={() => { setSubSearch(''); setSubDateFrom(''); setSubDateTo('') }} style={{ padding: '7px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 12, cursor: 'pointer', background: '#fff', color: C.danger }}><Icon name="x" size={15} /></button>}
             </div>
             <div style={{ padding: '16px 20px 24px' }}>
               {subsLoading
@@ -5003,7 +5092,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                           <div style={{ fontSize: 12, color: C.textMuted }}>{new Date(sub.submitted_at).toLocaleString('he-IL')}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <button onClick={e => { e.stopPropagation(); setPrintSub(sub) }} style={{ background: '#f1f5f9', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', color: '#475569', fontWeight: 700 }}>🖨️</button>
+                          <button onClick={e => { e.stopPropagation(); setPrintSub(sub) }} style={{ background: '#f1f5f9', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', color: '#475569', fontWeight: 700 }}><Icon name="printer" size={13} /></button>
                           <span style={{ color: C.textMuted, fontSize: 16 }}>{expandSub === sub.id ? '▲' : '▼'}</span>
                         </div>
                       </div>
@@ -5018,7 +5107,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                           {sub.data?.attachments?.length > 0 && (
                             <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {sub.data.attachments.map((a, i) => (
-                                <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" style={{ background: C.primary, color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}>📎 {a.name}</a>
+                                <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" style={{ background: C.primary, color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}><Icon name="paperclip" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{a.name}</a>
                               ))}
                             </div>
                           )}
@@ -5038,8 +5127,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: createType === 'custom' ? 580 : 480, direction: rtl ? 'rtl' : 'ltr', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 15 }}>{rtl ? '➕ יצירת קישור טופס' : '➕ Create Form Link'}</span>
-              <button onClick={() => { setShowCreate(false); setCustomFields([]) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}>✕</button>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#f8fafc', fontWeight: 800, fontSize: 15 }}><Icon name="plus" size={16} />{rtl ? 'יצירת קישור טופס' : 'Create Form Link'}</span>
+              <button onClick={() => { setShowCreate(false); setCustomFields([]) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}><Icon name="x" size={15} /></button>
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
               {/* Form type selector */}
@@ -5049,7 +5138,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                   {FORM_TYPES.map(f => (
                     <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 9, border: `2px solid ${createType === f.id ? C.primary : C.border}`, cursor: 'pointer', background: createType === f.id ? C.primary + '08' : C.bg, transition: 'all 0.15s' }}>
                       <input type="radio" name="formType" value={f.id} checked={createType === f.id} onChange={() => { setCreateType(f.id); setCustomFields([]) }} style={{ accentColor: C.primary }} />
-                      <span style={{ fontSize: 16 }}>{f.icon}</span>
+                      <EIcon e={f.icon} size={16} color={C.textSecondary} />
                       <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{rtl ? f.label : f.labelEn}</span>
                     </label>
                   ))}
@@ -5059,7 +5148,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               {/* Custom form builder */}
               {createType === 'custom' && (
                 <div style={{ background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, padding: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}>{rtl ? '🛠 בנה את שדות הטופס' : '🛠 Build Form Fields'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: C.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}><Icon name="tool" size={13} color={C.textSecondary} />{rtl ? 'בנה את שדות הטופס' : 'Build Form Fields'}</div>
 
                   {/* Preset field pills */}
                   <div style={{ marginBottom: 10 }}>
@@ -5070,7 +5159,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                         return (
                           <button key={p.preset} type="button" onClick={() => cfAddPreset(p.preset)} disabled={added}
                             style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, border: `1px solid ${added ? C.success : C.border}`, background: added ? C.success + '18' : '#fff', color: added ? C.success : C.textPrimary, cursor: added ? 'default' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {p.icon} {rtl ? p.label : p.labelEn} {added ? '✓' : ''}
+                            <EIcon e={p.icon} size={14} style={{ marginInlineEnd: 5 }} />{rtl ? p.label : p.labelEn} {added ? <Icon name="check" size={13} color={C.success} /> : ''}
                           </button>
                         )
                       })}
@@ -5178,12 +5267,12 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 9, border: `2px solid ${createSingle ? '#f59e0b' : C.border}`, cursor: 'pointer', background: createSingle ? '#fef3c708' : C.bg, transition: 'all 0.15s' }}>
                 <input type="checkbox" checked={createSingle} onChange={e => setCreateSingle(e.target.checked)} style={{ accentColor: '#f59e0b', width: 16, height: 16 }} />
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{rtl ? '🔒 טופס חד-פעמי' : '🔒 Single-use form'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, color: C.textPrimary }}><Icon name="lock" size={13} color={C.textSecondary} />{rtl ? 'טופס חד-פעמי' : 'Single-use form'}</div>
                   <div style={{ fontSize: 11, color: C.textMuted }}>{rtl ? 'לא ניתן למלא יותר מפעם אחת' : 'Cannot be filled more than once'}</div>
                 </div>
               </label>
               <button onClick={createLink} disabled={creating} style={{ ...btnPrimary, padding: '12px', fontSize: 14, opacity: creating ? 0.7 : 1, cursor: creating ? 'not-allowed' : 'pointer' }}>
-                {creating ? '…' : (rtl ? '🔗 צור קישור' : '🔗 Create Link')}
+                {creating ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="link" size={14} />{rtl ? 'צור קישור' : 'Create Link'}</span>}
               </button>
             </div>
           </div>
@@ -5193,12 +5282,12 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       {/* Unified Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: C.textPrimary }}>📋 {rtl ? 'טפסים' : 'Forms'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 22, fontWeight: 900, color: C.textPrimary }}><Icon name="clipboard" size={22} color={C.primary} />{rtl ? 'טפסים' : 'Forms'}</div>
           <div style={{ fontSize: 13, color: C.textMuted, marginTop: 3 }}>{rtl ? 'שלח קישורים לנהגים או לצוות למילוי טפסים' : 'Send links for drivers or staff to fill out forms'}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button onClick={openAccFormShare} disabled={accFormShareBusy} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: accFormShareBusy ? 0.6 : 1 }}>
-            {accFormShareBusy ? '…' : (rtl ? '📤 שלח טופס לנהג' : '📤 Send Form to Driver')}
+            {accFormShareBusy ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="send" size={14} />{rtl ? 'שלח טופס לנהג' : 'Send Form to Driver'}</span>}
           </button>
           <button onClick={() => setShowAccidentForm(true)} style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             {t.newAccidentReport}
@@ -5212,7 +5301,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       {/* Accident Reports Section */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
-          🚨 {t.accidentReports}
+          <Icon name="alert" size={18} color={C.danger} style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{t.accidentReports}
         </div>
 
         {/* Accident form share modal */}
@@ -5220,8 +5309,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 380, direction: rtl ? 'rtl' : 'ltr', overflow: 'hidden' }}>
               <div style={{ background: C.navBg, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 15 }}>📤 {rtl ? 'שלח טופס דוח תאונה' : 'Share Accident Report Form'}</span>
-                <button onClick={() => setAccFormShare(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}>✕</button>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#f8fafc', fontWeight: 800, fontSize: 15 }}><Icon name="send" size={15} />{rtl ? 'שלח טופס דוח תאונה' : 'Share Accident Report Form'}</span>
+                <button onClick={() => setAccFormShare(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}><Icon name="x" size={15} /></button>
               </div>
               <div style={{ padding: '20px 18px' }}>
                 <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, textAlign: 'center' }}>
@@ -5234,15 +5323,15 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                   <input readOnly value={formUrl(accFormShare.token)} onClick={e => e.target.select()}
                     style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '8px 10px', fontSize: 12, color: C.textSecondary, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis' }} />
                   <button onClick={() => copyLink(accFormShare.token)} style={{ ...btnPrimary, padding: '8px 14px', fontSize: 12, background: copied === accFormShare.token ? C.success : C.primary, flexShrink: 0 }}>
-                    {copied === accFormShare.token ? '✓' : (rtl ? 'העתק' : 'Copy')}
+                    {copied === accFormShare.token ? <Icon name="check" size={13} /> : (rtl ? 'העתק' : 'Copy')}
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => sendWhatsApp(accFormShare)} style={{ flex: 1, background: '#25d366', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    📲 WhatsApp
+                    <Icon name="message" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />WhatsApp
                   </button>
                   <button onClick={() => sendFormEmail(accFormShare)} style={{ flex: 1, background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    📧 {rtl ? 'אימייל' : 'Email'}
+                    <Icon name="mail" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'אימייל' : 'Email'}
                   </button>
                 </div>
                 <div style={{ marginTop: 12, fontSize: 11, color: C.textMuted, textAlign: 'center' }}>
@@ -5255,7 +5344,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
 
         {accSuccess && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: C.success + '15', border: `1px solid ${C.success}40`, borderRadius: 8, marginBottom: 12, fontSize: 13, color: C.successText, fontWeight: 600 }}>
-            ✓ {t.reportSubmitted}
+<Icon name="check" size={14} color={C.success} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{t.reportSubmitted}
             <button onClick={() => setAccSuccess(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.successText, marginInlineStart: 'auto', fontSize: 16 }}>×</button>
           </div>
         )}
@@ -5264,7 +5353,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         {accQrReport && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', maxWidth: 300, width: '100%' }}>
-              <div style={{ fontWeight: 800, fontSize: 14, color: '#0f172a', marginBottom: 4 }}>🚨 {rtl ? 'QR לדוח תאונה' : 'Accident Report QR'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, color: '#0f172a', marginBottom: 4 }}><Icon name="alert" size={15} color={C.danger} />{rtl ? 'QR לדוח תאונה' : 'Accident Report QR'}</div>
               <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>{rtl ? 'סרוק לקבלת פרטי הדוח' : 'Scan to get report details'}</div>
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(accidentQrData(accQrReport))}`}
@@ -5291,7 +5380,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               <div style={{ background: C.surface, borderRadius: 14, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', direction: rtl ? 'rtl' : 'ltr', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
                 <div style={{ padding: '18px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 16, color: C.textPrimary }}>🚨 {t.accidentFormTitle}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 800, fontSize: 16, color: C.textPrimary }}><Icon name="alert" size={18} color={C.danger} />{t.accidentFormTitle}</div>
                     <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rep.incident_date ? fmtDate(rep.incident_date) : fmtDate(rep.created_at?.slice(0, 10))}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -5312,14 +5401,14 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                     <div style={{ display: 'flex', gap: 8 }}>
                       {rep.police_report != null && (
                         <div style={{ flex: 1, background: rep.police_report ? C.success + '15' : C.danger + '10', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                          <div style={{ fontSize: 20, marginBottom: 4 }}>👮</div>
+                          <div style={{ marginBottom: 4 }}><Icon name="shield" size={20} color={C.textSecondary} /></div>
                           <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{rtl ? 'דוח משטרתי' : 'Police Report'}</div>
                           <div style={{ fontSize: 13, fontWeight: 800, color: rep.police_report ? C.success : C.danger }}>{rep.police_report ? (rtl ? 'הוגש' : 'Filed') : (rtl ? 'לא הוגש' : 'Not filed')}</div>
                         </div>
                       )}
                       {rep.called_ambulance != null && (
                         <div style={{ flex: 1, background: rep.called_ambulance ? C.success + '15' : C.danger + '10', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                          <div style={{ fontSize: 20, marginBottom: 4 }}>🚑</div>
+                          <div style={{ marginBottom: 4 }}><Icon name="ambulance" size={20} color={C.textSecondary} /></div>
                           <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{rtl ? 'אמבולנס' : 'Ambulance'}</div>
                           <div style={{ fontSize: 13, fontWeight: 800, color: rep.called_ambulance ? C.success : C.danger }}>{rep.called_ambulance ? (rtl ? 'הוזמן' : 'Called') : (rtl ? 'לא הוזמן' : 'Not called')}</div>
                         </div>
@@ -5330,9 +5419,9 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                   {(rep.other_plate || rep.other_driver_name) && (
                     <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px' }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t.otherDriverInfo}</div>
-                      {rep.other_plate && <div style={{ fontSize: 13, color: C.textPrimary, marginBottom: 2 }}>🚘 {rep.other_plate}{rep.other_make ? ` · ${rep.other_make}` : ''}{rep.other_model ? ` ${rep.other_model}` : ''}</div>}
-                      {rep.other_driver_name && <div style={{ fontSize: 13, color: C.textPrimary, marginBottom: 2 }}>👤 {rep.other_driver_name}</div>}
-                      {rep.other_driver_phone && <div style={{ fontSize: 13, color: C.textPrimary }}>📞 {rep.other_driver_phone}</div>}
+                      {rep.other_plate && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: C.textPrimary, marginBottom: 2 }}><Icon name="car" size={13} color={C.textMuted} />{rep.other_plate}{rep.other_make ? ` · ${rep.other_make}` : ''}{rep.other_model ? ` ${rep.other_model}` : ''}</div>}
+                      {rep.other_driver_name && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: C.textPrimary, marginBottom: 2 }}><Icon name="user" size={13} color={C.textMuted} />{rep.other_driver_name}</div>}
+                      {rep.other_driver_phone && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: C.textPrimary }}><Icon name="phone" size={13} color={C.textMuted} />{rep.other_driver_phone}</div>}
                     </div>
                   )}
                   {/* Description */}
@@ -5349,7 +5438,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {files.map((f, i) => (
                           <button key={i} onClick={() => openAccidentFile(f)} style={{ background: C.primary + '15', color: C.primary, border: `1px solid ${C.primary}30`, borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                            📎 {f.name}
+                            <Icon name="paperclip" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{f.name}
                           </button>
                         ))}
                       </div>
@@ -5389,7 +5478,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           <div style={{ textAlign: 'center', padding: 20, color: C.textMuted, fontSize: 13 }}>{t.loadingShort}</div>
         ) : accidentReports.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '28px 20px', color: C.textMuted, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>🚗</div>
+            <div style={{ marginBottom: 8 }}><Icon name="car" size={34} color={C.textMuted} /></div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{t.noAccidentReports}</div>
           </div>
         ) : (
@@ -5404,7 +5493,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                 <div key={rep.id} style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', opacity: isHold ? 0.75 : 1 }}>
                   {/* Card header */}
                   <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>🚨</span>
+                    <Icon name="alert" size={20} color={C.danger} style={{ flexShrink: 0, marginTop: 2 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
                         <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>
@@ -5420,7 +5509,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       </div>
                       {rep.other_driver_name && (
                         <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 2 }}>
-                          👤 {rep.other_driver_name}{rep.other_driver_phone ? ` · ${rep.other_driver_phone}` : ''}
+                          <Icon name="user" size={13} color={C.textMuted} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{rep.other_driver_name}{rep.other_driver_phone ? ` · ${rep.other_driver_phone}` : ''}
                         </div>
                       )}
                       {rep.description && (
@@ -5432,7 +5521,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
                           {files.map((f, i) => (
                             <button key={i} onClick={() => openAccidentFile(f)} style={{ background: C.primary + '15', color: C.primary, border: `1px solid ${C.primary}30`, borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
-                              📎 {f.name}
+                              <Icon name="paperclip" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{f.name}
                             </button>
                           ))}
                         </div>
@@ -5445,7 +5534,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       {t.viewDetails}
                     </button>
                     <button onClick={() => sendAccidentWhatsApp(rep)} style={{ background: '#25d36608', color: '#25d366', border: '1px solid #25d36640', borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                      📲 WhatsApp
+                      <Icon name="message" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />WhatsApp
                     </button>
                     <button onClick={() => sendAccidentEmail(rep)} style={{ background: '#6366f108', color: '#6366f1', border: '1px solid #6366f140', borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                       {t.sendEmailReport}
@@ -5457,7 +5546,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       {isHold ? t.resumeReport : t.holdReport}
                     </button>
                     <button onClick={() => deleteAccident(rep.id)} style={{ background: C.danger + '08', color: C.danger, border: `1px solid ${C.danger}30`, borderRadius: 6, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                      🗑 {t.delete}
+                      <Icon name="trash" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.delete}
                     </button>
                   </div>
                 </div>
@@ -5482,7 +5571,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
 
       {/* Form Links sub-header + list */}
       <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
-        📋 {rtl ? 'קישורי טפסים' : 'Form Links'}
+        <Icon name="clipboard" size={18} color={C.primary} style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{rtl ? 'קישורי טפסים' : 'Form Links'}
       </div>
 
       {/* Links list */}
@@ -5490,7 +5579,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         ? <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>טוען...</div>
         : links.length === 0
           ? <div style={{ textAlign: 'center', padding: '60px 20px', color: C.textMuted }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+              <div style={{ marginBottom: 12 }}><Icon name="clipboard" size={40} color={C.textMuted} /></div>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{rtl ? 'אין קישורי טפסים עדיין' : 'No form links yet'}</div>
               <div style={{ fontSize: 13, marginTop: 6 }}>{rtl ? 'לחץ על "+ קישור חדש" ליצירת הראשון' : 'Click "+ New Link" to create the first one'}</div>
             </div>
@@ -5504,20 +5593,20 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               return (
                 <div key={link.id} style={{ ...card, opacity: !link.is_active ? 0.6 : 1 }}>
                   <div style={cardHeader}>
-                    <span style={{ fontSize: 24, flexShrink: 0 }}>{meta?.icon}</span>
+                    <EIcon e={meta?.icon} size={24} color={C.primary} style={{ flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 15, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}>
                         {link.title}
-                        {link.single_use && <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', borderRadius: 5, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>🔒 {rtl ? 'חד-פעמי' : 'single-use'}</span>}
+                        {link.single_use && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, background: '#fef3c7', color: '#92400e', borderRadius: 5, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}><Icon name="lock" size={10} />{rtl ? 'חד-פעמי' : 'single-use'}</span>}
                       </div>
                       <div style={{ fontSize: 12, color: C.textMuted, display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2, alignItems: 'center' }}>
                         <span>{rtl ? (meta?.label) : (meta?.labelEn)}</span>
-                        {linkedDriver && <span>· 👤 {linkedDriver.name}</span>}
-                        {linkedCar    && <span>· 🚗 {linkedCar.plate} {linkedCar.make}</span>}
+                        {linkedDriver && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>· <Icon name="user" size={12} color={C.textMuted} />{linkedDriver.name}</span>}
+                        {linkedCar    && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>· <Icon name="car" size={12} color={C.textMuted} />{linkedCar.plate} {linkedCar.make}</span>}
                         {expired && <span style={{ color: C.danger, fontWeight: 700 }}>· {rtl ? 'פג תוקף' : 'Expired'}</span>}
                         {link.expires_at && !expired && <span>· {rtl ? 'עד' : 'until'} {new Date(link.expires_at).toLocaleDateString('he-IL')}</span>}
                         {subCount > 0 && <span style={{ background: C.primary + '18', color: C.primary, borderRadius: 5, padding: '1px 7px', fontWeight: 700, fontSize: 11 }}>{subCount} {rtl ? 'תגובות' : 'submissions'}</span>}
-                        {notSubmitted && <span style={{ background: '#fee2e2', color: C.danger, borderRadius: 5, padding: '1px 7px', fontWeight: 700, fontSize: 11 }}>⚠ {rtl ? 'לא הוגש' : 'not submitted'}</span>}
+                        {notSubmitted && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#fee2e2', color: C.danger, borderRadius: 5, padding: '1px 7px', fontWeight: 700, fontSize: 11 }}><Icon name="alert" size={11} />{rtl ? 'לא הוגש' : 'not submitted'}</span>}
                       </div>
                     </div>
                   </div>
@@ -5526,28 +5615,28 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                     <input readOnly value={formUrl(link.token)} onClick={e => e.target.select()}
                       style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '7px 10px', fontSize: 12, color: C.textSecondary, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis' }} />
                     <button onClick={() => copyLink(link.token)} style={{ ...btnPrimary, padding: '7px 14px', fontSize: 12, background: copied === link.token ? C.success : C.primary, flexShrink: 0 }}>
-                      {copied === link.token ? '✓ ' + (rtl ? 'הועתק' : 'Copied') : (rtl ? '📋 העתק' : '📋 Copy')}
+                      {copied === link.token ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="check" size={13} />{rtl ? 'הועתק' : 'Copied'}</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="copy" size={13} />{rtl ? 'העתק' : 'Copy'}</span>}
                     </button>
                   </div>
                   {/* Actions */}
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: '10px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button onClick={() => sendWhatsApp(link)} style={{ ...btnGhost, color: '#25d366', borderColor: '#25d36640', background: '#25d36608', fontWeight: 700 }}>
-                      📲 {rtl ? 'שלח ב-WhatsApp' : 'Send via WhatsApp'}
+                      <Icon name="message" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'שלח ב-WhatsApp' : 'Send via WhatsApp'}
                     </button>
                     <button onClick={() => sendFormEmail(link)} style={{ ...btnGhost, color: '#6366f1', borderColor: '#6366f140', background: '#6366f108', fontWeight: 700 }}>
-                      📧 {rtl ? 'שלח באימייל' : 'Send via Email'}
+                      <Icon name="mail" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'שלח באימייל' : 'Send via Email'}
                     </button>
                     <button onClick={() => openSubs(link)} style={{ ...btnGhost, color: C.primary, borderColor: C.primary + '40', background: C.primary + '08' }}>
-                      {rtl ? '👁 תגובות' : '👁 Submissions'}{subCount > 0 ? ` (${subCount})` : ''}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="eye" size={13} />{rtl ? 'תגובות' : 'Submissions'}{subCount > 0 ? ` (${subCount})` : ''}</span>
                     </button>
                     <button onClick={() => setShowQr(link)} style={{ ...btnGhost, color: '#6366f1', borderColor: '#6366f140', background: '#6366f108' }}>
                       ◼ {rtl ? 'QR קוד' : 'QR Code'}
                     </button>
                     <button onClick={() => toggleActive(link)} style={btnGhost}>
-                      {link.is_active ? (rtl ? '⏸ השבת' : '⏸ Disable') : (rtl ? '▶ הפעל' : '▶ Enable')}
+                      {link.is_active ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="pause" size={13} />{rtl ? 'השבת' : 'Disable'}</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="play" size={13} />{rtl ? 'הפעל' : 'Enable'}</span>}
                     </button>
                     <button onClick={() => deleteLink(link)} style={{ ...btnGhost, color: C.danger, borderColor: C.danger + '40' }}>
-                      {rtl ? '🗑 מחק' : '🗑 Delete'}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="trash" size={13} />{rtl ? 'מחק' : 'Delete'}</span>
                     </button>
                   </div>
                 </div>
@@ -5585,11 +5674,11 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
   }
 
   const sendLabel = () => {
-    if (sending) return rtl ? '⏳ שולח...' : '⏳ Sending...'
-    if (sendResult?.ok === false) return rtl ? '✗ שגיאה' : '✗ Error'
-    if (sendResult?.ok && sendResult.alerts_sent === 0) return rtl ? '✓ אין התראות פתוחות' : '✓ No open alerts'
-    if (sendResult?.ok) return rtl ? `✓ נשלח (${sendResult.alerts_sent})` : `✓ Sent (${sendResult.alerts_sent})`
-    return rtl ? '📤 שלח עכשיו' : '📤 Send Now'
+    if (sending) return rtl ? 'שולח...' : 'Sending...'
+    if (sendResult?.ok === false) return rtl ? 'שגיאה' : 'Error'
+    if (sendResult?.ok && sendResult.alerts_sent === 0) return rtl ? 'אין התראות פתוחות' : 'No open alerts'
+    if (sendResult?.ok) return rtl ? `נשלח (${sendResult.alerts_sent})` : `Sent (${sendResult.alerts_sent})`
+    return rtl ? 'שלח עכשיו' : 'Send Now'
   }
 
   const sendBg = sendResult?.ok === false ? C.danger : sendResult?.ok ? C.success : '#475569'
@@ -5597,7 +5686,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
   return (
     <div style={card}>
       <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
-        📧 {rtl ? 'הגדרות התראות אימייל' : 'Email Notifications'}
+        <Icon name="mail" size={16} color={C.textSecondary} style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{rtl ? 'הגדרות התראות אימייל' : 'Email Notifications'}
       </h3>
 
       {/* Toggle */}
@@ -5630,7 +5719,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
-          {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור' : 'Save')}
+          {saved ? (rtl ? 'נשמר' : 'Saved') : (rtl ? 'שמור' : 'Save')}
         </button>
         <button onClick={sendNow} disabled={sending} style={{ background: sending || sendResult ? sendBg : '#475569', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', transition: 'background 0.2s', opacity: sending ? 0.8 : 1 }}>
           {sendLabel()}
@@ -5664,14 +5753,14 @@ function BudgetSettings({ companyId, t, rtl }) {
   if (!loaded) return null
   return (
     <div style={card}>
-      <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>💰 {rtl ? 'תקציב חודשי' : 'Monthly Budget'}</h3>
+      <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="coin" size={16} color={C.textSecondary} />{rtl ? 'תקציב חודשי' : 'Monthly Budget'}</h3>
       <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>{rtl ? 'הגדר תקציב חודשי כולל. יוצג כסרגל בלוח הבקרה.' : 'Set a monthly spend cap. Shown as a progress bar on the dashboard.'}</p>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <span style={{ fontSize: 16, fontWeight: 700, color: C.textSecondary }}>₪</span>
         <input type="number" value={budget} onChange={e => setBudget(e.target.value)} min={0} placeholder={rtl ? 'ללא מגבלה' : 'No limit'}
           style={{ flex: 1, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }} />
         <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
-          {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור' : 'Save')}
+          {saved ? (rtl ? 'נשמר' : 'Saved') : (rtl ? 'שמור' : 'Save')}
         </button>
       </div>
     </div>
@@ -5714,7 +5803,7 @@ function WhatsAppTemplatesSettings({ companyId, rtl }) {
   if (!loaded) return null
   return (
     <div style={card}>
-      <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>💬 {rtl ? 'תבניות הודעות וואטסאפ' : 'WhatsApp message templates'}</h3>
+      <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="message" size={16} color={C.textSecondary} />{rtl ? 'תבניות הודעות וואטסאפ' : 'WhatsApp message templates'}</h3>
       <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSecondary }}>
         {rtl
           ? 'הגדר מראש את מלל הודעות הווטסאפ. השתמש במשתנים ({קישור} וכו׳) שיוחלפו אוטומטית בעת השליחה. אפשר גם לערוך את ההודעה לפני כל שליחה.'
@@ -5751,7 +5840,7 @@ function WhatsAppTemplatesSettings({ companyId, rtl }) {
         })}
       </div>
       <button onClick={save} style={{ marginTop: 18, background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
-        {saved ? (rtl ? '✓ נשמר' : '✓ Saved') : (rtl ? 'שמור תבניות' : 'Save templates')}
+        {saved ? (rtl ? 'נשמר' : 'Saved') : (rtl ? 'שמור תבניות' : 'Save templates')}
       </button>
     </div>
   )
@@ -5986,7 +6075,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* Create company */}
           <div style={card}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>➕ {t.createCompany}</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="plus" size={16} color={C.textSecondary} />{t.createCompany}</h3>
             <form onSubmit={createCompany} style={{ display: 'flex', gap: 10 }}>
               <input
                 value={newName} required
@@ -6009,7 +6098,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* All companies list */}
           <div style={card}>
             <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
-              🏢 {t.allCompanies}
+              <Icon name="building" size={15} style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{t.allCompanies}
               <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
                 {companies.length}
               </span>
@@ -6045,7 +6134,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                     <button onClick={() => startEditLimits(co)} style={{
                       background: 'transparent', border: `1px solid ${C.border}`,
                       color: C.textSecondary, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    }}>⚙️</button>
+                    }}><Icon name="settings" size={14} /></button>
                     <button onClick={() => toggleActive(co)} style={{
                       background: 'transparent',
                       border: `1px solid ${co.is_active ? C.danger + '40' : C.success + '40'}`,
@@ -6056,15 +6145,15 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 </div>
                 {/* Limits row — current values always visible */}
                 <div style={{ display: 'flex', gap: 16, fontSize: 12, color: C.textSecondary, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span>🚗 {t.maxCars}: <strong style={{ color: co.max_cars != null ? C.textPrimary : C.textSecondary }}>{co.max_cars ?? '∞'}</strong></span>
-                  <span>👤 {t.maxUsers}: <strong style={{ color: co.max_users != null ? C.textPrimary : C.textSecondary }}>{co.max_users ?? '∞'}</strong></span>
-                  <span>🧑‍✈️ {t.maxDrivers}: <strong style={{ color: co.max_drivers != null ? C.textPrimary : C.textSecondary }}>{co.max_drivers ?? '∞'}</strong></span>
-                  <span>💾 {t.maxStorage}: <strong style={{ color: co.max_storage_mb != null ? C.textPrimary : C.textSecondary }}>{co.max_storage_mb != null ? `${Math.round(co.max_storage_mb / 1024)} GB` : '∞'}</strong></span>
+                  <span><EIcon e="🚗" size={13} color={C.textMuted} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxCars}: <strong style={{ color: co.max_cars != null ? C.textPrimary : C.textSecondary }}>{co.max_cars ?? '∞'}</strong></span>
+                  <span><EIcon e="👤" size={13} color={C.textMuted} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxUsers}: <strong style={{ color: co.max_users != null ? C.textPrimary : C.textSecondary }}>{co.max_users ?? '∞'}</strong></span>
+                  <span><EIcon e="🧑‍✈️" size={13} color={C.textMuted} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxDrivers}: <strong style={{ color: co.max_drivers != null ? C.textPrimary : C.textSecondary }}>{co.max_drivers ?? '∞'}</strong></span>
+                  <span><EIcon e="💾" size={13} color={C.textMuted} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxStorage}: <strong style={{ color: co.max_storage_mb != null ? C.textPrimary : C.textSecondary }}>{co.max_storage_mb != null ? `${Math.round(co.max_storage_mb / 1024)} GB` : '∞'}</strong></span>
                   {/* Access expiry */}
                   {(() => {
                     if (!co.access_until) return (
                       <span style={{ cursor: 'pointer', color: C.textSecondary }} onClick={() => startEditAccess(co)}>
-                        📅 {rtl ? 'גישה: ללא הגבלה' : 'Access: unlimited'}
+                        <Icon name="calendar" size={13} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'גישה: ללא הגבלה' : 'Access: unlimited'}
                       </span>
                     )
                     const daysLeft = Math.ceil((new Date(co.access_until) - new Date()) / 86400000)
@@ -6079,7 +6168,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                           color: expired ? C.danger : soon ? C.warning : C.success,
                         }}
                       >
-                        📅 {expired
+                        <Icon name="calendar" size={13} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{expired
                           ? (rtl ? `פג תוקף ${co.access_until}` : `Expired ${co.access_until}`)
                           : soon
                             ? (rtl ? `פוקע בעוד ${daysLeft} ימים` : `Expires in ${daysLeft}d`)
@@ -6093,7 +6182,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 {editingAccess === co.id && (
                   <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>
-                      📅 {rtl ? 'גישה בתוקף עד' : 'Access until'}
+                      <Icon name="calendar" size={13} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'גישה בתוקף עד' : 'Access until'}
                     </label>
                     <input
                       type="date"
@@ -6112,22 +6201,22 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 {editingLimits === co.id && (
                   <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>🚗 {t.maxCars}</label>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}><EIcon e="🚗" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxCars}</label>
                       <input type="number" min="0" value={limitCars} onChange={e => setLimitCars(e.target.value)}
                         placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>👤 {t.maxUsers}</label>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}><EIcon e="👤" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxUsers}</label>
                       <input type="number" min="0" value={limitUsers} onChange={e => setLimitUsers(e.target.value)}
                         placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>🧑‍✈️ {t.maxDrivers}</label>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}><EIcon e="🧑‍✈️" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxDrivers}</label>
                       <input type="number" min="0" value={limitDrivers} onChange={e => setLimitDrivers(e.target.value)}
                         placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}>💾 {t.maxStorage} (GB)</label>
+                      <label style={{ fontSize: 12, color: C.textSecondary, whiteSpace: 'nowrap' }}><EIcon e="💾" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{t.maxStorage} (GB)</label>
                       <input type="number" min="0" value={limitStorageMb} onChange={e => setLimitStorageMb(e.target.value)}
                         placeholder={t.unlimited} style={{ width: 70, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
                     </div>
@@ -6160,7 +6249,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* Company info */}
           <div style={card}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🏢 {t.companyName}</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="building" size={16} color={C.textSecondary} />{t.companyName}</h3>
             <div style={{ marginBottom: 20 }}>
               <div style={lbl}>{t.companyName}</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary }}>{company?.name}</div>
@@ -6206,14 +6295,14 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Export all data — admin only */}
           {isAdmin && companyId && (
             <div style={card}>
-              <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📦 {t.exportAllData}</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="box" size={16} color={C.textSecondary} />{t.exportAllData}</h3>
               <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{t.exportAllDataDesc}</p>
               <button
                 onClick={exportAllData}
                 disabled={exporting}
                 style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 700, cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.7 : 1 }}
               >
-                {exporting ? t.exporting : `⬇️ ${t.exportAllData}`}
+                {exporting ? t.exporting : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={14} />{t.exportAllData}</span>}
               </button>
             </div>
           )}
@@ -6221,7 +6310,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Custom Lists — admin only */}
           {isAdmin && companyId && (
             <div style={card}>
-              <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>🗂 {t.customLists}</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="folder" size={16} color={C.textSecondary} />{t.customLists}</h3>
               <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>{t.customListsHint}</p>
               <CustomListsSection companyId={companyId} t={t} onCustomListsChange={onCustomListsChange} />
             </div>
@@ -6235,7 +6324,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Admin: invite by email */}
           {isAdmin && (
             <div style={card}>
-              <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>📨 {t.inviteByEmail}</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="mail" size={16} color={C.textSecondary} />{t.inviteByEmail}</h3>
               <form onSubmit={sendInvite} style={{ display: 'flex', gap: 10 }}>
                 <input
                   type="email" value={inviteEmail} required
@@ -6259,7 +6348,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
           {/* Members */}
           <div style={card}>
             <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>
-              👥 {t.members}
+              <Icon name="users" size={15} style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{t.members}
               <span style={{ marginLeft: 8, background: C.bg, color: C.textSecondary, borderRadius: 10, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
                 {members.length}
               </span>
@@ -6310,11 +6399,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: C.textPrimary }}>{rtl ? '📅 תזמון דוחות' : '📅 Report Schedules'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 800, color: C.textPrimary }}><Icon name="calendar" size={15} color={C.textSecondary} />{rtl ? 'תזמון דוחות' : 'Report Schedules'}</div>
                   <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{rtl ? 'שלח דוחות אוטומטיים לאימייל' : 'Send automated reports by email'}</div>
                 </div>
                 <button onClick={() => setShowAddSched(p => !p)} style={{ background: C.primary + '15', color: C.primary, border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                  {showAddSched ? '✕' : `+ ${rtl ? 'הוסף' : 'Add'}`}
+                  {showAddSched ? <Icon name="x" size={13} /> : `+ ${rtl ? 'הוסף' : 'Add'}`}
                 </button>
               </div>
 
@@ -6371,7 +6460,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                         <button onClick={() => toggleSchedule(s.id, s.is_active)} style={{ background: s.is_active ? C.success + '18' : C.textMuted + '18', color: s.is_active ? C.success : C.textMuted, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                           {s.is_active ? (rtl?'פעיל':'Active') : (rtl?'כבוי':'Off')}
                         </button>
-                        <button onClick={() => deleteSchedule(s.id)} style={{ background: 'none', color: C.textMuted, border: 'none', borderRadius: 4, padding: '4px 8px', fontSize: 14, cursor: 'pointer' }}>🗑</button>
+                        <button onClick={() => deleteSchedule(s.id)} style={{ background: 'none', color: C.textMuted, border: 'none', borderRadius: 4, padding: '4px 8px', fontSize: 14, cursor: 'pointer' }}><Icon name="trash" size={14} /></button>
                       </div>
                     </div>
                   ))}
@@ -6382,7 +6471,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* Legal card */}
           <div style={{ ...card, background: 'linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%)' }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}>⚖️ {t.legalTitle}</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="scale" size={16} color={C.textSecondary} />{t.legalTitle}</h3>
             <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{t.legalDesc}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button onClick={onPrivacy} style={{
@@ -6394,7 +6483,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 onMouseEnter={e => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.boxShadow = `0 0 0 3px ${C.primary}18` }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = 'none' }}
               >
-                <span style={{ fontSize: 18 }}>🔒</span>
+                <Icon name="lock" size={18} color={C.textSecondary} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>{t.privacyPolicy}</div>
                   <div style={{ fontSize: 11, color: C.textSecondary }}>{t.privacyPolicyDesc}</div>
@@ -6410,7 +6499,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
                 onMouseEnter={e => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.boxShadow = `0 0 0 3px ${C.primary}18` }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = 'none' }}
               >
-                <span style={{ fontSize: 18 }}>📋</span>
+                <Icon name="clipboard" size={18} color={C.primary} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>{t.termsOfService}</div>
                   <div style={{ fontSize: 11, color: C.textSecondary }}>{t.termsOfServiceDesc}</div>
@@ -6455,7 +6544,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{t.privacyTitle}</h2>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{t.privacyUpdated}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Scrollable body */}
@@ -6529,7 +6618,7 @@ function TermsOfServiceModal({ onClose, t, rtl }) {
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{t.tosTitle}</h2>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{t.tosUpdated}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
         </div>
         <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontSize: 14, color: '#334155', lineHeight: 1.7 }}>
           <Section title={t.tos1Title}><p style={{ margin: 0 }}>{t.tos1}</p></Section>
@@ -6658,10 +6747,10 @@ function NotificationBell({ companyId, userId, rtl }) {
       {open && (
         <div className="notif-panel" style={{ position: 'absolute', top: 38, right: 0, width: 290, background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', zIndex: 1000, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>🔔 {rtl ? 'התראות' : 'Notifications'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, color: C.textPrimary }}><Icon name="bell" size={15} color={C.textSecondary} />{rtl ? 'התראות' : 'Notifications'}</span>
             {'PushManager' in window && (
               <button onClick={togglePush} disabled={pushBusy} style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, border: `1px solid ${pushEnabled ? C.success : C.border}`, background: pushEnabled ? C.success + '18' : 'transparent', color: pushEnabled ? C.success : C.textMuted, cursor: 'pointer' }}>
-                {pushBusy ? '…' : pushEnabled ? (rtl ? '🔔 פעיל' : '🔔 On') : (rtl ? '🔕 כבוי' : '🔕 Off')}
+                {pushBusy ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bell" size={13} />{pushEnabled ? (rtl ? 'פעיל' : 'On') : (rtl ? 'כבוי' : 'Off')}</span>}
               </button>
             )}
           </div>
@@ -6671,7 +6760,7 @@ function NotificationBell({ companyId, userId, rtl }) {
             <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               {notes.map(n => (
                 <div key={n.id} style={{ padding: '9px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 13, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{n.icon || '🔔'}</span>
+                  <span style={{ flexShrink: 0, marginTop: 1 }}><EIcon e={n.icon || '🔔'} size={16} color={C.textSecondary} /></span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ color: C.textPrimary, fontWeight: 500, wordBreak: 'break-word' }}>{n.msg}</div>
                     <div style={{ color: C.textMuted, fontSize: 11, marginTop: 2 }}>{n.time.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</div>
@@ -6722,7 +6811,7 @@ function FMSignaturePad({ value, onChange, label = 'חתימה דיגיטלית'
           onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
           onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
         <button type="button" onClick={clear} style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.9)', border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}>{clearLabel}</button>
-        {!value && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: C.textMuted, fontSize: 13 }}>✍️ חתום כאן</div>}
+        {!value && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, pointerEvents: 'none', color: C.textMuted, fontSize: 13 }}><Icon name="pencil" size={14} />חתום כאן</div>}
       </div>
     </div>
   )
@@ -6843,11 +6932,11 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '🚦 ניהול קנסות תנועה' : '🚦 Traffic Violations'}</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="traffic" size={20} color={C.danger} />{rtl ? 'ניהול קנסות תנועה' : 'Traffic Violations'}</h2>
           <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'עקוב, שייך לנהג, וקבל חתימה לפני העברה למשרד הרישוי' : 'Track, assign to driver, collect signature before submitting to Ministry of Transport'}</p>
         </div>
         <button onClick={() => setShowAdd(p => !p)} style={{ background: `linear-gradient(135deg,${C.primary},${C.indigo})`, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-          {showAdd ? (rtl ? '✕ ביטול' : '✕ Cancel') : (rtl ? '+ הוסף קנס' : '+ Add Violation')}
+          {showAdd ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="x" size={13} />{rtl ? 'ביטול' : 'Cancel'}</span> : (rtl ? '+ הוסף קנס' : '+ Add Violation')}
         </button>
       </div>
 
@@ -6916,8 +7005,8 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'גורם מוציא' : 'Issued By'}</label>
                 <select style={inp} value={form.fine_source} onChange={e => set('fine_source', e.target.value)}>
-                  <option value="police">{rtl ? '👮 משטרה' : '👮 Police'}</option>
-                  <option value="municipal">{rtl ? '🏛 עירייה' : '🏛 Municipal'}</option>
+                  <option value="police">{rtl ? 'משטרה' : 'Police'}</option>
+                  <option value="municipal">{rtl ? 'עירייה' : 'Municipal'}</option>
                 </select>
               </div>
               <div>
@@ -6947,7 +7036,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                   </select>
                   {form.car_id && (
                     <button type="button" onClick={matchDriver} disabled={matching} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '0 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      {matching ? '…' : (rtl ? '🔍 איתור אוטו' : '🔍 Auto')}
+                      {matching ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="search" size={13} />{rtl ? 'איתור אוטו' : 'Auto'}</span>}
                     </button>
                   )}
                 </div>
@@ -6971,7 +7060,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
         <div style={{ textAlign: 'center', padding: 40, color: C.textSecondary }}>…</div>
       ) : violations.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60 }}>
-          <div style={{ fontSize: 44, marginBottom: 12, opacity: 0.2 }}>🚦</div>
+          <div style={{ marginBottom: 12, opacity: 0.2 }}><Icon name="traffic" size={44} color={C.textMuted} /></div>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{rtl ? 'אין קנסות רשומים' : 'No violations recorded'}</div>
           <div style={{ fontSize: 13, color: C.textMuted }}>{rtl ? 'הוסף קנס חדש כדי להתחיל' : 'Add a violation to get started'}</div>
         </div>
@@ -7010,35 +7099,35 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {v.status !== 'signed' && v.status !== 'submitted' && v.status !== 'resolved' && (
                         <button onClick={() => { setSignTarget(v); setSignature('') }} style={{ background: '#8b5cf618', color: '#8b5cf6', border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          ✍️ {rtl ? 'חתימה' : 'Sign'}
+                          <Icon name="pencil" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{rtl ? 'חתימה' : 'Sign'}
                         </button>
                       )}
                       {v.status === 'signed' && (
                         <button onClick={() => updateStatus(v.id, 'submitted')} style={{ background: C.primary + '18', color: C.primary, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          📤 {rtl ? 'הוגש' : 'Mark Submitted'}
+                          <Icon name="upload" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{rtl ? 'הוגש' : 'Mark Submitted'}
                         </button>
                       )}
                       {v.status === 'submitted' && (
                         <button onClick={() => updateStatus(v.id, 'resolved')} style={{ background: C.success + '18', color: C.success, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          ✅ {rtl ? 'סגור' : 'Close'}
+                          <Icon name="check" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{rtl ? 'סגור' : 'Close'}
                         </button>
                       )}
                       {v.signature_data && (
                         <button onClick={() => window.open(v.signature_data, '_blank')} style={{ background: C.bg, color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>
-                          🖼 {rtl ? 'חתימה' : 'Sig'}
+                          <Icon name="image" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{rtl ? 'חתימה' : 'Sig'}
                         </button>
                       )}
                       {(!v.payment_status || v.payment_status === 'unpaid') && (
                         <button onClick={() => updatePaymentStatus(v.id, 'paid')} style={{ background: C.success + '18', color: C.success, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          ✅ {rtl ? 'שולם' : 'Paid'}
+                          <Icon name="check" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{rtl ? 'שולם' : 'Paid'}
                         </button>
                       )}
                       {v.payment_status === 'paid' && (
                         <button onClick={() => updatePaymentStatus(v.id, 'unpaid')} style={{ background: C.textMuted + '18', color: C.textMuted, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          ↩ {rtl ? 'בטל' : 'Undo'}
+                          <Icon name="undo" size={12} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{rtl ? 'בטל' : 'Undo'}
                         </button>
                       )}
-                      <button onClick={() => deleteViolation(v.id)} style={{ background: C.danger + '14', color: C.danger, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                      <button onClick={() => deleteViolation(v.id)} style={{ background: C.danger + '14', color: C.danger, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}><Icon name="trash" size={13} /></button>
                     </div>
                   </td>
                 </tr>
@@ -7052,7 +7141,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
       {signTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div style={{ background: C.surface, borderRadius: 16, padding: 24, maxWidth: 600, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800 }}>{rtl ? '✍️ חתימת נהג על קנס' : '✍️ Driver Signature for Violation'}</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '0 0 4px', fontSize: 17, fontWeight: 800 }}><Icon name="pencil" size={17} color={C.textSecondary} />{rtl ? 'חתימת נהג על קנס' : 'Driver Signature for Violation'}</h3>
             <p style={{ margin: '0 0 16px', fontSize: 13, color: C.textSecondary }}>
               {rtl ? `נהג: ${driverName(signTarget.driver_id)} | רכב: ${formatPlate(signTarget.plate)} | תאריך: ${signTarget.violation_date}` : `Driver: ${driverName(signTarget.driver_id)} | Plate: ${formatPlate(signTarget.plate)} | Date: ${signTarget.violation_date}`}
             </p>
@@ -7071,7 +7160,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                 {rtl ? 'ביטול' : 'Cancel'}
               </button>
               <button onClick={saveSignature} disabled={!signature || saving} style={{ background: signature ? C.primary : C.border, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: signature ? 'pointer' : 'not-allowed' }}>
-                {saving ? '…' : (rtl ? '✅ שמור חתימה' : '✅ Save Signature')}
+                {saving ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="check" size={14} />{rtl ? 'שמור חתימה' : 'Save Signature'}</span>}
               </button>
             </div>
           </div>
@@ -7192,11 +7281,11 @@ function ProcurementTab({ cars, companyId, rtl }) {
     <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '🧾 רכש וספקים' : '🧾 Procurement'}</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="receipt" size={20} color={C.primary} />{rtl ? 'רכש וספקים' : 'Procurement'}</h2>
           <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'מעקב קל אחר ספקים, הזמנות רכש וחשבוניות — ללא אישור רב-שלבי או ממשק הנה"ח' : 'Light supplier, PO and invoice tracking — no multi-tier approval or accounting integration'}</p>
         </div>
         <button onClick={() => { setShowAdd(p => !p); setError('') }} style={{ background: `linear-gradient(135deg,${C.primary},${C.indigo})`, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-          {showAdd ? (rtl ? '✕ ביטול' : '✕ Cancel') : (rtl ? '+ הוסף' : '+ Add')}
+          {showAdd ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="x" size={13} />{rtl ? 'ביטול' : 'Cancel'}</span> : (rtl ? '+ הוסף' : '+ Add')}
         </button>
       </div>
 
@@ -7399,9 +7488,9 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   }, [companyId])
 
   const REPORT_TYPES = [
-    { id: 'fleet_status',   label: rtl ? '🚗 סטטוס הצי'     : '🚗 Fleet Status'  },
-    { id: 'cost_summary',   label: rtl ? '💰 סיכום עלויות'  : '💰 Cost Summary'  },
-    { id: 'expiry_alerts',  label: rtl ? '⚠️ התראות תפוגה' : '⚠️ Expiry Alerts' },
+    { id: 'fleet_status',   label: rtl ? 'סטטוס הצי'     : 'Fleet Status',  icon: 'car'   },
+    { id: 'cost_summary',   label: rtl ? 'סיכום עלויות'  : 'Cost Summary',  icon: 'coin'  },
+    { id: 'expiry_alerts',  label: rtl ? 'התראות תפוגה' : 'Expiry Alerts', icon: 'alert' },
   ]
 
   function buildFleetHtml() {
@@ -7489,7 +7578,7 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
       body: JSON.stringify({ to: toList, subject: `${subjectMap[reportType]} – ${new Date().toLocaleDateString('he-IL')}`, html }),
     })
     setSending(false)
-    if (r.ok) setSent(rtl ? `✅ הדוח נשלח ל-${toList.length} נמענים` : `✅ Report sent to ${toList.length} recipient(s)`)
+    if (r.ok) setSent(rtl ? `הדוח נשלח ל-${toList.length} נמענים` : `Report sent to ${toList.length} recipient(s)`)
     else setSendError(rtl ? 'שגיאה בשליחה. נסה שוב.' : 'Send failed. Please try again.')
   }
 
@@ -7507,7 +7596,7 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
       <div style={{ maxWidth: 640 }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>{rtl ? '📊 שליחת דוחות' : '📊 Send Reports'}</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="chart" size={20} color={C.primary} />{rtl ? 'שליחת דוחות' : 'Send Reports'}</h2>
         <p style={{ margin: '0 0 24px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'שלח דוחות ישירות לאימייל או לוואטסאפ' : 'Send reports directly by email or WhatsApp'}</p>
 
         {/* Report type */}
@@ -7538,7 +7627,7 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
 
         {/* Email */}
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>✉️ {rtl ? 'שליחה באימייל' : 'Send by Email'}</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: C.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}><Icon name="mail" size={13} />{rtl ? 'שליחה באימייל' : 'Send by Email'}</label>
           <textarea
             style={{ ...inp, minHeight: 70, resize: 'vertical', marginBottom: 10 }}
             value={recipients}
@@ -7548,13 +7637,13 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
           {sendError && <div style={{ color: C.danger, fontSize: 13, marginBottom: 8 }}>{sendError}</div>}
           {sent      && <div style={{ color: C.success, fontSize: 13, marginBottom: 8 }}>{sent}</div>}
           <button onClick={sendEmail} disabled={sending} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
-            {sending ? '…' : (rtl ? '📨 שלח דוח' : '📨 Send Report')}
+            {sending ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="send" size={14} />{rtl ? 'שלח דוח' : 'Send Report'}</span>}
           </button>
         </div>
 
         {/* WhatsApp */}
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>💬 {rtl ? 'שליחה בוואטסאפ' : 'Send via WhatsApp'}</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: C.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}><Icon name="message" size={13} />{rtl ? 'שליחה בוואטסאפ' : 'Send via WhatsApp'}</label>
           <p style={{ margin: '0 0 12px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'ייפתח WhatsApp עם הדוח המוכן לשליחה. בחר איש קשר ולחץ שלח.' : 'Opens WhatsApp with a ready-to-send message. Select a contact and tap send.'}</p>
           <button onClick={openWhatsApp} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 7, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.06L2 22l5.07-1.34C8.5 21.52 10.2 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.69 0-3.27-.48-4.62-1.31L4 20l1.33-3.3C4.5 15.3 4 13.7 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z"/></svg>
@@ -7680,10 +7769,10 @@ function CertificationsPane({ driverId, companyId, rtl }) {
               </div>
               {c.expiry_date && (
                 <span style={{ fontSize: 12, fontWeight: 700, color: expiryColor(c.expiry_date), background: expiryColor(c.expiry_date) + '18', padding: '3px 8px', borderRadius: 6 }}>
-                  {daysUntil(c.expiry_date) < 0 ? (rtl ? '⚠ פג' : '⚠ Expired') : `${daysUntil(c.expiry_date)}d`}
+                  {daysUntil(c.expiry_date) < 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="alert" size={11} />{rtl ? 'פג' : 'Expired'}</span> : `${daysUntil(c.expiry_date)}d`}
                 </span>
               )}
-              <button onClick={() => del(c.id)} style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: '2px 4px' }}>🗑</button>
+              <button onClick={() => del(c.id)} style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 14, padding: '2px 4px' }}><Icon name="trash" size={14} /></button>
             </div>
           ))}
         </div>
@@ -8010,7 +8099,7 @@ function ConnectionManager({ companyId, rtl }) {
                   onClick={() => setShowPass(prev => ({ ...prev, [field.name]: !prev[field.name] }))}
                   style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: C.textMuted }}
                 >
-                  {showPass[field.name] ? '🙈' : '👁'}
+                  {showPass[field.name] ? <Icon name="eyeOff" size={15} /> : <Icon name="eye" size={15} />}
                 </button>
               )}
             </div>
@@ -8024,7 +8113,7 @@ function ConnectionManager({ companyId, rtl }) {
           disabled={saving}
           style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
         >
-          {saving ? (rtl ? 'שומר...' : 'Saving...') : (rtl ? '💾 שמור חיבור' : '💾 Save Connection')}
+          {saving ? (rtl ? 'שומר...' : 'Saving...') : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={14} />{rtl ? 'שמור חיבור' : 'Save Connection'}</span>}
         </button>
         <button onClick={backToList} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 20px', fontSize: 14, cursor: 'pointer', color: C.textSecondary }}>
           {rtl ? 'ביטול' : 'Cancel'}
@@ -8079,13 +8168,13 @@ function IntegrationsTab({ companyId, rtl }) {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
-      <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}>🔌 {rtl ? 'אינטגרציות' : 'Integrations'}</h2>
+      <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="plug" size={20} color={C.primary} />{rtl ? 'אינטגרציות' : 'Integrations'}</h2>
       <p style={{ margin: '0 0 24px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'חיבורים למערכות חיצוניות' : 'Connect to external systems'}</p>
 
       {/* GPS Webhook */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <span style={{ fontSize: 22 }}>📡</span>
+          <Icon name="plug" size={22} color={C.textSecondary} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'GPS Webhook' : 'GPS Webhook'}</div>
             <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? 'שלח נתוני GPS ממכשיר מעקב לכתובת זו' : 'Send GPS data from a tracker to this URL'}</div>
@@ -8094,7 +8183,7 @@ function IntegrationsTab({ companyId, rtl }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <code style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 7, padding: '8px 12px', fontSize: 12, color: C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{webhookUrl}</code>
           <button onClick={copyWebhook} style={{ background: webhookCopied ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {webhookCopied ? (rtl ? '✓ הועתק' : '✓ Copied') : (rtl ? 'העתק' : 'Copy')}
+            {webhookCopied ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="check" size={13} />{rtl ? 'הועתק' : 'Copied'}</span> : (rtl ? 'העתק' : 'Copy')}
           </button>
         </div>
       </div>
@@ -8102,7 +8191,7 @@ function IntegrationsTab({ companyId, rtl }) {
       {/* Accounting Export */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <span style={{ fontSize: 22 }}>📊</span>
+          <Icon name="chart" size={22} color={C.textSecondary} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'ייצוא לחשבוניות / הנהלת חשבונות' : 'Accounting Export'}</div>
             <div style={{ fontSize: 12, color: C.textSecondary }}>{rtl ? `${costs.length} רשומות הוצאות זמינות לייצוא` : `${costs.length} cost records available`}</div>
@@ -8110,10 +8199,10 @@ function IntegrationsTab({ companyId, rtl }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={exportAccountingCsvInteg} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-            📥 {rtl ? 'ייצוא CSV' : 'Export CSV'}
+            <Icon name="download" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'ייצוא CSV' : 'Export CSV'}
           </button>
           <button onClick={exportAccountingExcelInteg} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-            📊 {rtl ? 'ייצוא Excel' : 'Export Excel'}
+            <Icon name="download" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'ייצוא Excel' : 'Export Excel'}
           </button>
         </div>
       </div>
@@ -8121,7 +8210,7 @@ function IntegrationsTab({ companyId, rtl }) {
       {/* Fuel API */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, opacity: 0.7 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <span style={{ fontSize: 22 }}>⛽</span>
+          <Icon name="gas" size={22} color={C.textSecondary} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 15, fontWeight: 800, color: C.textPrimary }}>{rtl ? 'Fuel API — ייבוא תדלוקים' : 'Fuel API — Import Refuels'}</span>
@@ -8744,8 +8833,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
           {activeCompanyId && <NotificationBell companyId={activeCompanyId} userId={session?.user?.id} rtl={rtl} />}
           {installPrompt && (
-            <button onClick={async () => { await installPrompt.prompt(); setInstallPrompt(null) }} title={rtl ? 'הוסף לדף הבית' : 'Install app'} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 15 }}>
-              📲
+            <button onClick={async () => { await installPrompt.prompt(); setInstallPrompt(null) }} title={rtl ? 'הוסף לדף הבית' : 'Install app'} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 15, color: '#f8fafc' }}>
+              <Icon name="download" size={16} />
             </button>
           )}
           {isMaster && viewCompanyName && !isMobile && (
@@ -8753,7 +8842,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               background: C.primary + '40', color: C.navActive,
               borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
             }}>
-              🏢 {viewCompanyName}
+              <Icon name="building" size={12} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{viewCompanyName}
             </span>
           )}
           {session && !isMobile && !isNarrow && (
@@ -8779,7 +8868,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}>
-              {isMobile ? '📊' : '📊 CRM'}
+              {isMobile ? <Icon name="chart" size={15} /> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="chart" size={14} />CRM</span>}
             </button>
           )}
           {session && (
@@ -8858,13 +8947,13 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           paddingBottom: isMobile && activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'integrations' ? 8 : 0,
         }}>
           <h2 style={{ margin: 0, fontSize: isMobile ? 13 : 17, fontWeight: 700, color: C.textPrimary, flex: 1 }}>
-            {activeTabData?.icon} {activeTabData?.label}
+            <EIcon e={activeTabData?.icon} size={16} color={C.primary} style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{activeTabData?.label}
           </h2>
 
           {/* Search + New item — hidden on dashboard, settings, violations, reports, integrations */}
           {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'integrations' && <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: isMobile ? '5px 8px' : '6px 12px', width: isMobile ? '100%' : 220, order: isMobile ? 3 : 0 }}>
-              <span style={{ fontSize: 12, color: C.textMuted, order: rtl ? 1 : 0 }}>🔍</span>
+              <span style={{ display: 'inline-flex', color: C.textMuted, order: rtl ? 1 : 0 }}><Icon name="search" size={14} /></span>
               <input placeholder={t.search} value={search} onChange={e => setSearch(e.target.value)}
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: isMobile ? 12 : 13, color: C.textPrimary, width: '100%', direction: rtl ? 'rtl' : 'ltr' }} />
             </div>
@@ -8888,7 +8977,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}>
-                📥 {t.importCsv}
+                <Icon name="upload" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{t.importCsv}
               </button>
             )}
           </>}
@@ -8979,7 +9068,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         {/* Board */}
         {activeTab !== 'dashboard' && activeTab !== 'settings' && activeTab !== 'violations' && activeTab !== 'reports' && activeTab !== 'forms' && activeTab !== 'integrations' && isMaster && !activeCompanyId && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: C.textSecondary }}>
-            <span style={{ fontSize: 40 }}>🏢</span>
+            <Icon name="building" size={40} color={C.textMuted} />
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.selectCompanyPrompt}</p>
             <p style={{ margin: 0, fontSize: 13 }}>{t.selectCompanyHint}</p>
           </div>
@@ -9012,11 +9101,11 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                         setSelectedIds([])
                         e.target.value = ''
                       }} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', fontSize: 11, cursor: 'pointer', background: 'rgba(255,255,255,0.9)', color: C.textPrimary }}>
-                        <option value="">🏢 {t.bulkAssign}</option>
+                        <option value="">{t.bulkAssign}</option>
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
                     )}
-                    <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '4px 10px', fontSize: 11 }}>🗑 {selectedIds.length}</button>
+                    <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', fontSize: 11 }}><Icon name="trash" size={13} />{selectedIds.length}</button>
                   </>
                 )}
               </div>
@@ -9024,7 +9113,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               {/* Error banner */}
               {crudError && (
                 <div style={{ background: C.danger+'10', border: `1px solid ${C.danger}30`, borderRadius: 8, padding: '10px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, color: C.danger, fontWeight: 600 }}>⚠ {crudError}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: C.danger, fontWeight: 600 }}><Icon name="alert" size={13} />{crudError}</span>
                   <button onClick={() => setCrudError('')} style={{ ...closeBtn, fontSize: 16 }}>×</button>
                 </div>
               )}
@@ -9032,7 +9121,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               {/* Cards */}
               {activeTab === 'cars' && (filteredCars.length === 0
                 ? <div style={{ textAlign: 'center', padding: '48px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 40, opacity: 0.2 }}>🚗</span>
+                    <span style={{ opacity: 0.2 }}><Icon name="car" size={40} color={C.textMuted} /></span>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches' : 'No vehicles yet'}</div>
                     <div style={{ fontSize: 12, color: C.textMuted }}>{search ? 'Try a different search' : 'Tap + to add your first vehicle'}</div>
                   </div>
@@ -9045,7 +9134,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               )}
               {activeTab === 'drivers' && (filteredDrivers.length === 0
                 ? <div style={{ textAlign: 'center', padding: '48px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 40, opacity: 0.2 }}>👤</span>
+                    <span style={{ opacity: 0.2 }}><Icon name="user" size={40} color={C.textMuted} /></span>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches' : 'No drivers yet'}</div>
                     <div style={{ fontSize: 12, color: C.textMuted }}>{search ? 'Try a different search' : 'Tap + to add your first driver'}</div>
                   </div>
@@ -9058,7 +9147,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               )}
               {activeTab === 'branches' && (filteredBranches.length === 0
                 ? <div style={{ textAlign: 'center', padding: '48px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 40, opacity: 0.2 }}>🏢</span>
+                    <span style={{ opacity: 0.2 }}><Icon name="building" size={40} color={C.textMuted} /></span>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary }}>{search ? 'No matches' : 'No branches yet'}</div>
                     <div style={{ fontSize: 12, color: C.textMuted }}>{search ? 'Try a different search' : 'Tap + to add your first branch'}</div>
                   </div>
@@ -9094,10 +9183,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                   <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{currentCount}</span>
                   <div style={{ flex: 1 }} />
                   <button onClick={() => exportExcel(activeTab)} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                    📥 {t.exportExcel}
+                    <Icon name="download" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{t.exportExcel}
                   </button>
                   <button onClick={() => exportPDF(activeTab)} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                    📄 {t.exportPDF}
+                    <Icon name="file" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{t.exportPDF}
                   </button>
                 </div>
 
@@ -9105,8 +9194,8 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 {selectedIds.length > 0 && (
                   <div style={{ background: C.primary + '10', borderBottom: `1px solid ${C.primary}30`, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>{selectedIds.length} {t.itemsSelected}</span>
-                    <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, padding: '5px 14px', fontSize: 11 }}>🗑 {t.bulkDelete}</button>
-                    <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 11 }}>✕</button>
+                    <button onClick={() => bulkDelete(activeTab)} style={{ ...btnDanger, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 14px', fontSize: 11 }}><Icon name="trash" size={13} />{t.bulkDelete}</button>
+                    <button onClick={() => setSelectedIds([])} style={{ ...btnGhost, padding: '5px 10px', fontSize: 11 }}><Icon name="x" size={15} /></button>
                   </div>
                 )}
 
@@ -9165,7 +9254,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                     {activeTab === 'cars' && filteredCars.length === 0 && !showAdd && (
                       <tr><td colSpan={9} style={{ padding: '52px 24px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 44, opacity: 0.18 }}>🚗</span>
+                          <span style={{ opacity: 0.18 }}><Icon name="car" size={44} color={C.textMuted} /></span>
                           <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? t.noMatches : t.noVehiclesYet}</div>
                           <div style={{ fontSize: 13, color: C.textMuted }}>{search ? t.tryDifferentSearch : t.noCars}</div>
                         </div>
@@ -9184,7 +9273,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                     {activeTab === 'drivers' && filteredDrivers.length === 0 && !showAdd && (
                       <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 44, opacity: 0.18 }}>👤</span>
+                          <span style={{ opacity: 0.18 }}><Icon name="user" size={44} color={C.textMuted} /></span>
                           <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? t.noMatches : t.noDriversYet}</div>
                           <div style={{ fontSize: 13, color: C.textMuted }}>{search ? t.tryDifferentSearch : t.noDrivers}</div>
                         </div>
@@ -9202,7 +9291,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                     {activeTab === 'branches' && filteredBranches.length === 0 && !showAdd && (
                       <tr><td colSpan={7} style={{ padding: '52px 24px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 44, opacity: 0.18 }}>🏢</span>
+                          <span style={{ opacity: 0.18 }}><Icon name="building" size={44} color={C.textMuted} /></span>
                           <div style={{ fontSize: 15, fontWeight: 700, color: C.textPrimary }}>{search ? t.noMatches : t.noBranchesYet}</div>
                           <div style={{ fontSize: 13, color: C.textMuted }}>{search ? t.tryDifferentSearch : t.noBranches}</div>
                         </div>
@@ -9216,7 +9305,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
                 {/* Inline error banner */}
                 {crudError && (
                   <div style={{ padding: '10px 18px', background: C.danger + '10', borderTop: `1px solid ${C.danger}30`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: C.danger, fontWeight: 600 }}>⚠ {crudError}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: C.danger, fontWeight: 600 }}><Icon name="alert" size={13} />{crudError}</span>
                     <button onClick={() => setCrudError('')} style={{ ...closeBtn, fontSize: 16 }}>×</button>
                   </div>
                 )}
