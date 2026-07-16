@@ -8789,7 +8789,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
 
   return (
     // Outer wrapper: always LTR so the nav never flips
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Rubik',system-ui,sans-serif", background: C.bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', fontFamily: "'Heebo',system-ui,sans-serif", background: C.bg }}>
 
       {/* ── TOP NAVIGATION BAR ────────────────────────────────────────────── */}
       <nav style={{
