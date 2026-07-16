@@ -33,6 +33,11 @@ const P = {
   blue:   'oklch(52% 0.22 260)',
   blueL:  'oklch(60% 0.20 260)',
   cyan:   'oklch(56% 0.15 220)',
+  cream:  '#F4F3EF',
+  ink:    '#2B2630',
+  inkSub: '#5A5460',
+  plum:   '#2E2830',
+  plumSub:'#B9B3BF',
 }
 
 // ── Translations ──────────────────────────────────────────────────────────────
@@ -46,6 +51,16 @@ const T = {
       h2: 'על כל הצי שלך',
       sub: 'כל מה שאתה צריך לנהל רכבים, נהגים, עלויות ומסמכים — במקום אחד.',
       cta1: 'כניסה למערכת', cta2: 'גלה עוד',
+      scrollCue: 'גללו לגלות',
+    },
+    phases: {
+      intro1: 'מהוספת רכב ראשון ועד דוחות הנהלה —',
+      intro2: 'Celox מלווה כל שלב.',
+      items: [
+        { n: 'שלב 01', t: 'מוסיפים צי',              d: 'רכבים, נהגים וסניפים — ייבוא מאקסל בקליק אחד.' },
+        { n: 'שלב 02', t: 'עוקבים ומקבלים התראות',   d: 'טסטים, ביטוחים, רישיונות וטיפולים — הכל לפני שפג התוקף.' },
+        { n: 'שלב 03', t: 'מקבלים תובנות',           d: 'עלויות, דוחות ותקציב — החלטות על בסיס נתונים.' },
+      ],
     },
     stats: [
       { n: '500+', l: 'רכבים מנוהלים' },
@@ -78,7 +93,7 @@ const T = {
       h: 'קח את ניהול הצי שלך לרמה הבאה',
       sub: 'הצטרף לעסקים שכבר משתמשים ב‑Celox AI',
       btn: 'כניסה למערכת',
-      trust: ['🔒 מאובטח', '☁️ ענן', '📱 כל מכשיר', '⚡ 24/7'],
+      trust: ['מאובטח', 'ענן', 'כל מכשיר', '24/7'],
     },
     contact: {
       h: 'נשמח לשמוע ממך',
@@ -104,6 +119,16 @@ const T = {
       h2: 'Over Your Fleet',
       sub: 'Everything you need to manage vehicles, drivers, costs and documents — all in one place.',
       cta1: 'Enter System', cta2: 'Learn More',
+      scrollCue: 'Scroll to explore',
+    },
+    phases: {
+      intro1: 'From the first vehicle to management reports —',
+      intro2: 'Celox powers every step.',
+      items: [
+        { n: 'PHASE 01', t: 'Add your fleet',      d: 'Vehicles, drivers and branches — one-click Excel import.' },
+        { n: 'PHASE 02', t: 'Track & get alerts',  d: 'Inspections, insurance, licenses and services — before anything expires.' },
+        { n: 'PHASE 03', t: 'Get insights',        d: 'Costs, reports and budget — data-driven decisions.' },
+      ],
     },
     stats: [
       { n: '500+', l: 'Vehicles Managed' },
@@ -136,7 +161,7 @@ const T = {
       h: 'Take Your Fleet Management to the Next Level',
       sub: 'Join businesses already using Celox AI',
       btn: 'Enter System',
-      trust: ['🔒 Secure', '☁️ Cloud', '📱 Any Device', '⚡ 24/7'],
+      trust: ['Secure', 'Cloud', 'Any Device', '24/7'],
     },
     contact: {
       h: "We'd love to hear from you",
@@ -165,25 +190,23 @@ const CSS = `
   @keyframes lp-drift { 0%{transform:translate(0,0)} 33%{transform:translate(20px,-14px)} 66%{transform:translate(-16px,10px)} 100%{transform:translate(0,0)} }
   @keyframes lp-scroll{ 0%,100%{opacity:1;transform:translateY(0)} 50%{opacity:.3;transform:translateY(8px)} }
 
-  /* ── Reveal system ── */
-  .lp-r, .lp-rl, .lp-rr, .lp-rs {
-    transition: opacity .72s cubic-bezier(.22,1,.36,1), transform .72s cubic-bezier(.22,1,.36,1);
-  }
+  /* ── Reveal system (animation-based — reliable under scroll re-renders) ── */
+  @keyframes lp-reveal { to { opacity:1; transform:none } }
   .lp-r  { opacity:0; transform:translateY(48px) }
   .lp-rl { opacity:0; transform:translateX(-52px) }
   .lp-rr { opacity:0; transform:translateX(52px) }
   .lp-rs { opacity:0; transform:scale(.88) }
-  .lp-visible { opacity:1 !important; transform:none !important }
+  .lp-visible { animation: lp-reveal .72s cubic-bezier(.22,1,.36,1) both }
 
-  .lp-d0{transition-delay:0s}
-  .lp-d1{transition-delay:.07s}
-  .lp-d2{transition-delay:.15s}
-  .lp-d3{transition-delay:.23s}
-  .lp-d4{transition-delay:.31s}
-  .lp-d5{transition-delay:.39s}
-  .lp-d6{transition-delay:.47s}
-  .lp-d7{transition-delay:.55s}
-  .lp-d8{transition-delay:.63s}
+  .lp-d0{animation-delay:0s}
+  .lp-d1{animation-delay:.07s}
+  .lp-d2{animation-delay:.15s}
+  .lp-d3{animation-delay:.23s}
+  .lp-d4{animation-delay:.31s}
+  .lp-d5{animation-delay:.39s}
+  .lp-d6{animation-delay:.47s}
+  .lp-d7{animation-delay:.55s}
+  .lp-d8{animation-delay:.63s}
 
   /* ── Nav ── */
   .lp-nav-link { transition:color .18s, opacity .18s; cursor:pointer }
@@ -207,13 +230,13 @@ const CSS = `
   .lp-stat-item:hover { transform:translateY(-4px) }
 
   /* ── Divider line reveal ── */
+  @keyframes lp-line-grow { to { transform:scaleX(1) } }
   .lp-line-reveal {
     display:block; height:2px; border-radius:2px;
     background: oklch(52% 0.22 260);
     transform:scaleX(0); transform-origin:center;
-    transition:transform .9s cubic-bezier(.22,1,.36,1);
   }
-  .lp-line-visible { transform:scaleX(1) !important }
+  .lp-line-visible { animation: lp-line-grow .9s cubic-bezier(.22,1,.36,1) both }
 
   .lp-hamburger { display:none }
 
@@ -244,7 +267,8 @@ const CSS = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .lp-r, .lp-rl, .lp-rr, .lp-rs { transition:opacity .3s linear !important; transform:none !important }
+    .lp-r, .lp-rl, .lp-rr, .lp-rs { transform:none !important }
+    .lp-visible { animation-duration:.3s !important; animation-delay:0s !important }
     .lp-line-reveal { transition:transform .3s linear !important }
     * { animation-duration:.01ms !important; animation-iteration-count:1 !important }
   }
@@ -419,43 +443,63 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo }) {
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
-function Hero({ t, scrollY }) {
-  const py = f => `${scrollY * f}px`
+function Hero({ t }) {
   return (
-    <section style={{ position: 'relative', height: '100vh', minHeight: 680, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(155deg,#050d20 0%,#020810 55%,#04091a 100%)' }} />
-      <div style={{ position: 'absolute', inset: '-8%', backgroundImage: 'url(https://picsum.photos/seed/road-night/1920/1080)', backgroundSize: 'cover', backgroundPosition: 'center 55%', transform: `translateY(${py(.22)})`, opacity: .07, filter: 'blur(2px)', willChange: 'transform' }} />
-      <div style={{ position: 'absolute', top: '15%', left: '12%', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.22) 0%,transparent 65%)', filter: 'blur(55px)', animation: 'lp-drift 16s ease-in-out infinite' }} />
-      <div style={{ position: 'absolute', bottom: '20%', right: '8%', width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(circle,rgba(8,145,178,.14) 0%,transparent 65%)', filter: 'blur(60px)', animation: 'lp-drift 20s ease-in-out infinite 4s' }} />
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px)', backgroundSize: '48px 48px', opacity: .5, transform: `translateY(${py(.06)})`, willChange: 'transform' }} />
-
-      <div style={{ position: 'relative', zIndex: 5, textAlign: 'center', padding: '0 24px', maxWidth: 780, direction: t.dir, transform: `translateY(${py(-.08)})`, willChange: 'transform' }}>
-        <div style={{ display: 'inline-block', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.15)', borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.65)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 28, animation: 'lp-up .65s .05s both' }}>
+    <section style={{ position: 'relative', minHeight: '92vh', background: P.cream, display: 'flex', alignItems: 'center', overflow: 'hidden', direction: t.dir }}>
+      <div style={{ width: '100%', maxWidth: 1400, margin: '0 auto', padding: '130px 64px 90px', boxSizing: 'border-box' }}>
+        <div style={{ display: 'inline-block', border: '1px solid rgba(43,38,48,.18)', borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: P.inkSub, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 36, animation: 'lp-up .65s .05s both' }}>
           {t.hero.badge}
         </div>
 
-        <h1 className="lp-hero-h1" style={{ fontSize: 84, fontWeight: 900, lineHeight: 1.05, marginBottom: 24, letterSpacing: -2 }}>
-          <span style={{ display: 'block', color: '#fff', animation: 'lp-up .75s .2s both' }}>{t.hero.h1}</span>
-          <span style={{ display: 'block', color: 'oklch(89% 0.05 260)', animation: 'lp-up .75s .32s both' }}>{t.hero.h2}</span>
+        <h1 className="lp-hero-h1" style={{ fontSize: 'clamp(56px,9vw,124px)', fontWeight: 900, lineHeight: .98, letterSpacing: '-0.03em', margin: 0, color: P.ink }}>
+          <span style={{ display: 'block', animation: 'lp-up .75s .2s both' }}>{t.hero.h1}</span>
+          <span style={{ display: 'block', animation: 'lp-up .75s .32s both' }}>{t.hero.h2}.</span>
         </h1>
 
-        <p style={{ fontSize: 18, color: 'rgba(255,255,255,.72)', lineHeight: 1.75, maxWidth: 520, margin: '0 auto 44px', animation: 'lp-up .75s .46s both' }}>
-          {t.hero.sub}
-        </p>
+        <div className="lp-hero-sub" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 64, animation: 'lp-up .75s .48s both' }}>
+          <div style={{ maxWidth: 400 }}>
+            <p style={{ fontSize: 19, color: P.inkSub, lineHeight: 1.65, margin: '0 0 26px' }}>
+              {t.hero.sub}
+            </p>
+            <div className="lp-hero-ctas" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <a href="/app" className="lp-btn-primary"
+                style={{ display: 'inline-block', background: '#2563eb', color: '#fff', textDecoration: 'none', padding: '14px 36px', borderRadius: 99, fontSize: 15, fontWeight: 700, boxShadow: '0 8px 28px rgba(37,99,235,.28)', letterSpacing: -.1 }}>
+                {t.hero.cta1}
+              </a>
+              <span className="lp-btn-ghost" onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
+                style={{ display: 'inline-block', color: P.ink, padding: '14px 28px', borderRadius: 99, fontSize: 15, fontWeight: 600, border: '1px solid rgba(43,38,48,.22)', cursor: 'pointer' }}>
+                {t.hero.cta2} ↓
+              </span>
+            </div>
+          </div>
+        </div>
 
-        <div className="lp-hero-ctas" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', animation: 'lp-up .75s .6s both' }}>
-          <a href="/app" className="lp-btn-primary"
-            style={{ display: 'inline-block', background: '#2563eb', color: '#fff', textDecoration: 'none', padding: '15px 42px', borderRadius: 12, fontSize: 15, fontWeight: 700, boxShadow: '0 8px 28px rgba(37,99,235,.4)', letterSpacing: -.1 }}>
-            {t.hero.cta1}
-          </a>
-          <span className="lp-btn-ghost" onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
-            style={{ display: 'inline-block', color: 'rgba(255,255,255,.6)', padding: '15px 36px', borderRadius: 12, fontSize: 15, fontWeight: 600, border: '1px solid rgba(255,255,255,.15)', cursor: 'pointer' }}>
-            {t.hero.cta2} ↓
-          </span>
+        <div style={{ position: 'absolute', bottom: 30, insetInlineStart: 64, fontSize: 12, color: P.inkSub, letterSpacing: .4, animation: 'lp-up .75s .7s both' }}>
+          ↓ {t.hero.scrollCue}
         </div>
       </div>
+    </section>
+  )
+}
 
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180, background: `linear-gradient(to top,${P.white},transparent)`, zIndex: 6 }} />
+// ── Phases — how it works (dark narrative section) ────────────────────────────
+function Phases({ t }) {
+  return (
+    <section style={{ background: P.plum, padding: '110px 64px', direction: t.dir }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+        <p className="lp-r lp-d1" style={{ fontSize: 'clamp(26px,3.4vw,44px)', fontWeight: 700, lineHeight: 1.3, margin: '0 0 56px', color: P.cream, maxWidth: '22ch', letterSpacing: '-0.01em' }}>
+          <span style={{ color: '#8F8896' }}>{t.phases.intro1}</span><br />{t.phases.intro2}
+        </p>
+        <div className="lp-phases-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
+          {t.phases.items.map((p, i) => (
+            <div key={i} className={`lp-r lp-d${i + 1}`} style={{ background: 'rgba(244,243,239,.05)', border: '1px solid rgba(244,243,239,.13)', borderRadius: 16, padding: '26px 24px' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#A79FAE', letterSpacing: '0.14em', marginBottom: 14 }}>{p.n}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: P.cream, marginBottom: 8 }}>{p.t}</div>
+              <p style={{ fontSize: 14, color: P.plumSub, lineHeight: 1.6, margin: 0 }}>{p.d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
   )
 }
@@ -556,32 +600,25 @@ function Features({ t, scrollY }) {
 }
 
 // ── CTA ───────────────────────────────────────────────────────────────────────
-function CTASection({ t, scrollY }) {
-  const sectionRef = useRef(null)
-  const sectionTopRef = useRef(0)
-  useEffect(() => { if (sectionRef.current) sectionTopRef.current = sectionRef.current.offsetTop }, [])
-  const rel = scrollY - sectionTopRef.current
+function CTASection({ t }) {
   return (
-    <section ref={sectionRef} style={{ background: P.dark, padding: '120px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, calc(-50% + ${rel * .2}px))`, willChange: 'transform' }}>
-        <div style={{ width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%)', filter: 'blur(70px)', animation: 'lp-pulse 8s ease-in-out infinite' }} />
-      </div>
-      <div style={{ position: 'absolute', top: '25%', right: '12%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(124,58,237,.14) 0%,transparent 65%)', filter: 'blur(60px)', pointerEvents: 'none', transform: `translateY(${rel * -.16}px)`, willChange: 'transform' }} />
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px)', backgroundSize: '44px 44px' }} />
-
-      <div style={{ position: 'relative', zIndex: 2, maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
-        <div className="lp-rs lp-d0"><Chip light>{t.cta.badge}</Chip></div>
-        <h2 className="lp-r lp-d1" style={{ fontSize: 52, fontWeight: 900, color: '#fff', lineHeight: 1.1, marginBottom: 20, marginTop: 6, letterSpacing: -1.5 }}>{t.cta.h}</h2>
-        <p className="lp-r lp-d2" style={{ fontSize: 17, color: 'rgba(255,255,255,.5)', lineHeight: 1.75, marginBottom: 44 }}>{t.cta.sub}</p>
+    <section style={{ background: P.cream, padding: '130px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+      <div style={{ position: 'relative', zIndex: 2, maxWidth: 820, margin: '0 auto', textAlign: 'center' }}>
+        <div className="lp-rs lp-d0"><Chip>{t.cta.badge}</Chip></div>
+        <h2 className="lp-r lp-d1" style={{ fontSize: 'clamp(42px,5.5vw,72px)', fontWeight: 900, color: P.ink, lineHeight: 1.03, marginBottom: 20, marginTop: 6, letterSpacing: '-0.025em' }}>{t.cta.h}</h2>
+        <p className="lp-r lp-d2" style={{ fontSize: 17, color: P.inkSub, lineHeight: 1.75, marginBottom: 44 }}>{t.cta.sub}</p>
         <div className="lp-r lp-d3">
           <a href="/app" className="lp-btn-primary"
-            style={{ display: 'inline-block', background: '#2563eb', color: '#fff', textDecoration: 'none', padding: '17px 54px', borderRadius: 12, fontSize: 17, fontWeight: 800, boxShadow: '0 10px 36px rgba(37,99,235,.45)', letterSpacing: -.2 }}>
+            style={{ display: 'inline-block', background: '#2563eb', color: '#fff', textDecoration: 'none', padding: '17px 54px', borderRadius: 99, fontSize: 17, fontWeight: 800, boxShadow: '0 10px 36px rgba(37,99,235,.32)', letterSpacing: -.2 }}>
             {t.cta.btn} →
           </a>
         </div>
-        <div className="lp-r lp-d4" style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 48, flexWrap: 'wrap' }}>
+        <div className="lp-r lp-d4" style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 48, flexWrap: 'wrap', alignItems: 'center' }}>
           {t.cta.trust.map((x,i) => (
-            <span key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', fontWeight: 500 }}>{x}</span>
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontSize: 13, color: P.inkSub, fontWeight: 500 }}>
+              {i > 0 && <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(43,38,48,.3)', display: 'inline-block' }} />}
+              {x}
+            </span>
           ))}
         </div>
       </div>
@@ -821,7 +858,8 @@ export default function LandingPage() {
   return (
     <div style={{ fontFamily: "'Rubik', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
       <Nav t={t} lang={lang} setLang={setLang} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
-      <Hero t={t} scrollY={scrollY} />
+      <Hero t={t} />
+      <Phases t={t} />
       <Stats t={t} />
       <About t={t} scrollY={scrollY} />
       <Features t={t} scrollY={scrollY} />
