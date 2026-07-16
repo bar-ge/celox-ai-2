@@ -56,7 +56,7 @@ const INJECTED_STYLES = `
   .crm-btn-ghost:hover {
     background: #f1f5f9 !important;
     border-color: #cbd5e1 !important;
-    color: #0f172a !important;
+    color: #2B2630 !important;
   }
 
   .crm-btn-danger {
@@ -117,25 +117,25 @@ const INJECTED_STYLES = `
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 const C = {
-  bg:            '#f1f5f9',
+  bg:            '#F4F3EF',
   surface:       '#ffffff',
-  surfaceHover:  '#f8fafc',
-  surfaceStrong: '#f1f5f9',
-  border:        '#e2e8f0',
-  borderStrong:  '#cbd5e1',
+  surfaceHover:  '#F8F7F4',
+  surfaceStrong: '#F1EFE9',
+  border:        '#E5E1D8',
+  borderStrong:  '#D3CEC3',
   primary:       '#2563eb',
   primaryDim:    'rgba(37,99,235,0.1)',
   indigo:        '#6366f1',
-  textPrimary:   '#0f172a',
-  textSecondary: '#475569',
-  textMuted:     '#94a3b8',
+  textPrimary:   '#2B2630',
+  textSecondary: '#5A5460',
+  textMuted:     '#8F8A94',
   success:       '#059669',
   successText:   '#059669',
   warning:       '#d97706',
   danger:        '#dc2626',
   purple:        '#7c3aed',
-  navBg:         '#0f172a',
-  sidebar:       '#0f172a',
+  navBg:         '#2E2830',
+  sidebar:       '#2E2830',
 }
 
 const STAGE_META = {
@@ -175,7 +175,7 @@ const inp = {
   fontSize: 13,
   outline: 'none',
   boxSizing: 'border-box',
-  color: '#0f172a',
+  color: '#2B2630',
   background: '#ffffff',
   fontFamily: FONT,
 }

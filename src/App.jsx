@@ -21,13 +21,13 @@ const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x0000000
 const MASTER_EMAIL = import.meta.env.VITE_MASTER_EMAIL ?? ''
 
 const C = {
-  navBg:    '#0f172a',
+  navBg:    '#2E2830',
   primary:  '#2563eb',
-  bg:       '#f1f5f9',
+  bg:       '#F4F3EF',
   surface:  '#ffffff',
-  border:   '#e2e8f0',
-  text:     '#0f172a',
-  textSub:  '#475569',
+  border:   '#E5E1D8',
+  text:     '#2B2630',
+  textSub:  '#5A5460',
   danger:   '#ef4444',
   success:  '#10b981',
 }
@@ -253,8 +253,8 @@ function Page({ children, lang, setLang }) {
     <div style={{
       width: '100%', minHeight: '100vh', position: 'relative',
       background: `
-        radial-gradient(circle, rgba(8,145,178,0.06) 1px, transparent 1px) 0 0 / 28px 28px,
-        linear-gradient(135deg, #080f1e 0%, #0d1a30 50%, #080f1e 100%)
+        radial-gradient(circle, rgba(244,243,239,0.05) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(135deg, #262129 0%, #322B35 50%, #262129 100%)
       `,
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
@@ -678,7 +678,7 @@ function LoginScreen({ lang, setLang, notice }) {
           <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600, maxHeight: '85vh', display: 'flex', flexDirection: 'column', direction: rtl ? 'rtl' : 'ltr' }}>
             <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0f172a' }}>{rtl ? 'מדיניות פרטיות — Celox AI' : 'Privacy Policy — Celox AI'}</h2>
+                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#2B2630' }}>{rtl ? 'מדיניות פרטיות — Celox AI' : 'Privacy Policy — Celox AI'}</h2>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{rtl ? 'עדכון אחרון: 12 באפריל 2026' : 'Last updated: April 12, 2026'}</p>
               </div>
               <button onClick={() => setShowPrivacyModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b' }}>✕</button>
@@ -958,8 +958,8 @@ export default function App() {
     const expired = new Date(profile.companies.access_until) < new Date()
     if (expired) {
       return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', fontFamily: 'sans-serif' }}>
-          <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, maxWidth: 420, textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2E2830', fontFamily: 'sans-serif' }}>
+          <div style={{ background: '#3A333D', borderRadius: 16, padding: 40, maxWidth: 420, textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
             <h2 style={{ color: '#f8fafc', margin: '0 0 12px', fontSize: 22 }}>
               {lang === 'he' ? 'המנוי פג תוקף' : 'Subscription Expired'}

@@ -99,7 +99,7 @@ function MultiSelect({ options, value = [], onChange, placeholder, style, getLab
   return (
     <div ref={triggerRef} onClick={handleOpen}
       style={{ ...style, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
-      <span style={{ color: value.length ? '#1e293b' : '#94a3b8', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+      <span style={{ color: value.length ? '#2B2630' : '#94a3b8', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
         {value.length ? value.map(lbl).join(', ') : placeholder}
       </span>
       <span style={{ fontSize: 10, marginInlineStart: 4, color: '#64748b', flexShrink: 0 }}>▾</span>
@@ -116,7 +116,7 @@ function MultiSelect({ options, value = [], onChange, placeholder, style, getLab
           }}>
           {options.map(opt => (
             <label key={opt} onClick={e => e.stopPropagation()}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 13, color: '#1e293b' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 13, color: '#2B2630' }}>
               <input type="checkbox" checked={value.includes(opt)}
                 onChange={() => toggle(opt)}
                 style={{ accentColor: C.primary, width: 15, height: 15 }} />
@@ -154,29 +154,29 @@ function useIsNarrow(breakpoint = 1200) {
 
 // ── Design tokens ───────────────────────────────────────────────────────────
 const C = {
-  navBg:        '#0f172a',
-  navBorder:    'rgba(255,255,255,0.07)',
-  navText:      '#94a3b8',
-  navActive:    '#f8fafc',
-  navActiveBg:  'rgba(255,255,255,0.1)',
+  navBg:        '#2E2830',
+  navBorder:    'rgba(244,243,239,0.09)',
+  navText:      '#B9B3BF',
+  navActive:    '#F4F3EF',
+  navActiveBg:  'rgba(244,243,239,0.1)',
   primary:      '#2563eb',
   primaryHover: '#1d4ed8',
   indigo:       '#6366f1',
-  bg:           '#f1f5f9',
-  bgSubtle:     '#f8fafc',
+  bg:           '#F4F3EF',
+  bgSubtle:     '#F8F7F4',
   surface:      '#ffffff',
-  border:       '#e2e8f0',
-  textPrimary:  '#0f172a',
-  textSecondary:'#475569',
-  textMuted:    '#94a3b8',
+  border:       '#E5E1D8',
+  textPrimary:  '#2B2630',
+  textSecondary:'#5A5460',
+  textMuted:    '#8F8A94',
   success:      '#10b981',
   successText:  '#007a45',
   danger:       '#ef4444',
   warning:      '#f59e0b',
-  overlay:      'rgba(15,23,42,0.55)',
-  rowHover:     '#ecfeff',
-  rowAdd:       '#ecfeff',
-  footerBg:     '#f8fafc',
+  overlay:      'rgba(43,38,48,0.55)',
+  rowHover:     '#F6F4EE',
+  rowAdd:       '#F6F4EE',
+  footerBg:     '#F8F7F4',
 }
 
 const BRANCH_COLORS = ['#2563eb','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
@@ -1077,7 +1077,7 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
             >
               <EIcon e={meta.icon} size={18} color={C.primary} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{sub.submitter_name || meta.he}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#2B2630' }}>{sub.submitter_name || meta.he}</div>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
                   {meta.he} · {new Date(sub.submitted_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </div>
@@ -1089,7 +1089,7 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
                 {Object.entries(sub.data || {}).filter(([k, v]) => v && k !== 'submitter_name' && k !== 'attachments').map(([k, v]) => (
                   <div key={k} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
                     <span style={{ color: '#64748b', minWidth: 130, fontWeight: 600 }}>{k.replace(/_/g, ' ')}</span>
-                    <span style={{ color: '#0f172a', flex: 1 }}>{Array.isArray(v) ? v.join(', ') : String(v)}</span>
+                    <span style={{ color: '#2B2630', flex: 1 }}>{Array.isArray(v) ? v.join(', ') : String(v)}</span>
                   </div>
                 ))}
                 {sub.data?.attachments?.length > 0 && (
@@ -5005,7 +5005,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           <div id="print-area" style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', padding: 32, direction: 'rtl' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 20, color: '#0f172a', marginBottom: 4 }}>{viewSubs?.title}</div>
+                <div style={{ fontWeight: 900, fontSize: 20, color: '#2B2630', marginBottom: 4 }}>{viewSubs?.title}</div>
                 <div style={{ fontSize: 13, color: '#64748b' }}>{printSub.submitter_name} · {new Date(printSub.submitted_at).toLocaleString('he-IL')}</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -5017,7 +5017,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
             {Object.entries(printSub.data || {}).filter(([k, v]) => v && k !== 'attachments' && k !== 'submitter_name').map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
                 <span style={{ fontWeight: 700, color: '#475569', minWidth: 160 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g,' ')}</span>
-                <span style={{ color: '#0f172a', textAlign: 'left', flex: 1 }}>{fmtSubVal(v)}</span>
+                <span style={{ color: '#2B2630', textAlign: 'left', flex: 1 }}>{fmtSubVal(v)}</span>
               </div>
             ))}
             {printSub.data?.attachments?.length > 0 && (
@@ -5034,7 +5034,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
       {showQr && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', maxWidth: 320, width: '100%' }}>
-            <div style={{ fontWeight: 800, fontSize: 16, color: '#0f172a', marginBottom: 4 }}>{showQr.title}</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#2B2630', marginBottom: 4 }}>{showQr.title}</div>
             <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 20 }}>{rtl ? 'סרוק כדי לפתוח את הטופס' : 'Scan to open the form'}</div>
             <img src={qrUrl(showQr.token)} alt="QR" style={{ width: 220, height: 220, borderRadius: 10, border: '1px solid #e2e8f0' }} />
             <div style={{ marginTop: 16, fontSize: 11, color: '#94a3b8', wordBreak: 'break-all', direction: 'ltr' }}>{formUrl(showQr.token)}</div>
@@ -5353,7 +5353,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         {accQrReport && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', maxWidth: 300, width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, color: '#0f172a', marginBottom: 4 }}><Icon name="alert" size={15} color={C.danger} />{rtl ? 'QR לדוח תאונה' : 'Accident Report QR'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, color: '#2B2630', marginBottom: 4 }}><Icon name="alert" size={15} color={C.danger} />{rtl ? 'QR לדוח תאונה' : 'Accident Report QR'}</div>
               <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>{rtl ? 'סרוק לקבלת פרטי הדוח' : 'Scan to get report details'}</div>
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(accidentQrData(accQrReport))}`}
@@ -6522,7 +6522,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 function PrivacyPolicyModal({ onClose, t, rtl }) {
   const Section = ({ title, children }) => (
     <div style={{ marginBottom: 24 }}>
-      <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{title}</h3>
+      <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#2B2630' }}>{title}</h3>
       {children}
     </div>
   )
@@ -6541,7 +6541,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
         {/* Header */}
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{t.privacyTitle}</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#2B2630' }}>{t.privacyTitle}</h2>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{t.privacyUpdated}</p>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
@@ -6597,7 +6597,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
 function TermsOfServiceModal({ onClose, t, rtl }) {
   const Section = ({ title, children }) => (
     <div style={{ marginBottom: 24 }}>
-      <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{title}</h3>
+      <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#2B2630' }}>{title}</h3>
       {children}
     </div>
   )
@@ -6615,7 +6615,7 @@ function TermsOfServiceModal({ onClose, t, rtl }) {
       }}>
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{t.tosTitle}</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#2B2630' }}>{t.tosTitle}</h2>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{t.tosUpdated}</p>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
@@ -6794,7 +6794,7 @@ function FMSignaturePad({ value, onChange, label = 'חתימה דיגיטלית'
     const ctx = canvasRef.current.getContext('2d')
     const pos = getPos(e)
     ctx.beginPath(); ctx.moveTo(lastPos.current.x, lastPos.current.y); ctx.lineTo(pos.x, pos.y)
-    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    ctx.strokeStyle = '#2B2630'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
     ctx.stroke()
     lastPos.current = pos
     onChange(canvasRef.current.toDataURL('image/png'))
@@ -8338,7 +8338,7 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
                 position: 'fixed', zIndex: 99999,
                 top: dropPos.top,
                 ...(rtl ? { right: window.innerWidth - dropPos.left } : { left: dropPos.left }),
-                background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
+                background: '#2B2630', border: '1px solid rgba(255,255,255,0.1)',
                 borderRadius: 10, boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
                 padding: '4px', minWidth: 180,
               }}>
