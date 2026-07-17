@@ -182,6 +182,18 @@ const C = {
 const BRANCH_COLORS = ['#2563eb','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#f97316','#ec4899']
 const branchColor = idx => BRANCH_COLORS[Math.max(idx, 0) % BRANCH_COLORS.length]
 
+// ── Remember the last branch used when adding a vehicle/driver (enter-once UX) ─
+const LAST_BRANCH_KEY = 'celox_last_branch'
+function pickLastBranch(branches = []) {
+  try {
+    const id = localStorage.getItem(LAST_BRANCH_KEY) || ''
+    return id && branches.some(b => String(b.id) === id) ? id : ''
+  } catch { return '' }
+}
+function rememberBranch(id) {
+  try { if (id) localStorage.setItem(LAST_BRANCH_KEY, String(id)) } catch { /* localStorage unavailable */ }
+}
+
 // ── Translations ────────────────────────────────────────────────────────────
 const T = {
   en: {
@@ -1549,9 +1561,10 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
 }
 
 // ── Driver Detail Modal ──────────────────────────────────────────────────────
-function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onClose }) {
+function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onClose, onAssignVehicle }) {
   const [tab, setTab]       = useState('overview')
   const [loading, setLoading] = useState(false)
+  const [savingCar, setSavingCar] = useState(false)
 
   const assignedCar = cars.find(c => String(c.id) === String(driver.car_id) || String(c.driver_id) === String(driver.id))
 
@@ -1629,6 +1642,16 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
 
               <div style={{ padding: '0 24px 20px' }}>
                 <div style={sTitle}>{rtl ? 'רכב משויך' : 'Assigned Vehicle'}</div>
+                {onAssignVehicle && (
+                  <select
+                    value={assignedCar ? String(assignedCar.id) : ''}
+                    disabled={savingCar}
+                    onChange={async e => { setSavingCar(true); await onAssignVehicle(driver.id, e.target.value); setSavingCar(false) }}
+                    style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, background: C.surface, color: C.textPrimary, marginBottom: assignedCar ? 10 : 0, direction: rtl ? 'rtl' : 'ltr', opacity: savingCar ? 0.6 : 1, cursor: savingCar ? 'wait' : 'pointer' }}>
+                    <option value="">{rtl ? '— ללא רכב —' : '— No vehicle —'}</option>
+                    {cars.map(c => <option key={c.id} value={String(c.id)}>{formatPlate(c.plate)}{c.make ? ` · ${c.make}${c.model ? ' ' + c.model : ''}` : ''}</option>)}
+                  </select>
+                )}
                 {assignedCar ? (
                   <div style={card}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -1641,7 +1664,7 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
                     </div>
                   </div>
                 ) : (
-                  <div style={{ color: C.textMuted, fontSize: 13, paddingTop: 8 }}>{rtl ? 'אין רכב משויך' : 'No vehicle assigned'}</div>
+                  !onAssignVehicle && <div style={{ color: C.textMuted, fontSize: 13, paddingTop: 8 }}>{rtl ? 'אין רכב משויך' : 'No vehicle assigned'}</div>
                 )}
               </div>
             </>
@@ -1967,7 +1990,7 @@ async function lookupPlate(rawPlate, signal) {
 }
 
 function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customLists }) {
-  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', mileage: '', status: 'Available', fuel: 'Petrol', branch_id: '', driver_id: '' })
+  const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', mileage: '', status: 'Available', fuel: 'Petrol', branch_id: pickLastBranch(branches), driver_id: '' })
   const [lookupState, setLookupState] = useState('idle') // idle | loading | found | notfound
   const [reqError, setReqError] = useState(false)
   const abortRef = useRef(null)
@@ -1991,7 +2014,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
   }
 
   function submit() {
-    if (form.plate.trim() && form.make.trim() && form.model.trim()) { onAdd(form) }
+    if (form.plate.trim() && form.make.trim() && form.model.trim()) { rememberBranch(form.branch_id); onAdd(form) }
     else { setReqError(true); setTimeout(() => setReqError(false), 4000) }
   }
   return (
@@ -2043,13 +2066,13 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
 }
 
 function AddDriverRow({ branches, onAdd, onCancel, t, rtl, mobile, customLists }) {
-  const [form, setForm] = useState({ name: '', license: '', license_levels: [], phone: '', status: 'Active', branch_id: '', consent: false })
+  const [form, setForm] = useState({ name: '', license: '', license_levels: [], phone: '', status: 'Active', branch_id: pickLastBranch(branches), consent: false })
   const [otherText, setOtherText] = useState('')
   const [reqError, setReqError] = useState(false)
   const td = mkTd(rtl, mobile)
   const inp = inlineInput(rtl)
   function submit() {
-    if (form.name.trim()) { onAdd({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText), consent_given_at: form.consent ? new Date().toISOString() : null }) }
+    if (form.name.trim()) { rememberBranch(form.branch_id); onAdd({ ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText), consent_given_at: form.consent ? new Date().toISOString() : null }) }
     else { setReqError(true); setTimeout(() => setReqError(false), 4000) }
   }
   return (
@@ -4785,6 +4808,22 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
     else if (error) console.error('saveClaimInfo failed:', error.message)
   }
 
+  // Link an accident report to a fleet vehicle (enables per-vehicle claim prefill)
+  async function saveAccidentCar(repId, carIdStr) {
+    const my_car_id = carIdStr ? parseInt(carIdStr, 10) : null
+    const { data } = await supabase.from('accident_reports').update({ my_car_id }).eq('id', repId).select()
+    if (data?.[0]) setAccidentReports(p => p.map(r => r.id === repId ? data[0] : r))
+  }
+  // Try to match the plate mentioned in the driver's report text to a fleet vehicle
+  function autoMatchAccidentCar(rep) {
+    const hay = (rep.description || '').replace(/\D/g, ' ')
+    const match = cars
+      .map(c => ({ id: c.id, d: (c.plate || '').replace(/\D/g, '') }))
+      .filter(c => c.d.length >= 5)
+      .find(c => hay.includes(c.d))
+    if (match) saveAccidentCar(rep.id, String(match.id))
+  }
+
   async function openAccFormShare() {
     setAccFormShareBusy(true)
     // Reuse existing reusable accident_report link if one exists
@@ -5373,6 +5412,15 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           const rep = accidentReports.find(r => r.id === viewAccidentReport.id) || viewAccidentReport
           const myCar = cars.find(c => String(c.id) === String(rep.my_car_id))
           const files = rep.file_paths || []
+          // Prefill the claim from the most recent prior claim — same vehicle first, else any company claim
+          const priorClaim = accidentReports
+            .filter(r => r.id !== rep.id && r.insurance_company && (rep.my_car_id ? String(r.my_car_id) === String(rep.my_car_id) : true))
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+          const claimDefaults = {
+            insurance_company: rep.insurance_company || priorClaim?.insurance_company || '',
+            policy_number:     rep.policy_number     || priorClaim?.policy_number     || '',
+            deductible_pct:    rep.deductible_pct ?? priorClaim?.deductible_pct ?? '',
+          }
           const statusColor = rep.status === 'on_hold' ? C.warning : rep.status === 'closed' ? C.textMuted : C.success
           const statusLabel = rep.status === 'on_hold' ? t.accidentOnHold : rep.status === 'closed' ? t.accidentClosed : t.accidentOpen
           return (
@@ -5389,11 +5437,19 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                   </div>
                 </div>
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {/* My car */}
+                  {/* My car — linkable to a fleet vehicle so the claim can auto-prefill */}
                   <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t.myCar}</div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>
-                      {myCar ? `${myCar.plate}${myCar.make ? ` · ${myCar.make}` : ''}${myCar.model ? ` ${myCar.model}` : ''}` : '—'}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <select value={rep.my_car_id ? String(rep.my_car_id) : ''} onChange={e => saveAccidentCar(rep.id, e.target.value)} style={{ flex: 1, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, background: C.surface, color: C.textPrimary, direction: rtl ? 'rtl' : 'ltr' }}>
+                        <option value="">{rtl ? '— בחר רכב מהצי —' : '— Select fleet vehicle —'}</option>
+                        {cars.map(c => <option key={c.id} value={String(c.id)}>{formatPlate(c.plate)}{c.make ? ` · ${c.make}${c.model ? ' ' + c.model : ''}` : ''}</option>)}
+                      </select>
+                      {!rep.my_car_id && (
+                        <button type="button" onClick={() => autoMatchAccidentCar(rep)} title={rtl ? 'איתור לפי הלוחית בדוח' : 'Match by reported plate'} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '0 12px', height: 32, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icon name="search" size={13} />{rtl ? 'איתור' : 'Auto'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   {/* Police / Ambulance indicators */}
@@ -5445,12 +5501,15 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                     </div>
                   )}
                   {/* Insurance claim follow-up — admin-side fields, filled in after the driver's initial field report */}
-                  <form onSubmit={e => saveClaimInfo(e, rep.id)} style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{rtl ? 'ניהול תביעת ביטוח' : 'Insurance Claim'}</div>
+                  <form key={rep.my_car_id || 'nocar'} onSubmit={e => saveClaimInfo(e, rep.id)} style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{rtl ? 'ניהול תביעת ביטוח' : 'Insurance Claim'}</div>
+                      {!rep.insurance_company && priorClaim && <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, background: C.primary + '14', borderRadius: 4, padding: '2px 7px' }}>{rtl ? 'מולא מתביעה קודמת' : 'prefilled from last claim'}</span>}
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <input name="insurance_company" defaultValue={rep.insurance_company || ''} placeholder={rtl ? 'חברת ביטוח' : 'Insurance company'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
-                      <input name="policy_number" defaultValue={rep.policy_number || ''} placeholder={rtl ? 'מספר פוליסה' : 'Policy number'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
-                      <input name="deductible_pct" type="number" step="0.1" defaultValue={rep.deductible_pct ?? ''} placeholder={rtl ? 'אחוז השתתפות עצמית' : 'Deductible %'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <input name="insurance_company" defaultValue={claimDefaults.insurance_company} placeholder={rtl ? 'חברת ביטוח' : 'Insurance company'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <input name="policy_number" defaultValue={claimDefaults.policy_number} placeholder={rtl ? 'מספר פוליסה' : 'Policy number'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
+                      <input name="deductible_pct" type="number" step="0.1" defaultValue={claimDefaults.deductible_pct} placeholder={rtl ? 'אחוז השתתפות עצמית' : 'Deductible %'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
                       <input name="police_file_number" defaultValue={rep.police_file_number || ''} placeholder={rtl ? 'מספר תיק משטרה' : 'Police file #'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
                       <input name="claim_file_number" defaultValue={rep.claim_file_number || ''} placeholder={rtl ? 'מספר תיק תביעה' : 'Claim file #'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
                       <select name="claim_status" defaultValue={rep.claim_status || 'open'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }}>
@@ -8683,6 +8742,33 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     const carDiff = prev ? diffObjects(prev, form, ['plate','make','model','year','status','fuel','mileage','branch_id','driver_id']) : null
     logActivity('update', 'car', `${form.plate} ${form.make}`, carDiff)
   }
+
+  // Assign/re-assign a vehicle to a driver from the driver side (two-way sync).
+  // Source of truth is cars.driver_id — moving a driver clears their previous car.
+  async function assignVehicleToDriver(driverId, newCarIdStr) {
+    const target   = newCarIdStr ? parseInt(newCarIdStr, 10) : null
+    const prevCar  = cars.find(c => String(c.driver_id) === String(driverId))
+    const prevId   = prevCar ? prevCar.id : null
+    if (String(prevId ?? '') === String(target ?? '')) return
+    // Detach driver from their old car
+    if (prevId && prevId !== target) {
+      const { error } = await supabase.from('cars').update({ driver_id: null }).eq('id', prevId)
+      if (error) { setCrudError(friendlyDbError(error, rtl)); return }
+    }
+    // Attach to the new car (overwrites whatever driver it had)
+    if (target) {
+      const { error } = await supabase.from('cars').update({ driver_id: driverId }).eq('id', target)
+      if (error) { setCrudError(friendlyDbError(error, rtl)); return }
+    }
+    setCars(p => p.map(c => {
+      if (c.id === target)             return { ...c, driver_id: driverId }
+      if (c.driver_id === driverId)    return { ...c, driver_id: null }   // clears old car + any stale dup
+      return c
+    }))
+    const drvName = drivers.find(d => d.id === driverId)?.name
+    const carName = target ? formatPlate(cars.find(c => c.id === target)?.plate) : (rtl ? 'ללא רכב' : 'no vehicle')
+    logActivity('update', 'driver', drvName, { assigned_vehicle: carName })
+  }
   async function deleteCar(id) {
     if (!window.confirm(t.confirmDelete)) return
     const car = cars.find(c => c.id === id)
@@ -9347,6 +9433,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           t={t}
           rtl={rtl}
           onClose={() => setDetailDriver(null)}
+          onAssignVehicle={assignVehicleToDriver}
         />
       )}
 

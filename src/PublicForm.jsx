@@ -1343,6 +1343,13 @@ export default function PublicForm({ token }) {
       await supabase.rpc('create_costs_from_checklist', { p_submission_id: submissionId })
     }
 
+    // Advance the vehicle odometer from any mileage the driver reported
+    // (forward-only, typo-guarded server-side). Fire-and-forget.
+    if (link.car_id && ['car_checklist', 'driver_car_check', 'periodic_inspection'].includes(link.type)) {
+      supabase.rpc('update_car_mileage_from_submission', { p_submission_id: submissionId })
+        .then(({ error }) => { if (error) console.error('[mileage_sync]', error.message) })
+    }
+
     // Mirror accident report submissions into the accident_reports table
     if (link.type === 'accident_report') {
       const descParts = [data.description || '']
