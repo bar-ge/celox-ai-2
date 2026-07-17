@@ -3,6 +3,16 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react
 import { createPortal } from 'react-dom'
 
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, friendlyDbError } from './validators'
+import { getRegion, REGIONS, REGION_CODES } from './regions'
+
+// ── Active company region — set once when the company loads, read app-wide ────
+// A session is scoped to a single company, so a module-level value is sufficient
+// and avoids threading region config through every component.
+let RG = getRegion('il')
+const money = (n, opts) => `${RG.currency}${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2, ...opts })}`
+const distUnit = () => (RG.units === 'miles' ? 'mi' : 'km')
+// Israeli format for IL, a lenient 10+ digit check for North America
+const validPhone = p => (RG.code === 'il' ? isIsraeliPhone(p) : (p || '').replace(/\D/g, '').length >= 10)
 
 async function xlsxDownload(wb, filename) {
   const buffer = await wb.xlsx.writeBuffer()
@@ -1447,7 +1457,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                     [t.model,   car.model],
                     [t.year,    car.year],
                     [t.fuel,    t[CAR_FUEL_KEY[car.fuel]] || car.fuel],
-                    [t.mileage, car.mileage ? car.mileage.toLocaleString() + ' km' : null],
+                    [t.mileage, car.mileage ? car.mileage.toLocaleString() + ' ' + distUnit() : null],
                     [t.branch,  getBranchName(car.branch_id)],
                   ].filter(([, v]) => v && v !== '—').map(([label, value]) => (
                     <div key={label} style={infoRow}>
@@ -1474,8 +1484,8 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, padding: '0 24px' }}>
                   {[[rtl ? 'רשומות תחזוקה' : 'Service Records', maintenance.length, C.primary],
-                    [rtl ? 'עלות תחזוקה' : 'Maint. Cost', '₪' + totalMaint.toLocaleString(), C.warning],
-                    [rtl ? 'עלויות אחרות' : 'Other Costs',  '₪' + totalCost.toLocaleString(),  C.danger],
+                    [rtl ? 'עלות תחזוקה' : 'Maint. Cost', RG.currency +totalMaint.toLocaleString(), C.warning],
+                    [rtl ? 'עלויות אחרות' : 'Other Costs',  RG.currency +totalCost.toLocaleString(),  C.danger],
                   ].map(([label, value, color]) => (
                     <div key={label} style={{ background: C.bg, borderRadius: 10, padding: '14px 12px', textAlign: 'center', border: `1px solid ${C.border}` }}>
                       <div style={{ fontSize: 20, fontWeight: 900, color }}>{value}</div>
@@ -1501,8 +1511,8 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: C.textSecondary }}>
                         {r.date && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} />{r.date}</span>}
                         {r.next_due && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} />{r.next_due}</span>}
-                        {r.cost    && <span>₪{Number(r.cost).toLocaleString()}</span>}
-                        {r.mileage && <span>{Number(r.mileage).toLocaleString()} km</span>}
+                        {r.cost    && <span>{RG.currency}{Number(r.cost).toLocaleString()}</span>}
+                        {r.mileage && <span>{Number(r.mileage).toLocaleString()} {distUnit()}</span>}
                       </div>
                       {r.description && <div style={{ marginTop: 6, fontSize: 13, color: C.textMuted, fontStyle: 'italic' }}>{r.description}</div>}
                     </div>
@@ -1517,7 +1527,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                 {costs.length > 0 && (
                   <div style={{ background: C.bg, borderRadius: 10, padding: '12px 16px', border: `1px solid ${C.border}`, marginTop: 16, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, color: C.textMuted, fontWeight: 600 }}>{rtl ? 'סה״כ עלויות' : 'Total Costs'}</span>
-                    <span style={{ fontSize: 18, fontWeight: 900, color: C.primary }}>₪{totalCost.toLocaleString()}</span>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: C.primary }}>{RG.currency}{totalCost.toLocaleString()}</span>
                   </div>
                 )}
                 <div style={sTitle}>{rtl ? 'רשומות עלויות' : 'Cost Records'}</div>
@@ -1529,7 +1539,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                       <div key={r.id} style={card}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{catLabel[r.category] || r.category}</span>
-                          <span style={{ fontWeight: 800, fontSize: 15, color: C.primary }}>₪{Number(r.amount).toLocaleString()}</span>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: C.primary }}>{RG.currency}{Number(r.amount).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 12, fontSize: 12, color: C.textSecondary }}>
                           {r.date && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} />{r.date}</span>}
@@ -1660,7 +1670,7 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
                     </div>
                     <div style={{ fontSize: 13, color: C.textSecondary }}>
                       {assignedCar.make} {assignedCar.model}{assignedCar.year ? ` · ${assignedCar.year}` : ''} · {t[CAR_FUEL_KEY[assignedCar.fuel]] || assignedCar.fuel}
-                      {assignedCar.mileage ? ` · ${assignedCar.mileage.toLocaleString()} km` : ''}
+                      {assignedCar.mileage ? ` · ${assignedCar.mileage.toLocaleString()} ${distUnit()}` : ''}
                     </div>
                   </div>
                 ) : (
@@ -1989,6 +1999,31 @@ async function lookupPlate(rawPlate, signal) {
   return null
 }
 
+// North-American vehicle lookup: decode a VIN via the free NHTSA vPIC API.
+async function lookupVin(rawVin, signal) {
+  const vin = (rawVin || '').trim().replace(/[\s-]/g, '')
+  if (vin.length < 11) return null
+  try {
+    if (signal?.aborted) return null
+    const url = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${encodeURIComponent(vin)}?format=json`
+    const res = await fetch(url, { signal })
+    const data = await res.json()
+    const r = data?.Results?.[0]
+    if (!r) return null
+    const make  = (r.Make || '').trim().replace(/\b\w/g, ch => ch.toUpperCase())
+    const model = (r.Model || '').trim()
+    const year  = r.ModelYear ? String(r.ModelYear) : ''
+    if (!make && !model) return null
+    const ft = (r.FuelTypePrimary || '').toLowerCase()
+    const fuel = ft.includes('diesel') ? 'Diesel' : ft.includes('electric') ? 'Electric' : ft.includes('hybrid') ? 'Hybrid' : 'Petrol'
+    return { make, model, year, fuel }
+  } catch (e) { if (e?.name === 'AbortError') return null }
+  return null
+}
+
+// Pick the right vehicle-lookup for the active market
+const lookupVehicle = (input, signal) => (RG.code === 'il' ? lookupPlate(input, signal) : lookupVin(input, signal))
+
 function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customLists }) {
   const [form, setForm] = useState({ plate: '', make: '', model: '', year: '', mileage: '', status: 'Available', fuel: 'Petrol', branch_id: pickLastBranch(branches), driver_id: '' })
   const [lookupState, setLookupState] = useState('idle') // idle | loading | found | notfound
@@ -2002,7 +2037,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
     if (abortRef.current) abortRef.current.abort()
     abortRef.current = new AbortController()
     setLookupState('loading')
-    const result = await lookupPlate(form.plate, abortRef.current.signal)
+    const result = await lookupVehicle(form.plate, abortRef.current.signal)
     if (result === null && abortRef.current?.signal.aborted) return
     if (result) {
       setForm(f => ({ ...f, ...result }))
@@ -2023,7 +2058,7 @@ function AddCarRow({ branches, drivers, onAdd, onCancel, t, rtl, mobile, customL
       <td style={td} />
       <td style={td}>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input autoFocus placeholder={t.plate} value={form.plate} maxLength={20} onChange={e => { setForm({ ...form, plate: e.target.value }); setLookupState('idle') }} style={{ ...inp, flex: 1 }} onKeyDown={e => e.key === 'Enter' && doLookup()} />
+          <input autoFocus placeholder={RG.code === 'il' ? t.plate : (rtl ? 'VIN / לוחית' : 'VIN / Plate')} value={form.plate} maxLength={20} onChange={e => { setForm({ ...form, plate: e.target.value }); setLookupState('idle') }} style={{ ...inp, flex: 1 }} onKeyDown={e => e.key === 'Enter' && doLookup()} />
           <button onClick={doLookup} disabled={lookupState === 'loading' || !form.plate.trim()} title={t.plateLookup} style={{
             background: lookupState === 'found' ? C.success : lookupState === 'notfound' ? C.danger : C.primary,
             color: '#fff', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 11,
@@ -2219,7 +2254,7 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
     if (abortRef.current) abortRef.current.abort()
     abortRef.current = new AbortController()
     setLookupState('loading'); setLookupMsg('')
-    const result = await lookupPlate(form.plate, abortRef.current.signal)
+    const result = await lookupVehicle(form.plate, abortRef.current.signal)
     if (result === null && abortRef.current?.signal.aborted) return
     if (result) {
       setForm(f => ({ ...f, ...result }))
@@ -2247,11 +2282,11 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
     }
     if (tab === 'drivers') {
       if (!isMinLen(form.name, 2)) { setErr(rtl ? 'שם חובה (לפחות 2 תווים)' : 'Name required (at least 2 characters)'); return }
-      if (form.phone && !isIsraeliPhone(form.phone)) { setErr(rtl ? 'מספר טלפון לא תקין' : 'Invalid phone number'); return }
+      if (form.phone && !validPhone(form.phone)) { setErr(rtl ? 'מספר טלפון לא תקין' : 'Invalid phone number'); return }
     }
     if (tab === 'branches') {
       if (!isMinLen(form.name, 2)) { setErr(rtl ? 'שם סניף חובה (לפחות 2 תווים)' : 'Branch name required (at least 2 characters)'); return }
-      if (form.phone && !isIsraeliPhone(form.phone)) { setErr(rtl ? 'מספר טלפון לא תקין' : 'Invalid phone number'); return }
+      if (form.phone && !validPhone(form.phone)) { setErr(rtl ? 'מספר טלפון לא תקין' : 'Invalid phone number'); return }
     }
     const saveForm = tab === 'drivers'
       ? { ...form, license_levels: buildSaveLicenseLevels(form.license_levels, otherText) }
@@ -2271,7 +2306,7 @@ function MobileFormModal({ mode, tab, item, branches, drivers, customLists, onSa
             <div style={fw}>
               <label style={lbl}>{t.plate}</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input value={form.plate||''} maxLength={20} onChange={e=>{ setForm({...form,plate:e.target.value}); setLookupState('idle'); setLookupMsg('') }} placeholder={t.plate} style={{ ...inp, flex: 1 }} autoFocus={!isEdit} />
+                <input value={form.plate||''} maxLength={20} onChange={e=>{ setForm({...form,plate:e.target.value}); setLookupState('idle'); setLookupMsg('') }} placeholder={RG.code === 'il' ? t.plate : (rtl ? 'VIN / לוחית' : 'VIN / Plate')} style={{ ...inp, flex: 1 }} autoFocus={!isEdit} />
                 <button onClick={doLookup} disabled={lookupState==='loading' || !form.plate?.trim()} style={{
                   background: lookupState==='found' ? C.success : lookupState==='notfound' ? C.danger : C.primary,
                   color:'#fff', border:'none', borderRadius:8, padding:'11px 14px',
@@ -2502,7 +2537,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
                   {r.mileage ? r.mileage.toLocaleString() : '—'}
                   {r.mileage && r.next_service_mileage ? <span style={{ color: C.textMuted, fontSize: 11 }}> → {r.next_service_mileage.toLocaleString()}</span> : ''}
                 </td>
-                <td style={mkTd(rtl, isMobile)}>{r.cost ? `₪${parseFloat(r.cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
+                <td style={mkTd(rtl, isMobile)}>{r.cost ? `${RG.currency}${parseFloat(r.cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
                 <td style={mkTd(rtl, isMobile)}><Badge label={statusLabel[r.status] || r.status} color={statusColor[r.status] || C.textMuted} /></td>
                 <td style={mkTd(rtl, isMobile)}><ActionBtn variant="delete" onClick={() => del(r.id)}>{t.delete}</ActionBtn></td>
               </tr>
@@ -2581,11 +2616,11 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ק"מ נוכחי' : 'Mileage (km)'}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ק"מ נוכחי' : `Mileage (${distUnit()})`}</label>
               <input type="number" min="0" value={form.mileage} onChange={e => setForm({ ...form, mileage: e.target.value })} placeholder="0" style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ק"מ לטיפול הבא' : 'Next Service (km)'}</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ק"מ לטיפול הבא' : `Next Service (${distUnit()})`}</label>
               <input type="number" min="0" value={form.next_service_mileage} onChange={e => setForm({ ...form, next_service_mileage: e.target.value })} placeholder="0" style={inp} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: 'span 2' }}>
@@ -3185,7 +3220,7 @@ function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImp
                         <td style={tdStyle}>{r.driverName || '—'}</td>
                         <td style={tdStyle}>{r.fuelLabel || r.fuelCode}</td>
                         <td style={tdStyle}>{isNaN(r.liters) ? '—' : r.liters.toFixed(2)}</td>
-                        <td style={{ ...tdStyle, fontWeight:700 }}>₪{r.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ ...tdStyle, fontWeight:700 }}>{RG.currency}{r.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={tdStyle}>{r.station || '—'}</td>
                       </tr>
                     ))}
@@ -3316,7 +3351,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
         <div style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ height: 3, background: gradient }} />
           <div style={{ padding: '14px 16px' }}>
-            <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: C.primary, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>₪{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: C.primary, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>{RG.currency}{total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <p style={{ margin: 0, fontSize: 12, color: C.textSecondary }}>{t.totalCost}</p>
           </div>
         </div>
@@ -3324,7 +3359,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           <div key={cat} style={{ background: C.surface, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ height: 3, background: catColors[cat] || C.textMuted }} />
             <div style={{ padding: '14px 16px' }}>
-              <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: catColors[cat] || C.textMuted, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>₪{amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: catColors[cat] || C.textMuted, direction: 'ltr', textAlign: rtl ? 'right' : 'left' }}>{RG.currency}{amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               <p style={{ margin: 0, fontSize: 12, color: C.textSecondary }}>{catLabel[cat] || cat}</p>
             </div>
           </div>
@@ -3429,7 +3464,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
           {Object.entries(byCostCenter).sort((a, b) => b[1].total - a[1].total).map(([cc, data]) => (
             <div key={cc} onClick={() => setFilterCostCenter(filterCostCenter === cc ? '' : cc)} style={{ background: filterCostCenter === cc ? C.primary + '10' : C.surface, border: `1px solid ${filterCostCenter === cc ? C.primary : C.border}`, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', transition: 'all 0.15s' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cc}</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: C.textPrimary }}>₪{data.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: C.textPrimary }}>{RG.currency}{data.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               <div style={{ fontSize: 12, color: C.textSecondary }}>{data.count} {rtl ? 'רשומות' : 'records'}</div>
             </div>
           ))}
@@ -3467,7 +3502,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
                   </td>
                   <td style={mkTd(rtl, isMobile)}>{fmtDate(c.date)}</td>
                   <td style={mkTd(rtl, isMobile)}><Badge label={catLabel[c.category] || c.category} color={catColors[c.category] || C.textMuted} /></td>
-                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>₪{parseFloat(c.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td style={{ ...mkTd(rtl, isMobile), fontWeight: 700, color: C.textPrimary }}>{RG.currency}{parseFloat(c.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td style={{ ...mkTd(rtl, isMobile), color: C.textSecondary, fontSize: 12 }}>{c.cost_center || '—'}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.car_id ? carName(c.car_id) : '—'}</td>
                   <td style={mkTd(rtl, isMobile)}>{c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '—') : '—'}</td>
@@ -4146,7 +4181,7 @@ function Dashboard({ cars, drivers, branches, companyId, t, rtl, dashFilter, set
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: C.textPrimary }}><Icon name="coin" size={15} color={C.textSecondary} />{rtl ? 'תקציב חודשי' : 'Monthly Budget'}</span>
             <span style={{ fontSize: 13, fontWeight: 800, color: budgetColor }}>
-              ₪{monthCostsTotal.toLocaleString()} / ₪{monthlyBudget.toLocaleString()} ({Math.round(budgetPct ?? 0)}%)
+              {RG.currency}{monthCostsTotal.toLocaleString()} / {RG.currency}{monthlyBudget.toLocaleString()} ({Math.round(budgetPct ?? 0)}%)
             </span>
           </div>
           <div style={{ height: 10, borderRadius: 5, background: C.border }}>
@@ -5815,12 +5850,49 @@ function BudgetSettings({ companyId, t, rtl }) {
       <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="coin" size={16} color={C.textSecondary} />{rtl ? 'תקציב חודשי' : 'Monthly Budget'}</h3>
       <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>{rtl ? 'הגדר תקציב חודשי כולל. יוצג כסרגל בלוח הבקרה.' : 'Set a monthly spend cap. Shown as a progress bar on the dashboard.'}</p>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <span style={{ fontSize: 16, fontWeight: 700, color: C.textSecondary }}>₪</span>
+        <span style={{ fontSize: 16, fontWeight: 700, color: C.textSecondary }}>{RG.currency}</span>
         <input type="number" value={budget} onChange={e => setBudget(e.target.value)} min={0} placeholder={rtl ? 'ללא מגבלה' : 'No limit'}
           style={{ flex: 1, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }} />
         <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
           {saved ? (rtl ? 'נשמר' : 'Saved') : (rtl ? 'שמור' : 'Save')}
         </button>
+      </div>
+    </div>
+  )
+}
+
+function RegionSettings({ companyId, rtl }) {
+  const [country, setCountry] = useState('il')
+  const [loaded,  setLoaded]  = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
+
+  useEffect(() => {
+    supabase.from('companies').select('country').eq('id', companyId).single()
+      .then(({ data }) => { setCountry(data?.country || 'il'); setLoaded(true) })
+  }, [companyId])
+
+  async function save(next) {
+    setSaving(true)
+    await supabase.from('companies').update({ country: next }).eq('id', companyId)
+    // Reload so units / currency / integrations / vehicle-lookup re-derive app-wide
+    window.location.reload()
+  }
+
+  if (!loaded) return null
+  const rg = getRegion(country)
+  return (
+    <div style={card}>
+      <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.textPrimary }}><Icon name="plug" size={16} color={C.textSecondary} />{rtl ? 'מדינה / שוק' : 'Country / Market'}</h3>
+      <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>{rtl ? 'קובע יחידות (ק"מ/מייל), מטבע, פורמט טלפון/תאריך, זיהוי רכב והאינטגרציות הזמינות.' : 'Sets units (km/mi), currency, phone/date format, vehicle lookup and available integrations.'}</p>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select value={country} disabled={saving} onChange={e => save(e.target.value)}
+          style={{ flex: 1, minWidth: 200, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc', direction: rtl ? 'rtl' : 'ltr' }}>
+          {REGION_CODES.map(code => (
+            <option key={code} value={code}>{REGIONS[code].flag} {rtl ? REGIONS[code].nameHe : REGIONS[code].name}</option>
+          ))}
+        </select>
+        <span style={{ fontSize: 12, color: C.textMuted }}>{rg.currency} · {rg.units} · {rg.phoneCc}</span>
       </div>
     </div>
   )
@@ -6336,6 +6408,11 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
             </div>
           </div>
 
+          {/* Country / market — admin only */}
+          {isAdmin && companyId && (
+            <RegionSettings companyId={companyId} rtl={rtl} />
+          )}
+
           {/* Monthly budget — admin only */}
           {isAdmin && companyId && (
             <BudgetSettings companyId={companyId} t={t} rtl={rtl} />
@@ -6735,7 +6812,7 @@ function NotificationBell({ companyId, userId, rtl }) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'traffic_violations', filter: `company_id=eq.${companyId}` }, p => {
         const v = p.new
         const src = v.fine_source === 'municipal' ? (rtl ? 'עירייה' : 'Municipal') : (rtl ? 'משטרה' : 'Police')
-        setNotes(prev => [{ id: v.id, icon: '🚨', msg: `${rtl ? 'קנס חדש' : 'New fine'} · ${src}${v.plate ? ' · ' + v.plate : ''}${v.amount ? ' · ₪' + v.amount : ''}`, time: new Date() }, ...prev].slice(0, 50))
+        setNotes(prev => [{ id: v.id, icon: '🚨', msg: `${rtl ? 'קנס חדש' : 'New fine'} · ${src}${v.plate ? ' · ' + v.plate : ''}${v.amount ? ' · ' + RG.currency + v.amount : ''}`, time: new Date() }, ...prev].slice(0, 50))
         setUnread(n => n + 1)
       })
       .subscribe()
@@ -7008,7 +7085,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12, marginBottom: 20 }}>
             {[
-              { label: rtl ? 'סה"כ לא שולם' : 'Total Unpaid', value: `₪${totalUnpaid.toLocaleString()}`, color: C.danger },
+              { label: rtl ? 'סה"כ לא שולם' : 'Total Unpaid', value: `${RG.currency}${totalUnpaid.toLocaleString()}`, color: C.danger },
               { label: rtl ? 'קנסות פתוחים' : 'Unpaid', value: unpaid.length, color: C.danger },
               { label: rtl ? 'בערעור' : 'Disputed', value: disputed.length, color: C.warning },
               { label: rtl ? 'שולמו' : 'Paid', value: paid.length, color: C.success },
@@ -7079,7 +7156,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סכום (₪)' : 'Amount (₪)'}</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סכום' : 'Amount'} ({RG.currency})</label>
                 <input type="number" style={inp} value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="250" />
               </div>
               <div>
@@ -7141,7 +7218,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                   <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{v.violation_type}</td>
                   <td style={{ padding: '12px 14px', fontSize: 13, color: C.textPrimary }}>{driverName(v.driver_id)}</td>
                   <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: C.danger }}>
-                    {v.amount ? `₪${parseFloat(v.amount).toLocaleString()}` : '—'}
+                    {v.amount ? `${RG.currency}${parseFloat(v.amount).toLocaleString()}` : '—'}
                   </td>
                   <td style={{ padding: '12px 14px' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, background: (VIOLATION_PAYMENT_STATUS_COLORS[v.payment_status || 'unpaid'] || '#ef4444') + '18', color: VIOLATION_PAYMENT_STATUS_COLORS[v.payment_status || 'unpaid'] || '#ef4444' }}>
@@ -7208,8 +7285,8 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
               <p style={{ margin: 0, fontWeight: 600 }}>{rtl ? 'הצהרת הנהג:' : 'Driver Declaration:'}</p>
               <p style={{ margin: '8px 0 0', color: C.textSecondary, lineHeight: 1.7 }}>
                 {rtl
-                  ? `אני ${driverName(signTarget.driver_id)} מאשר/ת שנהגתי ברכב ${formatPlate(signTarget.plate)} בתאריך ${signTarget.violation_date} ואני האחראי/ת לקנס מספר ${signTarget.fine_number || '—'} בסך ₪${signTarget.amount || '—'} בגין: ${signTarget.violation_type}.`
-                  : `I, ${driverName(signTarget.driver_id)}, confirm that I drove vehicle ${formatPlate(signTarget.plate)} on ${signTarget.violation_date} and I am responsible for fine #${signTarget.fine_number || '—'} of ₪${signTarget.amount || '—'} for: ${signTarget.violation_type}.`
+                  ? `אני ${driverName(signTarget.driver_id)} מאשר/ת שנהגתי ברכב ${formatPlate(signTarget.plate)} בתאריך ${signTarget.violation_date} ואני האחראי/ת לקנס מספר ${signTarget.fine_number || '—'} בסך ${RG.currency}${signTarget.amount || '—'} בגין: ${signTarget.violation_type}.`
+                  : `I, ${driverName(signTarget.driver_id)}, confirm that I drove vehicle ${formatPlate(signTarget.plate)} on ${signTarget.violation_date} and I am responsible for fine #${signTarget.fine_number || '—'} of ${RG.currency}${signTarget.amount || '—'} for: ${signTarget.violation_type}.`
                 }
               </p>
             </div>
@@ -7388,7 +7465,7 @@ function ProcurementTab({ cars, companyId, rtl }) {
           </div>
           <div><span style={label}>{rtl ? 'תאריך הזמנה' : 'Order date'}</span><input type="date" value={orderForm.order_date} onChange={e => setOrderForm(p => ({ ...p, order_date: e.target.value }))} style={inp} /></div>
           <div><span style={label}>{rtl ? 'תאריך צפוי' : 'Expected date'}</span><input type="date" value={orderForm.expected_date} onChange={e => setOrderForm(p => ({ ...p, expected_date: e.target.value }))} style={inp} /></div>
-          <div><span style={label}>{rtl ? 'סכום (₪)' : 'Amount'}</span><input type="number" step="0.01" value={orderForm.amount} onChange={e => setOrderForm(p => ({ ...p, amount: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'סכום' : 'Amount'} ({RG.currency})</span><input type="number" step="0.01" value={orderForm.amount} onChange={e => setOrderForm(p => ({ ...p, amount: e.target.value }))} style={inp} /></div>
           <div><span style={label}>{rtl ? 'סטטוס' : 'Status'}</span>
             <select value={orderForm.status} onChange={e => setOrderForm(p => ({ ...p, status: e.target.value }))} style={inp}>
               {Object.entries(orderStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -7416,7 +7493,7 @@ function ProcurementTab({ cars, companyId, rtl }) {
           <div><span style={label}>{rtl ? 'מספר חשבונית' : 'Invoice number'}</span><input value={invoiceForm.invoice_number} onChange={e => setInvoiceForm(p => ({ ...p, invoice_number: e.target.value }))} style={inp} /></div>
           <div><span style={label}>{rtl ? 'תאריך חשבונית' : 'Invoice date'}</span><input type="date" value={invoiceForm.invoice_date} onChange={e => setInvoiceForm(p => ({ ...p, invoice_date: e.target.value }))} style={inp} /></div>
           <div><span style={label}>{rtl ? 'תאריך לתשלום' : 'Due date'}</span><input type="date" value={invoiceForm.due_date} onChange={e => setInvoiceForm(p => ({ ...p, due_date: e.target.value }))} style={inp} /></div>
-          <div><span style={label}>{rtl ? 'סכום (₪)' : 'Amount'}</span><input type="number" step="0.01" value={invoiceForm.amount} onChange={e => setInvoiceForm(p => ({ ...p, amount: e.target.value }))} style={inp} /></div>
+          <div><span style={label}>{rtl ? 'סכום' : 'Amount'} ({RG.currency})</span><input type="number" step="0.01" value={invoiceForm.amount} onChange={e => setInvoiceForm(p => ({ ...p, amount: e.target.value }))} style={inp} /></div>
           <div><span style={label}>{rtl ? 'סטטוס' : 'Status'}</span>
             <select value={invoiceForm.status} onChange={e => setInvoiceForm(p => ({ ...p, status: e.target.value }))} style={inp}>
               {Object.entries(invoiceStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -7473,7 +7550,7 @@ function ProcurementTab({ cars, companyId, rtl }) {
                       <td style={{ padding: '9px 14px', fontWeight: 600 }}>{supplierName(o.supplier_id)}</td>
                       <td style={{ padding: '9px 14px' }}>{carPlate(o.car_id)}</td>
                       <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(o.order_date)}</td>
-                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{o.amount != null ? `₪${Number(o.amount).toLocaleString()}` : '—'}</td>
+                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{o.amount != null ? `${RG.currency}${Number(o.amount).toLocaleString()}` : '—'}</td>
                       <td style={{ padding: '9px 14px' }}>
                         <select value={o.status} onChange={e => updateOrderStatus(o.id, e.target.value)} style={{ ...inp, width: 'auto', padding: '4px 8px', fontSize: 12, color: orderStatusColor[o.status] || C.textPrimary, fontWeight: 700 }}>
                           {Object.entries(orderStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -7506,7 +7583,7 @@ function ProcurementTab({ cars, companyId, rtl }) {
                       <td style={{ padding: '9px 14px' }}>{inv.invoice_number || '—'}</td>
                       <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(inv.invoice_date)}</td>
                       <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(inv.due_date)}</td>
-                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>₪{Number(inv.amount || 0).toLocaleString()}</td>
+                      <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{RG.currency}{Number(inv.amount || 0).toLocaleString()}</td>
                       <td style={{ padding: '9px 14px' }}>
                         <select value={inv.status} onChange={e => updateInvoiceStatus(inv.id, e.target.value)} style={{ ...inp, width: 'auto', padding: '4px 8px', fontSize: 12, color: invoiceStatusColor[inv.status] || C.textPrimary, fontWeight: 700 }}>
                           {Object.entries(invoiceStatusLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -7575,12 +7652,12 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
     const filtered = costs.filter(c => c.date >= dateFrom && c.date <= dateTo)
     const total    = filtered.reduce((s,c) => s + parseFloat(c.amount||0), 0)
     const byCat    = filtered.reduce((acc,c) => { acc[c.category]=(acc[c.category]||0)+parseFloat(c.amount||0); return acc }, {})
-    const catRows  = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${cat}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:700">₪${amt.toLocaleString('en',{minimumFractionDigits:2})}</td></tr>`).join('')
+    const catRows  = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${cat}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:700">${RG.currency}${amt.toLocaleString('en',{minimumFractionDigits:2})}</td></tr>`).join('')
     return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px">
       <h1 style="color:#0f172a;margin:0 0 4px">סיכום עלויות</h1>
       <p style="color:#64748b;margin:0 0 24px">${dateFrom} – ${dateTo}</p>
       <div style="background:#eff6ff;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
-        <div style="font-size:36px;font-weight:800;color:#2563eb">₪${total.toLocaleString('en',{minimumFractionDigits:2})}</div>
+        <div style="font-size:36px;font-weight:800;color:#2563eb">${RG.currency}${total.toLocaleString('en',{minimumFractionDigits:2})}</div>
         <div style="font-size:13px;color:#64748b">סה"כ הוצאות</div>
       </div>
       <table style="width:100%;border-collapse:collapse">
@@ -7616,7 +7693,7 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
     if (reportType === 'cost_summary') {
       const filtered = costs.filter(c => c.date >= dateFrom && c.date <= dateTo)
       const total    = filtered.reduce((s,c) => s + parseFloat(c.amount||0), 0)
-      return `💰 *סיכום עלויות ${dateFrom} – ${dateTo}*\n\nסה"כ: ₪${total.toLocaleString('en',{minimumFractionDigits:2})}\nמספר רשומות: ${filtered.length}`
+      return `💰 *סיכום עלויות ${dateFrom} – ${dateTo}*\n\nסה"כ: ${RG.currency}${total.toLocaleString('en',{minimumFractionDigits:2})}\nמספר רשומות: ${filtered.length}`
     }
     const expired = drivers.filter(d => d.license_expiry && new Date(d.license_expiry) < new Date()).length
     const expiring = drivers.filter(d => { if (!d.license_expiry) return false; const days=(new Date(d.license_expiry)-new Date())/86400000; return days>=0&&days<30 }).length
@@ -7982,10 +8059,19 @@ function ConnectionManager({ companyId, rtl }) {
   const [saving, setSaving]           = useState(false)
   const [deletingId, setDeletingId]   = useState(null)
   const [showPass, setShowPass]       = useState({})
+  const [country, setCountry]         = useState('il')
 
   useEffect(() => {
     supabase.from('integration_catalog').select('*').eq('active', true).order('sort_order').then(({ data }) => setCatalog(data || []))
   }, [])
+
+  useEffect(() => {
+    if (!companyId) return
+    supabase.from('companies').select('country').eq('id', companyId).maybeSingle().then(({ data }) => setCountry(data?.country || 'il'))
+  }, [companyId])
+
+  // Only offer integrations available in this company's market
+  const visibleCatalog = catalog.filter(c => !c.regions || c.regions.includes(country))
 
   useEffect(() => {
     if (!companyId) return
@@ -8107,7 +8193,7 @@ function ConnectionManager({ companyId, rtl }) {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-        {catalog.map(integ => (
+        {visibleCatalog.map(integ => (
           <button
             key={integ.key}
             onClick={() => openForm(integ)}
@@ -8452,6 +8538,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const isNarrow                  = useIsNarrow()
   const [filesFor, setFilesFor]   = useState(null)
   const [companyLimits, setCompanyLimits] = useState({ max_cars: null, max_users: null })
+  const [companyCountry, setCompanyCountry] = useState('il')
   const [customLists, setCustomLists]     = useState({})
   const [viewCompanyId, setViewCompanyId]   = useState(isMaster ? null : companyId)
   const [viewCompanyName, setViewCompanyName] = useState(null)
@@ -8501,7 +8588,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       supabase.from('branches').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('drivers').select('*').eq('company_id', activeCompanyId).order('created_at'),
       supabase.from('cars').select('*').eq('company_id', activeCompanyId).order('created_at'),
-      supabase.from('companies').select('max_cars, max_users').eq('id', activeCompanyId).maybeSingle(),
+      supabase.from('companies').select('max_cars, max_users, country').eq('id', activeCompanyId).maybeSingle(),
       supabase.from('custom_lists').select('*').eq('company_id', activeCompanyId).order('sort_order'),
       supabase.from('traffic_violations').select('driver_id,fine_source').eq('company_id', activeCompanyId).not('driver_id', 'is', null),
     ])
@@ -8517,7 +8604,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       Object.keys(scores).forEach(id => { scores[id] = Math.max(0, scores[id]) })
       setDriverScores(scores)
     }
-    if (co) setCompanyLimits(co)
+    if (co) { setCompanyLimits(co); RG = getRegion(co.country || 'il'); setCompanyCountry(co.country || 'il') }
     if (cl) {
       const grouped = {}
       cl.forEach(item => {
@@ -8782,7 +8869,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       setCrudError(t.limitReachedUsers); return
     }
     if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הנהג חייב להכיל לפחות 2 תווים' : 'Driver name must be at least 2 characters'); return }
-    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
+    if (form.phone && !validPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const { data, error } = await supabase.from('drivers').insert([cleanDriver(form)]).select()
     if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setDrivers(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
@@ -8790,7 +8877,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
   async function updateDriver(form) {
     if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הנהג חייב להכיל לפחות 2 תווים' : 'Driver name must be at least 2 characters'); return }
-    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
+    if (form.phone && !validPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const prevDrv = drivers.find(x => x.id === form.id)
     const { id: driverId, ...driverData } = { ...cleanDriver(form), id: form.id }
     const { error } = await supabase.from('drivers').update(driverData).eq('id', driverId)
@@ -8809,7 +8896,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
   async function addBranch(form) {
     if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הסניף חייב להכיל לפחות 2 תווים' : 'Branch name must be at least 2 characters'); return }
-    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
+    if (form.phone && !validPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const { data, error } = await supabase.from('branches').insert([cleanBranch(form)]).select()
     if (error) { setCrudError(friendlyDbError(error, rtl)); return }
     setBranches(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
@@ -8817,7 +8904,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   }
   async function updateBranch(form) {
     if (!isMinLen(form.name, 2)) { setCrudError(rtl ? 'שם הסניף חייב להכיל לפחות 2 תווים' : 'Branch name must be at least 2 characters'); return }
-    if (form.phone && !isIsraeliPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
+    if (form.phone && !validPhone(form.phone)) { setCrudError(rtl ? 'מספר טלפון לא תקין (לדוגמה: 050-1234567)' : 'Invalid phone number (e.g. 050-1234567)'); return }
     const prevBrn = branches.find(x => x.id === form.id)
     const { id: branchId, ...branchData } = { ...cleanBranch(form), id: form.id }
     const { error } = await supabase.from('branches').update(branchData).eq('id', branchId)
