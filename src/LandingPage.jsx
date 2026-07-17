@@ -399,15 +399,6 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo, reg
         {sep}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div className="lp-region" style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(255,255,255,.06)', borderRadius: 100, padding: 2 }} title={region?.name}>
-            {REGION_CODES.map(code => (
-              <button key={code} onClick={() => switchRegion(code)}
-                style={{ background: region?.code === code ? 'rgba(255,255,255,.16)' : 'transparent', border: 'none', borderRadius: 100, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '4px 6px', opacity: region?.code === code ? 1 : .55 }}
-                title={REGIONS[code].name}>
-                {REGIONS[code].flag}
-              </button>
-            ))}
-          </div>
           <button className="lp-lang-btn" onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
             style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: .8, padding: '4px 8px' }}>
             {t.langBtn}

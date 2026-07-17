@@ -15,11 +15,19 @@ export function regionFromPath(pathname = '') {
   return m ? m[1].toLowerCase() : null
 }
 
-// Best-effort guess for a first-time visitor who landed on the bare "/"
+// Auto-detect the visitor's market so they never have to pick one.
+// Strongest signal first: the browser locale's region subtag (en-CA vs en-US),
+// then timezone, then default. (For IP-accurate geo, add a Vercel edge redirect.)
 export function detectRegion() {
   try {
-    const langs = (navigator.languages || [navigator.language || '']).map(l => l.toLowerCase())
-    if (langs.some(l => l.startsWith('he') || l.startsWith('iw'))) return 'il'
+    for (const raw of (navigator.languages || [navigator.language || ''])) {
+      const l = raw.toLowerCase()
+      if (l.startsWith('he') || l.startsWith('iw')) return 'il'
+      const sub = l.split('-')[1]                    // "en-ca" -> "ca"
+      if (sub === 'ca') return 'ca'
+      if (sub === 'us') return 'us'
+      if (sub === 'il') return 'il'
+    }
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
     if (tz === 'Asia/Jerusalem') return 'il'
     const CA_TZ = ['Toronto', 'Vancouver', 'Edmonton', 'Winnipeg', 'Halifax', 'Regina', 'St_Johns', 'Moncton', 'Montreal']
