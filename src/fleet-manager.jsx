@@ -6408,8 +6408,8 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
             </div>
           </div>
 
-          {/* Country / market — admin only */}
-          {isAdmin && companyId && (
+          {/* Country / market — master only */}
+          {isMaster && companyId && (
             <RegionSettings companyId={companyId} rtl={rtl} />
           )}
 
