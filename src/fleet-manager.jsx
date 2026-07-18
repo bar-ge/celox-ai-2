@@ -1049,6 +1049,23 @@ const FORM_TYPE_LABELS = {
   yearly_training:  { he: 'אימות הדרכה שנתית',      icon: '🎓' },
 }
 
+// Checklist groups (equipment, tachograph, …) are submitted as { key: bool } objects.
+// String(v) turns those into "[object Object]", so expand them into a readable list.
+const CHECK_ITEM_LABELS = {
+  // equipment — driver_car_check
+  lights: 'תאורה', brakes: 'בלמים', tires: 'צמיגים', extinguisher: 'מטף כיבוי',
+  triangles: 'משולשי אזהרה', first_aid: 'ערכת עזרה ראשונה', documents: 'מסמכי רכב', wipers: 'מגבים',
+  // tachograph — traffic regulation 364d
+  disc_replaced: 'דיסקה הוחלפה ב‑24ש׳', disc_details: 'פרטי נהג על הדיסקה', disc_spare: 'דיסקה רזרבית',
+  disc_clean: 'דיסקה נקייה ותקינה', device_working: 'הטכוגרף תקין', calibration_cert: 'אישור כיול ברכב',
+  // periodic_inspection
+  oil: 'שמן מנוע', coolant: 'מים/קירור מנוע', mirrors: 'מראות',
+}
+const isCheckGroup  = v => v && typeof v === 'object' && !Array.isArray(v)
+const fmtCheckGroup = v => Object.entries(v)
+  .map(([k, on]) => `${on ? '✓' : '✗'} ${CHECK_ITEM_LABELS[k] || k.replace(/_/g, ' ')}`)
+  .join('   ')
+
 function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
   const [subs,     setSubs]     = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -1110,8 +1127,10 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
               <div style={{ borderTop: '1px solid #e2e8f0', padding: '12px 14px', fontSize: 12 }}>
                 {Object.entries(sub.data || {}).filter(([k, v]) => v && k !== 'submitter_name' && k !== 'attachments').map(([k, v]) => (
                   <div key={k} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <span style={{ color: '#64748b', minWidth: 130, fontWeight: 600 }}>{k.replace(/_/g, ' ')}</span>
-                    <span style={{ color: '#2B2630', flex: 1 }}>{Array.isArray(v) ? v.join(', ') : String(v)}</span>
+                    <span style={{ color: '#64748b', minWidth: 130, fontWeight: 600 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g, ' ')}</span>
+                    <span style={{ color: '#2B2630', flex: 1 }}>
+                      {isCheckGroup(v) ? fmtCheckGroup(v) : Array.isArray(v) ? v.join(', ') : String(v)}
+                    </span>
                   </div>
                 ))}
                 {sub.data?.attachments?.length > 0 && (
@@ -1379,7 +1398,73 @@ function buildSaveLicenseLevels(levels = [], otherText = '') {
 }
 
 // ── Car Detail Modal ─────────────────────────────────────────────────────────
-function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClose }) {
+// ── Tachograph calibration (Israel — traffic regulation 364d) ────────────────
+// Buses over 8t, commercial vehicles over 8t and hazmat carriers must run a
+// working tachograph with a valid calibration certificate. An expired
+// certificate is a fixed 750₪ fine plus 8 demerit points — fully predictable,
+// so it belongs in the same expiry engine as insurance and licences.
+function TachographBlock({ car, rtl, sTitle, sectionStyle, onCarUpdate }) {
+  const [required, setRequired] = useState(!!car.tachograph_required)
+  const [expiry,   setExpiry]   = useState(car.tachograph_calibration_expiry || '')
+  const [saving,   setSaving]   = useState(false)
+  const [saved,    setSaved]    = useState(false)
+  const [err,      setErr]      = useState('')
+
+  async function save(patch) {
+    setSaving(true); setErr(''); setSaved(false)
+    const { error } = await supabase.from('cars').update(patch).eq('id', car.id)
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    onCarUpdate?.(car.id, patch)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  const days = expiry ? Math.ceil((new Date(expiry) - new Date().setHours(0, 0, 0, 0)) / 86400000) : null
+  const color = days === null ? C.textMuted : days < 0 ? C.danger : days <= 30 ? C.warning : C.success
+  const label = days === null ? ''
+    : days < 0  ? (rtl ? `פג תוקף לפני ${Math.abs(days)} ימים` : `Expired ${Math.abs(days)} days ago`)
+    : days === 0 ? (rtl ? 'פג היום' : 'Expires today')
+    : days <= 30 ? (rtl ? `פוקע בעוד ${days} ימים` : `Expires in ${days} days`)
+    : (rtl ? 'בתוקף' : 'Valid')
+
+  const inp = { padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, background: C.surface, color: C.textPrimary }
+
+  return (
+    <div style={sectionStyle}>
+      <div style={sTitle}>{rtl ? 'טכוגרף' : 'Tachograph'}</div>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', fontSize: 13, color: C.textPrimary, padding: '4px 0 10px' }}>
+        <input type="checkbox" checked={required} disabled={saving}
+          onChange={e => { const v = e.target.checked; setRequired(v); save({ tachograph_required: v }) }}
+          style={{ width: 16, height: 16, cursor: 'pointer', accentColor: C.primary }} />
+        {rtl ? 'הרכב חייב בטכוגרף (תקנה 364ד)' : 'Vehicle requires a tachograph (reg. 364d)'}
+      </label>
+
+      {required && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, color: C.textMuted }}>{rtl ? 'תוקף אישור כיול' : 'Calibration certificate expiry'}</span>
+            <DateInput value={expiry}
+              onChange={e => { const v = e.target.value; setExpiry(v); save({ tachograph_calibration_expiry: v || null }) }}
+              style={inp} placeholder="DD/MM/YY" />
+            {label && (
+              <span style={{ fontSize: 11, fontWeight: 700, color, background: color + '1f', padding: '3px 9px', borderRadius: 999 }}>{label}</span>
+            )}
+            {saved && <span style={{ fontSize: 11, color: C.success, fontWeight: 700 }}><Icon name="check" size={12} /> {rtl ? 'נשמר' : 'Saved'}</span>}
+          </div>
+          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8, lineHeight: 1.6 }}>
+            {rtl
+              ? 'אישור כיול שפג תוקפו — 750₪ ו‑8 נקודות. התראה תופיע בלשונית ההתראות 30 יום מראש.'
+              : 'An expired certificate carries a ₪750 fine and 8 demerit points. An alert appears 30 days ahead in the Alerts tab.'}
+          </div>
+        </>
+      )}
+      {err && <div style={{ fontSize: 12, color: C.danger, marginTop: 8 }}>{err}</div>}
+    </div>
+  )
+}
+
+function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClose, onCarUpdate }) {
   const [tab, setTab]           = useState('overview')
   const [maintenance, setMaint] = useState([])
   const [costs, setCosts]       = useState([])
@@ -1466,6 +1551,10 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                     </div>
                   ))}
                 </div>
+
+                {RG.code === 'il' && (
+                  <TachographBlock car={car} rtl={rtl} sTitle={sTitle} sectionStyle={sectionStyle} onCarUpdate={onCarUpdate} />
+                )}
 
                 <div style={sectionStyle}>
                   <div style={sTitle}>{rtl ? 'נהג נוכחי' : 'Current Driver'}</div>
@@ -3607,8 +3696,8 @@ function AlertsTab({ companyId, rtl }) {
     setLoading(false)
   }
 
-  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification' }
-  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓' }
+  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph' }
+  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓', tachograph: '⏱️' }
 
   const filtered = alerts
     .filter(a => !filterType || a.type === filterType)
@@ -3684,6 +3773,7 @@ function AlertsTab({ companyId, rtl }) {
           <option value="document">{typeLabel.document}</option>
           <option value="license">{typeLabel.license}</option>
           <option value="certification">{typeLabel.certification}</option>
+          {RG.code === 'il' && <option value="tachograph">{typeLabel.tachograph}</option>}
         </select>
         <select value={filterSev} onChange={e => setFilterSev(e.target.value)} style={inp}>
           <option value="">{rtl ? 'כל הסטטוסים' : 'All statuses'}</option>
@@ -4665,6 +4755,9 @@ const SUB_FIELD_LABELS = {
   driver_license: 'מספר רישיון נהיגה', training_date: 'תאריך הדרכה',
   trainer_name: 'שם המדריך', topics: 'נושאים שנלמדו', other_topic: 'נושא נוסף',
   confirmed: 'אישור הצהרה',
+  equipment: 'בדיקת ציוד', tachograph: 'טכוגרף (תקנה 364ד)',
+  handover_type: 'סוג מסירה', mileage_before: 'ק״מ בקבלה', mileage_after: 'ק״מ בהחזרה',
+  signature: 'חתימה',
 }
 const SUB_VAL = { yes: 'כן', no: 'לא', 'true': 'כן', 'false': 'לא', ok: 'תקין', dirty: 'מלוכלך', damaged: 'פגום' }
 const fmtSubVal = v => {
@@ -9507,6 +9600,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           t={t}
           rtl={rtl}
           onClose={() => setDetailCar(null)}
+          onCarUpdate={(carId, patch) => {
+            setCars(p => p.map(c => c.id === carId ? { ...c, ...patch } : c))
+            setDetailCar(p => p && p.id === carId ? { ...p, ...patch } : p)
+          }}
         />
       )}
 

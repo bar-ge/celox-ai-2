@@ -386,9 +386,22 @@ const EQUIPMENT_ITEMS = [
   { key: 'wipers',     label: '🌧️ מגבי שמשה קדמיים ואחוריים' },
 ]
 
+// Tachograph daily checks — traffic regulation 364d. Shown only for vehicles the
+// fleet manager flagged as tachograph-obligated (cars.tachograph_required).
+// Each of these is a separate 750₪ + 8-point offence if missed.
+const TACHOGRAPH_ITEMS = [
+  { key: 'disc_replaced',   label: '⏱️ הדיסקה הוחלפה ב‑24 השעות האחרונות' },
+  { key: 'disc_details',    label: '✍️ פרטי הנהג, שעת התחלה ומד האוץ מולאו על הדיסקה' },
+  { key: 'disc_spare',      label: '🗂️ קיימת דיסקה רזרבית ברכב' },
+  { key: 'disc_clean',      label: '🧼 הדיסקה נקייה ותקינה (ללא קרעים/לכלוך)' },
+  { key: 'device_working',  label: '⚙️ הטכוגרף תקין ופועל' },
+  { key: 'calibration_cert', label: '📜 אישור כיול בתוקף נמצא ברכב' },
+]
+
 function DriverCarCheckForm({ link, onSubmit, submitting }) {
   const car    = link.car    || {}
   const driver = link.driver || {}
+  const needsTacho = !!car.tachograph_required
   const [form, setForm] = useState({
     submitter_name:  driver.name || '',
     plate:           car.plate   || '',
@@ -398,6 +411,10 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
     exterior_damage: '', damage_desc: '',
     interior_ok:     '',
     equipment:       {},
+    // Seeded with every key false so an unticked item is recorded as an explicit
+    // "no" rather than vanishing from the submission — the whole point is proving
+    // what was checked on a given day.
+    tachograph:      needsTacho ? Object.fromEntries(TACHOGRAPH_ITEMS.map(i => [i.key, false])) : {},
     notes:           '',
     signature:       '',
   })
@@ -405,6 +422,7 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
   const [formError, setFormError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const setEquip = (k, v) => setForm(f => ({ ...f, equipment: { ...f.equipment, [k]: v } }))
+  const setTacho = (k, v) => setForm(f => ({ ...f, tachograph: { ...f.tachograph, [k]: v } }))
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -490,6 +508,24 @@ function DriverCarCheckForm({ link, onSubmit, submitting }) {
           ))}
         </div>
       </div>
+
+      {needsTacho && (
+        <div style={section}>
+          <div style={sectionTitle}>⏱️ טכוגרף (תקנה 364ד)</div>
+          <div style={{ fontSize: 12, color: C.textSub, marginBottom: 12, lineHeight: 1.6 }}>
+            כל פריט שאינו מסומן הוא עבירה נפרדת — 750₪ ו‑8 נקודות.
+          </div>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {TACHOGRAPH_ITEMS.map(({ key, label }) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: `1px solid ${form.tachograph[key] ? C.success + '60' : C.border}`, background: form.tachograph[key] ? C.success + '08' : 'transparent', cursor: 'pointer' }}
+                onClick={() => setTacho(key, !form.tachograph[key])}>
+                <input type="checkbox" checked={!!form.tachograph[key]} onChange={() => setTacho(key, !form.tachograph[key])} style={{ accentColor: C.success, width: 17, height: 17, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: C.text, userSelect: 'none' }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={section}>
         <div style={sectionTitle}>🔍 מצב הרכב</div>
