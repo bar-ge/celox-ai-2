@@ -360,7 +360,8 @@ function SectionHead({ chip, h, sub, light, dir, align = 'center' }) {
 }
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
-function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo }) {
+function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
+  const switchRegion = code => { if (code !== region.code) window.location.href = '/' + code }
   const sep = <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,.12)', flexShrink: 0 }} />
   const linkStyle = { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.65)', cursor: 'pointer', padding: '4px 2px', letterSpacing: .1 }
 
@@ -398,6 +399,15 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo }) {
         {sep}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="lp-region" style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(255,255,255,.06)', borderRadius: 100, padding: 2 }} title={region?.name}>
+            {REGION_CODES.map(code => (
+              <button key={code} onClick={() => switchRegion(code)}
+                style={{ background: region?.code === code ? 'rgba(255,255,255,.16)' : 'transparent', border: 'none', borderRadius: 100, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '4px 6px', opacity: region?.code === code ? 1 : .55 }}
+                title={REGIONS[code].name}>
+                {REGIONS[code].flag}
+              </button>
+            ))}
+          </div>
           <a href="/app" className="lp-btn-primary"
             style={{ display: 'inline-block', background: '#2563eb', color: '#fff', textDecoration: 'none', padding: '9px 20px', borderRadius: 100, fontSize: 12, fontWeight: 700, boxShadow: '0 2px 14px rgba(37,99,235,.4)', letterSpacing: .1 }}>
             {t.nav.enter}
@@ -855,7 +865,7 @@ export default function LandingPage({ region: regionCode }) {
 
   return (
     <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
-      <Nav t={t} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
+      <Nav t={t} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} region={region} />
       <Hero t={t} />
       <Phases t={t} />
       <Stats t={t} />
