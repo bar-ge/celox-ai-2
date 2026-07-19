@@ -2,7 +2,7 @@ import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { SpeedInsights } from '@vercel/speed-insights/react'
-import { regionFromPath, detectRegion } from './regions.js'
+import { regionFromPath, detectRegion, getRegion } from './regions.js'
 
 const App         = lazy(() => import('./App.jsx'))
 const LandingPage = lazy(() => import('./LandingPage.jsx'))
@@ -27,6 +27,14 @@ const isHome = afterRegion === '' || afterRegion === '/'
 if (!region && isHome && !isAuthCallback) {
   region = detectRegion()
   window.history.replaceState(null, '', '/' + region)   // "/" -> "/il" (or detected)
+}
+
+// The landing is where the market gets picked, and language follows the market.
+// Persist it so /app opens in the same language the visitor was just reading —
+// without this, a stale fleet_lang would show the app in Hebrew to a /us visitor.
+if (region && isHome && !isAuthCallback) {
+  localStorage.setItem('celox_region', region)
+  localStorage.setItem('fleet_lang', getRegion(region).lang)
 }
 
 const Root = path === '/privacy' ? PrivacyPage : (isHome && !isAuthCallback) ? LandingPage : App

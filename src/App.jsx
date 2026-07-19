@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { supabase } from './supabaseClient'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { friendlyDbError } from './validators'
+import { getRegion, detectRegion } from './regions.js'
 import './App.css'
 
 const FleetManager = lazy(() => import('./fleet-manager'))
@@ -46,7 +47,6 @@ const L = {
     emailPlaceholder: 'you@example.com', passwordPlaceholder: '••••••••',
     submitSignIn: 'Sign In', submitSignUp: 'Create Account',
     accountCreated: 'Account created! Please sign in.',
-    securedBy: 'Secured by Supabase Auth',
     joinSub: 'Join your company workspace',
     joinWithCode: 'Join with Code', pendingInvites: 'Pending Invites',
     inviteCodeLabel: 'Company Invite Code',
@@ -103,7 +103,6 @@ const L = {
     emailPlaceholder: 'you@example.com', passwordPlaceholder: '••••••••',
     submitSignIn: 'כניסה', submitSignUp: 'צור חשבון',
     accountCreated: 'החשבון נוצר! אנא התחבר.',
-    securedBy: 'מאובטח על ידי Supabase Auth',
     joinSub: 'הצטרף לסביבת העבודה של החברה',
     joinWithCode: 'הצטרף עם קוד', pendingInvites: 'הזמנות ממתינות',
     inviteCodeLabel: 'קוד הזמנה לחברה',
@@ -669,7 +668,6 @@ function LoginScreen({ lang, setLang, notice }) {
         )}
       </Card>
       {notice && <div style={{ marginTop: 16, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 8, padding: '10px 16px', fontSize: 13, color: '#fca5a5', maxWidth: 400, textAlign: 'center' }}>{notice}</div>}
-      <p style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t.securedBy}</p>
 
       {/* Privacy Policy Modal (inline, no fleet-manager dep) */}
       {showPrivacyModal && (
@@ -845,7 +843,10 @@ export default function App() {
 
   const [session, setSession]         = useState(undefined)
   const [profile, setProfile]         = useState(undefined)
-  const [lang, setLang]               = useState(() => localStorage.getItem('fleet_lang') || 'en')
+  // The landing writes fleet_lang from the visitor's region; falling back to a
+  // detected region (not a hardcoded 'en') keeps a direct /app visit consistent.
+  const [lang, setLang]               = useState(() =>
+    localStorage.getItem('fleet_lang') || getRegion(detectRegion()).lang)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [timedOut, setTimedOut]       = useState(false)
   const [crmMode, setCrmMode]         = useState(false)
