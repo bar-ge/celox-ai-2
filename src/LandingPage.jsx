@@ -360,8 +360,7 @@ function SectionHead({ chip, h, sub, light, dir, align = 'center' }) {
 }
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
-function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
-  const switchRegion = code => { if (code !== region.code) window.location.href = '/' + code }
+function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo }) {
   const sep = <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,.12)', flexShrink: 0 }} />
   const linkStyle = { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.65)', cursor: 'pointer', padding: '4px 2px', letterSpacing: .1 }
 
@@ -399,10 +398,6 @@ function Nav({ t, lang, setLang, solid, mobileOpen, setMobileOpen, scrollTo, reg
         {sep}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button className="lp-lang-btn" onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
-            style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: .8, padding: '4px 8px' }}>
-            {t.langBtn}
-          </button>
           <a href="/app" className="lp-btn-primary"
             style={{ display: 'inline-block', background: '#2563eb', color: '#fff', textDecoration: 'none', padding: '9px 20px', borderRadius: 100, fontSize: 12, fontWeight: 700, boxShadow: '0 2px 14px rgba(37,99,235,.4)', letterSpacing: .1 }}>
             {t.nav.enter}
@@ -812,7 +807,7 @@ function Chip({ children, light }) {
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function LandingPage({ region: regionCode }) {
   const region = getRegion(regionCode)
-  const [lang, setLang]             = useState(region.lang)
+  const lang = region.lang          // language follows the country/region — no manual toggle
   const [scrollY, setScrollY]       = useState(0)
   const [navSolid, setNavSolid]     = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -860,7 +855,7 @@ export default function LandingPage({ region: regionCode }) {
 
   return (
     <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
-      <Nav t={t} lang={lang} setLang={setLang} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} region={region} />
+      <Nav t={t} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} />
       <Hero t={t} />
       <Phases t={t} />
       <Stats t={t} />
