@@ -361,7 +361,13 @@ function SectionHead({ chip, h, sub, light, dir, align = 'center' }) {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
-  const switchRegion = code => { if (code !== region.code) window.location.href = '/' + code }
+  // Deliberately picking a country is a market change, so it clears any earlier
+  // in-app language override and lets the new region's language take effect.
+  const switchRegion = code => {
+    if (code === region.code) return
+    localStorage.removeItem('fleet_lang_manual')
+    window.location.href = '/' + code
+  }
   const sep = <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,.12)', flexShrink: 0 }} />
   const linkStyle = { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.65)', cursor: 'pointer', padding: '4px 2px', letterSpacing: .1 }
 

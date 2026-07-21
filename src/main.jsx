@@ -34,7 +34,11 @@ if (!region && isHome && !isAuthCallback) {
 // without this, a stale fleet_lang would show the app in Hebrew to a /us visitor.
 if (region && isHome && !isAuthCallback) {
   localStorage.setItem('celox_region', region)
-  localStorage.setItem('fleet_lang', getRegion(region).lang)
+  // An explicit in-app language pick wins — only seed the language when the
+  // visitor has never chosen one themselves.
+  if (!localStorage.getItem('fleet_lang_manual')) {
+    localStorage.setItem('fleet_lang', getRegion(region).lang)
+  }
 }
 
 const Root = path === '/privacy' ? PrivacyPage : (isHome && !isAuthCallback) ? LandingPage : App
