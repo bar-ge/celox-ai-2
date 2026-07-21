@@ -1827,6 +1827,167 @@ function EquipmentPane({ carId, companyId, rtl }) {
   )
 }
 
+// ── Generic record-list pane ─────────────────────────────────────────────────
+// Transfers, fuel, events, complaints and family are all the same shape: a
+// scoped list with an inline add form. One component drives all of them so the
+// behaviour (numeric/date coercion, delete confirm, optimistic insert) is
+// defined once rather than copied five times.
+function RecordListPane({
+  table, scope, companyId, rtl, title, addLabel,
+  fields, numericFields = [], dateFields = [], orderBy, defaults = {},
+  renderRow,
+}) {
+  const [rows, setRows]   = useState([])
+  const [loading, setL]   = useState(true)
+  const [showAdd, setAdd] = useState(false)
+  const [err, setErr]     = useState('')
+  const blank = { ...Object.fromEntries(fields.map(f => [f.k, ''])), ...defaults }
+  const [form, setForm]   = useState(blank)
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => {
+    let alive = true
+    supabase.from(table).select('*').match(scope).order(orderBy, { ascending: false })
+      .then(({ data }) => { if (alive) { setRows(data || []); setL(false) } })
+    return () => { alive = false }
+  }, [table, JSON.stringify(scope), orderBy])
+
+  async function add(e) {
+    e.preventDefault(); setErr('')
+    const required = fields.filter(f => f.required).find(f => !String(form[f.k] ?? '').trim())
+    if (required) { setErr(`${rtl ? required.he : required.en} ${rtl ? 'הוא שדה חובה' : 'is required'}`); return }
+    const payload = { ...form, ...scope, company_id: companyId }
+    ;[...numericFields, ...dateFields].forEach(k => { if (payload[k] === '') payload[k] = null })
+    const { data, error } = await supabase.from(table).insert([payload]).select()
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setRows(p => [data[0], ...p]); setAdd(false); setForm(blank)
+  }
+
+  async function del(id) {
+    if (!window.confirm(rtl ? 'למחוק את הרשומה?' : 'Delete record?')) return
+    const { error } = await supabase.from(table).delete().eq('id', id)
+    if (!error) setRows(p => p.filter(r => r.id !== id))
+  }
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase' }}>{title}</div>
+        <ActionBtn variant="save" onClick={() => setAdd(p => !p)}>{showAdd ? (rtl ? 'ביטול' : 'Cancel') : addLabel}</ActionBtn>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {fields.map(f => (
+              <VpField key={f.k} label={(rtl ? f.he : f.en) + (f.required ? ' *' : '')}>
+                {f.type === 'date'
+                  ? <DateInput value={form[f.k] || ''} onChange={e => set(f.k, e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+                  : f.type === 'select'
+                  ? <select style={vpInput} value={form[f.k] || ''} onChange={e => set(f.k, e.target.value)}>
+                      <option value="">{rtl ? 'בחר…' : 'Select…'}</option>
+                      {f.options.map(o => <option key={o.v} value={o.v}>{rtl ? o.he : o.en}</option>)}
+                    </select>
+                  : f.type === 'checkbox'
+                  ? <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: '8px 0', cursor: 'pointer', color: C.textPrimary }}>
+                      <input type="checkbox" checked={!!form[f.k]} onChange={e => set(f.k, e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+                      {rtl ? 'כן' : 'Yes'}
+                    </label>
+                  : <input style={vpInput} type={f.type === 'number' ? 'number' : 'text'}
+                      value={form[f.k] ?? ''} onChange={e => set(f.k, e.target.value)} />}
+              </VpField>
+            ))}
+          </div>
+          {err && <div style={{ color: C.danger, fontSize: 12, marginTop: 10 }}>{err}</div>}
+          <div style={{ marginTop: 12 }}><ActionBtn variant="save" onClick={add}>{rtl ? 'הוסף' : 'Add'}</ActionBtn></div>
+        </form>
+      )}
+
+      {loading ? <div style={{ textAlign: 'center', color: C.textMuted, padding: 24 }}>…</div>
+        : rows.length === 0 ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 13, padding: '28px 0' }}>{rtl ? 'אין רשומות' : 'No records'}</div>
+        : rows.map(r => (
+          <div key={r.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>{renderRow(r)}</div>
+            <button onClick={() => del(r.id)} title={rtl ? 'מחק' : 'Delete'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 4, flexShrink: 0 }}>
+              <Icon name="trash" size={14} />
+            </button>
+          </div>
+        ))}
+    </div>
+  )
+}
+
+const metaRow = children => (
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: C.textSecondary, marginTop: 3 }}>{children}</div>
+)
+
+// ── Vehicle accumulators (מצטברים) ───────────────────────────────────────────
+function TotalsPane({ carId, rtl }) {
+  const [d, setD] = useState(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    let alive = true
+    supabase.rpc('get_vehicle_totals', { p_car_id: carId })
+      .then(({ data, error }) => { if (alive) { if (error) setErr(error.message); else setD(data) } })
+    return () => { alive = false }
+  }, [carId])
+
+  if (err) return <div style={{ padding: 24, color: C.danger, fontSize: 13 }}>{err}</div>
+  if (!d)  return <div style={{ padding: 24, textAlign: 'center', color: C.textMuted }}>…</div>
+
+  const cur = n => `${RG.currency}${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+  const grand = Number(d.fuel_total) + Number(d.maint_total) + Number(d.costs_total)
+  // Only meaningful once fuel logs span a real distance.
+  const perKm = d.km_span > 0 ? grand / d.km_span : null
+  const avgCons = d.km_span > 0 && d.fuel_liters > 0 ? (d.fuel_liters / d.km_span) * 100 : null
+
+  const cells = [
+    [rtl ? 'דלק' : 'Fuel',            cur(d.fuel_total),  `${Number(d.fuel_liters).toLocaleString()} ${rtl ? 'ליטר' : 'L'} · ${d.fuel_count}`],
+    [rtl ? 'טיפולים' : 'Maintenance', cur(d.maint_total), `${d.maint_count} ${rtl ? 'רשומות' : 'records'}`],
+    [rtl ? 'עלויות אחרות' : 'Other costs', cur(d.costs_total), `${d.costs_count} ${rtl ? 'רשומות' : 'records'}`],
+    [rtl ? 'סה״כ' : 'Total',          cur(grand), ''],
+    [rtl ? 'תאונות' : 'Accidents',    String(d.accidents), ''],
+    [rtl ? 'העברות' : 'Transfers',    String(d.transfers), ''],
+  ]
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        {cells.map(([label, value, sub]) => (
+          <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: C.textPrimary }}>{value}</div>
+            <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{label}</div>
+            {sub && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{sub}</div>}
+          </div>
+        ))}
+      </div>
+      {(perKm != null || avgCons != null) && (
+        <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '12px 14px' }}>
+          {perKm != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+              <span style={{ color: C.textSecondary }}>{rtl ? `עלות ל${distUnit()}` : `Cost per ${distUnit()}`}</span>
+              <span style={{ fontWeight: 700, color: C.textPrimary }}>{RG.currency}{perKm.toFixed(2)}</span>
+            </div>
+          )}
+          {avgCons != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: C.textSecondary }}>{rtl ? 'צריכה ממוצעת (ל׳ ל‑100)' : 'Avg consumption (L/100)'}</span>
+              <span style={{ fontWeight: 700, color: C.textPrimary }}>{avgCons.toFixed(1)}</span>
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>
+            {rtl
+              ? 'מחושב מטווח מד האוץ בתדלוקים שנרשמו, ולכן מדויק רק כשהתדלוקים מתועדים ברציפות.'
+              : 'Derived from the odometer span of logged refuellings, so it is only accurate when those are logged consistently.'}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Custom fields (שדות נוספים) ──────────────────────────────────────────────
 // Definitions are company-wide per entity; values are stored in the record's
 // own `custom_fields` JSONB. Defining a field is an admin action because it
@@ -2574,6 +2735,10 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             ['tests',       (rtl ? 'טסטים' : 'Tests')],
             ['taxation',    (rtl ? 'שווי ומיסוי' : 'Tax & benefit')],
             ['equipment',   (rtl ? 'ציוד' : 'Equipment')],
+            ['fuel',        (rtl ? 'דלק' : 'Fuel')],
+            ['transfers',   (rtl ? 'העברות' : 'Transfers')],
+            ['events',      (rtl ? 'אירועים' : 'Events')],
+            ['totals',      (rtl ? 'מצטברים' : 'Totals')],
             ['custom',      (rtl ? 'שדות נוספים' : 'Custom')],
             ['maintenance', `${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`],
             ['costs',       `${rtl ? 'עלויות' : 'Costs'} (${costs.length})`],
@@ -2658,6 +2823,115 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
 
             {/* ── VEHICLE EQUIPMENT ── */}
             {tab === 'equipment' && <EquipmentPane carId={car.id} companyId={companyId} rtl={rtl} />}
+
+            {/* ── FUEL LEDGER ── */}
+            {tab === 'fuel' && (
+              <RecordListPane
+                table="fuel_records" scope={{ car_id: car.id }} companyId={companyId} rtl={rtl}
+                title={rtl ? 'תדלוקים' : 'Refuellings'} addLabel={rtl ? '+ תדלוק' : '+ Refuelling'}
+                orderBy="fuel_date"
+                numericFields={['liters', 'price_per_liter', 'total_amount', 'odometer']}
+                dateFields={['fuel_date']}
+                defaults={{ full_tank: true }}
+                fields={[
+                  { k: 'fuel_date',       he: 'תאריך',        en: 'Date',       type: 'date', required: true },
+                  { k: 'liters',          he: 'ליטרים',       en: 'Litres',     type: 'number' },
+                  { k: 'price_per_liter', he: 'מחיר לליטר',   en: 'Price/litre',type: 'number' },
+                  { k: 'total_amount',    he: 'סה״כ',         en: 'Total',      type: 'number' },
+                  { k: 'odometer',        he: 'ספידומטר',     en: 'Odometer',   type: 'number' },
+                  { k: 'station',         he: 'תחנה',         en: 'Station',    type: 'text' },
+                  { k: 'supplier',        he: 'ספק / דלקן',   en: 'Supplier',   type: 'text' },
+                  { k: 'fuel_type',       he: 'סוג דלק',      en: 'Fuel type',  type: 'text' },
+                  { k: 'full_tank',       he: 'מיכל מלא',     en: 'Full tank',  type: 'checkbox' },
+                ]}
+                renderRow={r => (<>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>
+                    {fmtDate(r.fuel_date)}{r.total_amount != null ? ` · ${RG.currency}${Number(r.total_amount).toLocaleString()}` : ''}
+                  </div>
+                  {metaRow(<>
+                    {r.liters   != null && <span>{Number(r.liters).toLocaleString()} {rtl ? 'ליטר' : 'L'}</span>}
+                    {r.price_per_liter != null && <span>{RG.currency}{Number(r.price_per_liter).toFixed(2)}/{rtl ? 'ל׳' : 'L'}</span>}
+                    {r.odometer != null && <span>{Number(r.odometer).toLocaleString()} {distUnit()}</span>}
+                    {r.station  && <span>{r.station}</span>}
+                    {r.supplier && <span>{r.supplier}</span>}
+                    {!r.full_tank && <span style={{ color: C.warning }}>{rtl ? 'מילוי חלקי' : 'Partial'}</span>}
+                  </>)}
+                </>)}
+              />
+            )}
+
+            {/* ── TRANSFERS ── */}
+            {tab === 'transfers' && (
+              <RecordListPane
+                table="vehicle_transfers" scope={{ car_id: car.id }} companyId={companyId} rtl={rtl}
+                title={rtl ? 'העברות רכב' : 'Vehicle transfers'} addLabel={rtl ? '+ העברה' : '+ Transfer'}
+                orderBy="transfer_date"
+                numericFields={['odometer']} dateFields={['transfer_date']}
+                fields={[
+                  { k: 'transfer_date',  he: 'תאריך ההעברה', en: 'Transfer date', type: 'date', required: true },
+                  { k: 'odometer',       he: 'ספידומטר',     en: 'Odometer',      type: 'number' },
+                  { k: 'from_driver_id', he: 'מנהג',         en: 'From driver',   type: 'select',
+                    options: drivers.map(d => ({ v: String(d.id), he: d.name, en: d.name })) },
+                  { k: 'to_driver_id',   he: 'לנהג',         en: 'To driver',     type: 'select',
+                    options: drivers.map(d => ({ v: String(d.id), he: d.name, en: d.name })) },
+                  { k: 'fuel_level',     he: 'רמת דלק',      en: 'Fuel level',    type: 'text' },
+                  { k: 'signed_by',      he: 'נחתם על ידי',  en: 'Signed by',     type: 'text' },
+                  { k: 'condition_notes',he: 'מצב הרכב',     en: 'Condition',     type: 'text' },
+                  { k: 'notes',          he: 'הערות',        en: 'Notes',         type: 'text' },
+                ]}
+                renderRow={r => {
+                  const nm = id => drivers.find(d => String(d.id) === String(id))?.name
+                  return (<>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>
+                      {fmtDate(r.transfer_date)}
+                      {(nm(r.from_driver_id) || nm(r.to_driver_id)) &&
+                        ` · ${nm(r.from_driver_id) || '—'} ← ${nm(r.to_driver_id) || '—'}`}
+                    </div>
+                    {metaRow(<>
+                      {r.odometer != null && <span>{Number(r.odometer).toLocaleString()} {distUnit()}</span>}
+                      {r.fuel_level && <span>{rtl ? 'דלק' : 'Fuel'}: {r.fuel_level}</span>}
+                      {r.signed_by && <span>{rtl ? 'חתם' : 'Signed'}: {r.signed_by}</span>}
+                      {r.condition_notes && <span style={{ fontStyle: 'italic', color: C.textMuted }}>{r.condition_notes}</span>}
+                    </>)}
+                  </>)
+                }}
+              />
+            )}
+
+            {/* ── EVENTS ── */}
+            {tab === 'events' && (
+              <RecordListPane
+                table="fleet_events" scope={{ car_id: car.id }} companyId={companyId} rtl={rtl}
+                title={rtl ? 'אירועים' : 'Events'} addLabel={rtl ? '+ אירוע' : '+ Event'}
+                orderBy="event_date" dateFields={['event_date']}
+                defaults={{ severity: 'low', status: 'open' }}
+                fields={[
+                  { k: 'event_date',  he: 'תאריך',  en: 'Date',        type: 'date', required: true },
+                  { k: 'event_type',  he: 'סוג',    en: 'Type',        type: 'text' },
+                  { k: 'severity',    he: 'חומרה',  en: 'Severity',    type: 'select',
+                    options: [{ v: 'low', he: 'נמוכה', en: 'Low' }, { v: 'medium', he: 'בינונית', en: 'Medium' }, { v: 'high', he: 'גבוהה', en: 'High' }] },
+                  { k: 'status',      he: 'סטטוס',  en: 'Status',      type: 'select',
+                    options: [{ v: 'open', he: 'פתוח', en: 'Open' }, { v: 'closed', he: 'סגור', en: 'Closed' }] },
+                  { k: 'description', he: 'תיאור',  en: 'Description', type: 'text' },
+                ]}
+                renderRow={r => {
+                  const sv = { low: C.textMuted, medium: C.warning, high: C.danger }[r.severity] || C.textMuted
+                  const svL = { low: rtl ? 'נמוכה' : 'Low', medium: rtl ? 'בינונית' : 'Medium', high: rtl ? 'גבוהה' : 'High' }[r.severity]
+                  return (<>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{fmtDate(r.event_date)}</span>
+                      {r.event_type && <span style={{ fontSize: 13, color: C.textPrimary }}>{r.event_type}</span>}
+                      {svL && <span style={{ fontSize: 11, fontWeight: 700, color: sv, background: sv + '1f', padding: '2px 8px', borderRadius: 999 }}>{svL}</span>}
+                      {r.status === 'closed' && <span style={{ fontSize: 11, fontWeight: 700, color: C.success, background: C.success + '18', padding: '2px 8px', borderRadius: 999 }}>{rtl ? 'סגור' : 'Closed'}</span>}
+                    </div>
+                    {r.description && <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 3 }}>{r.description}</div>}
+                  </>)
+                }}
+              />
+            )}
+
+            {/* ── ACCUMULATORS ── */}
+            {tab === 'totals' && <TotalsPane carId={car.id} rtl={rtl} />}
 
             {/* ── CUSTOM FIELDS ── */}
             {tab === 'custom' && (
@@ -2866,6 +3140,8 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
             ['certifications', `${rtl ? 'הסמכות' : 'Certifications'}`],
             ['training',       `${rtl ? 'הדרכות' : 'Training'}`],
             ['documents',      `${rtl ? 'מסמכים' : 'Documents'}`],
+            ['complaints',     (rtl ? 'תלונות' : 'Complaints')],
+            ['family',         (rtl ? 'בני משפחה' : 'Family')],
             ['custom',         (rtl ? 'שדות נוספים' : 'Custom')]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
@@ -2938,6 +3214,71 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
 
           {/* ── PERSONAL / EMPLOYMENT DETAILS ── */}
           {tab === 'details' && <DriverDetailsPane driver={driver} rtl={rtl} onDriverUpdate={onDriverUpdate} />}
+
+          {/* ── COMPLAINTS ── */}
+          {tab === 'complaints' && (
+            <RecordListPane
+              table="driver_complaints" scope={{ driver_id: String(driver.id) }} companyId={companyId} rtl={rtl}
+              title={rtl ? 'תלונות' : 'Complaints'} addLabel={rtl ? '+ תלונה' : '+ Complaint'}
+              orderBy="complaint_date" dateFields={['complaint_date']}
+              defaults={{ status: 'open' }}
+              fields={[
+                { k: 'complaint_date', he: 'תאריך',    en: 'Date',        type: 'date', required: true },
+                { k: 'complainant',    he: 'המתלונן',  en: 'Complainant', type: 'text' },
+                { k: 'source',         he: 'מקור',     en: 'Source',      type: 'text' },
+                { k: 'status',         he: 'סטטוס',    en: 'Status',      type: 'select',
+                  options: [{ v: 'open', he: 'פתוחה', en: 'Open' }, { v: 'closed', he: 'סגורה', en: 'Closed' }] },
+                { k: 'description',    he: 'תיאור',    en: 'Description', type: 'text' },
+                { k: 'resolution',     he: 'טיפול',    en: 'Resolution',  type: 'text' },
+              ]}
+              renderRow={r => (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{fmtDate(r.complaint_date)}</span>
+                  {r.complainant && <span style={{ fontSize: 13, color: C.textPrimary }}>{r.complainant}</span>}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: r.status === 'closed' ? C.success : C.warning,
+                    background: (r.status === 'closed' ? C.success : C.warning) + '18', padding: '2px 8px', borderRadius: 999 }}>
+                    {r.status === 'closed' ? (rtl ? 'סגורה' : 'Closed') : (rtl ? 'פתוחה' : 'Open')}
+                  </span>
+                </div>
+                {r.description && <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 3 }}>{r.description}</div>}
+                {r.resolution  && <div style={{ fontSize: 12, color: C.textMuted, marginTop: 3, fontStyle: 'italic' }}>{rtl ? 'טיפול' : 'Resolution'}: {r.resolution}</div>}
+              </>)}
+            />
+          )}
+
+          {/* ── FAMILY ── */}
+          {tab === 'family' && (
+            <RecordListPane
+              table="driver_family" scope={{ driver_id: String(driver.id) }} companyId={companyId} rtl={rtl}
+              title={rtl ? 'בני משפחה' : 'Family members'} addLabel={rtl ? '+ בן משפחה' : '+ Member'}
+              orderBy="created_at" dateFields={['birth_date']}
+              fields={[
+                { k: 'name',        he: 'שם',           en: 'Name',        type: 'text', required: true },
+                { k: 'relation',    he: 'קרבה',         en: 'Relation',    type: 'text' },
+                { k: 'national_id', he: 'תעודת זהות',   en: 'National ID', type: 'text' },
+                { k: 'birth_date',  he: 'תאריך לידה',   en: 'Birth date',  type: 'date' },
+                { k: 'phone',       he: 'טלפון',        en: 'Phone',       type: 'text' },
+                { k: 'may_drive',   he: 'רשאי לנהוג',   en: 'May drive',   type: 'checkbox' },
+              ]}
+              renderRow={r => (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>{r.name}</span>
+                  {r.relation && <span style={{ fontSize: 12, color: C.textSecondary }}>({r.relation})</span>}
+                  {/* Permission to drive is an insurance fact, so it is flagged. */}
+                  {r.may_drive && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.warning, background: C.warning + '18', padding: '2px 8px', borderRadius: 999 }}>
+                      {rtl ? 'רשאי לנהוג' : 'May drive'}
+                    </span>
+                  )}
+                </div>
+                {metaRow(<>
+                  {r.national_id && <span>{rtl ? 'ת.ז' : 'ID'}: {r.national_id}</span>}
+                  {r.birth_date  && <span>{fmtDate(r.birth_date)}</span>}
+                  {r.phone       && <span>{r.phone}</span>}
+                </>)}
+              </>)}
+            />
+          )}
 
           {/* ── CUSTOM FIELDS ── */}
           {tab === 'custom' && (
@@ -4519,7 +4860,8 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const [showAdd, setShowAdd] = useState(false)
   const [addError, setAddError] = useState('')
   const [selectedCostIds, setSelectedCostIds] = useState([])
-  const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '', cost_center: '' })
+  const [form, setForm] = useState({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '', cost_center: '',
+    supplier_name: '', invoice_number: '', invoice_date: '', reference_date: '', odometer: '', vat_amount: '', total_incl_vat: '', service_desc: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
   const [filterCostCenter, setFilterCostCenter] = useState('')
@@ -4549,22 +4891,41 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
       category: form.category, amount,
       description: form.description || null, date: form.date,
       cost_center: form.cost_center || null,
+      // Invoice-level detail — an expense without a supplier and invoice number
+      // cannot be reconciled against the accounting system later.
+      supplier_name:  form.supplier_name  || null,
+      invoice_number: form.invoice_number || null,
+      invoice_date:   form.invoice_date   || null,
+      reference_date: form.reference_date || null,
+      odometer:       form.odometer       === '' ? null : parseInt(form.odometer, 10),
+      vat_amount:     form.vat_amount     === '' ? null : parseFloat(form.vat_amount),
+      total_incl_vat: form.total_incl_vat === '' ? null : parseFloat(form.total_incl_vat),
+      service_desc:   form.service_desc   || null,
     }]).select()
     if (error) { setAddError(friendlyDbError(error, rtl)); return }
-    if (data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setAddError(''); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '', cost_center: '' }) }
+    if (data) { setCosts(p => [data[0], ...p]); setShowAdd(false); setAddError(''); setForm({ car_id: '', driver_id: '', category: 'Fuel', amount: '', description: '', date: '', cost_center: '',
+    supplier_name: '', invoice_number: '', invoice_date: '', reference_date: '', odometer: '', vat_amount: '', total_incl_vat: '', service_desc: '' }) }
   }
   function exportAccountingCsv() {
     const headers = rtl
-      ? ['תאריך', 'קטגוריה', 'סכום', 'מרכז עלות', 'רכב', 'נהג', 'תיאור']
-      : ['Date', 'Category', 'Amount', 'Cost Center', 'Vehicle', 'Driver', 'Description']
+      ? ['תאריך', 'קטגוריה', 'סכום', 'מע״מ', 'סה״כ כולל מע״מ', 'ספק', 'מס׳ חשבונית', 'תאריך חשבונית', 'תאריך ייחוס', 'ספידומטר', 'מרכז עלות', 'רכב', 'נהג', 'תיאור', 'תאור טיפול']
+      : ['Date', 'Category', 'Amount', 'VAT', 'Total incl. VAT', 'Supplier', 'Invoice no.', 'Invoice date', 'Reference date', 'Odometer', 'Cost Center', 'Vehicle', 'Driver', 'Description', 'Service']
     const rows = costs.map(c => [
       c.date || '',
       catLabel[c.category] || c.category,
       parseFloat(c.amount || 0).toFixed(2),
+      c.vat_amount     != null ? parseFloat(c.vat_amount).toFixed(2) : '',
+      c.total_incl_vat != null ? parseFloat(c.total_incl_vat).toFixed(2) : '',
+      c.supplier_name  || '',
+      c.invoice_number || '',
+      c.invoice_date   || '',
+      c.reference_date || '',
+      c.odometer != null ? c.odometer : '',
       c.cost_center || '',
       c.car_id ? carName(c.car_id) : '',
       c.driver_id ? (drivers.find(d => d.id === c.driver_id)?.name || '') : '',
       c.description || '',
+      c.service_desc || '',
     ])
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
@@ -4689,6 +5050,42 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.actions}</label>
               <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t.description + '…'} style={inp} />
             </div>
+
+            {/* Invoice-level detail — optional, but without it an expense cannot
+                be reconciled against the accounting system. */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ספק' : 'Supplier'}</label>
+              <input value={form.supplier_name} onChange={e => setForm({ ...form, supplier_name: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'מס׳ חשבונית' : 'Invoice no.'}</label>
+              <input value={form.invoice_number} onChange={e => setForm({ ...form, invoice_number: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'תאריך חשבונית' : 'Invoice date'}</label>
+              <DateInput value={form.invoice_date} onChange={e => setForm({ ...form, invoice_date: e.target.value })} style={inp} placeholder="DD/MM/YY" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'תאריך ייחוס' : 'Reference date'}</label>
+              <DateInput value={form.reference_date} onChange={e => setForm({ ...form, reference_date: e.target.value })} style={inp} placeholder="DD/MM/YY" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'ספידומטר' : 'Odometer'}</label>
+              <input type="number" min="0" value={form.odometer} onChange={e => setForm({ ...form, odometer: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'מע״מ' : 'VAT'}</label>
+              <input type="number" min="0" value={form.vat_amount} onChange={e => setForm({ ...form, vat_amount: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'סה״כ כולל מע״מ' : 'Total incl. VAT'}</label>
+              <input type="number" min="0" value={form.total_incl_vat} onChange={e => setForm({ ...form, total_incl_vat: e.target.value })} style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'תאור טיפול' : 'Service description'}</label>
+              <input value={form.service_desc} onChange={e => setForm({ ...form, service_desc: e.target.value })} style={inp} />
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button type="submit" style={{ ...btnPrimary, padding: '8px 18px', fontSize: 13, width: '100%' }}>{t.add}</button>
             </div>
