@@ -1827,6 +1827,172 @@ function EquipmentPane({ carId, companyId, rtl }) {
   )
 }
 
+// ── Custom fields (שדות נוספים) ──────────────────────────────────────────────
+// Definitions are company-wide per entity; values are stored in the record's
+// own `custom_fields` JSONB. Defining a field is an admin action because it
+// changes the shape of the data everyone else sees.
+const CF_TYPES = [
+  { v: 'text',     he: 'טקסט',   en: 'Text' },
+  { v: 'number',   he: 'מספר',   en: 'Number' },
+  { v: 'date',     he: 'תאריך',  en: 'Date' },
+  { v: 'select',   he: 'בחירה',  en: 'Select' },
+  { v: 'checkbox', he: 'סימון',  en: 'Checkbox' },
+]
+
+// A stable key derived from the label; Hebrew labels transliterate poorly, so
+// fall back to a generated key rather than producing an empty one.
+function cfKeyFrom(label, existing) {
+  let base = (label || '').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+  if (!base) base = 'field'
+  let key = base, i = 2
+  while (existing.includes(key)) { key = `${base}_${i}`; i++ }
+  return key
+}
+
+function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEntityUpdate }) {
+  const [defs, setDefs]     = useState([])
+  const [loading, setL]     = useState(true)
+  const [vals, setVals]     = useState(entity.custom_fields || {})
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved]   = useState(false)
+  const [err, setErr]       = useState('')
+  const [showAdd, setAdd]   = useState(false)
+  const [nf, setNf]         = useState({ label: '', field_type: 'text', options: '' })
+
+  const table = entityType === 'car' ? 'cars' : 'drivers'
+
+  useEffect(() => {
+    let alive = true
+    supabase.from('custom_field_defs').select('*')
+      .eq('company_id', companyId).eq('entity_type', entityType)
+      .order('sort_order').order('created_at')
+      .then(({ data }) => { if (alive) { setDefs(data || []); setL(false) } })
+    return () => { alive = false }
+  }, [companyId, entityType])
+
+  async function saveValues() {
+    setSaving(true); setErr(''); setSaved(false)
+    const { error } = await supabase.from(table).update({ custom_fields: vals }).eq('id', entity.id)
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    onEntityUpdate?.(entity.id, { custom_fields: vals })
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function addDef(e) {
+    e.preventDefault(); setErr('')
+    if (!nf.label.trim()) { setErr(rtl ? 'שם השדה הוא שדה חובה' : 'Field label is required'); return }
+    const payload = {
+      company_id: companyId, entity_type: entityType,
+      field_key: cfKeyFrom(nf.label, defs.map(d => d.field_key)),
+      label: nf.label.trim(), field_type: nf.field_type,
+      options: nf.field_type === 'select'
+        ? nf.options.split(',').map(s => s.trim()).filter(Boolean) : [],
+      sort_order: defs.length,
+    }
+    const { data, error } = await supabase.from('custom_field_defs').insert([payload]).select()
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setDefs(p => [...p, data[0]]); setAdd(false); setNf({ label: '', field_type: 'text', options: '' })
+  }
+
+  async function delDef(d) {
+    if (!window.confirm(rtl
+      ? `למחוק את השדה "${d.label}"? הערכים שהוזנו בו יישארו ברשומות אך לא יוצגו.`
+      : `Delete field "${d.label}"? Existing values stay on records but stop being shown.`)) return
+    const { error } = await supabase.from('custom_field_defs').delete().eq('id', d.id)
+    if (!error) setDefs(p => p.filter(x => x.id !== d.id))
+  }
+
+  const set = (k, v) => setVals(p => ({ ...p, [k]: v }))
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase' }}>
+          {rtl ? 'שדות נוספים' : 'Custom fields'}
+        </div>
+        {canManage && (
+          <ActionBtn variant="save" onClick={() => setAdd(p => !p)}>
+            {showAdd ? (rtl ? 'ביטול' : 'Cancel') : (rtl ? '+ הגדר שדה' : '+ Define field')}
+          </ActionBtn>
+        )}
+      </div>
+
+      {showAdd && canManage && (
+        <form onSubmit={addDef} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <VpField label={rtl ? 'שם השדה *' : 'Field label *'}>
+              <input style={vpInput} value={nf.label} onChange={e => setNf(p => ({ ...p, label: e.target.value }))} required />
+            </VpField>
+            <VpField label={rtl ? 'סוג' : 'Type'}>
+              <select style={vpInput} value={nf.field_type} onChange={e => setNf(p => ({ ...p, field_type: e.target.value }))}>
+                {CF_TYPES.map(t => <option key={t.v} value={t.v}>{rtl ? t.he : t.en}</option>)}
+              </select>
+            </VpField>
+          </div>
+          {nf.field_type === 'select' && (
+            <VpField label={rtl ? 'אפשרויות (מופרדות בפסיק)' : 'Options (comma separated)'}>
+              <input style={vpInput} value={nf.options} onChange={e => setNf(p => ({ ...p, options: e.target.value }))} />
+            </VpField>
+          )}
+          <div style={{ fontSize: 11, color: C.textMuted, margin: '8px 0' }}>
+            {rtl ? 'השדה ייווסף לכל הרשומות מסוג זה בחברה.' : 'The field is added to every record of this type in the company.'}
+          </div>
+          <ActionBtn variant="save" onClick={addDef}>{rtl ? 'הוסף שדה' : 'Add field'}</ActionBtn>
+        </form>
+      )}
+
+      {loading ? <div style={{ textAlign: 'center', color: C.textMuted, padding: 24 }}>…</div>
+        : defs.length === 0 ? (
+          <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 13, padding: '28px 0' }}>
+            {rtl
+              ? (canManage ? 'לא הוגדרו שדות נוספים. אפשר להגדיר שדה חדש למעלה.' : 'לא הוגדרו שדות נוספים.')
+              : (canManage ? 'No custom fields defined yet.' : 'No custom fields defined.')}
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {defs.map(d => (
+                <div key={d.id} style={{ position: 'relative' }}>
+                  <VpField label={d.label}>
+                    {d.field_type === 'date'
+                      ? <DateInput value={vals[d.field_key] || ''} onChange={e => set(d.field_key, e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+                      : d.field_type === 'select'
+                      ? <select style={vpInput} value={vals[d.field_key] || ''} onChange={e => set(d.field_key, e.target.value)}>
+                          <option value="">{rtl ? 'בחר…' : 'Select…'}</option>
+                          {(d.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      : d.field_type === 'checkbox'
+                      ? <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.textPrimary, cursor: 'pointer', padding: '8px 0' }}>
+                          <input type="checkbox" checked={!!vals[d.field_key]} onChange={e => set(d.field_key, e.target.checked)}
+                            style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+                          {rtl ? 'כן' : 'Yes'}
+                        </label>
+                      : <input style={vpInput} type={d.field_type === 'number' ? 'number' : 'text'}
+                          value={vals[d.field_key] ?? ''} onChange={e => set(d.field_key, e.target.value)} />}
+                  </VpField>
+                  {canManage && (
+                    <button onClick={() => delDef(d)} title={rtl ? 'מחק שדה' : 'Delete field'}
+                      style={{ position: 'absolute', top: 0, [rtl ? 'left' : 'right']: 0, background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, padding: 2, fontSize: 11 }}>
+                      <Icon name="trash" size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {err && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{err}</div>}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
+              <ActionBtn variant="save" onClick={saveValues}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</ActionBtn>
+              {saved && <span style={{ fontSize: 12, color: C.success, fontWeight: 700 }}><Icon name="check" size={12} /> {rtl ? 'נשמר' : 'Saved'}</span>}
+            </div>
+          </>
+        )}
+      {err && defs.length === 0 && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{err}</div>}
+    </div>
+  )
+}
+
 // ── Taxation & excise pane (Israel) ──────────────────────────────────────────
 // A company car is a taxable benefit here, so payroll needs the שווי price, its
 // tax group and the year it applies to. Diesel fleets separately reclaim excise
@@ -2342,7 +2508,7 @@ function TachographBlock({ car, rtl, sTitle, sectionStyle, onCarUpdate }) {
   )
 }
 
-function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClose, onCarUpdate }) {
+function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClose, onCarUpdate, canManageFields }) {
   const [tab, setTab]           = useState('overview')
   const [maintenance, setMaint] = useState([])
   const [costs, setCosts]       = useState([])
@@ -2408,6 +2574,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             ['tests',       (rtl ? 'טסטים' : 'Tests')],
             ['taxation',    (rtl ? 'שווי ומיסוי' : 'Tax & benefit')],
             ['equipment',   (rtl ? 'ציוד' : 'Equipment')],
+            ['custom',      (rtl ? 'שדות נוספים' : 'Custom')],
             ['maintenance', `${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`],
             ['costs',       `${rtl ? 'עלויות' : 'Costs'} (${costs.length})`],
             ['documents',   `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
@@ -2491,6 +2658,12 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
 
             {/* ── VEHICLE EQUIPMENT ── */}
             {tab === 'equipment' && <EquipmentPane carId={car.id} companyId={companyId} rtl={rtl} />}
+
+            {/* ── CUSTOM FIELDS ── */}
+            {tab === 'custom' && (
+              <CustomFieldsPane entity={car} entityType="car" companyId={companyId} rtl={rtl}
+                canManage={canManageFields} onEntityUpdate={onCarUpdate} />
+            )}
 
             {/* ── MAINTENANCE ── */}
             {tab === 'maintenance' && (
@@ -2649,7 +2822,7 @@ function DriverDetailsPane({ driver, rtl, onDriverUpdate }) {
   )
 }
 
-function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onClose, onAssignVehicle, onDriverUpdate }) {
+function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onClose, onAssignVehicle, onDriverUpdate, canManageFields }) {
   const [tab, setTab]       = useState('overview')
   const [loading, setLoading] = useState(false)
   const [savingCar, setSavingCar] = useState(false)
@@ -2692,7 +2865,8 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
             ['details',        (rtl ? 'פרטים מלאים' : 'Details')],
             ['certifications', `${rtl ? 'הסמכות' : 'Certifications'}`],
             ['training',       `${rtl ? 'הדרכות' : 'Training'}`],
-            ['documents',      `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+            ['documents',      `${rtl ? 'מסמכים' : 'Documents'}`],
+            ['custom',         (rtl ? 'שדות נוספים' : 'Custom')]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -2764,6 +2938,12 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
 
           {/* ── PERSONAL / EMPLOYMENT DETAILS ── */}
           {tab === 'details' && <DriverDetailsPane driver={driver} rtl={rtl} onDriverUpdate={onDriverUpdate} />}
+
+          {/* ── CUSTOM FIELDS ── */}
+          {tab === 'custom' && (
+            <CustomFieldsPane entity={driver} entityType="driver" companyId={companyId} rtl={rtl}
+              canManage={canManageFields} onEntityUpdate={onDriverUpdate} />
+          )}
 
           {/* ── CERTIFICATIONS ── */}
           {tab === 'certifications' && (
@@ -10600,6 +10780,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           t={t}
           rtl={rtl}
           onClose={() => setDetailCar(null)}
+          canManageFields={isMaster || profile?.role === 'admin'}
           onCarUpdate={(carId, patch) => {
             setCars(p => p.map(c => c.id === carId ? { ...c, ...patch } : c))
             setDetailCar(p => p && p.id === carId ? { ...p, ...patch } : p)
@@ -10618,6 +10799,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           rtl={rtl}
           onClose={() => setDetailDriver(null)}
           onAssignVehicle={assignVehicleToDriver}
+          canManageFields={isMaster || profile?.role === 'admin'}
           onDriverUpdate={(driverId, patch) => {
             setDrivers(p => p.map(d => d.id === driverId ? { ...d, ...patch } : d))
             setDetailDriver(p => p && p.id === driverId ? { ...p, ...patch } : p)
