@@ -1551,6 +1551,138 @@ function LeasingPane({ carId, companyId, rtl }) {
   )
 }
 
+// ── Taxation & excise pane (Israel) ──────────────────────────────────────────
+// A company car is a taxable benefit here, so payroll needs the שווי price, its
+// tax group and the year it applies to. Diesel fleets separately reclaim excise
+// (בלו) per litre — both live on the vehicle itself, like Netzer's accounting
+// block, because they describe the vehicle rather than an event.
+function TaxationPane({ car, companyId, rtl, onCarUpdate }) {
+  const [f, setF]           = useState({
+    tax_value_price: car.tax_value_price ?? '', tax_value_year: car.tax_value_year ?? '',
+    tax_adjusted_price: car.tax_adjusted_price ?? '', tax_group: car.tax_group || '',
+    tax_classification: car.tax_classification || '', vat_deductible_pct: car.vat_deductible_pct ?? '',
+    accounting_ref: car.accounting_ref || '',
+    blu_refund_eligible: !!car.blu_refund_eligible, blu_annual_liters: car.blu_annual_liters ?? '',
+    blu_refund_per_liter: car.blu_refund_per_liter ?? '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved]   = useState(false)
+  const [err, setErr]       = useState('')
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+
+  async function save() {
+    setSaving(true); setErr(''); setSaved(false)
+    const patch = { ...f }
+    ;['tax_value_price', 'tax_value_year', 'tax_adjusted_price', 'vat_deductible_pct',
+      'blu_annual_liters', 'blu_refund_per_liter'].forEach(k => { if (patch[k] === '') patch[k] = null })
+    const { error } = await supabase.from('cars').update(patch).eq('id', car.id)
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    onCarUpdate?.(car.id, patch)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  // Monthly taxable benefit is the שווי price scaled by the tax group percentage.
+  const monthlyBenefit = (() => {
+    const base = Number(f.tax_adjusted_price || f.tax_value_price)
+    const pct  = Number(f.tax_group)
+    if (!base || !pct) return null
+    return Math.round(base * pct / 100)
+  })()
+
+  const estRefund = (() => {
+    const l = Number(f.blu_annual_liters), r = Number(f.blu_refund_per_liter)
+    if (!l || !r) return null
+    return Math.round(l * r)
+  })()
+
+  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 12 }}>
+        {rtl ? 'שווי שימוש ומיסוי' : 'Taxable benefit'}
+      </div>
+      <div style={g2}>
+        <VpField label={rtl ? 'מחיר שווי' : 'Benefit base price'}>
+          <input style={vpInput} type="number" min="0" value={f.tax_value_price} onChange={e => set('tax_value_price', e.target.value)} />
+        </VpField>
+        <VpField label={rtl ? 'לשנת' : 'For year'}>
+          <input style={vpInput} type="number" min="1990" max="2099" value={f.tax_value_year} onChange={e => set('tax_value_year', e.target.value)} />
+        </VpField>
+      </div>
+      <div style={g2}>
+        <VpField label={rtl ? 'מחיר מותאם' : 'Adjusted price'}>
+          <input style={vpInput} type="number" min="0" value={f.tax_adjusted_price} onChange={e => set('tax_adjusted_price', e.target.value)} />
+        </VpField>
+        <VpField label={rtl ? 'קבוצת מיסוי (%)' : 'Tax group (%)'}>
+          <input style={vpInput} type="number" min="0" step="0.1" value={f.tax_group} onChange={e => set('tax_group', e.target.value)} placeholder="2.48" />
+        </VpField>
+      </div>
+      <div style={g2}>
+        <VpField label={rtl ? 'אפיון למיסוי' : 'Tax classification'}>
+          <input style={vpInput} value={f.tax_classification} onChange={e => set('tax_classification', e.target.value)} placeholder={rtl ? 'פרטי / מסחרי' : 'Private / commercial'} />
+        </VpField>
+        <VpField label={rtl ? '% מע״מ מוכר' : 'Deductible VAT %'}>
+          <input style={vpInput} type="number" min="0" max="100" value={f.vat_deductible_pct} onChange={e => set('vat_deductible_pct', e.target.value)} />
+        </VpField>
+      </div>
+      <div style={g2}>
+        <VpField label={rtl ? 'מספר בהנהלת חשבונות' : 'Accounting reference'}>
+          <input style={vpInput} value={f.accounting_ref} onChange={e => set('accounting_ref', e.target.value)} />
+        </VpField>
+        <div />
+      </div>
+
+      {monthlyBenefit != null && (
+        <div style={{ background: C.primary + '12', border: `1px solid ${C.primary}40`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: C.textSecondary, fontWeight: 600 }}>{rtl ? 'שווי שימוש חודשי מוערך' : 'Estimated monthly benefit'}</span>
+          <span style={{ fontSize: 17, fontWeight: 900, color: C.primary }}>{RG.currency}{monthlyBenefit.toLocaleString()}</span>
+        </div>
+      )}
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 12, marginTop: 20 }}>
+        {rtl ? 'החזר בלו על סולר' : 'Diesel excise refund'}
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', fontSize: 13, color: C.textPrimary, marginBottom: 12 }}>
+        <input type="checkbox" checked={f.blu_refund_eligible} onChange={e => set('blu_refund_eligible', e.target.checked)}
+          style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+        {rtl ? 'הרכב זכאי להחזר בלו' : 'Vehicle is eligible for excise refund'}
+      </label>
+      {f.blu_refund_eligible && (
+        <>
+          <div style={g2}>
+            <VpField label={rtl ? 'צריכה שנתית ממוצעת (ליטר)' : 'Avg annual consumption (L)'}>
+              <input style={vpInput} type="number" min="0" value={f.blu_annual_liters} onChange={e => set('blu_annual_liters', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'סכום החזר לליטר' : 'Refund per litre'}>
+              <input style={vpInput} type="number" min="0" step="0.01" value={f.blu_refund_per_liter} onChange={e => set('blu_refund_per_liter', e.target.value)} />
+            </VpField>
+          </div>
+          {estRefund != null && (
+            <div style={{ background: C.success + '12', border: `1px solid ${C.success}40`, borderRadius: 8, padding: '10px 14px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, color: C.textSecondary, fontWeight: 600 }}>{rtl ? 'החזר שנתי מוערך' : 'Estimated annual refund'}</span>
+              <span style={{ fontSize: 17, fontWeight: 900, color: C.success }}>{RG.currency}{estRefund.toLocaleString()}</span>
+            </div>
+          )}
+        </>
+      )}
+
+      <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.6, marginTop: 4 }}>
+        {rtl
+          ? 'החישובים הם הערכה לנוחות בלבד, ואינם תחליף לחישוב שכר או לבדיקת רואה חשבון.'
+          : 'Figures are a convenience estimate, not a substitute for payroll or accounting review.'}
+      </div>
+
+      {err && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{err}</div>}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
+        <ActionBtn variant="save" onClick={save}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</ActionBtn>
+        {saved && <span style={{ fontSize: 12, color: C.success, fontWeight: 700 }}><Icon name="check" size={12} /> {rtl ? 'נשמר' : 'Saved'}</span>}
+      </div>
+    </div>
+  )
+}
+
 // ── Insurance pane — multiple policies per vehicle ───────────────────────────
 const POLICY_TYPES = [
   { v: 'mandatory',     he: 'חובה',    en: 'Mandatory' },
@@ -1565,7 +1697,11 @@ function InsurancePane({ carId, companyId, rtl }) {
   const [showAdd, setAdd] = useState(false)
   const [saving, setSav]  = useState(false)
   const [err, setErr]     = useState('')
-  const blank = { policy_type: 'mandatory', insurer: '', policy_number: '', agent_name: '', agent_phone: '', start_date: '', expiry_date: '', premium: '', deductible: '', coverage: '', notes: '' }
+  const blank = { policy_type: 'mandatory', insurer: '', policy_number: '', agent_name: '', agent_phone: '', agent_fax: '',
+                  start_date: '', expiry_date: '', renewal_date: '', premium: '', deductible: '', deductible_garage: '',
+                  coverage: '', notes: '',
+                  ext_windshield: false, ext_towing: false, ext_replacement_car: false, ext_third_party: false, ext_radio: '', ext_other: '',
+                  drv_any: false, drv_min_age_21: false, drv_min_age_24: false, drv_shabbat: false, drv_named_only: '' }
   const [form, setForm]   = useState(blank)
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -1582,8 +1718,8 @@ function InsurancePane({ carId, companyId, rtl }) {
     if (!form.insurer.trim()) { setErr(rtl ? 'שם חברת הביטוח הוא שדה חובה' : 'Insurer is required'); return }
     setSav(true)
     const payload = { ...form, company_id: companyId, car_id: carId }
-    ;['premium', 'deductible'].forEach(k => { if (payload[k] === '') payload[k] = null })
-    ;['start_date', 'expiry_date'].forEach(k => { if (payload[k] === '') payload[k] = null })
+    ;['premium', 'deductible', 'deductible_garage'].forEach(k => { if (payload[k] === '') payload[k] = null })
+    ;['start_date', 'expiry_date', 'renewal_date'].forEach(k => { if (payload[k] === '') payload[k] = null })
     const { data, error } = await supabase.from('vehicle_insurance').insert([payload]).select()
     setSav(false)
     if (error) { setErr(friendlyDbError(error, rtl)); return }
@@ -1647,10 +1783,57 @@ function InsurancePane({ carId, companyId, rtl }) {
             <VpField label={rtl ? 'טלפון הסוכן' : 'Agent phone'}>
               <input style={vpInput} value={form.agent_phone} onChange={e => set('agent_phone', e.target.value)} />
             </VpField>
-            <VpField label={rtl ? 'כיסויים' : 'Coverage'}>
-              <input style={vpInput} value={form.coverage} onChange={e => set('coverage', e.target.value)} placeholder={rtl ? 'גרירה, רכב חלופי…' : 'Towing, replacement…'} />
+            <VpField label={rtl ? 'תאריך חידוש' : 'Renewal date'}>
+              <DateInput value={form.renewal_date} onChange={e => set('renewal_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
             </VpField>
           </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'השתתפות במוסך הסדר' : 'Deductible (approved garage)'}>
+              <input style={vpInput} type="number" min="0" value={form.deductible_garage} onChange={e => set('deductible_garage', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'פקס הסוכן' : 'Agent fax'}>
+              <input style={vpInput} value={form.agent_fax} onChange={e => set('agent_fax', e.target.value)} />
+            </VpField>
+          </div>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
+            <div style={{ ...vpLabel, marginBottom: 8 }}>{rtl ? 'הרחבות' : 'Extensions'}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              {[['ext_windshield', rtl ? 'שמשות' : 'Windshields'],
+                ['ext_towing', rtl ? 'גרירה' : 'Towing'],
+                ['ext_replacement_car', rtl ? 'רכב חלופי' : 'Replacement car'],
+                ['ext_third_party', rtl ? 'הרחבת צד ג׳' : 'Third-party extension']].map(([k, label]) => (
+                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.textPrimary, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!form[k]} onChange={e => set(k, e.target.checked)} style={{ width: 15, height: 15, accentColor: C.primary, cursor: 'pointer' }} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <input style={vpInput} value={form.ext_radio} onChange={e => set('ext_radio', e.target.value)} placeholder={rtl ? 'רדיו־טייפ' : 'Radio'} />
+              <input style={vpInput} value={form.ext_other} onChange={e => set('ext_other', e.target.value)} placeholder={rtl ? 'תוספות' : 'Other add-ons'} />
+            </div>
+          </div>
+
+          {/* Handing a vehicle to a driver the policy excludes can void cover, so
+              these restrictions are surfaced on the policy card too. */}
+          <div style={{ background: C.warning + '10', border: `1px solid ${C.warning}45`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
+            <div style={{ ...vpLabel, marginBottom: 8, color: C.warning }}>{rtl ? 'רשאים לנהוג' : 'Who may drive'}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              {[['drv_any', rtl ? 'כל נהג' : 'Any driver'],
+                ['drv_min_age_21', rtl ? 'מעל 21 ושנת רישיון' : 'Over 21, 1yr licence'],
+                ['drv_min_age_24', rtl ? 'מעל 24 ושנת רישיון' : 'Over 24, 1yr licence'],
+                ['drv_shabbat', rtl ? 'שבת' : 'Shabbat']].map(([k, label]) => (
+                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.textPrimary, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!form[k]} onChange={e => set(k, e.target.checked)} style={{ width: 15, height: 15, accentColor: C.warning, cursor: 'pointer' }} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <input style={vpInput} value={form.drv_named_only} onChange={e => set('drv_named_only', e.target.value)}
+              placeholder={rtl ? 'נהג יחיד — שם הנהג המורשה' : 'Named driver only'} />
+          </div>
+
           {err && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{err}</div>}
           <ActionBtn variant="save" onClick={add}>{saving ? '…' : (rtl ? 'הוסף פוליסה' : 'Add policy')}</ActionBtn>
         </form>
@@ -1679,6 +1862,28 @@ function InsurancePane({ carId, companyId, rtl }) {
               {r.agent_name && <span>{rtl ? 'סוכן' : 'Agent'}: {r.agent_name}{r.agent_phone ? ` · ${r.agent_phone}` : ''}</span>}
             </div>
             {r.coverage && <div style={{ marginTop: 6, fontSize: 12, color: C.textMuted, fontStyle: 'italic' }}>{r.coverage}</div>}
+            {(() => {
+              const ext = [[r.ext_windshield, rtl ? 'שמשות' : 'Windshields'], [r.ext_towing, rtl ? 'גרירה' : 'Towing'],
+                           [r.ext_replacement_car, rtl ? 'רכב חלופי' : 'Replacement'], [r.ext_third_party, rtl ? 'צד ג׳' : '3rd party']]
+                .filter(([on]) => on).map(([, l]) => l)
+              return ext.length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {ext.map(l => <span key={l} style={{ fontSize: 11, fontWeight: 600, color: C.success, background: C.success + '15', padding: '2px 8px', borderRadius: 999 }}>{l}</span>)}
+                </div>
+              )
+            })()}
+            {(() => {
+              const who = [[r.drv_any, rtl ? 'כל נהג' : 'Any driver'], [r.drv_min_age_21, rtl ? 'מעל 21' : 'Over 21'],
+                           [r.drv_min_age_24, rtl ? 'מעל 24' : 'Over 24'], [r.drv_shabbat, rtl ? 'שבת' : 'Shabbat']]
+                .filter(([on]) => on).map(([, l]) => l)
+              if (r.drv_named_only) who.push(`${rtl ? 'נהג יחיד' : 'Named only'}: ${r.drv_named_only}`)
+              return who.length > 0 && (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.warning }}>{rtl ? 'רשאים לנהוג:' : 'May drive:'}</span>
+                  {who.map(l => <span key={l} style={{ fontSize: 11, fontWeight: 600, color: C.warning, background: C.warning + '18', padding: '2px 8px', borderRadius: 999 }}>{l}</span>)}
+                </div>
+              )
+            })()}
           </div>
         ))}
     </div>
@@ -1924,6 +2129,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             ['leasing',     (rtl ? 'ליסינג' : 'Leasing')],
             ['insurance',   (rtl ? 'ביטוחים' : 'Insurance')],
             ['tests',       (rtl ? 'טסטים' : 'Tests')],
+            ['taxation',    (rtl ? 'שווי ומיסוי' : 'Tax & benefit')],
             ['maintenance', `${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`],
             ['costs',       `${rtl ? 'עלויות' : 'Costs'} (${costs.length})`],
             ['documents',   `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
@@ -1998,6 +2204,9 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
 
             {/* ── ANNUAL TESTS ── */}
             {tab === 'tests'     && <TestsPane     carId={car.id} companyId={companyId} rtl={rtl} />}
+
+            {/* ── TAXABLE BENEFIT & EXCISE REFUND ── */}
+            {tab === 'taxation'  && <TaxationPane  car={car} companyId={companyId} rtl={rtl} onCarUpdate={onCarUpdate} />}
 
             {/* ── MAINTENANCE ── */}
             {tab === 'maintenance' && (
