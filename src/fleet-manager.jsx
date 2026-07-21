@@ -1398,6 +1398,403 @@ function buildSaveLicenseLevels(levels = [], otherText = '') {
 }
 
 // ── Car Detail Modal ─────────────────────────────────────────────────────────
+// ── Shared field styles for the vehicle record panes ─────────────────────────
+const vpInput = { width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: C.surface, color: C.textPrimary, boxSizing: 'border-box' }
+const vpLabel = { fontSize: 11, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 4 }
+
+function VpField({ label, children }) {
+  return <div><label style={vpLabel}>{label}</label>{children}</div>
+}
+
+// Colour-coded days-remaining pill, shared by insurance and test panes
+function ExpiryPill({ date, rtl }) {
+  if (!date) return null
+  const days = Math.ceil((new Date(date) - new Date().setHours(0, 0, 0, 0)) / 86400000)
+  const color = days < 0 ? C.danger : days <= 30 ? C.warning : C.success
+  const text = days < 0 ? (rtl ? `פג לפני ${Math.abs(days)} י׳` : `${Math.abs(days)}d ago`)
+    : days === 0 ? (rtl ? 'פג היום' : 'today')
+    : (rtl ? `בעוד ${days} י׳` : `in ${days}d`)
+  return <span style={{ fontSize: 11, fontWeight: 700, color, background: color + '1f', padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{text}</span>
+}
+
+// ── Leasing / ownership pane ─────────────────────────────────────────────────
+// One active contract per vehicle. Ownership type drives which fields matter:
+// an owned vehicle has no lease terms, so the contract block is hidden.
+const OWNERSHIP = [
+  { v: 'owned',   he: 'בבעלות החברה', en: 'Company owned' },
+  { v: 'leasing', he: 'ליסינג',        en: 'Leasing' },
+  { v: 'rental',  he: 'השכרה',         en: 'Rental' },
+]
+
+function LeasingPane({ carId, companyId, rtl }) {
+  const [row, setRow]       = useState(null)
+  const [loading, setLoad]  = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved]   = useState(false)
+  const [err, setErr]       = useState('')
+
+  useEffect(() => {
+    let alive = true
+    supabase.from('vehicle_leasing').select('*').eq('car_id', carId)
+      .order('created_at', { ascending: false }).limit(1)
+      .then(({ data }) => { if (alive) { setRow(data?.[0] || { car_id: carId, company_id: companyId, ownership_type: 'leasing' }); setLoad(false) } })
+    return () => { alive = false }
+  }, [carId, companyId])
+
+  const set = (k, v) => setRow(p => ({ ...p, [k]: v }))
+
+  async function save() {
+    setSaving(true); setErr(''); setSaved(false)
+    const payload = { ...row, company_id: companyId, car_id: carId }
+    const num = k => payload[k] === '' || payload[k] === undefined ? null : payload[k]
+    ;['monthly_payment', 'annual_km_limit', 'excess_km_rate', 'residual_value'].forEach(k => { payload[k] = num(k) })
+    ;['start_date', 'end_date'].forEach(k => { if (payload[k] === '') payload[k] = null })
+    const q = payload.id
+      ? supabase.from('vehicle_leasing').update(payload).eq('id', payload.id).select()
+      : supabase.from('vehicle_leasing').insert([payload]).select()
+    const { data, error } = await q
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setRow(data[0]); setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (loading) return <div style={{ padding: 32, textAlign: 'center', color: C.textMuted }}>…</div>
+  const isOwned = row.ownership_type === 'owned'
+  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={g2}>
+        <VpField label={rtl ? 'סוג בעלות' : 'Ownership type'}>
+          <select style={vpInput} value={row.ownership_type || 'leasing'} onChange={e => set('ownership_type', e.target.value)}>
+            {OWNERSHIP.map(o => <option key={o.v} value={o.v}>{rtl ? o.he : o.en}</option>)}
+          </select>
+        </VpField>
+        {!isOwned && (
+          <VpField label={rtl ? 'חברת ליסינג / השכרה' : 'Leasing company'}>
+            <input style={vpInput} value={row.leasing_company || ''} onChange={e => set('leasing_company', e.target.value)} placeholder={rtl ? 'שם החברה' : 'Company'} />
+          </VpField>
+        )}
+      </div>
+
+      {!isOwned && (
+        <>
+          <div style={g2}>
+            <VpField label={rtl ? 'מספר חוזה' : 'Contract number'}>
+              <input style={vpInput} value={row.contract_number || ''} onChange={e => set('contract_number', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'תשלום חודשי' : 'Monthly payment'}>
+              <input style={vpInput} type="number" min="0" value={row.monthly_payment ?? ''} onChange={e => set('monthly_payment', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'תחילת חוזה' : 'Start date'}>
+              <DateInput value={row.start_date || ''} onChange={e => set('start_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+            <VpField label={rtl ? 'סיום חוזה' : 'End date'}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <DateInput value={row.end_date || ''} onChange={e => set('end_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+                <ExpiryPill date={row.end_date} rtl={rtl} />
+              </div>
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'מכסת ק״מ שנתית' : 'Annual km limit'}>
+              <input style={vpInput} type="number" min="0" value={row.annual_km_limit ?? ''} onChange={e => set('annual_km_limit', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'עלות לק״מ חריגה' : 'Excess km rate'}>
+              <input style={vpInput} type="number" min="0" step="0.01" value={row.excess_km_rate ?? ''} onChange={e => set('excess_km_rate', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'ערך שייר / סכום יציאה' : 'Residual value'}>
+              <input style={vpInput} type="number" min="0" value={row.residual_value ?? ''} onChange={e => set('residual_value', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'איש קשר בחברה' : 'Contact name'}>
+              <input style={vpInput} value={row.contact_name || ''} onChange={e => set('contact_name', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'טלפון איש קשר' : 'Contact phone'}>
+              <input style={vpInput} value={row.contact_phone || ''} onChange={e => set('contact_phone', e.target.value)} />
+            </VpField>
+            <div />
+          </div>
+
+          <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
+            <div style={{ ...vpLabel, marginBottom: 8 }}>{rtl ? 'מה כלול בחוזה' : 'Included in contract'}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[['includes_maintenance', rtl ? 'טיפולים ותחזוקה' : 'Maintenance'],
+                ['includes_tires',       rtl ? 'צמיגים' : 'Tires'],
+                ['includes_insurance',   rtl ? 'ביטוח' : 'Insurance'],
+                ['includes_replacement', rtl ? 'רכב חלופי' : 'Replacement car']].map(([k, label]) => (
+                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.textPrimary, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!row[k]} onChange={e => set(k, e.target.checked)} style={{ width: 15, height: 15, accentColor: C.primary, cursor: 'pointer' }} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      <VpField label={rtl ? 'הערות' : 'Notes'}>
+        <textarea style={{ ...vpInput, minHeight: 60, resize: 'vertical' }} value={row.notes || ''} onChange={e => set('notes', e.target.value)} />
+      </VpField>
+
+      {err && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{err}</div>}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
+        <ActionBtn variant="save" onClick={save}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</ActionBtn>
+        {saved && <span style={{ fontSize: 12, color: C.success, fontWeight: 700 }}><Icon name="check" size={12} /> {rtl ? 'נשמר' : 'Saved'}</span>}
+      </div>
+    </div>
+  )
+}
+
+// ── Insurance pane — multiple policies per vehicle ───────────────────────────
+const POLICY_TYPES = [
+  { v: 'mandatory',     he: 'חובה',    en: 'Mandatory' },
+  { v: 'comprehensive', he: 'מקיף',    en: 'Comprehensive' },
+  { v: 'third_party',   he: 'צד ג׳',   en: 'Third party' },
+]
+const policyLabel = (v, rtl) => { const t = POLICY_TYPES.find(p => p.v === v); return t ? (rtl ? t.he : t.en) : v }
+
+function InsurancePane({ carId, companyId, rtl }) {
+  const [rows, setRows]   = useState([])
+  const [loading, setL]   = useState(true)
+  const [showAdd, setAdd] = useState(false)
+  const [saving, setSav]  = useState(false)
+  const [err, setErr]     = useState('')
+  const blank = { policy_type: 'mandatory', insurer: '', policy_number: '', agent_name: '', agent_phone: '', start_date: '', expiry_date: '', premium: '', deductible: '', coverage: '', notes: '' }
+  const [form, setForm]   = useState(blank)
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => {
+    let alive = true
+    supabase.from('vehicle_insurance').select('*').eq('car_id', carId)
+      .order('expiry_date', { ascending: false })
+      .then(({ data }) => { if (alive) { setRows(data || []); setL(false) } })
+    return () => { alive = false }
+  }, [carId])
+
+  async function add(e) {
+    e.preventDefault(); setErr('')
+    if (!form.insurer.trim()) { setErr(rtl ? 'שם חברת הביטוח הוא שדה חובה' : 'Insurer is required'); return }
+    setSav(true)
+    const payload = { ...form, company_id: companyId, car_id: carId }
+    ;['premium', 'deductible'].forEach(k => { if (payload[k] === '') payload[k] = null })
+    ;['start_date', 'expiry_date'].forEach(k => { if (payload[k] === '') payload[k] = null })
+    const { data, error } = await supabase.from('vehicle_insurance').insert([payload]).select()
+    setSav(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setRows(p => [data[0], ...p]); setAdd(false); setForm(blank)
+  }
+
+  async function del(id) {
+    if (!window.confirm(rtl ? 'למחוק את הפוליסה?' : 'Delete policy?')) return
+    const { error } = await supabase.from('vehicle_insurance').delete().eq('id', id)
+    if (!error) setRows(p => p.filter(r => r.id !== id))
+  }
+
+  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase' }}>
+          {rtl ? 'פוליסות ביטוח' : 'Insurance policies'}
+        </div>
+        <ActionBtn variant="save" onClick={() => setAdd(p => !p)}>{showAdd ? (rtl ? 'ביטול' : 'Cancel') : (rtl ? '+ פוליסה' : '+ Policy')}</ActionBtn>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+          <div style={g2}>
+            <VpField label={rtl ? 'סוג פוליסה' : 'Policy type'}>
+              <select style={vpInput} value={form.policy_type} onChange={e => set('policy_type', e.target.value)}>
+                {POLICY_TYPES.map(p => <option key={p.v} value={p.v}>{rtl ? p.he : p.en}</option>)}
+              </select>
+            </VpField>
+            <VpField label={rtl ? 'חברת ביטוח *' : 'Insurer *'}>
+              <input style={vpInput} value={form.insurer} onChange={e => set('insurer', e.target.value)} required />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'מספר פוליסה' : 'Policy number'}>
+              <input style={vpInput} value={form.policy_number} onChange={e => set('policy_number', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'פרמיה' : 'Premium'}>
+              <input style={vpInput} type="number" min="0" value={form.premium} onChange={e => set('premium', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'תחילת ביטוח' : 'Start date'}>
+              <DateInput value={form.start_date} onChange={e => set('start_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+            <VpField label={rtl ? 'תפוגת ביטוח' : 'Expiry date'}>
+              <DateInput value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'השתתפות עצמית' : 'Deductible'}>
+              <input style={vpInput} type="number" min="0" value={form.deductible} onChange={e => set('deductible', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'שם הסוכן' : 'Agent name'}>
+              <input style={vpInput} value={form.agent_name} onChange={e => set('agent_name', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'טלפון הסוכן' : 'Agent phone'}>
+              <input style={vpInput} value={form.agent_phone} onChange={e => set('agent_phone', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'כיסויים' : 'Coverage'}>
+              <input style={vpInput} value={form.coverage} onChange={e => set('coverage', e.target.value)} placeholder={rtl ? 'גרירה, רכב חלופי…' : 'Towing, replacement…'} />
+            </VpField>
+          </div>
+          {err && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{err}</div>}
+          <ActionBtn variant="save" onClick={add}>{saving ? '…' : (rtl ? 'הוסף פוליסה' : 'Add policy')}</ActionBtn>
+        </form>
+      )}
+
+      {loading ? <div style={{ textAlign: 'center', color: C.textMuted, padding: 24 }}>…</div>
+        : rows.length === 0 ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 13, padding: '28px 0' }}>{rtl ? 'לא הוזנו פוליסות' : 'No policies yet'}</div>
+        : rows.map(r => (
+          <div key={r.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <Badge label={policyLabel(r.policy_type, rtl)} color={() => C.primary} />
+                <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{r.insurer}</span>
+                <ExpiryPill date={r.expiry_date} rtl={rtl} />
+              </div>
+              <button onClick={() => del(r.id)} title={rtl ? 'מחק' : 'Delete'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 4 }}>
+                <Icon name="trash" size={14} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 12, color: C.textSecondary }}>
+              {r.policy_number && <span>{rtl ? 'פוליסה' : 'Policy'}: {r.policy_number}</span>}
+              {r.expiry_date   && <span>{rtl ? 'עד' : 'Until'} {fmtDate(r.expiry_date)}</span>}
+              {r.premium != null   && <span>{rtl ? 'פרמיה' : 'Premium'}: {RG.currency}{Number(r.premium).toLocaleString()}</span>}
+              {r.deductible != null && <span>{rtl ? 'השתתפות' : 'Deductible'}: {RG.currency}{Number(r.deductible).toLocaleString()}</span>}
+              {r.agent_name && <span>{rtl ? 'סוכן' : 'Agent'}: {r.agent_name}{r.agent_phone ? ` · ${r.agent_phone}` : ''}</span>}
+            </div>
+            {r.coverage && <div style={{ marginTop: 6, fontSize: 12, color: C.textMuted, fontStyle: 'italic' }}>{r.coverage}</div>}
+          </div>
+        ))}
+    </div>
+  )
+}
+
+// ── Annual roadworthiness test (טסט) pane ────────────────────────────────────
+function TestsPane({ carId, companyId, rtl }) {
+  const [rows, setRows]   = useState([])
+  const [loading, setL]   = useState(true)
+  const [showAdd, setAdd] = useState(false)
+  const [err, setErr]     = useState('')
+  const blank = { test_date: '', next_test_date: '', result: 'passed', station: '', mileage: '', cost: '', notes: '' }
+  const [form, setForm]   = useState(blank)
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => {
+    let alive = true
+    supabase.from('vehicle_tests').select('*').eq('car_id', carId)
+      .order('test_date', { ascending: false })
+      .then(({ data }) => { if (alive) { setRows(data || []); setL(false) } })
+    return () => { alive = false }
+  }, [carId])
+
+  async function add(e) {
+    e.preventDefault(); setErr('')
+    if (!form.test_date) { setErr(rtl ? 'תאריך הטסט הוא שדה חובה' : 'Test date is required'); return }
+    const payload = { ...form, company_id: companyId, car_id: carId }
+    ;['mileage', 'cost'].forEach(k => { if (payload[k] === '') payload[k] = null })
+    if (payload.next_test_date === '') payload.next_test_date = null
+    const { data, error } = await supabase.from('vehicle_tests').insert([payload]).select()
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setRows(p => [data[0], ...p]); setAdd(false); setForm(blank)
+  }
+
+  async function del(id) {
+    if (!window.confirm(rtl ? 'למחוק את רשומת הטסט?' : 'Delete test record?')) return
+    const { error } = await supabase.from('vehicle_tests').delete().eq('id', id)
+    if (!error) setRows(p => p.filter(r => r.id !== id))
+  }
+
+  const RESULTS = { passed: { he: 'עבר', en: 'Passed', c: C.success }, failed: { he: 'נכשל', en: 'Failed', c: C.danger }, conditional: { he: 'עבר בתנאי', en: 'Conditional', c: C.warning } }
+  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase' }}>
+          {rtl ? 'טסטים שנתיים' : 'Annual tests'}
+        </div>
+        <ActionBtn variant="save" onClick={() => setAdd(p => !p)}>{showAdd ? (rtl ? 'ביטול' : 'Cancel') : (rtl ? '+ טסט' : '+ Test')}</ActionBtn>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+          <div style={g2}>
+            <VpField label={rtl ? 'תאריך הטסט *' : 'Test date *'}>
+              <DateInput value={form.test_date} onChange={e => set('test_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+            <VpField label={rtl ? 'הטסט הבא' : 'Next test'}>
+              <DateInput value={form.next_test_date} onChange={e => set('next_test_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'תוצאה' : 'Result'}>
+              <select style={vpInput} value={form.result} onChange={e => set('result', e.target.value)}>
+                {Object.entries(RESULTS).map(([v, o]) => <option key={v} value={v}>{rtl ? o.he : o.en}</option>)}
+              </select>
+            </VpField>
+            <VpField label={rtl ? 'תחנת הבדיקה' : 'Test station'}>
+              <input style={vpInput} value={form.station} onChange={e => set('station', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={`${rtl ? 'קילומטראז׳' : 'Mileage'} (${distUnit()})`}>
+              <input style={vpInput} type="number" min="0" value={form.mileage} onChange={e => set('mileage', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'עלות' : 'Cost'}>
+              <input style={vpInput} type="number" min="0" value={form.cost} onChange={e => set('cost', e.target.value)} />
+            </VpField>
+          </div>
+          {err && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{err}</div>}
+          <ActionBtn variant="save" onClick={add}>{rtl ? 'הוסף טסט' : 'Add test'}</ActionBtn>
+        </form>
+      )}
+
+      {loading ? <div style={{ textAlign: 'center', color: C.textMuted, padding: 24 }}>…</div>
+        : rows.length === 0 ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 13, padding: '28px 0' }}>{rtl ? 'לא הוזנו טסטים' : 'No tests recorded'}</div>
+        : rows.map(r => {
+          const res = RESULTS[r.result] || RESULTS.passed
+          return (
+            <div key={r.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Badge label={rtl ? res.he : res.en} color={() => res.c} />
+                  <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{fmtDate(r.test_date)}</span>
+                  {r.next_test_date && <ExpiryPill date={r.next_test_date} rtl={rtl} />}
+                </div>
+                <button onClick={() => del(r.id)} title={rtl ? 'מחק' : 'Delete'}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 4 }}>
+                  <Icon name="trash" size={14} />
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 12, color: C.textSecondary }}>
+                {r.next_test_date && <span>{rtl ? 'הבא' : 'Next'}: {fmtDate(r.next_test_date)}</span>}
+                {r.station && <span>{rtl ? 'תחנה' : 'Station'}: {r.station}</span>}
+                {r.mileage != null && <span>{Number(r.mileage).toLocaleString()} {distUnit()}</span>}
+                {r.cost != null && <span>{RG.currency}{Number(r.cost).toLocaleString()}</span>}
+              </div>
+            </div>
+          )
+        })}
+    </div>
+  )
+}
+
 // ── Tachograph calibration (Israel — traffic regulation 364d) ────────────────
 // Buses over 8t, commercial vehicles over 8t and hazmat carriers must run a
 // working tachograph with a valid calibration certificate. An expired
@@ -1495,8 +1892,10 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
   const sectionStyle = { padding: '0 24px 20px' }
   const sTitle  = { fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10, marginTop: 20 }
   const infoRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: `1px solid ${C.borderLight}`, fontSize: 13 }
-  const tabBar  = { display: 'flex', background: C.bg, borderBottom: `1px solid ${C.border}`, padding: '0 24px' }
-  const tabBtn  = active => ({ padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', borderBottom: active ? `2px solid ${C.primary}` : '2px solid transparent', color: active ? C.primary : C.textMuted, transition: 'color 0.15s' })
+  // Seven tabs overflow the modal on narrow screens — scroll rather than wrap,
+  // so the row keeps its single-line shape and the active tab stays reachable.
+  const tabBar  = { display: 'flex', background: C.bg, borderBottom: `1px solid ${C.border}`, padding: '0 24px', overflowX: 'auto', whiteSpace: 'nowrap' }
+  const tabBtn  = active => ({ padding: '12px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none', borderBottom: active ? `2px solid ${C.primary}` : '2px solid transparent', color: active ? C.primary : C.textMuted, transition: 'color 0.15s', flexShrink: 0 })
   const card    = { background: C.bg, borderRadius: 10, padding: 14, marginBottom: 10, border: `1px solid ${C.border}` }
 
   const statusBg  = s => s === 'done' ? '#dcfce7' : s === 'overdue' ? '#fee2e2' : '#dbeafe'
@@ -1521,7 +1920,13 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
 
         {/* Tab bar */}
         <div style={tabBar}>
-          {[['overview', (rtl ? 'סקירה' : 'Overview')], ['maintenance', `${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`], ['costs', `${rtl ? 'עלויות' : 'Costs'} (${costs.length})`], ['documents', `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+          {[['overview',    (rtl ? 'סקירה' : 'Overview')],
+            ['leasing',     (rtl ? 'ליסינג' : 'Leasing')],
+            ['insurance',   (rtl ? 'ביטוחים' : 'Insurance')],
+            ['tests',       (rtl ? 'טסטים' : 'Tests')],
+            ['maintenance', `${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`],
+            ['costs',       `${rtl ? 'עלויות' : 'Costs'} (${costs.length})`],
+            ['documents',   `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -1584,6 +1989,15 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                 </div>
               </>
             )}
+
+            {/* ── LEASING / OWNERSHIP ── */}
+            {tab === 'leasing'   && <LeasingPane   carId={car.id} companyId={companyId} rtl={rtl} />}
+
+            {/* ── INSURANCE POLICIES ── */}
+            {tab === 'insurance' && <InsurancePane carId={car.id} companyId={companyId} rtl={rtl} />}
+
+            {/* ── ANNUAL TESTS ── */}
+            {tab === 'tests'     && <TestsPane     carId={car.id} companyId={companyId} rtl={rtl} />}
 
             {/* ── MAINTENANCE ── */}
             {tab === 'maintenance' && (
@@ -3696,8 +4110,8 @@ function AlertsTab({ companyId, rtl }) {
     setLoading(false)
   }
 
-  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph' }
-  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓', tachograph: '⏱️' }
+  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph', insurance: rtl ? 'ביטוח' : 'Insurance', test: rtl ? 'טסט' : 'Test', leasing: rtl ? 'ליסינג' : 'Leasing' }
+  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓', tachograph: '⏱️', insurance: '🛡️', test: '🔍', leasing: '📄' }
 
   const filtered = alerts
     .filter(a => !filterType || a.type === filterType)
@@ -3773,6 +4187,9 @@ function AlertsTab({ companyId, rtl }) {
           <option value="document">{typeLabel.document}</option>
           <option value="license">{typeLabel.license}</option>
           <option value="certification">{typeLabel.certification}</option>
+          <option value="insurance">{typeLabel.insurance}</option>
+          <option value="test">{typeLabel.test}</option>
+          <option value="leasing">{typeLabel.leasing}</option>
           {RG.code === 'il' && <option value="tachograph">{typeLabel.tachograph}</option>}
         </select>
         <select value={filterSev} onChange={e => setFilterSev(e.target.value)} style={inp}>
