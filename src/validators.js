@@ -19,6 +19,22 @@ export const isDriverLicense = v => {
   return /^\d{6,9}$/.test(c)
 }
 
+// Israeli ID (תעודת זהות) — 9 digits with a Luhn-style check digit. Shorter
+// numbers are legal and are left-padded with zeros, which is why we pad rather
+// than reject them.
+export const isValidIsraeliId = v => {
+  const c = (v ?? '').toString().replace(/\D/g, '')
+  if (c.length === 0 || c.length > 9) return false
+  const id = c.padStart(9, '0')
+  let sum = 0
+  for (let i = 0; i < 9; i++) {
+    let d = Number(id[i]) * ((i % 2) + 1)
+    if (d > 9) d -= 9
+    sum += d
+  }
+  return sum % 10 === 0
+}
+
 export const isYear = v => {
   const n = parseInt(v, 10)
   return !isNaN(n) && n >= 1900 && n <= 2099

@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient'
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
-import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, friendlyDbError } from './validators'
+import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, isValidIsraeliId, friendlyDbError } from './validators'
 import { getRegion, REGIONS, REGION_CODES } from './regions'
 
 // ── Active company region — set once when the company loads, read app-wide ────
@@ -1447,8 +1447,11 @@ function LeasingPane({ carId, companyId, rtl }) {
     setSaving(true); setErr(''); setSaved(false)
     const payload = { ...row, company_id: companyId, car_id: carId }
     const num = k => payload[k] === '' || payload[k] === undefined ? null : payload[k]
-    ;['monthly_payment', 'annual_km_limit', 'excess_km_rate', 'residual_value'].forEach(k => { payload[k] = num(k) })
-    ;['start_date', 'end_date'].forEach(k => { if (payload[k] === '') payload[k] = null })
+    ;['monthly_payment', 'annual_km_limit', 'excess_km_rate', 'residual_value',
+      'amount_maintenance', 'amount_rental', 'amount_insurance', 'deposit_amount',
+      'deposit_prepayments', 'total_payments', 'payments_made', 'purchase_price', 'sale_price'].forEach(k => { payload[k] = num(k) })
+    ;['start_date', 'end_date', 'extension_end_date', 'first_payment_date',
+      'last_payment_date', 'last_invoice_date'].forEach(k => { if (payload[k] === '') payload[k] = null })
     const q = payload.id
       ? supabase.from('vehicle_leasing').update(payload).eq('id', payload.id).select()
       : supabase.from('vehicle_leasing').insert([payload]).select()
@@ -1521,6 +1524,85 @@ function LeasingPane({ carId, companyId, rtl }) {
             <div />
           </div>
 
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', margin: '18px 0 10px' }}>
+            {rtl ? 'פירוק התשלום החודשי' : 'Monthly cost breakdown'}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <VpField label={rtl ? 'סכום אחזקה' : 'Maintenance'}>
+              <input style={vpInput} type="number" min="0" value={row.amount_maintenance ?? ''} onChange={e => set('amount_maintenance', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'סכום שכירות' : 'Rental'}>
+              <input style={vpInput} type="number" min="0" value={row.amount_rental ?? ''} onChange={e => set('amount_rental', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'סכום ביטוח' : 'Insurance'}>
+              <input style={vpInput} type="number" min="0" value={row.amount_insurance ?? ''} onChange={e => set('amount_insurance', e.target.value)} />
+            </VpField>
+          </div>
+
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', margin: '18px 0 10px' }}>
+            {rtl ? 'תשלומים והצמדה' : 'Payments & linkage'}
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'סכום פקדון' : 'Deposit'}>
+              <input style={vpInput} type="number" min="0" value={row.deposit_amount ?? ''} onChange={e => set('deposit_amount', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'תשלומים מראש לפקדון' : 'Deposit prepayments'}>
+              <input style={vpInput} type="number" min="0" value={row.deposit_prepayments ?? ''} onChange={e => set('deposit_prepayments', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'מספר תשלומים בהסכם' : 'Payments in contract'}>
+              <input style={vpInput} type="number" min="0" value={row.total_payments ?? ''} onChange={e => set('total_payments', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'תשלומים שנפרעו' : 'Payments made'}>
+              <input style={vpInput} type="number" min="0" value={row.payments_made ?? ''} onChange={e => set('payments_made', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'מדד בסיס' : 'Base index'}>
+              <input style={vpInput} value={row.base_index || ''} onChange={e => set('base_index', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'סוג הצמדה' : 'Linkage type'}>
+              <input style={vpInput} value={row.linkage_type || ''} onChange={e => set('linkage_type', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'מחיר קניית הרכב' : 'Vehicle purchase price'}>
+              <input style={vpInput} type="number" min="0" value={row.purchase_price ?? ''} onChange={e => set('purchase_price', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'מחיר מכירה' : 'Sale price'}>
+              <input style={vpInput} type="number" min="0" value={row.sale_price ?? ''} onChange={e => set('sale_price', e.target.value)} />
+            </VpField>
+          </div>
+
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', margin: '18px 0 10px' }}>
+            {rtl ? 'תאריכים נוספים' : 'Further dates'}
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'סיום הארכה' : 'Extension end'}>
+              <DateInput value={row.extension_end_date || ''} onChange={e => set('extension_end_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+            <VpField label={rtl ? 'תשלום ראשון' : 'First payment'}>
+              <DateInput value={row.first_payment_date || ''} onChange={e => set('first_payment_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'סיום תשלום' : 'Last payment'}>
+              <DateInput value={row.last_payment_date || ''} onChange={e => set('last_payment_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+            <VpField label={rtl ? 'חשבונית אחרונה' : 'Last invoice'}>
+              <DateInput value={row.last_invoice_date || ''} onChange={e => set('last_invoice_date', e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+            </VpField>
+          </div>
+          <div style={g2}>
+            <VpField label={rtl ? 'מס׳ הזמנת יבוא' : 'Import order no.'}>
+              <input style={vpInput} value={row.import_order_no || ''} onChange={e => set('import_order_no', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'ספק דלקן' : 'Fuel supplier'}>
+              <input style={vpInput} value={row.fuel_supplier || ''} onChange={e => set('fuel_supplier', e.target.value)} />
+            </VpField>
+          </div>
+
           <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <div style={{ ...vpLabel, marginBottom: 8 }}>{rtl ? 'מה כלול בחוזה' : 'Included in contract'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1547,6 +1629,200 @@ function LeasingPane({ carId, companyId, rtl }) {
         <ActionBtn variant="save" onClick={save}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</ActionBtn>
         {saved && <span style={{ fontSize: 12, color: C.success, fontWeight: 700 }}><Icon name="check" size={12} /> {rtl ? 'נשמר' : 'Saved'}</span>}
       </div>
+    </div>
+  )
+}
+
+// ── Vehicle details pane — technical identity, heavy-vehicle, lifecycle ──────
+// These live on `cars` because they describe the vehicle itself rather than an
+// event. The heavy-vehicle block is what determines the reg 364d tachograph
+// duty, so it sits next to the weights rather than in a separate screen.
+const CAR_DETAIL_FIELDS = [
+  { section: 'identity', he: 'זיהוי ומידע טכני', en: 'Identity & technical', fields: [
+    ['chassis_no',      'מס׳ שילדה',            'Chassis / VIN',       'text'],
+    ['engine_no',       'מס׳ מנוע',             'Engine number',       'text'],
+    ['color',           'צבע',                  'Colour',              'text'],
+    ['engine_volume',   'נפח מנוע (סמ״ק)',      'Engine volume (cc)',  'number'],
+    ['drive_code',      'קוד הנעה',             'Drive code',          'text'],
+    ['avg_consumption', 'תצרוכת דלק ממוצעת',    'Avg consumption',     'number'],
+    ['green_index',     'מדד ירוק',             'Green index',         'text'],
+    ['vehicle_type',    'סוג רכב',              'Vehicle type',        'text'],
+    ['commercial_name', 'כינוי מסחרי',          'Commercial name',     'text'],
+  ] },
+  { section: 'heavy', he: 'רכב כבד', en: 'Heavy vehicle', fields: [
+    ['weight_authorized', 'משקל מורשה (ק״ג)', 'Authorised weight (kg)', 'number'],
+    ['weight_empty',      'משקל עצמי (ק״ג)',  'Empty weight (kg)',      'number'],
+    ['weight_total',      'משקל כולל (ק״ג)',  'Total weight (kg)',      'number'],
+    ['trailer_plate',     'נגרר / קליפ',       'Trailer',                'text'],
+    ['tag_number',        'מס׳ תג',            'Tag number',             'text'],
+  ] },
+  { section: 'lifecycle', he: 'רישוי ומחזור חיים', en: 'Registration & lifecycle', fields: [
+    ['registration_expiry', 'תאריך רישוי',   'Registration expiry', 'date'],
+    ['test_frequency',      'תדירות טסט',     'Test frequency',      'text'],
+    ['purchase_date',       'תאריך קנייה',    'Purchase date',       'date'],
+    ['purchase_price',      'מחיר קנייה',     'Purchase price',      'number'],
+    ['sale_date',           'תאריך מכירה',    'Sale date',           'date'],
+    ['sale_price',          'מחיר מכירה',     'Sale price',          'number'],
+    ['last_km_date',        'תאריך קריאת ק״מ','Last km reading date','date'],
+  ] },
+  { section: 'org', he: 'שיוך ארגוני', en: 'Organisation', fields: [
+    ['owner_name',     'בעלות',        'Owner',          'text'],
+    ['safety_officer', 'קצין בטיחות',  'Safety officer', 'text'],
+    ['group_name',     'קבוצה',        'Group',          'text'],
+    ['sort_code',      'מיון',         'Sort',           'text'],
+    ['internal_code',  'פנימי',        'Internal code',  'text'],
+  ] },
+]
+const NUMERIC_CAR_FIELDS = ['engine_volume', 'avg_consumption', 'weight_authorized', 'weight_empty', 'weight_total', 'purchase_price', 'sale_price']
+const DATE_CAR_FIELDS    = ['registration_expiry', 'purchase_date', 'sale_date', 'last_km_date']
+
+function CarDetailsPane({ car, rtl, onCarUpdate }) {
+  const init = {}
+  CAR_DETAIL_FIELDS.forEach(s => s.fields.forEach(([k]) => { init[k] = car[k] ?? '' }))
+  const [f, setF]           = useState(init)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved]   = useState(false)
+  const [err, setErr]       = useState('')
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+
+  async function save() {
+    setSaving(true); setErr(''); setSaved(false)
+    const patch = { ...f }
+    ;[...NUMERIC_CAR_FIELDS, ...DATE_CAR_FIELDS].forEach(k => { if (patch[k] === '') patch[k] = null })
+    const { error } = await supabase.from('cars').update(patch).eq('id', car.id)
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    onCarUpdate?.(car.id, patch)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  // Reg 364d applies to commercial vehicles over 8t — flag it where the weight
+  // is entered so the duty is noticed at the point the data arrives.
+  const heavyHint = Number(f.weight_total) >= 8000 && !car.tachograph_required
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      {CAR_DETAIL_FIELDS.map(sec => (
+        <div key={sec.section} style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
+            {rtl ? sec.he : sec.en}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {sec.fields.map(([k, he, en, type]) => (
+              <VpField key={k} label={rtl ? he : en}>
+                {type === 'date'
+                  ? <DateInput value={f[k] || ''} onChange={e => set(k, e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+                  : <input style={vpInput} type={type === 'number' ? 'number' : 'text'} min={type === 'number' ? '0' : undefined}
+                      value={f[k] ?? ''} onChange={e => set(k, e.target.value)} />}
+              </VpField>
+            ))}
+          </div>
+          {sec.section === 'heavy' && heavyHint && RG.code === 'il' && (
+            <div style={{ marginTop: 10, fontSize: 12, color: C.warning, background: C.warning + '14', border: `1px solid ${C.warning}40`, borderRadius: 7, padding: '8px 12px' }}>
+              {rtl
+                ? 'משקל כולל מעל 8 טון — ייתכן שהרכב חייב בטכוגרף (תקנה 364ד). אפשר לסמן זאת בלשונית הסקירה.'
+                : 'Total weight over 8t — this vehicle may fall under the reg 364d tachograph duty.'}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {err && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{err}</div>}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+        <ActionBtn variant="save" onClick={save}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</ActionBtn>
+        {saved && <span style={{ fontSize: 12, color: C.success, fontWeight: 700 }}><Icon name="check" size={12} /> {rtl ? 'נשמר' : 'Saved'}</span>}
+      </div>
+    </div>
+  )
+}
+
+// ── Vehicle equipment (ציוד רכב) ─────────────────────────────────────────────
+function EquipmentPane({ carId, companyId, rtl }) {
+  const [rows, setRows]   = useState([])
+  const [loading, setL]   = useState(true)
+  const [showAdd, setAdd] = useState(false)
+  const [err, setErr]     = useState('')
+  const blank = { code: '', name: '', quantity: 1, serial_no: '', notes: '' }
+  const [form, setForm]   = useState(blank)
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => {
+    let alive = true
+    supabase.from('vehicle_equipment').select('*').eq('car_id', carId).order('created_at')
+      .then(({ data }) => { if (alive) { setRows(data || []); setL(false) } })
+    return () => { alive = false }
+  }, [carId])
+
+  async function add(e) {
+    e.preventDefault(); setErr('')
+    if (!form.name.trim()) { setErr(rtl ? 'שם הפריט הוא שדה חובה' : 'Item name is required'); return }
+    const payload = { ...form, company_id: companyId, car_id: carId, quantity: form.quantity === '' ? 1 : Number(form.quantity) }
+    const { data, error } = await supabase.from('vehicle_equipment').insert([payload]).select()
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    setRows(p => [...p, data[0]]); setAdd(false); setForm(blank)
+  }
+
+  async function del(id) {
+    if (!window.confirm(rtl ? 'למחוק את הפריט?' : 'Delete item?')) return
+    const { error } = await supabase.from('vehicle_equipment').delete().eq('id', id)
+    if (!error) setRows(p => p.filter(r => r.id !== id))
+  }
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase' }}>
+          {rtl ? 'ציוד ברכב' : 'Vehicle equipment'}
+        </div>
+        <ActionBtn variant="save" onClick={() => setAdd(p => !p)}>{showAdd ? (rtl ? 'ביטול' : 'Cancel') : (rtl ? '+ פריט' : '+ Item')}</ActionBtn>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <VpField label={rtl ? 'שם הפריט *' : 'Item name *'}>
+              <input style={vpInput} value={form.name} onChange={e => set('name', e.target.value)} required />
+            </VpField>
+            <VpField label={rtl ? 'קוד' : 'Code'}>
+              <input style={vpInput} value={form.code} onChange={e => set('code', e.target.value)} />
+            </VpField>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <VpField label={rtl ? 'כמות' : 'Quantity'}>
+              <input style={vpInput} type="number" min="1" value={form.quantity} onChange={e => set('quantity', e.target.value)} />
+            </VpField>
+            <VpField label={rtl ? 'מספר סידורי' : 'Serial number'}>
+              <input style={vpInput} value={form.serial_no} onChange={e => set('serial_no', e.target.value)} />
+            </VpField>
+          </div>
+          <VpField label={rtl ? 'הערות' : 'Notes'}>
+            <input style={vpInput} value={form.notes} onChange={e => set('notes', e.target.value)} />
+          </VpField>
+          {err && <div style={{ color: C.danger, fontSize: 12, margin: '8px 0' }}>{err}</div>}
+          <div style={{ marginTop: 10 }}><ActionBtn variant="save" onClick={add}>{rtl ? 'הוסף' : 'Add'}</ActionBtn></div>
+        </form>
+      )}
+
+      {loading ? <div style={{ textAlign: 'center', color: C.textMuted, padding: 24 }}>…</div>
+        : rows.length === 0 ? <div style={{ textAlign: 'center', color: C.textMuted, fontSize: 13, padding: '28px 0' }}>{rtl ? 'לא הוזן ציוד' : 'No equipment recorded'}</div>
+        : rows.map(r => (
+          <div key={r.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>
+                {r.name}{r.quantity > 1 ? ` × ${r.quantity}` : ''}
+              </div>
+              <div style={{ fontSize: 12, color: C.textSecondary, display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 2 }}>
+                {r.code      && <span>{rtl ? 'קוד' : 'Code'}: {r.code}</span>}
+                {r.serial_no && <span>{rtl ? 'מס״ד' : 'S/N'}: {r.serial_no}</span>}
+                {r.notes     && <span style={{ fontStyle: 'italic', color: C.textMuted }}>{r.notes}</span>}
+              </div>
+            </div>
+            <button onClick={() => del(r.id)} title={rtl ? 'מחק' : 'Delete'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 4 }}>
+              <Icon name="trash" size={14} />
+            </button>
+          </div>
+        ))}
     </div>
   )
 }
@@ -2126,10 +2402,12 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
         {/* Tab bar */}
         <div style={tabBar}>
           {[['overview',    (rtl ? 'סקירה' : 'Overview')],
+            ['details',     (rtl ? 'פרטים מלאים' : 'Details')],
             ['leasing',     (rtl ? 'ליסינג' : 'Leasing')],
             ['insurance',   (rtl ? 'ביטוחים' : 'Insurance')],
             ['tests',       (rtl ? 'טסטים' : 'Tests')],
             ['taxation',    (rtl ? 'שווי ומיסוי' : 'Tax & benefit')],
+            ['equipment',   (rtl ? 'ציוד' : 'Equipment')],
             ['maintenance', `${rtl ? 'תחזוקה' : 'Service'} (${maintenance.length})`],
             ['costs',       `${rtl ? 'עלויות' : 'Costs'} (${costs.length})`],
             ['documents',   `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
@@ -2205,8 +2483,14 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             {/* ── ANNUAL TESTS ── */}
             {tab === 'tests'     && <TestsPane     carId={car.id} companyId={companyId} rtl={rtl} />}
 
+            {/* ── FULL VEHICLE DETAILS ── */}
+            {tab === 'details'   && <CarDetailsPane car={car} rtl={rtl} onCarUpdate={onCarUpdate} />}
+
             {/* ── TAXABLE BENEFIT & EXCISE REFUND ── */}
             {tab === 'taxation'  && <TaxationPane  car={car} companyId={companyId} rtl={rtl} onCarUpdate={onCarUpdate} />}
+
+            {/* ── VEHICLE EQUIPMENT ── */}
+            {tab === 'equipment' && <EquipmentPane carId={car.id} companyId={companyId} rtl={rtl} />}
 
             {/* ── MAINTENANCE ── */}
             {tab === 'maintenance' && (
@@ -2283,7 +2567,89 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
 }
 
 // ── Driver Detail Modal ──────────────────────────────────────────────────────
-function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onClose, onAssignVehicle }) {
+// ── Driver personal / employment details ─────────────────────────────────────
+// The driver record was identity-thin (name, licence, phone). Fleets migrating
+// from an incumbent system carry an HR-shaped record, so these are the fields
+// that otherwise have nowhere to land.
+const DRIVER_DETAIL_FIELDS = [
+  { section: 'personal', he: 'פרטים אישיים', en: 'Personal', fields: [
+    ['national_id', 'תעודת זהות', 'National ID',  'text'],
+    ['birth_date',  'תאריך לידה', 'Date of birth','date'],
+    ['gender',      'מין',        'Gender',       'text'],
+  ] },
+  { section: 'contact', he: 'פרטי קשר', en: 'Contact', fields: [
+    ['email',       'דוא״ל',      'Email',        'text'],
+    ['phone2',      'טלפון נוסף', 'Second phone', 'text'],
+    ['address',     'כתובת',      'Address',      'text'],
+    ['city',        'עיר',        'City',         'text'],
+    ['postal_code', 'מיקוד',      'Postal code',  'text'],
+  ] },
+  { section: 'employment', he: 'פרטי עובד', en: 'Employment', fields: [
+    ['employee_no',     'מספר עובד',        'Employee no.',   'text'],
+    ['accounting_no',   'מספר בהנהלת חשבונות','Accounting no.', 'text'],
+    ['work_start_date', 'תחילת עבודה',      'Start date',     'date'],
+    ['position_title',  'תפקיד',            'Position',       'text'],
+    ['department',      'מחלקה',            'Department',     'text'],
+    ['division',        'אגף',              'Division',       'text'],
+    ['team',            'צוות',             'Team',           'text'],
+    ['group_name',      'קבוצה',            'Group',          'text'],
+  ] },
+]
+const DRIVER_DATE_FIELDS = ['birth_date', 'work_start_date']
+
+function DriverDetailsPane({ driver, rtl, onDriverUpdate }) {
+  const init = {}
+  DRIVER_DETAIL_FIELDS.forEach(s => s.fields.forEach(([k]) => { init[k] = driver[k] ?? '' }))
+  const [f, setF]           = useState(init)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved]   = useState(false)
+  const [err, setErr]       = useState('')
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+
+  async function save() {
+    setSaving(true); setErr(''); setSaved(false)
+    const patch = { ...f }
+    DRIVER_DATE_FIELDS.forEach(k => { if (patch[k] === '') patch[k] = null })
+    // An Israeli ID has a check digit; reject a clearly invalid one rather than
+    // storing a typo that later blocks payroll or insurance matching.
+    if (RG.code === 'il' && patch.national_id && !isValidIsraeliId(patch.national_id)) {
+      setSaving(false); setErr(rtl ? 'תעודת זהות אינה תקינה' : 'Invalid national ID'); return
+    }
+    const { error } = await supabase.from('drivers').update(patch).eq('id', driver.id)
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    onDriverUpdate?.(driver.id, patch)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div style={{ padding: '20px 24px 8px' }}>
+      {DRIVER_DETAIL_FIELDS.map(sec => (
+        <div key={sec.section} style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
+            {rtl ? sec.he : sec.en}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {sec.fields.map(([k, he, en, type]) => (
+              <VpField key={k} label={rtl ? he : en}>
+                {type === 'date'
+                  ? <DateInput value={f[k] || ''} onChange={e => set(k, e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+                  : <input style={vpInput} value={f[k] ?? ''} onChange={e => set(k, e.target.value)} />}
+              </VpField>
+            ))}
+          </div>
+        </div>
+      ))}
+      {err && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{err}</div>}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+        <ActionBtn variant="save" onClick={save}>{saving ? '…' : (rtl ? 'שמור' : 'Save')}</ActionBtn>
+        {saved && <span style={{ fontSize: 12, color: C.success, fontWeight: 700 }}><Icon name="check" size={12} /> {rtl ? 'נשמר' : 'Saved'}</span>}
+      </div>
+    </div>
+  )
+}
+
+function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onClose, onAssignVehicle, onDriverUpdate }) {
   const [tab, setTab]       = useState('overview')
   const [loading, setLoading] = useState(false)
   const [savingCar, setSavingCar] = useState(false)
@@ -2322,7 +2688,11 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
 
         {/* Tab bar */}
         <div style={tabBar}>
-          {[['overview', (rtl ? 'סקירה' : 'Overview')], ['certifications', `${rtl ? 'הסמכות' : 'Certifications'}`], ['training', `${rtl ? 'הדרכות' : 'Training'}`], ['documents', `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
+          {[['overview',       (rtl ? 'סקירה' : 'Overview')],
+            ['details',        (rtl ? 'פרטים מלאים' : 'Details')],
+            ['certifications', `${rtl ? 'הסמכות' : 'Certifications'}`],
+            ['training',       `${rtl ? 'הדרכות' : 'Training'}`],
+            ['documents',      `${rtl ? 'מסמכים' : 'Documents'}`]].map(([id, label]) => (
             <button key={id} style={tabBtn(tab === id)} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -2391,6 +2761,9 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
               </div>
             </>
           )}
+
+          {/* ── PERSONAL / EMPLOYMENT DETAILS ── */}
+          {tab === 'details' && <DriverDetailsPane driver={driver} rtl={rtl} onDriverUpdate={onDriverUpdate} />}
 
           {/* ── CERTIFICATIONS ── */}
           {tab === 'certifications' && (
@@ -4319,8 +4692,8 @@ function AlertsTab({ companyId, rtl }) {
     setLoading(false)
   }
 
-  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph', insurance: rtl ? 'ביטוח' : 'Insurance', test: rtl ? 'טסט' : 'Test', leasing: rtl ? 'ליסינג' : 'Leasing' }
-  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓', tachograph: '⏱️', insurance: '🛡️', test: '🔍', leasing: '📄' }
+  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph', insurance: rtl ? 'ביטוח' : 'Insurance', test: rtl ? 'טסט' : 'Test', leasing: rtl ? 'ליסינג' : 'Leasing', registration: rtl ? 'רישיון רכב' : 'Registration' }
+  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓', tachograph: '⏱️', insurance: '🛡️', test: '🔍', leasing: '📄', registration: '🚗' }
 
   const filtered = alerts
     .filter(a => !filterType || a.type === filterType)
@@ -4399,6 +4772,7 @@ function AlertsTab({ companyId, rtl }) {
           <option value="insurance">{typeLabel.insurance}</option>
           <option value="test">{typeLabel.test}</option>
           <option value="leasing">{typeLabel.leasing}</option>
+          <option value="registration">{typeLabel.registration}</option>
           {RG.code === 'il' && <option value="tachograph">{typeLabel.tachograph}</option>}
         </select>
         <select value={filterSev} onChange={e => setFilterSev(e.target.value)} style={inp}>
@@ -10244,6 +10618,10 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           rtl={rtl}
           onClose={() => setDetailDriver(null)}
           onAssignVehicle={assignVehicleToDriver}
+          onDriverUpdate={(driverId, patch) => {
+            setDrivers(p => p.map(d => d.id === driverId ? { ...d, ...patch } : d))
+            setDetailDriver(p => p && p.id === driverId ? { ...p, ...patch } : p)
+          }}
         />
       )}
 
