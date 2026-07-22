@@ -1656,6 +1656,13 @@ const CAR_DETAIL_FIELDS = [
     ['trailer_plate',     'נגרר / קליפ',       'Trailer',                'text'],
     ['tag_number',        'מס׳ תג',            'Tag number',             'text'],
   ] },
+  // How the asset is metered. A forklift has no meaningful odometer, so the
+  // reading that drives its service plan is engine hours.
+  { section: 'usage', he: 'מדידת שימוש', en: 'Usage metering', fields: [
+    ['usage_metric',      'נמדד לפי',           'Metered by',        'metric'],
+    ['engine_hours',      'שעות מנוע נוכחיות',  'Current engine hours','number'],
+    ['engine_hours_date', 'תאריך קריאת שעות',   'Hours reading date','date'],
+  ] },
   { section: 'lifecycle', he: 'רישוי ומחזור חיים', en: 'Registration & lifecycle', fields: [
     ['registration_expiry', 'תאריך רישוי',   'Registration expiry', 'date'],
     ['test_frequency',      'תדירות טסט',     'Test frequency',      'text'],
@@ -1673,8 +1680,13 @@ const CAR_DETAIL_FIELDS = [
     ['internal_code',  'פנימי',        'Internal code',  'text'],
   ] },
 ]
-const NUMERIC_CAR_FIELDS = ['engine_volume', 'avg_consumption', 'weight_authorized', 'weight_empty', 'weight_total', 'purchase_price', 'sale_price']
-const DATE_CAR_FIELDS    = ['registration_expiry', 'purchase_date', 'sale_date', 'last_km_date']
+const NUMERIC_CAR_FIELDS = ['engine_volume', 'avg_consumption', 'weight_authorized', 'weight_empty', 'weight_total', 'purchase_price', 'sale_price', 'engine_hours']
+const DATE_CAR_FIELDS    = ['registration_expiry', 'purchase_date', 'sale_date', 'last_km_date', 'engine_hours_date']
+const USAGE_METRICS = [
+  { v: 'km',    he: 'קילומטראז׳',          en: 'Distance (km)' },
+  { v: 'hours', he: 'שעות מנוע',           en: 'Engine hours' },
+  { v: 'both',  he: 'קילומטראז׳ ושעות',    en: 'Both' },
+]
 
 function CarDetailsPane({ car, rtl, onCarUpdate }) {
   const init = {}
@@ -1712,7 +1724,12 @@ function CarDetailsPane({ car, rtl, onCarUpdate }) {
               <VpField key={k} label={rtl ? he : en}>
                 {type === 'date'
                   ? <DateInput value={f[k] || ''} onChange={e => set(k, e.target.value)} style={vpInput} placeholder="DD/MM/YY" />
+                  : type === 'metric'
+                  ? <select style={vpInput} value={f[k] || 'km'} onChange={e => set(k, e.target.value)}>
+                      {USAGE_METRICS.map(m => <option key={m.v} value={m.v}>{rtl ? m.he : m.en}</option>)}
+                    </select>
                   : <input style={vpInput} type={type === 'number' ? 'number' : 'text'} min={type === 'number' ? '0' : undefined}
+                      step={k === 'engine_hours' ? '0.1' : undefined}
                       value={f[k] ?? ''} onChange={e => set(k, e.target.value)} />}
               </VpField>
             ))}
@@ -4032,7 +4049,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   const [form, setForm] = useState({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done', mileage: '', next_service_mileage: '' })
   const [plans, setPlans] = useState([])
   const [showPlanAdd, setShowPlanAdd] = useState(false)
-  const [planForm, setPlanForm] = useState({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '' })
+  const [planForm, setPlanForm] = useState({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '', hours_interval: '', last_hours: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
 
@@ -4078,8 +4095,8 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
 
   async function addPlan(e) {
     e.preventDefault()
-    if (!planForm.km_interval && !planForm.month_interval) {
-      alert(rtl ? 'יש להגדיר מרווח ק"מ או מרווח חודשים' : 'Please set a km interval or a month interval.')
+    if (!planForm.km_interval && !planForm.month_interval && !planForm.hours_interval) {
+      alert(rtl ? 'יש להגדיר מרווח ק"מ, שעות מנוע או חודשים' : 'Please set a km, engine-hour or month interval.')
       return
     }
     const payload = {
@@ -4090,13 +4107,15 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
       month_interval: planForm.month_interval ? parseInt(planForm.month_interval, 10) : null,
       last_km: planForm.last_km ? parseInt(planForm.last_km, 10) : null,
       last_date: planForm.last_date || null,
+      hours_interval: planForm.hours_interval ? parseInt(planForm.hours_interval, 10) : null,
+      last_hours: planForm.last_hours ? parseFloat(planForm.last_hours) : null,
     }
     const { data, error } = await supabase.from('maintenance_plans').insert([payload]).select()
     if (error) { console.error('[DB]', error); alert(rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed. Please try again.'); return }
     if (data) {
       setPlans(p => [data[0], ...p])
       setShowPlanAdd(false)
-      setPlanForm({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '' })
+      setPlanForm({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '', hours_interval: '', last_hours: '' })
     }
   }
 
@@ -4109,6 +4128,10 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   function planNextKm(pl) {
     if (!pl.km_interval || !pl.last_km) return null
     return pl.last_km + pl.km_interval
+  }
+  function planNextHours(pl) {
+    if (!pl.hours_interval || pl.last_hours == null) return null
+    return Number(pl.last_hours) + pl.hours_interval
   }
   function planNextDate(pl) {
     if (!pl.month_interval || !pl.last_date) return null
@@ -4297,6 +4320,16 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.planLastDate}</label>
               <DateInput value={planForm.last_date} onChange={e => setPlanForm({ ...planForm, last_date: e.target.value })} style={inp} />
             </div>
+            {/* Engine hours — forklifts and generators are serviced on hours,
+                not distance, so an odometer interval is meaningless for them. */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'מרווח שעות מנוע' : 'Engine-hour interval'}</label>
+              <input type="number" min="0" value={planForm.hours_interval} onChange={e => setPlanForm({ ...planForm, hours_interval: e.target.value })} placeholder="250" style={inp} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{rtl ? 'שעות בטיפול אחרון' : 'Hours at last service'}</label>
+              <input type="number" min="0" step="0.1" value={planForm.last_hours} onChange={e => setPlanForm({ ...planForm, last_hours: e.target.value })} placeholder="1200" style={inp} />
+            </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button type="submit" style={{ ...btnPrimary, padding: '8px 18px', fontSize: 13, width: '100%' }}>{t.add}</button>
             </div>
@@ -4306,28 +4339,34 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
             <thead>
-              <tr>{[t.cars, t.serviceType, t.planKm, t.planMonths, t.planNextKm, t.planNextDate, t.actions].map(h => (
+              <tr>{[t.cars, t.serviceType, t.planKm, (rtl ? 'שעות' : 'Hours'), t.planMonths, t.planNextKm, (rtl ? 'שעות הבא' : 'Next hours'), t.planNextDate, t.actions].map(h => (
                 <th key={h} style={mkTh(rtl, isMobile)}>{h}</th>
               ))}</tr>
             </thead>
             <tbody>
               {plans.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{t.noPlans}</td></tr>
+                <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: C.textMuted, fontSize: 13 }}>{t.noPlans}</td></tr>
               ) : plans.map(pl => {
                 const nextKm = planNextKm(pl)
+                const nextHours = planNextHours(pl)
                 const nextDate = planNextDate(pl)
                 const car = cars.find(c => String(c.id) === String(pl.car_id))
                 const isKmDue = nextKm && car?.mileage && car.mileage >= nextKm
+                const isHoursDue = nextHours != null && car?.engine_hours != null && Number(car.engine_hours) >= nextHours
                 const isDateDue = nextDate && new Date(nextDate) <= today
-                const isDue = isKmDue || isDateDue
+                const isDue = isKmDue || isHoursDue || isDateDue
                 return (
                   <tr key={pl.id} style={{ background: isDue ? '#fff5f5' : C.surface, borderBottom: `1px solid ${C.border}` }}>
                     <td style={mkTd(rtl, isMobile)}><span style={{ fontWeight: 600, color: C.primary }}>{carName(pl.car_id)}</span></td>
                     <td style={mkTd(rtl, isMobile)}>{typeLabel[pl.type] || pl.type}</td>
                     <td style={mkTd(rtl, isMobile)}>{pl.km_interval ? pl.km_interval.toLocaleString() : '—'}</td>
+                    <td style={mkTd(rtl, isMobile)}>{pl.hours_interval ? pl.hours_interval.toLocaleString() : '—'}</td>
                     <td style={mkTd(rtl, isMobile)}>{pl.month_interval || '—'}</td>
                     <td style={mkTd(rtl, isMobile)}>
                       {nextKm ? <span style={{ color: isKmDue ? C.danger : C.textPrimary, fontWeight: isKmDue ? 700 : 400 }}>{nextKm.toLocaleString()} {isKmDue ? <Icon name="alert" size={12} color={C.danger} style={{ marginInlineStart: 3, verticalAlign: '-1px' }} /> : ''}</span> : '—'}
+                    </td>
+                    <td style={mkTd(rtl, isMobile)}>
+                      {nextHours != null ? <span style={{ color: isHoursDue ? C.danger : C.textPrimary, fontWeight: isHoursDue ? 700 : 400 }}>{nextHours.toLocaleString()} {isHoursDue ? <Icon name="alert" size={12} color={C.danger} style={{ marginInlineStart: 3, verticalAlign: '-1px' }} /> : ''}</span> : '—'}
                     </td>
                     <td style={mkTd(rtl, isMobile)}>
                       {nextDate ? <span style={{ color: isDateDue ? C.danger : C.textPrimary, fontWeight: isDateDue ? 700 : 400 }}>{fmtDate(nextDate)} {isDateDue ? <Icon name="alert" size={12} color={C.danger} style={{ marginInlineStart: 3, verticalAlign: '-1px' }} /> : ''}</span> : '—'}
@@ -4340,11 +4379,16 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
                             const { data: rec } = await supabase.from('maintenance').insert([{
                               company_id: companyId, car_id: parseInt(pl.car_id, 10),
                               type: pl.type, date: today, status: 'done', cost: 0,
+                              mileage: car?.mileage ?? null,
+                              engine_hours: car?.engine_hours ?? null,
                             }]).select()
                             if (rec?.[0]) {
-                              // Update plan's last_date and last_km
+                              // Roll the plan forward on every metric it uses. Missing
+                              // the hours reset would leave an hours-based plan stuck
+                              // permanently overdue.
                               const updPlan = { last_date: today }
-                              if (car?.mileage) updPlan.last_km = car.mileage
+                              if (car?.mileage != null)      updPlan.last_km    = car.mileage
+                              if (car?.engine_hours != null) updPlan.last_hours = car.engine_hours
                               await supabase.from('maintenance_plans').update(updPlan).eq('id', pl.id)
                               setPlans(p => p.map(x => x.id === pl.id ? { ...x, ...updPlan } : x))
                             }
