@@ -47,6 +47,7 @@ const L = {
     emailPlaceholder: 'you@example.com', passwordPlaceholder: '••••••••',
     submitSignIn: 'Sign In', submitSignUp: 'Create Account',
     accountCreated: 'Account created! Please sign in.',
+    showPassword: 'Show password', hidePassword: 'Hide password',
     joinSub: 'Join your company workspace',
     joinWithCode: 'Join with Code', pendingInvites: 'Pending Invites',
     inviteCodeLabel: 'Company Invite Code',
@@ -103,6 +104,7 @@ const L = {
     emailPlaceholder: 'you@example.com', passwordPlaceholder: '••••••••',
     submitSignIn: 'כניסה', submitSignUp: 'צור חשבון',
     accountCreated: 'החשבון נוצר! אנא התחבר.',
+    showPassword: 'הצג סיסמה', hidePassword: 'הסתר סיסמה',
     joinSub: 'הצטרף לסביבת העבודה של החברה',
     joinWithCode: 'הצטרף עם קוד', pendingInvites: 'הזמנות ממתינות',
     inviteCodeLabel: 'קוד הזמנה לחברה',
@@ -159,6 +161,48 @@ const inputStyle = {
 const labelStyle = {
   fontSize: 11, fontWeight: 700, color: C.textSub,
   textTransform: 'uppercase', letterSpacing: '0.07em',
+}
+
+// ── Password field with a reveal toggle ──────────────────────────────────────
+// The toggle sits on the side the text runs away from, so it never overlaps
+// what is being typed: left in RTL, right in LTR. Extra inline padding keeps
+// long values from sliding under the button.
+function PasswordInput({ value, onChange, placeholder, required, autoFocus, rtl, autoComplete, labelShow, labelHide }) {
+  const [shown, setShown] = useState(false)
+  const side = rtl ? { left: 10 } : { right: 10 }
+  // The accessible name has to track the state, otherwise a screen-reader user
+  // is told "show password" on a field that is already visible.
+  const label = shown ? (labelHide || 'Hide password') : (labelShow || 'Show password')
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type={shown ? 'text' : 'password'}
+        value={value} onChange={onChange} placeholder={placeholder}
+        required={required} autoFocus={autoFocus} autoComplete={autoComplete}
+        style={{ ...inputStyle, [rtl ? 'paddingLeft' : 'paddingRight']: 40 }}
+      />
+      <button
+        type="button"
+        onClick={() => setShown(s => !s)}
+        // Never submits the form, and is announced for screen readers.
+        aria-label={label}
+        aria-pressed={shown}
+        title={label}
+        style={{
+          position: 'absolute', ...side, top: 6, height: 'calc(100% - 6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: '0 2px', color: C.textSub, lineHeight: 0,
+        }}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {shown
+            ? <><path d="M10.6 6.1A9 9 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.3 3M6.2 6.2A15 15 0 0 0 2.5 12s3.5 6 9.5 6a9 9 0 0 0 3.4-.6" /><path d="M4 4l16 16" /></>
+            : <><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" /><circle cx="12" cy="12" r="3" /></>}
+        </svg>
+      </button>
+    </div>
+  )
 }
 const primaryBtn = (loading) => ({
   background: 'linear-gradient(135deg, #2563eb, #6366f1)', color: '#fff', border: 'none',
@@ -432,16 +476,18 @@ function PasswordResetScreen({ lang, setLang, onDone }) {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
             <label style={labelStyle}>{t.newPassword}</label>
-            <input type="password" value={password} required autoFocus
+            <PasswordInput value={password} required autoFocus rtl={rtl}
+              autoComplete="new-password"
               onChange={e => setPassword(e.target.value)}
-              placeholder={t.passwordPlaceholder} style={inputStyle} />
+              placeholder={t.passwordPlaceholder} labelShow={t.showPassword} labelHide={t.hidePassword} />
             <PasswordStrengthMeter password={password} t={t} rtl={rtl} />
           </div>
           <div>
             <label style={labelStyle}>{t.confirmPassword}</label>
-            <input type="password" value={confirm} required
+            <PasswordInput value={confirm} required rtl={rtl}
+              autoComplete="new-password"
               onChange={e => setConfirm(e.target.value)}
-              placeholder={t.passwordPlaceholder} style={inputStyle} />
+              placeholder={t.passwordPlaceholder} labelShow={t.showPassword} labelHide={t.hidePassword} />
           </div>
           <Err msg={error} />
           <button type="submit" disabled={loading || !isStrong} style={primaryBtn(loading || !isStrong)}>
@@ -577,9 +623,10 @@ function LoginScreen({ lang, setLang, notice }) {
               </div>
               <div>
                 <label style={labelStyle}>{t.password}</label>
-                <input type="password" value={password} required
+                <PasswordInput value={password} required rtl={rtl}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder={t.passwordPlaceholder} style={inputStyle} />
+                  placeholder={t.passwordPlaceholder} labelShow={t.showPassword} labelHide={t.hidePassword} />
                 {mode === 'signup' && <PasswordStrengthMeter password={password} t={t} rtl={rtl} />}
               </div>
               {mode === 'login' && (
