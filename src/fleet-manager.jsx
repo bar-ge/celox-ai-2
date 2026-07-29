@@ -2794,6 +2794,8 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                   <TachographBlock car={car} rtl={rtl} sTitle={sTitle} sectionStyle={sectionStyle} onCarUpdate={onCarUpdate} />
                 )}
 
+                {RG.code === 'il' && <RecallBanner plate={car.plate} rtl={rtl} />}
+
                 <div style={sectionStyle}>
                   <div style={sTitle}>{rtl ? 'נהג נוכחי' : 'Current Driver'}</div>
                   {driver ? [
@@ -2841,26 +2843,40 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             {/* ── VEHICLE EQUIPMENT ── */}
             {tab === 'equipment' && <EquipmentPane carId={car.id} companyId={companyId} rtl={rtl} />}
 
-            {/* ── FUEL LEDGER ── */}
-            {tab === 'fuel' && (
-              <RecordListPane
-                table="fuel_records" scope={{ car_id: car.id }} companyId={companyId} rtl={rtl}
-                title={rtl ? 'תדלוקים' : 'Refuellings'} addLabel={rtl ? '+ תדלוק' : '+ Refuelling'}
-                orderBy="fuel_date"
-                numericFields={['liters', 'price_per_liter', 'total_amount', 'odometer']}
-                dateFields={['fuel_date']}
-                defaults={{ full_tank: true }}
-                fields={[
+            {/* ── FUEL LEDGER ──
+                Electric vehicles log charging sessions (kWh) instead of litres;
+                hybrids get both. Same table (fuel_records), so accumulators and
+                exports keep working — a row simply has liters or kwh filled. */}
+            {tab === 'fuel' && (() => {
+              const isEV     = car.fuel === 'Electric'
+              const isHybrid = car.fuel === 'Hybrid'
+              const fuelFields = [
                   { k: 'fuel_date',       he: 'תאריך',        en: 'Date',       type: 'date', required: true },
-                  { k: 'liters',          he: 'ליטרים',       en: 'Litres',     type: 'number' },
-                  { k: 'price_per_liter', he: 'מחיר לליטר',   en: 'Price/litre',type: 'number' },
+                  ...(!isEV ? [
+                    { k: 'liters',          he: 'ליטרים',       en: 'Litres',     type: 'number' },
+                    { k: 'price_per_liter', he: 'מחיר לליטר',   en: 'Price/litre',type: 'number' },
+                  ] : []),
+                  ...(isEV || isHybrid ? [
+                    { k: 'kwh',           he: 'קוט״ש',         en: 'kWh',        type: 'number' },
+                    { k: 'price_per_kwh', he: 'מחיר לקוט״ש',   en: 'Price/kWh',  type: 'number' },
+                  ] : []),
                   { k: 'total_amount',    he: 'סה״כ',         en: 'Total',      type: 'number' },
                   { k: 'odometer',        he: 'ספידומטר',     en: 'Odometer',   type: 'number' },
-                  { k: 'station',         he: 'תחנה',         en: 'Station',    type: 'text' },
+                  { k: 'station',         he: isEV ? 'עמדת טעינה' : 'תחנה', en: isEV ? 'Charging station' : 'Station', type: 'text' },
                   { k: 'supplier',        he: 'ספק / דלקן',   en: 'Supplier',   type: 'text' },
-                  { k: 'fuel_type',       he: 'סוג דלק',      en: 'Fuel type',  type: 'text' },
-                  { k: 'full_tank',       he: 'מיכל מלא',     en: 'Full tank',  type: 'checkbox' },
-                ]}
+                  ...(!isEV ? [{ k: 'fuel_type', he: 'סוג דלק', en: 'Fuel type', type: 'text' }] : []),
+                  { k: 'full_tank',       he: isEV ? 'טעינה מלאה' : 'מיכל מלא', en: isEV ? 'Full charge' : 'Full tank', type: 'checkbox' },
+              ]
+              return (
+              <RecordListPane
+                table="fuel_records" scope={{ car_id: car.id }} companyId={companyId} rtl={rtl}
+                title={isEV ? (rtl ? 'טעינות' : 'Charging sessions') : (rtl ? 'תדלוקים' : 'Refuellings')}
+                addLabel={isEV ? (rtl ? '+ טעינה' : '+ Charge') : (rtl ? '+ תדלוק' : '+ Refuelling')}
+                orderBy="fuel_date"
+                numericFields={['liters', 'price_per_liter', 'kwh', 'price_per_kwh', 'total_amount', 'odometer']}
+                dateFields={['fuel_date']}
+                defaults={{ full_tank: true }}
+                fields={fuelFields}
                 renderRow={r => (<>
                   <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>
                     {fmtDate(r.fuel_date)}{r.total_amount != null ? ` · ${RG.currency}${Number(r.total_amount).toLocaleString()}` : ''}
@@ -2868,14 +2884,17 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                   {metaRow(<>
                     {r.liters   != null && <span>{Number(r.liters).toLocaleString()} {rtl ? 'ליטר' : 'L'}</span>}
                     {r.price_per_liter != null && <span>{RG.currency}{Number(r.price_per_liter).toFixed(2)}/{rtl ? 'ל׳' : 'L'}</span>}
+                    {r.kwh      != null && <span>{Number(r.kwh).toLocaleString()} {rtl ? 'קוט״ש' : 'kWh'}</span>}
+                    {r.price_per_kwh != null && <span>{RG.currency}{Number(r.price_per_kwh).toFixed(2)}/{rtl ? 'קוט״ש' : 'kWh'}</span>}
                     {r.odometer != null && <span>{Number(r.odometer).toLocaleString()} {distUnit()}</span>}
                     {r.station  && <span>{r.station}</span>}
                     {r.supplier && <span>{r.supplier}</span>}
-                    {!r.full_tank && <span style={{ color: C.warning }}>{rtl ? 'מילוי חלקי' : 'Partial'}</span>}
+                    {!r.full_tank && <span style={{ color: C.warning }}>{isEV ? (rtl ? 'טעינה חלקית' : 'Partial charge') : (rtl ? 'מילוי חלקי' : 'Partial')}</span>}
                   </>)}
                 </>)}
               />
-            )}
+              )
+            })()}
 
             {/* ── TRANSFERS ── */}
             {tab === 'transfers' && (
@@ -3615,11 +3634,68 @@ async function lookupPlate(rawPlate, signal) {
         const fuelHe = (rec.sug_delek_nm || '').trim()
         const fuel  = FUEL_MAP[fuelHe] || 'Petrol'
         const color = (rec.tzeva_rechev || '').trim()
-        return { make, model, year, fuel, color }
+        // Extended registry fields → cars detail columns. cleanCar() whitelists
+        // only the basic columns, so these ride along under _gov and are applied
+        // in a follow-up update after the insert (addCar) — additive only, and a
+        // field the registry doesn't know stays untouched.
+        const _gov = {}
+        if (rec.misgeret)             _gov.chassis_no          = String(rec.misgeret).trim()
+        if (rec.kinuy_mishari)        _gov.commercial_name     = String(rec.kinuy_mishari).trim()
+        if (color)                    _gov.color               = color
+        if (rec.kvutzat_zihum != null)_gov.green_index         = String(rec.kvutzat_zihum)
+        if (rec.tokef_dt)             _gov.registration_expiry = String(rec.tokef_dt).slice(0, 10)
+        if (rec.baalut)               _gov.owner_name          = String(rec.baalut).trim()
+        return { make, model, year, fuel, color, _gov }
       }
     } catch (e) { if (e?.name === 'AbortError') return null /* cancelled */ }
   }
   return null
+}
+
+// ── Open safety recalls (gov.il) ─────────────────────────────────────────────
+// Vehicles that received a recall letter over 6 months ago and never had the
+// fix performed. Queried by plate against the Ministry of Transport dataset;
+// silent on any failure — a recall banner must never break the card.
+const RECALL_RESOURCE_ID = '36bf1404-0be4-49d2-82dc-2f1ead4a8b93'
+async function lookupOpenRecalls(rawPlate, signal) {
+  const plate = (rawPlate || '').replace(/\D/g, '')
+  if (!plate) return []
+  try {
+    const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=${RECALL_RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ MISPAR_RECHEV: plate }))}&limit=5`
+    const res = await fetch(url, { signal })
+    const data = await res.json()
+    return data?.result?.records || []
+  } catch { return [] }
+}
+
+function RecallBanner({ plate, rtl }) {
+  const [recalls, setRecalls] = useState(null) // null = loading/silent
+  useEffect(() => {
+    const ctl = new AbortController()
+    lookupOpenRecalls(plate, ctl.signal).then(r => { if (!ctl.signal.aborted) setRecalls(r) })
+    return () => ctl.abort()
+  }, [plate])
+  if (!recalls || recalls.length === 0) return null
+  return (
+    <div style={{
+      background: C.warning + '14', border: `1px solid ${C.warning}55`, borderRadius: 10,
+      padding: '12px 16px', margin: '0 24px 16px', fontSize: 13, color: C.textPrimary,
+    }}>
+      <div style={{ fontWeight: 800, color: '#B45309', display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+        <Icon name="alert" size={15} color="#B45309" />
+        {rtl ? 'ריקול פתוח ממשרד התחבורה' : 'Open manufacturer recall'}
+      </div>
+      {recalls.map(r => (
+        <div key={r.RECALL_ID} style={{ color: C.textSecondary, lineHeight: 1.55 }}>
+          <b style={{ color: C.textPrimary }}>{r.SUG_TAKALA}</b>{r.TEUR_TAKALA ? ` — ${r.TEUR_TAKALA}` : ''}
+          {r.TAARICH_PTICHA ? <span style={{ color: C.textMuted }}> ({String(r.TAARICH_PTICHA).slice(0, 10)})</span> : null}
+        </div>
+      ))}
+      <div style={{ marginTop: 6, fontSize: 12, color: C.textMuted }}>
+        {rtl ? 'יש לפנות ליבואן לתיקון ללא עלות.' : 'Contact the importer for a free repair.'}
+      </div>
+    </div>
+  )
 }
 
 // North-American vehicle lookup: decode a VIN via the free NHTSA vPIC API.
@@ -10501,7 +10577,14 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (form.mileage && !isPositive(form.mileage)) { setCrudError(rtl ? 'קילומטראז׳ חייב להיות מספר חיובי' : 'Mileage must be a positive number'); return }
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
     if (error || !data?.[0]) { setCrudError(error ? friendlyDbError(error, rtl) : (rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed.')); return }
-    setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
+    let saved = data[0]
+    // Registry enrichment from the plate lookup (extended gov.il fields).
+    // Best-effort: if this update fails the car is still added with the basics.
+    if (form._gov && Object.keys(form._gov).length) {
+      const { data: enriched } = await supabase.from('cars').update(form._gov).eq('id', saved.id).select()
+      if (enriched?.[0]) saved = enriched[0]
+    }
+    setCars(p => [...p, saved]); setShowAdd(false); setCrudError('')
     if (form.driver_id) await supabase.from('drivers').update({ car_id: String(data[0].id) }).eq('id', form.driver_id).eq('company_id', activeCompanyId)
     logActivity('add', 'car', `${form.plate} ${form.make}`)
   }
