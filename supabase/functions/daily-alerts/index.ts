@@ -38,13 +38,13 @@ Deno.serve(async (req) => {
   // ── Fetch all companies with email_alerts_enabled = true ─────────────────
   const { data: enabledCompanies } = await supabase
     .from('companies')
-    .select('id, name, email_lang, email_alerts_enabled')
+    .select('id, name, email_lang, email_alerts_enabled, alert_recipients')
     .eq('email_alerts_enabled', true)
 
   const enabledIds = new Set((enabledCompanies ?? []).map((c: any) => c.id))
-  const companyMeta: Record<string, { lang: string; name: string }> = {}
+  const companyMeta: Record<string, { lang: string; name: string; recipients: string[] }> = {}
   for (const c of enabledCompanies ?? []) {
-    companyMeta[c.id] = { lang: c.email_lang ?? 'he', name: c.name }
+    companyMeta[c.id] = { lang: c.email_lang ?? 'he', name: c.name, recipients: c.alert_recipients ?? [] }
   }
 
   if (enabledIds.size === 0) {
@@ -122,10 +122,15 @@ Deno.serve(async (req) => {
     const total = items.maintenance.length + items.documents.length + items.licenses.length + items.accidents.length
     if (total === 0) continue
 
-    const { data: admins } = await supabase.from('profiles')
-      .select('email').eq('company_id', companyId).eq('role', 'admin').limit(1)
-    const adminEmail = admins?.[0]?.email
-    if (!adminEmail) continue
+    // Configured recipient list wins; empty list falls back to the first admin
+    // (the original behaviour), so companies that never set it are unaffected.
+    let recipients: string[] = (companyMeta[companyId]?.recipients ?? []).filter(Boolean)
+    if (recipients.length === 0) {
+      const { data: admins } = await supabase.from('profiles')
+        .select('email').eq('company_id', companyId).eq('role', 'admin').limit(1)
+      if (admins?.[0]?.email) recipients = [admins[0].email]
+    }
+    if (recipients.length === 0) continue
 
     const isHe  = (companyMeta[companyId]?.lang ?? 'he') === 'he'
     const dir    = isHe ? 'rtl' : 'ltr'
@@ -242,7 +247,7 @@ Deno.serve(async (req) => {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM_EMAIL, to: adminEmail, subject: subjectLine, html }),
+      body: JSON.stringify({ from: FROM_EMAIL, to: recipients, subject: subjectLine, html }),
     })
 
     if (res.ok) {
