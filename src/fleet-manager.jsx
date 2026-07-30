@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, isValidIsraeliId, friendlyDbError } from './validators'
@@ -4153,6 +4153,160 @@ function AddBranchRow({ onAdd, onCancel, t, rtl, mobile }) {
   )
 }
 
+// ── Recommended maintenance plans ────────────────────────────────────────────
+// There is no public per-model service-schedule API, so recommendations are
+// derived from what the vehicle record already tells us: fuel type (EV has no
+// oil), hours-metering (forklifts service by engine hours), weight class and
+// age. Values are industry-standard defaults — every one is editable in the
+// approval modal before anything is saved, and nothing is created without an
+// explicit approve.
+function recommendMaintenancePlans(car, existingPlans = []) {
+  if (!car) return []
+  const byHours = car.usage_metric === 'hours' || car.usage_metric === 'both'
+  const isEV     = car.fuel === 'Electric'
+  const isDiesel = car.fuel === 'Diesel'
+  const heavy    = Number(car.weight_total) >= 3500 || Number(car.weight_authorized) >= 3500
+  const old      = car.year && (new Date().getFullYear() - Number(car.year)) >= 10
+  const R = (type, km, months, hours, he, en) => ({
+    type, km_interval: km || '', month_interval: months || '', hours_interval: hours || '',
+    reason: { he, en },
+  })
+  let recs = []
+  if (byHours) {
+    recs = [
+      R('Oil Change',    null, null, 250,  'ציוד מנועי — שמן ומסננים כל 250 שעות מנוע', 'Powered equipment — oil & filters every 250 engine hours'),
+      R('Inspection',    null, 12,   500,  'בדיקה תקופתית כל 500 שעות או שנה', 'Periodic inspection every 500 hours or 12 months'),
+      R('Brake Service', null, null, 1000, 'בלמים והידראוליקה כל 1,000 שעות', 'Brakes & hydraulics every 1,000 hours'),
+    ]
+  } else if (isEV) {
+    recs = [
+      R('Tire Rotation', 10000, 12, null, 'רכב חשמלי — המומנט הגבוה שוחק צמיגים מהר', 'EV — instant torque wears tires faster'),
+      R('Inspection',    20000, 12, null, 'בדיקת מערכות, נוזל בלמים ומצבר 12V', 'Systems check, brake fluid and 12V battery'),
+      R('Brake Service', 30000, 24, null, 'בלמים נשחקים לאט (השבתה רגנרטיבית) אך נוזל מתיישן', 'Regen braking wears slowly, but fluid still ages'),
+    ]
+  } else {
+    const oilKm = isDiesel ? 10000 : 15000
+    recs = [
+      R('Oil Change',    heavy ? 20000 : oilKm, 12, null,
+        isDiesel ? 'מנוע דיזל — שמן ומסנן סולר' : 'שמן ומסנן לפי יצרן',
+        isDiesel ? 'Diesel engine — oil & fuel filter' : 'Oil & filter per manufacturer'),
+      R('Tire Rotation', 10000, null, null, 'סבב צמיגים לשחיקה אחידה', 'Rotate for even wear'),
+      R('Inspection',    15000, old ? 6 : 12, null,
+        old ? 'רכב מעל 10 שנים — בדיקה חצי־שנתית' : 'בדיקה תקופתית שנתית',
+        old ? 'Vehicle over 10 years — semi-annual check' : 'Annual periodic inspection'),
+      R('Brake Service', heavy ? 20000 : 30000, 24, null,
+        heavy ? 'רכב כבד — בלמים בעומס גבוה' : 'רפידות, דיסקים ונוזל',
+        heavy ? 'Heavy vehicle — brakes under high load' : 'Pads, discs and fluid'),
+    ]
+  }
+  const existingTypes = new Set(existingPlans.filter(p => String(p.car_id) === String(car.id)).map(p => p.type))
+  return recs.filter(r => !existingTypes.has(r.type))
+}
+
+function PlanRecommendModal({ cars, plans, companyId, rtl, typeLabel, onClose, onCreated }) {
+  const [carId, setCarId] = useState(String(cars[0]?.id ?? ''))
+  const [edits, setEdits] = useState({}) // { [type]: { km_interval, month_interval, hours_interval, checked } }
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]     = useState('')
+  const car = cars.find(c => String(c.id) === carId)
+
+  // Recommendations are derived, not stored in state — switching vehicle simply
+  // recomputes them, and per-row edits live in a keyed overlay so nothing has to
+  // be synced in an effect.
+  const rows = useMemo(() => {
+    const base = recommendMaintenancePlans(car, plans)
+    return base.map(r => ({ ...r, checked: true, ...(edits[`${carId}:${r.type}`] || {}) }))
+  }, [car, carId, plans, edits])
+
+  const setRow = (i, k, v) => {
+    const key = `${carId}:${rows[i].type}`
+    setEdits(p => ({ ...p, [key]: { ...(p[key] || {}), [k]: v } }))
+  }
+  const checkedCount = rows.filter(r => r.checked).length
+
+  async function approve() {
+    if (!car || checkedCount === 0) return
+    setSaving(true); setErr('')
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const payloads = rows.filter(r => r.checked).map(r => ({
+      company_id: companyId, car_id: car.id, type: r.type,
+      km_interval:    r.km_interval    ? parseInt(r.km_interval, 10)    : null,
+      month_interval: r.month_interval ? parseInt(r.month_interval, 10) : null,
+      hours_interval: r.hours_interval ? parseInt(r.hours_interval, 10) : null,
+      last_km:    r.km_interval    && car.mileage      != null ? car.mileage : null,
+      last_hours: r.hours_interval && car.engine_hours != null ? car.engine_hours : null,
+      last_date:  r.month_interval ? todayStr : null,
+    }))
+    const { data, error } = await supabase.from('maintenance_plans').insert(payloads).select()
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    onCreated(data || [])
+    onClose()
+  }
+
+  const numIn = { width: 76, padding: '6px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, fontFamily: 'inherit', color: C.textPrimary, background: C.surface, boxSizing: 'border-box' }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 660, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.25)', padding: '22px 24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="tool" size={16} color={C.primary} />{rtl ? 'תוכניות טיפולים מומלצות' : 'Recommended maintenance plans'}
+          </h3>
+          <button onClick={onClose} style={closeBtn}>×</button>
+        </div>
+        <p style={{ margin: '0 0 14px', fontSize: 12.5, color: C.textSecondary }}>
+          {rtl ? 'המלצות לפי סוג הדלק, אופן המדידה, המשקל והגיל של הרכב. ערכו את המרווחים, בטלו סימון של מה שלא רלוונטי — נשמר רק מה שתאשרו.'
+               : 'Based on the vehicle’s fuel type, metering, weight and age. Edit the intervals, untick anything irrelevant — only what you approve is saved.'}
+        </p>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{rtl ? 'רכב' : 'Vehicle'}</label>
+          <select value={carId} onChange={e => setCarId(e.target.value)} style={{ ...numIn, width: '100%', padding: '9px 12px' }}>
+            {cars.map(c => <option key={c.id} value={String(c.id)}>{formatPlate(c.plate)}{c.make ? ` · ${c.make} ${c.model || ''}` : ''}</option>)}
+          </select>
+        </div>
+
+        {rows.length === 0 ? (
+          <div style={{ padding: '22px 0', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
+            {rtl ? 'לרכב זה כבר קיימות תוכניות לכל סוגי הטיפול המומלצים.' : 'This vehicle already has plans for every recommended service type.'}
+          </div>
+        ) : rows.map((r, i) => (
+          <div key={r.type} style={{ border: `1px solid ${r.checked ? C.primary + '55' : C.border}`, background: r.checked ? C.primary + '06' : C.bgSubtle, borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 8 }}>
+              <input type="checkbox" checked={r.checked} onChange={e => setRow(i, 'checked', e.target.checked)} style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+              <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{typeLabel[r.type] || r.type}</span>
+              <span style={{ fontSize: 12, color: C.textMuted }}>{rtl ? r.reason.he : r.reason.en}</span>
+            </label>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', paddingInlineStart: 26 }}>
+              <label style={{ fontSize: 12, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {rtl ? 'כל (ק״מ)' : 'Every (km)'}
+                <input type="number" min="0" value={r.km_interval} onChange={e => setRow(i, 'km_interval', e.target.value)} style={numIn} disabled={!r.checked} />
+              </label>
+              <label style={{ fontSize: 12, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {rtl ? 'כל (חודשים)' : 'Every (months)'}
+                <input type="number" min="0" value={r.month_interval} onChange={e => setRow(i, 'month_interval', e.target.value)} style={numIn} disabled={!r.checked} />
+              </label>
+              <label style={{ fontSize: 12, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {rtl ? 'כל (שעות מנוע)' : 'Every (engine h)'}
+                <input type="number" min="0" value={r.hours_interval} onChange={e => setRow(i, 'hours_interval', e.target.value)} style={numIn} disabled={!r.checked} />
+              </label>
+            </div>
+          </div>
+        ))}
+
+        {err && <div style={{ color: C.danger, fontSize: 12.5, fontWeight: 700, margin: '4px 0 8px' }}>{err}</div>}
+        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          <button onClick={approve} disabled={saving || checkedCount === 0}
+            style={{ ...btnPrimary, flex: 1, padding: '11px', fontSize: 14, opacity: saving || checkedCount === 0 ? 0.6 : 1 }}>
+            {saving ? '…' : rtl ? `אשר והוסף (${checkedCount})` : `Approve & add (${checkedCount})`}
+          </button>
+          <button onClick={onClose} style={{ ...btnGhost, padding: '11px 20px', fontSize: 14 }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Maintenance Tab ──────────────────────────────────────────────────────────
 function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   // All hooks first
@@ -4162,6 +4316,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   const [form, setForm] = useState({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done', mileage: '', next_service_mileage: '' })
   const [plans, setPlans] = useState([])
   const [showPlanAdd, setShowPlanAdd] = useState(false)
+  const [showRecommend, setShowRecommend] = useState(false)
   const [planForm, setPlanForm] = useState({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '', hours_interval: '', last_hours: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
@@ -4391,13 +4546,28 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
         </>
       )}
 
+      {showRecommend && (
+        <PlanRecommendModal
+          cars={cars} plans={plans} companyId={companyId} rtl={rtl} typeLabel={typeLabel}
+          onClose={() => setShowRecommend(false)}
+          onCreated={created => setPlans(p => [...created, ...p])}
+        />
+      )}
+
       {/* ── Maintenance Plans ── */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', overflow: 'hidden', marginTop: 8 }}>
         <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fff', fontWeight: 700, fontSize: 13 }}><Icon name="calendar" size={15} />{t.maintenancePlans}</span>
-          <button onClick={() => setShowPlanAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
-            {showPlanAdd ? t.cancel : t.newPlan}
-          </button>
+          <span style={{ display: 'flex', gap: 8 }}>
+            {cars.length > 0 && (
+              <button onClick={() => setShowRecommend(true)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+                ✨ {rtl ? 'המלצות' : 'Recommend'}
+              </button>
+            )}
+            <button onClick={() => setShowPlanAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+              {showPlanAdd ? t.cancel : t.newPlan}
+            </button>
+          </span>
         </div>
 
         {showPlanAdd && (
