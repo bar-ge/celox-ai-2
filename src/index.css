@@ -43,6 +43,23 @@ input, select {
   font-family: inherit;
 }
 
+/* ── Mobile input sizing ──────────────────────────────────────────────────────
+   iOS Safari auto-zooms the whole page when a focused input's font-size is
+   under 16px, and the app's inline styles use 13px. On a phone that meant every
+   tap into a field zoomed the layout and the user had to pinch back out. Forcing
+   16px on touch-primary narrow screens stops the zoom at the source; the visual
+   change is minor and desktop is untouched (pointer: fine excluded).           */
+@media (max-width: 767px) and (pointer: coarse) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  /* Comfortable tap targets for the small inline row controls */
+  input[type="checkbox"], input[type="radio"] {
+    min-width: 18px;
+    min-height: 18px;
+  }
+}
+
 /* ── Keyframes ───────────────────────────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }

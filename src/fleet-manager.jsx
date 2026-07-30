@@ -1400,6 +1400,16 @@ function buildSaveLicenseLevels(levels = [], otherText = '') {
 // ── Car Detail Modal ─────────────────────────────────────────────────────────
 // ── Shared field styles for the vehicle record panes ─────────────────────────
 const vpInput = { width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: C.surface, color: C.textPrimary, boxSizing: 'border-box' }
+
+// Two-up field grid that collapses to one column on phones. A 1fr-1fr grid on a
+// 390px screen leaves each field ~160px, which is too narrow for a DD/MM/YY date
+// or a labelled number — so every vehicle/driver pane form uses this instead.
+const grid2 = (mobile, extra = {}) => ({
+  display: 'grid',
+  gridTemplateColumns: mobile ? '1fr' : '1fr 1fr',
+  gap: 12,
+  ...extra,
+})
 const vpLabel = { fontSize: 11, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 4 }
 
 function VpField({ label, children }) {
@@ -1427,6 +1437,7 @@ const OWNERSHIP = [
 ]
 
 function LeasingPane({ carId, companyId, rtl, car, onCarUpdate }) {
+  const isMobile = useIsMobile()
   const [row, setRow]       = useState(null)
   const [loading, setLoad]  = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1481,7 +1492,7 @@ function LeasingPane({ carId, companyId, rtl, car, onCarUpdate }) {
 
   if (loading) return <div style={{ padding: 32, textAlign: 'center', color: C.textMuted }}>…</div>
   const isOwned = row.ownership_type === 'owned'
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -1623,7 +1634,7 @@ function LeasingPane({ carId, companyId, rtl, car, onCarUpdate }) {
 
           <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <div style={{ ...vpLabel, marginBottom: 8 }}>{rtl ? 'מה כלול בחוזה' : 'Included in contract'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={grid2(isMobile, { gap: 8 })}>
               {[['includes_maintenance', rtl ? 'טיפולים ותחזוקה' : 'Maintenance'],
                 ['includes_tires',       rtl ? 'צמיגים' : 'Tires'],
                 ['includes_insurance',   rtl ? 'ביטוח' : 'Insurance'],
@@ -1707,6 +1718,7 @@ const USAGE_METRICS = [
 ]
 
 function CarDetailsPane({ car, rtl, onCarUpdate }) {
+  const isMobile = useIsMobile()
   const init = {}
   CAR_DETAIL_FIELDS.forEach(s => s.fields.forEach(([k]) => { init[k] = car[k] ?? '' }))
   const [f, setF]           = useState(init)
@@ -1737,7 +1749,7 @@ function CarDetailsPane({ car, rtl, onCarUpdate }) {
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
             {rtl ? sec.he : sec.en}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={grid2(isMobile)}>
             {sec.fields.map(([k, he, en, type]) => (
               <VpField key={k} label={rtl ? he : en}>
                 {type === 'date'
@@ -1773,6 +1785,7 @@ function CarDetailsPane({ car, rtl, onCarUpdate }) {
 
 // ── Vehicle equipment (ציוד רכב) ─────────────────────────────────────────────
 function EquipmentPane({ carId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -1814,7 +1827,7 @@ function EquipmentPane({ carId, companyId, rtl }) {
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={grid2(isMobile, { marginBottom: 12 })}>
             <VpField label={rtl ? 'שם הפריט *' : 'Item name *'}>
               <input style={vpInput} value={form.name} onChange={e => set('name', e.target.value)} required />
             </VpField>
@@ -1822,7 +1835,7 @@ function EquipmentPane({ carId, companyId, rtl }) {
               <input style={vpInput} value={form.code} onChange={e => set('code', e.target.value)} />
             </VpField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={grid2(isMobile, { marginBottom: 12 })}>
             <VpField label={rtl ? 'כמות' : 'Quantity'}>
               <input style={vpInput} type="number" min="1" value={form.quantity} onChange={e => set('quantity', e.target.value)} />
             </VpField>
@@ -1872,6 +1885,7 @@ function RecordListPane({
   fields, numericFields = [], dateFields = [], orderBy, defaults = {},
   renderRow, afterSave,
 }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -1916,7 +1930,7 @@ function RecordListPane({
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={grid2(isMobile)}>
             {fields.map(f => (
               <VpField key={f.k} label={(rtl ? f.he : f.en) + (f.required ? ' *' : '')}>
                 {f.type === 'date'
@@ -2050,6 +2064,7 @@ function cfKeyFrom(label, existing) {
 }
 
 function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEntityUpdate }) {
+  const isMobile = useIsMobile()
   const [defs, setDefs]     = useState([])
   const [loading, setL]     = useState(true)
   const [vals, setVals]     = useState(entity.custom_fields || {})
@@ -2120,7 +2135,7 @@ function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEnt
 
       {showAdd && canManage && (
         <form onSubmit={addDef} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={grid2(isMobile, { marginBottom: 12 })}>
             <VpField label={rtl ? 'שם השדה *' : 'Field label *'}>
               <input style={vpInput} value={nf.label} onChange={e => setNf(p => ({ ...p, label: e.target.value }))} required />
             </VpField>
@@ -2151,7 +2166,7 @@ function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEnt
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={grid2(isMobile)}>
               {defs.map(d => (
                 <div key={d.id} style={{ position: 'relative' }}>
                   <VpField label={d.label}>
@@ -2198,6 +2213,7 @@ function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEnt
 // (בלו) per litre — both live on the vehicle itself, like Netzer's accounting
 // block, because they describe the vehicle rather than an event.
 function TaxationPane({ car, companyId, rtl, onCarUpdate }) {
+  const isMobile = useIsMobile()
   const [f, setF]           = useState({
     tax_value_price: car.tax_value_price ?? '', tax_value_year: car.tax_value_year ?? '',
     tax_adjusted_price: car.tax_adjusted_price ?? '', tax_group: car.tax_group || '',
@@ -2237,7 +2253,7 @@ function TaxationPane({ car, companyId, rtl, onCarUpdate }) {
     return Math.round(l * r)
   })()
 
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -2333,6 +2349,7 @@ const POLICY_TYPES = [
 const policyLabel = (v, rtl) => { const t = POLICY_TYPES.find(p => p.v === v); return t ? (rtl ? t.he : t.en) : v }
 
 function InsurancePane({ carId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -2373,7 +2390,7 @@ function InsurancePane({ carId, companyId, rtl }) {
     if (!error) setRows(p => p.filter(r => r.id !== id))
   }
 
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -2439,7 +2456,7 @@ function InsurancePane({ carId, companyId, rtl }) {
 
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <div style={{ ...vpLabel, marginBottom: 8 }}>{rtl ? 'הרחבות' : 'Extensions'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+            <div style={grid2(isMobile, { gap: 8, marginBottom: 10 })}>
               {[['ext_windshield', rtl ? 'שמשות' : 'Windshields'],
                 ['ext_towing', rtl ? 'גרירה' : 'Towing'],
                 ['ext_replacement_car', rtl ? 'רכב חלופי' : 'Replacement car'],
@@ -2450,7 +2467,7 @@ function InsurancePane({ carId, companyId, rtl }) {
                 </label>
               ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={grid2(isMobile)}>
               <input style={vpInput} value={form.ext_radio} onChange={e => set('ext_radio', e.target.value)} placeholder={rtl ? 'רדיו־טייפ' : 'Radio'} />
               <input style={vpInput} value={form.ext_other} onChange={e => set('ext_other', e.target.value)} placeholder={rtl ? 'תוספות' : 'Other add-ons'} />
             </div>
@@ -2460,7 +2477,7 @@ function InsurancePane({ carId, companyId, rtl }) {
               these restrictions are surfaced on the policy card too. */}
           <div style={{ background: C.warning + '10', border: `1px solid ${C.warning}45`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <div style={{ ...vpLabel, marginBottom: 8, color: C.warning }}>{rtl ? 'רשאים לנהוג' : 'Who may drive'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+            <div style={grid2(isMobile, { gap: 8, marginBottom: 10 })}>
               {[['drv_any', rtl ? 'כל נהג' : 'Any driver'],
                 ['drv_min_age_21', rtl ? 'מעל 21 ושנת רישיון' : 'Over 21, 1yr licence'],
                 ['drv_min_age_24', rtl ? 'מעל 24 ושנת רישיון' : 'Over 24, 1yr licence'],
@@ -2533,6 +2550,7 @@ function InsurancePane({ carId, companyId, rtl }) {
 
 // ── Annual roadworthiness test (טסט) pane ────────────────────────────────────
 function TestsPane({ carId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -2567,7 +2585,7 @@ function TestsPane({ carId, companyId, rtl }) {
   }
 
   const RESULTS = { passed: { he: 'עבר', en: 'Passed', c: C.success }, failed: { he: 'נכשל', en: 'Failed', c: C.danger }, conditional: { he: 'עבר בתנאי', en: 'Conditional', c: C.warning } }
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -3118,6 +3136,7 @@ const DRIVER_DETAIL_FIELDS = [
 const DRIVER_DATE_FIELDS = ['birth_date', 'work_start_date']
 
 function DriverDetailsPane({ driver, rtl, onDriverUpdate }) {
+  const isMobile = useIsMobile()
   const init = {}
   DRIVER_DETAIL_FIELDS.forEach(s => s.fields.forEach(([k]) => { init[k] = driver[k] ?? '' }))
   const [f, setF]           = useState(init)
@@ -3149,7 +3168,7 @@ function DriverDetailsPane({ driver, rtl, onDriverUpdate }) {
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
             {rtl ? sec.he : sec.en}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={grid2(isMobile)}>
             {sec.fields.map(([k, he, en, type]) => (
               <VpField key={k} label={rtl ? he : en}>
                 {type === 'date'
@@ -4204,6 +4223,7 @@ function recommendMaintenancePlans(car, existingPlans = []) {
 }
 
 function PlanRecommendModal({ cars, plans, companyId, rtl, typeLabel, onClose, onCreated }) {
+  const isMobile = useIsMobile()
   const [carId, setCarId] = useState(String(cars[0]?.id ?? ''))
   const [edits, setEdits] = useState({}) // { [type]: { km_interval, month_interval, hours_interval, checked } }
   const [saving, setSaving] = useState(false)
@@ -4247,7 +4267,7 @@ function PlanRecommendModal({ cars, plans, companyId, rtl, typeLabel, onClose, o
   const numIn = { width: 76, padding: '6px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, fontFamily: 'inherit', color: C.textPrimary, background: C.surface, boxSizing: 'border-box' }
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 660, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.25)', padding: '22px 24px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 660, maxHeight: isMobile ? '92vh' : '88vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.25)', padding: isMobile ? '18px 16px' : '22px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="tool" size={16} color={C.primary} />{rtl ? 'תוכניות טיפולים מומלצות' : 'Recommended maintenance plans'}
@@ -4277,7 +4297,7 @@ function PlanRecommendModal({ cars, plans, companyId, rtl, typeLabel, onClose, o
               <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{typeLabel[r.type] || r.type}</span>
               <span style={{ fontSize: 12, color: C.textMuted }}>{rtl ? r.reason.he : r.reason.en}</span>
             </label>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', paddingInlineStart: 26 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, auto)', justifyContent: 'start', gap: isMobile ? 8 : 14, paddingInlineStart: isMobile ? 0 : 26 }}>
               <label style={{ fontSize: 12, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {rtl ? 'כל (ק״מ)' : 'Every (km)'}
                 <input type="number" min="0" value={r.km_interval} onChange={e => setRow(i, 'km_interval', e.target.value)} style={numIn} disabled={!r.checked} />
@@ -7205,7 +7225,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               {/* Form type selector */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'סוג טופס' : 'Form Type'}</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={grid2(isMobile, { gap: 8 })}>
                   {FORM_TYPES.map(f => (
                     <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 9, border: `2px solid ${createType === f.id ? C.primary : C.border}`, cursor: 'pointer', background: createType === f.id ? C.primary + '08' : C.bg, transition: 'all 0.15s' }}>
                       <input type="radio" name="formType" value={f.id} checked={createType === f.id} onChange={() => { setCreateType(f.id); setCustomFields([]) }} style={{ accentColor: C.primary }} />
@@ -7538,7 +7558,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{rtl ? 'ניהול תביעת ביטוח' : 'Insurance Claim'}</div>
                       {!rep.insurance_company && priorClaim && <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, background: C.primary + '14', borderRadius: 4, padding: '2px 7px' }}>{rtl ? 'מולא מתביעה קודמת' : 'prefilled from last claim'}</span>}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div style={grid2(isMobile, { gap: 8 })}>
                       <input name="insurance_company" defaultValue={claimDefaults.insurance_company} placeholder={rtl ? 'חברת ביטוח' : 'Insurance company'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
                       <input name="policy_number" defaultValue={claimDefaults.policy_number} placeholder={rtl ? 'מספר פוליסה' : 'Policy number'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
                       <input name="deductible_pct" type="number" step="0.1" defaultValue={claimDefaults.deductible_pct} placeholder={rtl ? 'אחוז השתתפות עצמית' : 'Deductible %'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
@@ -8559,7 +8579,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
               {showAddSched && (
                 <form onSubmit={addSchedule} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג דוח' : 'Report Type'}</label>
                       <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.report_type} onChange={e => setSchedForm(p => ({ ...p, report_type: e.target.value }))}>
@@ -9811,6 +9831,7 @@ const CERT_TYPES_HE = ['עזרה ראשונה','כיבוי אש','נהיגה מ�
 const CERT_TYPES_EN = ['First Aid','Fire Safety','Defensive Driving','Hazmat','Yearly Training','Other']
 
 function CertificationsPane({ driverId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [certs,    setCerts]    = useState([])
   const [loading,  setLoading]  = useState(true)
   const [showAdd,  setShowAdd]  = useState(false)
@@ -9874,7 +9895,7 @@ function CertificationsPane({ driverId, companyId, rtl }) {
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
             <div>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג הסמכה *' : 'Type *'}</label>
               <select style={inp} value={form.cert_type} onChange={e => set('cert_type', e.target.value)} required>
@@ -9934,6 +9955,7 @@ function CertificationsPane({ driverId, companyId, rtl }) {
 const TRAINING_TYPES_HE = ['נהיגה בטוחה', 'עזרה ראשונה', 'כיבוי אש', 'חומרים מסוכנים', 'ציות לחוק', 'אחר']
 
 function TrainingPane({ driverId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [records,  setRecords]  = useState([])
   const [loading,  setLoading]  = useState(true)
   const [showAdd,  setShowAdd]  = useState(false)
@@ -9998,7 +10020,7 @@ function TrainingPane({ driverId, companyId, rtl }) {
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
             <div>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג הדרכה *' : 'Type *'}</label>
               <select style={inp} value={form.cert_type} onChange={e => set('cert_type', e.target.value)} required>
