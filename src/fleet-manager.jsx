@@ -3,6 +3,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } fr
 import { createPortal } from 'react-dom'
 
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, isValidIsraeliId, friendlyDbError } from './validators'
+import { FORM_TEMPLATES } from './formTemplates'
 import { getRegion, REGIONS, REGION_CODES } from './regions'
 
 // ── Active company region — set once when the company loads, read app-wide ────
@@ -7240,6 +7241,31 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               {createType === 'custom' && (
                 <div style={{ background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, padding: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: C.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}><Icon name="tool" size={13} color={C.textSecondary} />{rtl ? 'בנה את שדות הטופס' : 'Build Form Fields'}</div>
+
+                  {/* Ready-made inspection templates — load the whole checklist,
+                      then edit like any other custom form before saving. */}
+                  <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6 }}>
+                      {rtl ? 'תבניות ביקורת מוכנות — טוען את כל הסעיפים, ניתן לערוך אחר כך:' : 'Ready-made inspection templates — loads every item, editable after:'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {FORM_TEMPLATES.map(tpl => (
+                        <button key={tpl.id} type="button"
+                          onClick={() => {
+                            const built = tpl.build()
+                            if (customFields.length > 0 && !window.confirm(rtl
+                              ? `לטעון את "${tpl.label}" (${built.length} שדות)? השדות הקיימים יוחלפו.`
+                              : `Load "${tpl.labelEn}" (${built.length} fields)? Existing fields will be replaced.`)) return
+                            setCustomFields(built)
+                            if (!createTitle.trim()) setCreateTitle(rtl ? tpl.label : tpl.labelEn)
+                          }}
+                          title={tpl.ref}
+                          style={{ background: C.surface, border: `1px solid ${C.primary}45`, color: C.primary, borderRadius: 999, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <span>{tpl.icon}</span>{rtl ? tpl.label : tpl.labelEn}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Preset field pills */}
                   <div style={{ marginBottom: 10 }}>
