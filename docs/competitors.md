@@ -110,20 +110,45 @@ The sole-supplier exemptions are themselves the finding: at least two
 government bodies concluded no one else could provide the service. That is a
 procurement moat, and it is the thing to attack — not the price.
 
-**Facebook was a dead end for reading, but a live lead for selling.** The
-relevant group is **פורום קציני בטיחות בתעבורה דרושים ועוד**
-(`facebook.com/groups/379406723885216`). Found a post from 19/09/2024 — a fleet
-manager running **~100 vehicles on Netzer**, asking the group for alternatives
-**and their costs**, plus whether anything combines fleet and mobile-phone
-management. The replies are behind a login wall, and no one here is logged in.
+### Facebook — searched properly while logged in, 2026-08-05. Nothing there.
 
-That post is the ideal Celox customer describing themselves in public. The
-group is worth joining with a real account — both to read pricing threads and
-because prospects post there.
+Don't repeat this search; it was thorough and it came up empty.
 
-**To get real numbers**, the reliable routes are: a quote request through a
-friendly prospect, asking a current Netzer/CarPro customer directly, or reading
-that group once logged in.
+- **The one promising post has zero replies.** In פורום קציני בטיחות בתעבורה
+  (`facebook.com/groups/379406723885216`), a fleet manager running **~100
+  vehicles on Netzer** asked on 19/09/2024 for alternatives **and their costs**,
+  plus whether anything combines fleet with mobile-phone management. One like,
+  **no comments**. Nobody answered him.
+- **That group is a jobs board**, not a software forum — its name ends in
+  "דרושים ועוד" and every search hit is a hiring ad for safety officers.
+- **Global Facebook search returns only vendor advertising.** Several queries on
+  cost and recommendations produced ads, every one of them ending in
+  "להצעת מחיר" — request a quote. No customer ever states a number.
+
+**Conclusion: Israeli fleet-software pricing is not discussed publicly
+anywhere.** The market runs entirely on quote-on-request. The only ways to a
+real number are a quote request through a friendly prospect, or asking a
+current customer directly.
+
+**But the empty post is a sales signal, not a dead end.** A 100-vehicle Netzer
+customer publicly asked for an alternative and got silence. That is unmet
+demand with no competing voice in the room.
+
+### Adjacent players seen in Facebook ads
+
+Not direct competitors, but they circle the same customer:
+
+- **Ez-Fleet (איזי פליט)** — EV fleet management: universal charging chip,
+  7,200+ charge points, one consolidated invoice, and claims to be the only one
+  with fleet-management software attached. Offers **a free trial month**.
+- **WARGO TMS** — shipping/logistics management
+- **Gnrgy** — EV charging infrastructure
+- **דלקן אוניברסלי** (Dor Alon) — universal fuel card
+
+Two of the vendors found across this whole exercise advertise a **free trial
+month**, and nobody advertises a price. In a market where every competitor
+hides behind a sales call, transparent pricing or a self-serve trial would
+itself be a differentiator.
 
 ## The wider field — searched 2026-08-05
 
