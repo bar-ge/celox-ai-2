@@ -25,3 +25,15 @@ context; these rules override anything that conflicts with them.
 6. Bar likes automations. If while working you see an opportunity to automate
    something in the platform (alerts, syncs, auto-fill, scheduled jobs),
    suggest it proactively.
+
+## Competition
+7. Celox's two main competitors in Israel are **נצר (Netzer)**, by איתם מערכות
+   / Cello, and **CarPro**. When Bar says "check the competition" it means:
+   check both of their websites **and** search the open Israeli web for the
+   segment — not just the two sites.
+   - נצר — <https://www.cello-app.com/netzer-by-cello/>
+   - CarPro — <https://carpro.co.il/>
+
+   Feature notes and the current gap analysis live in
+   `docs/competitors.md`. Update that file whenever you do a competition pass,
+   with the date, so the comparison does not silently go stale.
