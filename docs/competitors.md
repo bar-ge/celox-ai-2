@@ -110,9 +110,51 @@ The sole-supplier exemptions are themselves the finding: at least two
 government bodies concluded no one else could provide the service. That is a
 procurement moat, and it is the thing to attack — not the price.
 
-**To get real numbers**, the only reliable routes are a quote request through a
-friendly prospect, or asking an existing Netzer/CarPro customer what they pay.
-Fleet-manager Facebook groups discuss it.
+**Facebook was a dead end for reading, but a live lead for selling.** The
+relevant group is **פורום קציני בטיחות בתעבורה דרושים ועוד**
+(`facebook.com/groups/379406723885216`). Found a post from 19/09/2024 — a fleet
+manager running **~100 vehicles on Netzer**, asking the group for alternatives
+**and their costs**, plus whether anything combines fleet and mobile-phone
+management. The replies are behind a login wall, and no one here is logged in.
+
+That post is the ideal Celox customer describing themselves in public. The
+group is worth joining with a real account — both to read pricing threads and
+because prospects post there.
+
+**To get real numbers**, the reliable routes are: a quote request through a
+friendly prospect, asking a current Netzer/CarPro customer directly, or reading
+that group once logged in.
+
+## The wider field — searched 2026-08-05
+
+Netzer and CarPro are not the whole market. Others found on the open web, none
+publishing prices either:
+
+| Vendor | Note |
+|---|---|
+| **רכבים** (app-cars.co.il) | Closest feature match to Celox. See below. |
+| **Y-IT** (y-it.co.il) | "Fleet Control" + a dedicated קצין בטיחות module |
+| **איתן בתעבורה** (t-safety.co.il) | Advertises a **free month trial** — the only GTM signal anyone gives |
+| **Tafnit ERP** | Leasing and rental companies rather than own-fleet |
+| **ש.בשן** (s-bashan.co.il) | Older, fuel-device oriented |
+| **Lupuz** | Fuel-company data capture into accounting |
+
+**רכבים deserves attention.** A small operation — Gmail contact address, one
+phone, Omer industrial park — but the feature list is closer to Celox than
+either named competitor, and it already ships three things Celox does not:
+
+- **כביש 6 file upload** — toll roads again, third vendor with it
+- **הסבת דוחות** with remote digital signature by the driver
+- **Driver e-learning with tests and scores, built in** — and sold explicitly as
+  avoiding the cost of external training providers, i.e. undercutting the
+  partner model Netzer uses
+- Remote driver signature on: accident form with photos, health declaration,
+  תקנה 168, licence photo, odometer, driver file, vehicle handover
+- Safety-officer inspections by phone or tablet — *and they give you the tablet*
+
+Three of the five vendors examined carry toll roads and fine transfer. Those are
+not differentiators any more; in this market they read as table stakes, which
+sharpens the gap list above.
 
 ### Market sizing — from the Cello acquisition coverage (autocom, 24/12/2025)
 
