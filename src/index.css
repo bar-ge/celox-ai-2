@@ -43,6 +43,22 @@ input, select {
   font-family: inherit;
 }
 
+/* ── iOS Home Screen (standalone PWA) safe areas ──────────────────────────────
+   Launched from the Home Screen the app owns the whole screen, so on a notched
+   iPhone the sticky nav slides under the status bar and the bottom of the page
+   sits under the home indicator. Padding the body by the safe-area insets fixes
+   both. Only applies in standalone — in a browser tab Safari's own chrome
+   already reserves the space.                                                  */
+@media all and (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    background: #2E2830; /* fills the inset strips with the nav colour */
+  }
+}
+
 /* ── Mobile input sizing ──────────────────────────────────────────────────────
    iOS Safari auto-zooms the whole page when a focused input's font-size is
    under 16px, and the app's inline styles use 13px. On a phone that meant every
