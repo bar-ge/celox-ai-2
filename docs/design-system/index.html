@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celox AI — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --nav-bg:#2E2830; --nav-border:rgba(244,243,239,.09); --nav-text:#B9B3BF; --nav-active:#F4F3EF; --nav-active-bg:rgba(244,243,239,.1);
+    --primary:#2563EB; --primary-hover:#1D4ED8; --indigo:#6366F1; --gradient:linear-gradient(135deg,#2563EB,#6366F1);
+    --bg:#F4F3EF; --bg-subtle:#F8F7F4; --surface:#fff; --border:#E5E1D8; --row-hover:#F6F4EE; --overlay:rgba(43,38,48,.55);
+    --text:#2B2630; --text-2:#5A5460; --text-3:#8F8A94;
+    --success:#10B981; --success-text:#007A45; --danger:#EF4444; --warning:#F59E0B;
+    --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:12px; --r-xxl:16px; --r-pill:999px;
+    --sh-card:0 1px 4px rgba(0,0,0,.05); --sh-card-hover:0 1px 8px rgba(0,0,0,.06);
+    --sh-btn:0 2px 10px rgba(59,130,246,.35); --sh-modal:0 24px 80px rgba(0,0,0,.25); --sh-pop:0 8px 40px rgba(0,0,0,.2);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Heebo',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  .nav{background:var(--nav-bg);color:var(--nav-text);padding:14px 32px;display:flex;align-items:center;gap:24px;position:sticky;top:0;z-index:5}
+  .nav .logo{color:var(--nav-active);font-weight:800;font-size:17px;display:flex;align-items:center;gap:10px}
+  .nav .logo .mark{width:28px;height:28px;border-radius:8px;background:var(--gradient);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+  .nav a{color:var(--nav-text);text-decoration:none;font-size:13.5px;font-weight:600;padding:6px 12px;border-radius:8px}
+  .nav a.active,.nav a:hover{color:var(--nav-active);background:var(--nav-active-bg)}
+  main{max-width:1080px;margin:0 auto;padding:40px 24px 100px}
+  h1{font-size:32px;font-weight:900;margin:0 0 4px}
+  .sub{color:var(--text-2);margin:0 0 40px;font-size:15px}
+  h2{font-size:20px;font-weight:800;margin:56px 0 6px}
+  .hint{color:var(--text-3);font-size:13px;margin:0 0 18px}
+  .label{font-size:11px;font-weight:800;color:var(--text-3);letter-spacing:.7px;text-transform:uppercase;margin:18px 0 10px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-card);padding:20px 24px}
+  .grid{display:grid;gap:12px}
+  .swatches{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .sw{border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;background:var(--surface)}
+  .sw .chip{height:64px}
+  .sw .meta{padding:8px 12px;font-size:12px}
+  .sw .meta b{display:block;font-size:12.5px}
+  .sw .meta code{color:var(--text-3);font-size:11px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .btn{font-family:inherit;font-size:14px;padding:9px 18px;cursor:pointer}
+  .btn-primary{background:var(--gradient);color:#fff;border:none;border-radius:var(--r-md);font-weight:700;box-shadow:var(--sh-btn)}
+  .btn-primary:hover{opacity:.92}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-2);border-radius:var(--r-sm)}
+  .btn-ghost:hover{background:var(--row-hover)}
+  .btn-danger{background:rgba(239,68,68,.095);color:var(--danger);border:none;border-radius:var(--r-sm);font-weight:600}
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r-pill);font-size:12px;font-weight:600;padding:3px 11px}
+  .badge .dot{width:7px;height:7px;border-radius:99px;background:currentColor}
+  .b-blue{background:rgba(37,99,235,.09);color:var(--primary)}
+  .b-green{background:rgba(16,185,129,.12);color:var(--success-text)}
+  .b-amber{background:rgba(245,158,11,.14);color:#B45309}
+  .b-red{background:rgba(239,68,68,.1);color:var(--danger)}
+  .b-purple{background:rgba(139,92,246,.12);color:#7C3AED}
+  input[type=text],select{font-family:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;width:240px}
+  input[type=text]:focus,select:focus{outline:2px solid rgba(37,99,235,.35);outline-offset:1px;border-color:var(--primary)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+  th{font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--text-3);text-align:start;padding:10px 14px;background:var(--bg-subtle);border-bottom:1px solid var(--border)}
+  td{padding:12px 14px;border-bottom:1px solid var(--border)}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--row-hover)}
+  .mono{font-family:monospace;font-weight:700;color:var(--primary)}
+  .radii,.shadows{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+  .rbox{background:var(--surface);border:1px solid var(--border);height:72px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-2)}
+  .shbox{background:var(--surface);border-radius:var(--r-lg);height:84px;display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--text-2);text-align:center;padding:8px}
+  .icons{grid-template-columns:repeat(auto-fill,minmax(86px,1fr))}
+  .icon-cell{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:10.5px;color:var(--text-3)}
+  .icon-cell svg{color:var(--text-2)}
+  .type-sample{margin:0 0 14px}
+  .branch{display:inline-flex;align-items:center;gap:7px;font-size:13px;margin-inline-end:18px}
+  .branch .dot{width:10px;height:10px;border-radius:99px}
+  .rtl-note{background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.25);border-radius:var(--r-lg);padding:14px 18px;font-size:13.5px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="logo"><span class="mark">▣</span>Celox AI</span>
+  <a class="active" href="#">Dashboard</a><a href="#">Fleet</a><a href="#">Drivers</a><a href="#">Maintenance</a><a href="#">Costs</a><a href="#">Reports</a>
+</nav>
+
+<main>
+  <h1>Celox AI — Design System</h1>
+  <p class="sub">Extracted from the live fleet-management app. Plum &amp; cream neutrals, one blue→indigo accent, Heebo, RTL-first. Source of truth: <code>src/fleet-manager.jsx</code> (<code>C</code>) and <code>src/index.css</code>.</p>
+
+  <h2>Color</h2>
+  <p class="hint">Neutrals are warm (plum ink on cream), never pure gray. The accent gradient is reserved for primary actions and the logo mark.</p>
+  <div class="label">Brand &amp; navigation</div>
+  <div class="grid swatches">
+    <div class="sw"><div class="chip" style="background:#2E2830"></div><div class="meta"><b>nav / plum</b><code>#2E2830</code></div></div>
+    <div class="sw"><div class="chip" style="background:linear-gradient(135deg,#2563EB,#6366F1)"></div><div class="meta"><b>accent gradient</b><code>#2563EB → #6366F1</code></div></div>
+    <div class="sw"><div class="chip" style="background:#2563EB"></div><div class="meta"><b>primary</b><code>#2563EB</code></div></div>
+    <div class="sw"><div class="chip" style="background:#1D4ED8"></div><div class="meta"><b>primary hover</b><code>#1D4ED8</code></div></div>
+    <div class="sw"><div class="chip" style="background:#6366F1"></div><div class="meta"><b>indigo</b><code>#6366F1</code></div></div>
+  </div>
+  <div class="label">Surfaces</div>
+  <div class="grid swatches">
+    <div class="sw"><div class="chip" style="background:#F4F3EF"></div><div class="meta"><b>bg / cream</b><code>#F4F3EF</code></div></div>
+    <div class="sw"><div class="chip" style="background:#F8F7F4"></div><div class="meta"><b>bg subtle</b><code>#F8F7F4</code></div></div>
+    <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid #E5E1D8"></div><div class="meta"><b>surface</b><code>#FFFFFF</code></div></div>
+    <div class="sw"><div class="chip" style="background:#E5E1D8"></div><div class="meta"><b>border</b><code>#E5E1D8</code></div></div>
+    <div class="sw"><div class="chip" style="background:#F6F4EE"></div><div class="meta"><b>row hover</b><code>#F6F4EE</code></div></div>
+  </div>
+  <div class="label">Text</div>
+  <div class="grid swatches">
+    <div class="sw"><div class="chip" style="background:#2B2630"></div><div class="meta"><b>text / ink</b><code>#2B2630</code></div></div>
+    <div class="sw"><div class="chip" style="background:#5A5460"></div><div class="meta"><b>text secondary</b><code>#5A5460</code></div></div>
+    <div class="sw"><div class="chip" style="background:#8F8A94"></div><div class="meta"><b>text muted</b><code>#8F8A94</code></div></div>
+    <div class="sw"><div class="chip" style="background:#B9B3BF"></div><div class="meta"><b>nav text</b><code>#B9B3BF</code></div></div>
+  </div>
+  <div class="label">Semantic</div>
+  <div class="grid swatches">
+    <div class="sw"><div class="chip" style="background:#10B981"></div><div class="meta"><b>success</b><code>#10B981</code></div></div>
+    <div class="sw"><div class="chip" style="background:#007A45"></div><div class="meta"><b>success text</b><code>#007A45</code></div></div>
+    <div class="sw"><div class="chip" style="background:#F59E0B"></div><div class="meta"><b>warning</b><code>#F59E0B</code></div></div>
+    <div class="sw"><div class="chip" style="background:#EF4444"></div><div class="meta"><b>danger</b><code>#EF4444</code></div></div>
+  </div>
+  <div class="label">Branch palette (categorical, cycles by index)</div>
+  <div class="card" id="branches"></div>
+
+  <h2>Typography</h2>
+  <p class="hint">Heebo everywhere (it carries Hebrew and Latin equally). Monospace only for machine identifiers: plates, invoice numbers, codes.</p>
+  <div class="card">
+    <p class="type-sample" style="font-size:32px;font-weight:900;margin:0 0 10px">ניהול ציי רכב, בפשטות — Fleet management, simplified. <span style="color:var(--text-3);font-size:13px;font-weight:400">32 / 900 · page title</span></p>
+    <p class="type-sample" style="font-size:20px;font-weight:800">Section heading — כותרת מדור <span style="color:var(--text-3);font-size:13px;font-weight:400">20 / 800</span></p>
+    <p class="type-sample" style="font-size:14px">Body text — the default for forms, cells and copy. גוף הטקסט בעברית. <span style="color:var(--text-3);font-size:13px">14 / 400</span></p>
+    <p class="type-sample" style="font-size:12px;color:var(--text-2)">Small — table meta, hints, timestamps. <span style="color:var(--text-3)">12 / 400</span></p>
+    <p class="type-sample label" style="margin:0 0 6px">Section label — 11 / 800 / +0.7 tracking / uppercase</p>
+    <p class="type-sample" style="margin:0"><span class="mono" style="font-size:15px">132-45-678</span> <span style="color:var(--text-3);font-size:13px">monospace · plates &amp; codes</span></p>
+  </div>
+  <div class="rtl-note" style="margin-top:14px"><b>RTL first.</b> Hebrew is the primary locale; every layout must mirror cleanly. Use logical CSS properties (<code>margin-inline-start</code>, <code>text-align:start</code>) and place icon affordances on the side text runs away from — e.g. the password-reveal eye sits left in RTL, right in LTR.</div>
+
+  <h2>Radius &amp; elevation</h2>
+  <div class="label">Corner radii</div>
+  <div class="grid radii">
+    <div class="rbox" style="border-radius:4px">4 · xs</div>
+    <div class="rbox" style="border-radius:6px">6 · compact</div>
+    <div class="rbox" style="border-radius:8px">8 · default</div>
+    <div class="rbox" style="border-radius:10px">10</div>
+    <div class="rbox" style="border-radius:12px">12 · cards</div>
+    <div class="rbox" style="border-radius:16px">16 · modals</div>
+    <div class="rbox" style="border-radius:999px">999 · pill</div>
+  </div>
+  <div class="label">Shadows (soft, low-contrast — cards barely float)</div>
+  <div class="grid shadows">
+    <div class="shbox" style="box-shadow:0 1px 4px rgba(0,0,0,.05)">card<br>0 1px 4px .05</div>
+    <div class="shbox" style="box-shadow:0 1px 8px rgba(0,0,0,.06)">card hover<br>0 1px 8px .06</div>
+    <div class="shbox" style="box-shadow:0 2px 10px rgba(59,130,246,.35)">primary btn<br>blue glow</div>
+    <div class="shbox" style="box-shadow:0 8px 40px rgba(0,0,0,.2)">popover<br>0 8px 40px .2</div>
+    <div class="shbox" style="box-shadow:0 24px 80px rgba(0,0,0,.25)">modal<br>0 24px 80px .25</div>
+  </div>
+
+  <h2>Buttons</h2>
+  <p class="hint">One gradient primary per view. Ghost for secondary, tinted danger — destructive actions never get a solid red fill.</p>
+  <div class="card row">
+    <button class="btn btn-primary">+ New Item</button>
+    <button class="btn btn-ghost">Cancel</button>
+    <button class="btn btn-danger">Delete</button>
+    <button class="btn btn-primary" style="opacity:.55;cursor:default">Saving…</button>
+  </div>
+
+  <h2>Status badges</h2>
+  <p class="hint">Pill (r=999), 12/600, tinted background at ~10% of the status color, solid dot, colored text.</p>
+  <div class="card row">
+    <span class="badge b-blue"><span class="dot"></span>In Use</span>
+    <span class="badge b-green"><span class="dot"></span>Available</span>
+    <span class="badge b-amber"><span class="dot"></span>Maintenance</span>
+    <span class="badge b-red"><span class="dot"></span>Overdue</span>
+    <span class="badge b-purple"><span class="dot"></span>עמיר שיווק</span>
+  </div>
+
+  <h2>Forms</h2>
+  <div class="card">
+    <div class="label" style="margin-top:0">Email</div>
+    <div class="row">
+      <input type="text" placeholder="you@example.com">
+      <select><option>Leasing</option><option>Owned</option><option>Rental</option></select>
+    </div>
+    <p class="hint" style="margin:12px 0 0">1px border on <code>--border</code>, r=8, 10×12 padding, 14px text. Focus ring: 2px primary at 35%.</p>
+  </div>
+
+  <h2>Table</h2>
+  <table>
+    <thead><tr><th>Plate</th><th>Make / Model</th><th>Status</th><th>Branch</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">132-45-678</td><td>סובארו פורסטר</td><td><span class="badge b-blue"><span class="dot"></span>In Use</span></td><td>אריאל</td></tr>
+      <tr><td class="mono">445-566</td><td>דודג׳ ראם</td><td><span class="badge b-amber"><span class="dot"></span>Maintenance</span></td><td>עמנואל</td></tr>
+      <tr><td class="mono">24562</td><td>אאודי A7</td><td><span class="badge b-green"><span class="dot"></span>Available</span></td><td>עמנואל</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Iconography</h2>
+  <p class="hint">Single inline-SVG set: 24×24 viewBox, stroke <code>currentColor</code>, width 2, round caps &amp; joins, no fills. Default render 16px.</p>
+  <div class="grid icons" id="icons"></div>
+</main>
+
+<script>
+const ICON_PATHS = {
+  car:        '<path d="M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0"/><path d="M5 17H3v-5l2-5h9l4 5h1a2 2 0 0 1 2 2v3h-2M9 17h6"/>',
+  user:       '<circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/>',
+  building:   '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h.01M8 12h.01M8 16h.01M11 8h.01M11 12h.01M11 16h.01"/>',
+  tool:       '<path d="M14.7 6.3a4 4 0 0 0-5.3 5l-6 6a1.5 1.5 0 0 0 2.1 2.1l6-6a4 4 0 0 0 5-5.3l-2.4 2.4-2.1-.6-.6-2.1z"/>',
+  coin:       '<circle cx="12" cy="12" r="9"/><path d="M14.8 9a3 3 0 0 0-5.6 1.5c0 3 5.6 1.5 5.6 4.5a3 3 0 0 1-5.6 1.5M12 6.5v11"/>',
+  paperclip:  '<path d="M15 7l-6.5 6.5a2.1 2.1 0 0 0 3 3L18 9.5A4 4 0 0 0 12.3 3.9L5.8 10.4a6 6 0 0 0 8.5 8.5l5-5"/>',
+  clipboard:  '<path d="M9 4h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M8.5 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2.5"/><path d="M9 12h6M9 16h4"/>',
+  bell:       '<path d="M10 5a2 2 0 0 1 4 0 7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/>',
+  alert:      '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  certificate:'<rect x="4" y="3" width="16" height="14" rx="1"/><path d="M8 8h8M8 11h5M8 21l4-2 4 2"/>',
+  award:      '<circle cx="12" cy="9" r="6"/><path d="M9 14.5 8 21l4-2.5L16 21l-1-6.5"/>',
+  calendar:   '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/>',
+  download:   '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 3v12M8 11l4 4 4-4"/>',
+  upload:     '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 15V3M8 7l4-4 4 4"/>',
+  send:       '<path d="M10 14 21 3M21 3l-6.5 18a1 1 0 0 1-1.8.1L10 14 3 11.7a1 1 0 0 1 .1-1.8L21 3z"/>',
+  gas:        '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h13M14 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V9l-3-3M7 8h4"/>',
+  phone:      '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  mail:       '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  link:       '<path d="M9 15l6-6M10.5 6l.7-.7a4 4 0 0 1 5.5 5.5l-.7.7M13.5 18l-.7.7a4 4 0 0 1-5.5-5.5l.7-.7"/>',
+  printer:    '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/>',
+  search:     '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  eye:        '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  pencil:     '<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/>',
+  trash:      '<path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6"/>',
+  x:          '<path d="M6 6l12 12M18 6 6 18"/>',
+  check:      '<path d="M5 12l5 5L20 7"/>',
+  plus:       '<path d="M12 5v14M5 12h14"/>',
+  pause:      '<path d="M8 5v14M16 5v14"/>',
+  play:       '<path d="M7 5v14l12-7z"/>',
+  next:       '<path d="M6 5v14M18 5v14l-8-7z" transform="scale(-1,1) translate(-24,0)"/>',
+  camera:     '<path d="M5 7h3l2-2h4l2 2h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.2"/>',
+  file:       '<path d="M14 3v4a1 1 0 0 0 1 1h4M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z"/>',
+  fileText:   '<path d="M14 3v4a1 1 0 0 0 1 1h4M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z"/><path d="M9 13h6M9 17h4"/>',
+  book:       '<path d="M5 4a2 2 0 0 1 2-2h12v18H7a2 2 0 0 0-2 2V4z"/><path d="M19 20H7a2 2 0 0 0-2 2"/>',
+  receipt:    '<path d="M5 21V4a1 1 0 0 1 1.5-.9l1.5.9 2-1 2 1 2-1 2 1 1.5-.9A1 1 0 0 1 20 4v17l-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M9 8h6M9 12h6"/>',
+  chart:      '<path d="M6 20v-6M12 20V8M18 20v-9M3 20h18"/>',
+  spreadsheet:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>',
+  message:    '<path d="M4 18V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8l-4 4z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/>',
+  lock:       '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  shield:     '<path d="M12 3l7 3v5c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z"/>',
+  shieldCheck:'<path d="M12 3l7 3v5c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
+  folder:     '<path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/>',
+  image:      '<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="M4 16l4-4 5 5M14 14l2-2 4 4"/>',
+  id:         '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5.5 16c0-1.4 1.5-2.3 3.5-2.3s3.5.9 3.5 2.3M15 10h4M15 13h3"/>',
+  hash:       '<path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/>',
+  ambulance:  '<path d="M7 18a2 2 0 1 0 4 0M15 18a2 2 0 1 0 4 0"/><path d="M5 18H3V9a1 1 0 0 1 1-1h10l4 4v6h-2M11 18h4M8.5 4.5v4M6.5 6.5h4"/>',
+  qr:         '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/>',
+  clock:      '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  copy:       '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+  settings:   '<path d="M10.3 4.3a2 2 0 0 1 3.4 0l.2.4a2 2 0 0 0 2.4 1l.4-.1a2 2 0 0 1 2.4 2.4l-.1.4a2 2 0 0 0 1 2.4l.4.2a2 2 0 0 1 0 3.4l-.4.2a2 2 0 0 0-1 2.4l.1.4a2 2 0 0 1-2.4 2.4l-.4-.1a2 2 0 0 0-2.4 1l-.2.4a2 2 0 0 1-3.4 0l-.2-.4a2 2 0 0 0-2.4-1l-.4.1a2 2 0 0 1-2.4-2.4l.1-.4a2 2 0 0 0-1-2.4l-.4-.2a2 2 0 0 1 0-3.4l.4-.2a2 2 0 0 0 1-2.4l-.1-.4a2 2 0 0 1 2.4-2.4l.4.1a2 2 0 0 0 2.4-1z"/><circle cx="12" cy="12" r="3"/>',
+  users:      '<circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><path d="M16 5a3.5 3.5 0 0 1 0 7M21 20v-1a6 6 0 0 0-3-5.2"/>',
+  box:        '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+  traffic:    '<rect x="8" y="3" width="8" height="18" rx="3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="16.5" r="1.3"/>',
+  scale:      '<path d="M12 3v18M7 21h10M6 6h12M6 6l-3 6a3 3 0 0 0 6 0zM18 6l-3 6a3 3 0 0 0 6 0z"/>',
+  undo:       '<path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  plug:       '<path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0V8zM12 17v5"/>',
+  save:       '<path d="M5 4h11l3 3v13H5zM8 4v5h7M8 20v-5h8v5"/>',
+  eyeOff:     '<path d="M10.6 6.1A9 9 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.3 3M6.2 6.2A15 15 0 0 0 2.5 12s3.5 6 9.5 6a9 9 0 0 0 3.4-.6"/><path d="M4 4l16 16"/>',
+};
+const iconsEl = document.getElementById('icons');
+Object.entries(ICON_PATHS).forEach(([name, p]) => {
+  const cell = document.createElement('div');
+  cell.className = 'icon-cell';
+  cell.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg><span>${name}</span>`;
+  iconsEl.appendChild(cell);
+});
+const BRANCH_COLORS = ['#2563EB','#10B981','#8B5CF6','#F59E0B','#EF4444','#06B6D4','#F97316','#EC4899'];
+document.getElementById('branches').innerHTML = BRANCH_COLORS
+  .map((c,i)=>`<span class="branch"><span class="dot" style="background:${c}"></span><code>${c}</code></span>`).join('');
+</script>
+</body>
+</html>

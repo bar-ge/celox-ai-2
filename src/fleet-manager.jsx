@@ -1,8 +1,9 @@
 import { supabase } from './supabaseClient'
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, isValidIsraeliId, friendlyDbError } from './validators'
+import { FORM_TEMPLATES } from './formTemplates'
 import { getRegion, REGIONS, REGION_CODES } from './regions'
 
 // ── Active company region — set once when the company loads, read app-wide ────
@@ -109,10 +110,10 @@ function MultiSelect({ options, value = [], onChange, placeholder, style, getLab
   return (
     <div ref={triggerRef} onClick={handleOpen}
       style={{ ...style, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
-      <span style={{ color: value.length ? '#2B2630' : '#94a3b8', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+      <span style={{ color: value.length ? '#2B2630' : '#8F8A94', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
         {value.length ? value.map(lbl).join(', ') : placeholder}
       </span>
-      <span style={{ fontSize: 10, marginInlineStart: 4, color: '#64748b', flexShrink: 0 }}>▾</span>
+      <span style={{ fontSize: 10, marginInlineStart: 4, color: '#5A5460', flexShrink: 0 }}>▾</span>
 
       {open && createPortal(
         <div ref={dropdownRef} onMouseDown={e => e.stopPropagation()}
@@ -120,7 +121,7 @@ function MultiSelect({ options, value = [], onChange, placeholder, style, getLab
           style={{
             position: 'fixed', zIndex: 99999,
             top: pos.top, left: pos.left, width: pos.width,
-            background: '#fff', border: '1px solid #e2e8f0',
+            background: '#fff', border: '1px solid #E5E1D8',
             borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
             padding: '6px 0', maxHeight: 240, overflowY: 'auto',
           }}>
@@ -1097,19 +1098,19 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
     load()
   }, [entityId, entityType, companyId])
 
-  if (loading) return <div style={{ padding: '10px 0', color: '#94a3b8', fontSize: 13 }}>טוען טפסים...</div>
+  if (loading) return <div style={{ padding: '10px 0', color: '#8F8A94', fontSize: 13 }}>טוען טפסים...</div>
   if (!subs.length) return null
 
   return (
     <div style={{ marginTop: 24 }}>
-      <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: '#8F8A94', letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
         {rtl ? 'טפסים שהוגשו' : 'Submitted Forms'}
       </div>
       {subs.map(sub => {
         const meta = FORM_TYPE_LABELS[sub.type] || { he: sub.type, icon: '📋' }
         const isOpen = expanded === sub.id
         return (
-          <div key={sub.id} style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 8, overflow: 'hidden' }}>
+          <div key={sub.id} style={{ background: '#F8F7F4', borderRadius: 10, border: '1px solid #E5E1D8', marginBottom: 8, overflow: 'hidden' }}>
             <div
               onClick={() => setExpanded(isOpen ? null : sub.id)}
               style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
@@ -1117,17 +1118,17 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
               <EIcon e={meta.icon} size={18} color={C.primary} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: '#2B2630' }}>{sub.submitter_name || meta.he}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
+                <div style={{ fontSize: 11, color: '#8F8A94', marginTop: 1 }}>
                   {meta.he} · {new Date(sub.submitted_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
-              <span style={{ color: '#94a3b8', fontSize: 14 }}>{isOpen ? '▲' : '▼'}</span>
+              <span style={{ color: '#8F8A94', fontSize: 14 }}>{isOpen ? '▲' : '▼'}</span>
             </div>
             {isOpen && (
-              <div style={{ borderTop: '1px solid #e2e8f0', padding: '12px 14px', fontSize: 12 }}>
+              <div style={{ borderTop: '1px solid #E5E1D8', padding: '12px 14px', fontSize: 12 }}>
                 {Object.entries(sub.data || {}).filter(([k, v]) => v && k !== 'submitter_name' && k !== 'attachments').map(([k, v]) => (
-                  <div key={k} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <span style={{ color: '#64748b', minWidth: 130, fontWeight: 600 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g, ' ')}</span>
+                  <div key={k} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid #F4F3EF' }}>
+                    <span style={{ color: '#5A5460', minWidth: 130, fontWeight: 600 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g, ' ')}</span>
                     <span style={{ color: '#2B2630', flex: 1 }}>
                       {isCheckGroup(v) ? fmtCheckGroup(v) : Array.isArray(v) ? v.join(', ') : String(v)}
                     </span>
@@ -1135,7 +1136,7 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
                 ))}
                 {sub.data?.attachments?.length > 0 && (
                   <div style={{ marginTop: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>קבצים מצורפים</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#5A5460', marginBottom: 6 }}>קבצים מצורפים</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {sub.data.attachments.map((a, i) => (
                         <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
@@ -1400,6 +1401,16 @@ function buildSaveLicenseLevels(levels = [], otherText = '') {
 // ── Car Detail Modal ─────────────────────────────────────────────────────────
 // ── Shared field styles for the vehicle record panes ─────────────────────────
 const vpInput = { width: '100%', padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, background: C.surface, color: C.textPrimary, boxSizing: 'border-box' }
+
+// Two-up field grid that collapses to one column on phones. A 1fr-1fr grid on a
+// 390px screen leaves each field ~160px, which is too narrow for a DD/MM/YY date
+// or a labelled number — so every vehicle/driver pane form uses this instead.
+const grid2 = (mobile, extra = {}) => ({
+  display: 'grid',
+  gridTemplateColumns: mobile ? '1fr' : '1fr 1fr',
+  gap: 12,
+  ...extra,
+})
 const vpLabel = { fontSize: 11, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 4 }
 
 function VpField({ label, children }) {
@@ -1426,7 +1437,8 @@ const OWNERSHIP = [
   { v: 'rental',  he: 'השכרה',         en: 'Rental' },
 ]
 
-function LeasingPane({ carId, companyId, rtl }) {
+function LeasingPane({ carId, companyId, rtl, car, onCarUpdate }) {
+  const isMobile = useIsMobile()
   const [row, setRow]       = useState(null)
   const [loading, setLoad]  = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1437,7 +1449,16 @@ function LeasingPane({ carId, companyId, rtl }) {
     let alive = true
     supabase.from('vehicle_leasing').select('*').eq('car_id', carId)
       .order('created_at', { ascending: false }).limit(1)
-      .then(({ data }) => { if (alive) { setRow(data?.[0] || { car_id: carId, company_id: companyId, ownership_type: 'leasing' }); setLoad(false) } })
+      .then(({ data }) => { if (alive) {
+        // No leasing row yet → seed the shared fields from the car's Details
+        // tab so the same value is never typed twice (purchase/sale prices).
+        setRow(data?.[0] || {
+          car_id: carId, company_id: companyId, ownership_type: 'leasing',
+          ...(car?.purchase_price != null ? { purchase_price: car.purchase_price } : {}),
+          ...(car?.sale_price     != null ? { sale_price:     car.sale_price     } : {}),
+        })
+        setLoad(false)
+      } })
     return () => { alive = false }
   }, [carId, companyId])
 
@@ -1459,11 +1480,20 @@ function LeasingPane({ carId, companyId, rtl }) {
     setSaving(false)
     if (error) { setErr(friendlyDbError(error, rtl)); return }
     setRow(data[0]); setSaved(true); setTimeout(() => setSaved(false), 2000)
+    // Mirror the shared fields back to the car record (Details tab) so both
+    // screens always show the same number. Best-effort; additive only.
+    const mirror = {}
+    if (data[0].purchase_price != null && data[0].purchase_price !== car?.purchase_price) mirror.purchase_price = data[0].purchase_price
+    if (data[0].sale_price     != null && data[0].sale_price     !== car?.sale_price)     mirror.sale_price     = data[0].sale_price
+    if (Object.keys(mirror).length) {
+      const { data: updated } = await supabase.from('cars').update(mirror).eq('id', carId).select()
+      if (updated?.[0] && onCarUpdate) onCarUpdate(updated[0])
+    }
   }
 
   if (loading) return <div style={{ padding: 32, textAlign: 'center', color: C.textMuted }}>…</div>
   const isOwned = row.ownership_type === 'owned'
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -1605,7 +1635,7 @@ function LeasingPane({ carId, companyId, rtl }) {
 
           <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <div style={{ ...vpLabel, marginBottom: 8 }}>{rtl ? 'מה כלול בחוזה' : 'Included in contract'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={grid2(isMobile, { gap: 8 })}>
               {[['includes_maintenance', rtl ? 'טיפולים ותחזוקה' : 'Maintenance'],
                 ['includes_tires',       rtl ? 'צמיגים' : 'Tires'],
                 ['includes_insurance',   rtl ? 'ביטוח' : 'Insurance'],
@@ -1689,6 +1719,7 @@ const USAGE_METRICS = [
 ]
 
 function CarDetailsPane({ car, rtl, onCarUpdate }) {
+  const isMobile = useIsMobile()
   const init = {}
   CAR_DETAIL_FIELDS.forEach(s => s.fields.forEach(([k]) => { init[k] = car[k] ?? '' }))
   const [f, setF]           = useState(init)
@@ -1719,7 +1750,7 @@ function CarDetailsPane({ car, rtl, onCarUpdate }) {
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
             {rtl ? sec.he : sec.en}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={grid2(isMobile)}>
             {sec.fields.map(([k, he, en, type]) => (
               <VpField key={k} label={rtl ? he : en}>
                 {type === 'date'
@@ -1755,6 +1786,7 @@ function CarDetailsPane({ car, rtl, onCarUpdate }) {
 
 // ── Vehicle equipment (ציוד רכב) ─────────────────────────────────────────────
 function EquipmentPane({ carId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -1796,7 +1828,7 @@ function EquipmentPane({ carId, companyId, rtl }) {
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={grid2(isMobile, { marginBottom: 12 })}>
             <VpField label={rtl ? 'שם הפריט *' : 'Item name *'}>
               <input style={vpInput} value={form.name} onChange={e => set('name', e.target.value)} required />
             </VpField>
@@ -1804,7 +1836,7 @@ function EquipmentPane({ carId, companyId, rtl }) {
               <input style={vpInput} value={form.code} onChange={e => set('code', e.target.value)} />
             </VpField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={grid2(isMobile, { marginBottom: 12 })}>
             <VpField label={rtl ? 'כמות' : 'Quantity'}>
               <input style={vpInput} type="number" min="1" value={form.quantity} onChange={e => set('quantity', e.target.value)} />
             </VpField>
@@ -1852,8 +1884,9 @@ function EquipmentPane({ carId, companyId, rtl }) {
 function RecordListPane({
   table, scope, companyId, rtl, title, addLabel,
   fields, numericFields = [], dateFields = [], orderBy, defaults = {},
-  renderRow,
+  renderRow, afterSave,
 }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -1878,6 +1911,9 @@ function RecordListPane({
     const { data, error } = await supabase.from(table).insert([payload]).select()
     if (error) { setErr(friendlyDbError(error, rtl)); return }
     setRows(p => [data[0], ...p]); setAdd(false); setForm(blank)
+    // Optional hook for call sites that mirror a value elsewhere (e.g. a
+    // refuelling's engine-hours reading updating the car's current hours).
+    if (afterSave) { try { await afterSave(data[0]) } catch { /* best-effort */ } }
   }
 
   async function del(id) {
@@ -1895,7 +1931,7 @@ function RecordListPane({
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={grid2(isMobile)}>
             {fields.map(f => (
               <VpField key={f.k} label={(rtl ? f.he : f.en) + (f.required ? ' *' : '')}>
                 {f.type === 'date'
@@ -2029,6 +2065,7 @@ function cfKeyFrom(label, existing) {
 }
 
 function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEntityUpdate }) {
+  const isMobile = useIsMobile()
   const [defs, setDefs]     = useState([])
   const [loading, setL]     = useState(true)
   const [vals, setVals]     = useState(entity.custom_fields || {})
@@ -2099,7 +2136,7 @@ function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEnt
 
       {showAdd && canManage && (
         <form onSubmit={addDef} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={grid2(isMobile, { marginBottom: 12 })}>
             <VpField label={rtl ? 'שם השדה *' : 'Field label *'}>
               <input style={vpInput} value={nf.label} onChange={e => setNf(p => ({ ...p, label: e.target.value }))} required />
             </VpField>
@@ -2130,7 +2167,7 @@ function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEnt
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={grid2(isMobile)}>
               {defs.map(d => (
                 <div key={d.id} style={{ position: 'relative' }}>
                   <VpField label={d.label}>
@@ -2177,6 +2214,7 @@ function CustomFieldsPane({ entity, entityType, companyId, rtl, canManage, onEnt
 // (בלו) per litre — both live on the vehicle itself, like Netzer's accounting
 // block, because they describe the vehicle rather than an event.
 function TaxationPane({ car, companyId, rtl, onCarUpdate }) {
+  const isMobile = useIsMobile()
   const [f, setF]           = useState({
     tax_value_price: car.tax_value_price ?? '', tax_value_year: car.tax_value_year ?? '',
     tax_adjusted_price: car.tax_adjusted_price ?? '', tax_group: car.tax_group || '',
@@ -2216,7 +2254,7 @@ function TaxationPane({ car, companyId, rtl, onCarUpdate }) {
     return Math.round(l * r)
   })()
 
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -2312,6 +2350,7 @@ const POLICY_TYPES = [
 const policyLabel = (v, rtl) => { const t = POLICY_TYPES.find(p => p.v === v); return t ? (rtl ? t.he : t.en) : v }
 
 function InsurancePane({ carId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -2352,7 +2391,7 @@ function InsurancePane({ carId, companyId, rtl }) {
     if (!error) setRows(p => p.filter(r => r.id !== id))
   }
 
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -2418,7 +2457,7 @@ function InsurancePane({ carId, companyId, rtl }) {
 
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <div style={{ ...vpLabel, marginBottom: 8 }}>{rtl ? 'הרחבות' : 'Extensions'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+            <div style={grid2(isMobile, { gap: 8, marginBottom: 10 })}>
               {[['ext_windshield', rtl ? 'שמשות' : 'Windshields'],
                 ['ext_towing', rtl ? 'גרירה' : 'Towing'],
                 ['ext_replacement_car', rtl ? 'רכב חלופי' : 'Replacement car'],
@@ -2429,7 +2468,7 @@ function InsurancePane({ carId, companyId, rtl }) {
                 </label>
               ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={grid2(isMobile)}>
               <input style={vpInput} value={form.ext_radio} onChange={e => set('ext_radio', e.target.value)} placeholder={rtl ? 'רדיו־טייפ' : 'Radio'} />
               <input style={vpInput} value={form.ext_other} onChange={e => set('ext_other', e.target.value)} placeholder={rtl ? 'תוספות' : 'Other add-ons'} />
             </div>
@@ -2439,7 +2478,7 @@ function InsurancePane({ carId, companyId, rtl }) {
               these restrictions are surfaced on the policy card too. */}
           <div style={{ background: C.warning + '10', border: `1px solid ${C.warning}45`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <div style={{ ...vpLabel, marginBottom: 8, color: C.warning }}>{rtl ? 'רשאים לנהוג' : 'Who may drive'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+            <div style={grid2(isMobile, { gap: 8, marginBottom: 10 })}>
               {[['drv_any', rtl ? 'כל נהג' : 'Any driver'],
                 ['drv_min_age_21', rtl ? 'מעל 21 ושנת רישיון' : 'Over 21, 1yr licence'],
                 ['drv_min_age_24', rtl ? 'מעל 24 ושנת רישיון' : 'Over 24, 1yr licence'],
@@ -2512,6 +2551,7 @@ function InsurancePane({ carId, companyId, rtl }) {
 
 // ── Annual roadworthiness test (טסט) pane ────────────────────────────────────
 function TestsPane({ carId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [rows, setRows]   = useState([])
   const [loading, setL]   = useState(true)
   const [showAdd, setAdd] = useState(false)
@@ -2546,7 +2586,7 @@ function TestsPane({ carId, companyId, rtl }) {
   }
 
   const RESULTS = { passed: { he: 'עבר', en: 'Passed', c: C.success }, failed: { he: 'נכשל', en: 'Failed', c: C.danger }, conditional: { he: 'עבר בתנאי', en: 'Conditional', c: C.warning } }
-  const g2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }
+  const g2 = grid2(isMobile, { marginBottom: 12 })
 
   return (
     <div style={{ padding: '20px 24px 8px' }}>
@@ -2733,14 +2773,14 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
         <div style={hdr}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 6, padding: '3px 10px', fontWeight: 700, fontSize: 14, color: '#f8fafc', letterSpacing: 1 }}>
+              <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 6, padding: '3px 10px', fontWeight: 700, fontSize: 14, color: '#F8F7F4', letterSpacing: 1 }}>
                 {formatPlate(car.plate)}
               </span>
               <Badge label={t[CAR_STATUS_KEY[car.status]] || car.status} color={s => s === 'Available' || s === t.available ? C.success : s === 'In Use' || s === t.inUse ? C.primary : C.warning} />
             </div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{car.make} {car.model} {car.year ? `(${car.year})` : ''}</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: '#F8F7F4' }}>{car.make} {car.model} {car.year ? `(${car.year})` : ''}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={15} /></button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#F8F7F4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Tab bar */}
@@ -2794,6 +2834,8 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                   <TachographBlock car={car} rtl={rtl} sTitle={sTitle} sectionStyle={sectionStyle} onCarUpdate={onCarUpdate} />
                 )}
 
+                {RG.code === 'il' && <RecallBanner plate={car.plate} rtl={rtl} />}
+
                 <div style={sectionStyle}>
                   <div style={sTitle}>{rtl ? 'נהג נוכחי' : 'Current Driver'}</div>
                   {driver ? [
@@ -2824,7 +2866,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             )}
 
             {/* ── LEASING / OWNERSHIP ── */}
-            {tab === 'leasing'   && <LeasingPane   carId={car.id} companyId={companyId} rtl={rtl} />}
+            {tab === 'leasing'   && <LeasingPane   carId={car.id} companyId={companyId} rtl={rtl} car={car} onCarUpdate={onCarUpdate} />}
 
             {/* ── INSURANCE POLICIES ── */}
             {tab === 'insurance' && <InsurancePane carId={car.id} companyId={companyId} rtl={rtl} />}
@@ -2841,26 +2883,55 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
             {/* ── VEHICLE EQUIPMENT ── */}
             {tab === 'equipment' && <EquipmentPane carId={car.id} companyId={companyId} rtl={rtl} />}
 
-            {/* ── FUEL LEDGER ── */}
-            {tab === 'fuel' && (
-              <RecordListPane
-                table="fuel_records" scope={{ car_id: car.id }} companyId={companyId} rtl={rtl}
-                title={rtl ? 'תדלוקים' : 'Refuellings'} addLabel={rtl ? '+ תדלוק' : '+ Refuelling'}
-                orderBy="fuel_date"
-                numericFields={['liters', 'price_per_liter', 'total_amount', 'odometer']}
-                dateFields={['fuel_date']}
-                defaults={{ full_tank: true }}
-                fields={[
+            {/* ── FUEL LEDGER ──
+                Electric vehicles log charging sessions (kWh) instead of litres;
+                hybrids get both. Same table (fuel_records), so accumulators and
+                exports keep working — a row simply has liters or kwh filled. */}
+            {tab === 'fuel' && (() => {
+              const isEV     = car.fuel === 'Electric'
+              const isHybrid = car.fuel === 'Hybrid'
+              // Hours-metered assets (forklifts, generators) record the engine-
+              // hours reading at each refuel — that is what makes consumption
+              // per hour computable, exactly like odometer does for km.
+              const byHours  = car.usage_metric === 'hours' || car.usage_metric === 'both'
+              const fuelFields = [
                   { k: 'fuel_date',       he: 'תאריך',        en: 'Date',       type: 'date', required: true },
-                  { k: 'liters',          he: 'ליטרים',       en: 'Litres',     type: 'number' },
-                  { k: 'price_per_liter', he: 'מחיר לליטר',   en: 'Price/litre',type: 'number' },
+                  ...(!isEV ? [
+                    { k: 'liters',          he: 'ליטרים',       en: 'Litres',     type: 'number' },
+                    { k: 'price_per_liter', he: 'מחיר לליטר',   en: 'Price/litre',type: 'number' },
+                  ] : []),
+                  ...(isEV || isHybrid ? [
+                    { k: 'kwh',           he: 'קוט״ש',         en: 'kWh',        type: 'number' },
+                    { k: 'price_per_kwh', he: 'מחיר לקוט״ש',   en: 'Price/kWh',  type: 'number' },
+                  ] : []),
                   { k: 'total_amount',    he: 'סה״כ',         en: 'Total',      type: 'number' },
                   { k: 'odometer',        he: 'ספידומטר',     en: 'Odometer',   type: 'number' },
-                  { k: 'station',         he: 'תחנה',         en: 'Station',    type: 'text' },
+                  ...(byHours ? [{ k: 'engine_hours', he: 'שעות מנוע', en: 'Engine hours', type: 'number' }] : []),
+                  { k: 'station',         he: isEV ? 'עמדת טעינה' : 'תחנה', en: isEV ? 'Charging station' : 'Station', type: 'text' },
                   { k: 'supplier',        he: 'ספק / דלקן',   en: 'Supplier',   type: 'text' },
-                  { k: 'fuel_type',       he: 'סוג דלק',      en: 'Fuel type',  type: 'text' },
-                  { k: 'full_tank',       he: 'מיכל מלא',     en: 'Full tank',  type: 'checkbox' },
-                ]}
+                  ...(!isEV ? [{ k: 'fuel_type', he: 'סוג דלק', en: 'Fuel type', type: 'text' }] : []),
+                  { k: 'full_tank',       he: isEV ? 'טעינה מלאה' : 'מיכל מלא', en: isEV ? 'Full charge' : 'Full tank', type: 'checkbox' },
+              ]
+              return (
+              <RecordListPane
+                table="fuel_records" scope={{ car_id: car.id }} companyId={companyId} rtl={rtl}
+                title={isEV ? (rtl ? 'טעינות' : 'Charging sessions') : (rtl ? 'תדלוקים' : 'Refuellings')}
+                addLabel={isEV ? (rtl ? '+ טעינה' : '+ Charge') : (rtl ? '+ תדלוק' : '+ Refuelling')}
+                orderBy="fuel_date"
+                numericFields={['liters', 'price_per_liter', 'kwh', 'price_per_kwh', 'total_amount', 'odometer', 'engine_hours']}
+                dateFields={['fuel_date']}
+                defaults={{ full_tank: true }}
+                fields={fuelFields}
+                afterSave={async r => {
+                  // A refuel's engine-hours reading is the freshest one there is
+                  // — roll it into the car so hours-based service plans use it.
+                  if (!byHours || r.engine_hours == null) return
+                  if (car.engine_hours != null && Number(r.engine_hours) <= Number(car.engine_hours)) return
+                  const { data: updated } = await supabase.from('cars')
+                    .update({ engine_hours: r.engine_hours, engine_hours_date: r.fuel_date })
+                    .eq('id', car.id).select()
+                  if (updated?.[0] && onCarUpdate) onCarUpdate(updated[0])
+                }}
                 renderRow={r => (<>
                   <div style={{ fontWeight: 700, fontSize: 13, color: C.textPrimary }}>
                     {fmtDate(r.fuel_date)}{r.total_amount != null ? ` · ${RG.currency}${Number(r.total_amount).toLocaleString()}` : ''}
@@ -2868,14 +2939,18 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                   {metaRow(<>
                     {r.liters   != null && <span>{Number(r.liters).toLocaleString()} {rtl ? 'ליטר' : 'L'}</span>}
                     {r.price_per_liter != null && <span>{RG.currency}{Number(r.price_per_liter).toFixed(2)}/{rtl ? 'ל׳' : 'L'}</span>}
+                    {r.kwh      != null && <span>{Number(r.kwh).toLocaleString()} {rtl ? 'קוט״ש' : 'kWh'}</span>}
+                    {r.price_per_kwh != null && <span>{RG.currency}{Number(r.price_per_kwh).toFixed(2)}/{rtl ? 'קוט״ש' : 'kWh'}</span>}
                     {r.odometer != null && <span>{Number(r.odometer).toLocaleString()} {distUnit()}</span>}
+                    {r.engine_hours != null && <span>{Number(r.engine_hours).toLocaleString()} {rtl ? 'שעות מנוע' : 'engine h'}</span>}
                     {r.station  && <span>{r.station}</span>}
                     {r.supplier && <span>{r.supplier}</span>}
-                    {!r.full_tank && <span style={{ color: C.warning }}>{rtl ? 'מילוי חלקי' : 'Partial'}</span>}
+                    {!r.full_tank && <span style={{ color: C.warning }}>{isEV ? (rtl ? 'טעינה חלקית' : 'Partial charge') : (rtl ? 'מילוי חלקי' : 'Partial')}</span>}
                   </>)}
                 </>)}
               />
-            )}
+              )
+            })()}
 
             {/* ── TRANSFERS ── */}
             {tab === 'transfers' && (
@@ -3062,6 +3137,7 @@ const DRIVER_DETAIL_FIELDS = [
 const DRIVER_DATE_FIELDS = ['birth_date', 'work_start_date']
 
 function DriverDetailsPane({ driver, rtl, onDriverUpdate }) {
+  const isMobile = useIsMobile()
   const init = {}
   DRIVER_DETAIL_FIELDS.forEach(s => s.fields.forEach(([k]) => { init[k] = driver[k] ?? '' }))
   const [f, setF]           = useState(init)
@@ -3093,7 +3169,7 @@ function DriverDetailsPane({ driver, rtl, onDriverUpdate }) {
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10 }}>
             {rtl ? sec.he : sec.en}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={grid2(isMobile)}>
             {sec.fields.map(([k, he, en, type]) => (
               <VpField key={k} label={rtl ? he : en}>
                 {type === 'date'
@@ -3140,14 +3216,14 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <span style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{driver.name}</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#F8F7F4' }}>{driver.name}</span>
               <Badge label={t[DRIVER_STATUS_KEY[driver.status]] || driver.status} color={statusColor} />
             </div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
               {[driver.license, driver.phone, getBranchName(driver.branch_id) !== '—' && getBranchName(driver.branch_id)].filter(Boolean).join(' · ')}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={15} /></button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#F8F7F4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Tab bar */}
@@ -3615,11 +3691,68 @@ async function lookupPlate(rawPlate, signal) {
         const fuelHe = (rec.sug_delek_nm || '').trim()
         const fuel  = FUEL_MAP[fuelHe] || 'Petrol'
         const color = (rec.tzeva_rechev || '').trim()
-        return { make, model, year, fuel, color }
+        // Extended registry fields → cars detail columns. cleanCar() whitelists
+        // only the basic columns, so these ride along under _gov and are applied
+        // in a follow-up update after the insert (addCar) — additive only, and a
+        // field the registry doesn't know stays untouched.
+        const _gov = {}
+        if (rec.misgeret)             _gov.chassis_no          = String(rec.misgeret).trim()
+        if (rec.kinuy_mishari)        _gov.commercial_name     = String(rec.kinuy_mishari).trim()
+        if (color)                    _gov.color               = color
+        if (rec.kvutzat_zihum != null)_gov.green_index         = String(rec.kvutzat_zihum)
+        if (rec.tokef_dt)             _gov.registration_expiry = String(rec.tokef_dt).slice(0, 10)
+        if (rec.baalut)               _gov.owner_name          = String(rec.baalut).trim()
+        return { make, model, year, fuel, color, _gov }
       }
     } catch (e) { if (e?.name === 'AbortError') return null /* cancelled */ }
   }
   return null
+}
+
+// ── Open safety recalls (gov.il) ─────────────────────────────────────────────
+// Vehicles that received a recall letter over 6 months ago and never had the
+// fix performed. Queried by plate against the Ministry of Transport dataset;
+// silent on any failure — a recall banner must never break the card.
+const RECALL_RESOURCE_ID = '36bf1404-0be4-49d2-82dc-2f1ead4a8b93'
+async function lookupOpenRecalls(rawPlate, signal) {
+  const plate = (rawPlate || '').replace(/\D/g, '')
+  if (!plate) return []
+  try {
+    const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=${RECALL_RESOURCE_ID}&filters=${encodeURIComponent(JSON.stringify({ MISPAR_RECHEV: plate }))}&limit=5`
+    const res = await fetch(url, { signal })
+    const data = await res.json()
+    return data?.result?.records || []
+  } catch { return [] }
+}
+
+function RecallBanner({ plate, rtl }) {
+  const [recalls, setRecalls] = useState(null) // null = loading/silent
+  useEffect(() => {
+    const ctl = new AbortController()
+    lookupOpenRecalls(plate, ctl.signal).then(r => { if (!ctl.signal.aborted) setRecalls(r) })
+    return () => ctl.abort()
+  }, [plate])
+  if (!recalls || recalls.length === 0) return null
+  return (
+    <div style={{
+      background: C.warning + '14', border: `1px solid ${C.warning}55`, borderRadius: 10,
+      padding: '12px 16px', margin: '0 24px 16px', fontSize: 13, color: C.textPrimary,
+    }}>
+      <div style={{ fontWeight: 800, color: '#B45309', display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+        <Icon name="alert" size={15} color="#B45309" />
+        {rtl ? 'ריקול פתוח ממשרד התחבורה' : 'Open manufacturer recall'}
+      </div>
+      {recalls.map(r => (
+        <div key={r.RECALL_ID} style={{ color: C.textSecondary, lineHeight: 1.55 }}>
+          <b style={{ color: C.textPrimary }}>{r.SUG_TAKALA}</b>{r.TEUR_TAKALA ? ` — ${r.TEUR_TAKALA}` : ''}
+          {r.TAARICH_PTICHA ? <span style={{ color: C.textMuted }}> ({String(r.TAARICH_PTICHA).slice(0, 10)})</span> : null}
+        </div>
+      ))}
+      <div style={{ marginTop: 6, fontSize: 12, color: C.textMuted }}>
+        {rtl ? 'יש לפנות ליבואן לתיקון ללא עלות.' : 'Contact the importer for a free repair.'}
+      </div>
+    </div>
+  )
 }
 
 // North-American vehicle lookup: decode a VIN via the free NHTSA vPIC API.
@@ -4040,6 +4173,161 @@ function AddBranchRow({ onAdd, onCancel, t, rtl, mobile }) {
   )
 }
 
+// ── Recommended maintenance plans ────────────────────────────────────────────
+// There is no public per-model service-schedule API, so recommendations are
+// derived from what the vehicle record already tells us: fuel type (EV has no
+// oil), hours-metering (forklifts service by engine hours), weight class and
+// age. Values are industry-standard defaults — every one is editable in the
+// approval modal before anything is saved, and nothing is created without an
+// explicit approve.
+function recommendMaintenancePlans(car, existingPlans = []) {
+  if (!car) return []
+  const byHours = car.usage_metric === 'hours' || car.usage_metric === 'both'
+  const isEV     = car.fuel === 'Electric'
+  const isDiesel = car.fuel === 'Diesel'
+  const heavy    = Number(car.weight_total) >= 3500 || Number(car.weight_authorized) >= 3500
+  const old      = car.year && (new Date().getFullYear() - Number(car.year)) >= 10
+  const R = (type, km, months, hours, he, en) => ({
+    type, km_interval: km || '', month_interval: months || '', hours_interval: hours || '',
+    reason: { he, en },
+  })
+  let recs = []
+  if (byHours) {
+    recs = [
+      R('Oil Change',    null, null, 250,  'ציוד מנועי — שמן ומסננים כל 250 שעות מנוע', 'Powered equipment — oil & filters every 250 engine hours'),
+      R('Inspection',    null, 12,   500,  'בדיקה תקופתית כל 500 שעות או שנה', 'Periodic inspection every 500 hours or 12 months'),
+      R('Brake Service', null, null, 1000, 'בלמים והידראוליקה כל 1,000 שעות', 'Brakes & hydraulics every 1,000 hours'),
+    ]
+  } else if (isEV) {
+    recs = [
+      R('Tire Rotation', 10000, 12, null, 'רכב חשמלי — המומנט הגבוה שוחק צמיגים מהר', 'EV — instant torque wears tires faster'),
+      R('Inspection',    20000, 12, null, 'בדיקת מערכות, נוזל בלמים ומצבר 12V', 'Systems check, brake fluid and 12V battery'),
+      R('Brake Service', 30000, 24, null, 'בלמים נשחקים לאט (השבתה רגנרטיבית) אך נוזל מתיישן', 'Regen braking wears slowly, but fluid still ages'),
+    ]
+  } else {
+    const oilKm = isDiesel ? 10000 : 15000
+    recs = [
+      R('Oil Change',    heavy ? 20000 : oilKm, 12, null,
+        isDiesel ? 'מנוע דיזל — שמן ומסנן סולר' : 'שמן ומסנן לפי יצרן',
+        isDiesel ? 'Diesel engine — oil & fuel filter' : 'Oil & filter per manufacturer'),
+      R('Tire Rotation', 10000, null, null, 'סבב צמיגים לשחיקה אחידה', 'Rotate for even wear'),
+      R('Inspection',    15000, old ? 6 : 12, null,
+        old ? 'רכב מעל 10 שנים — בדיקה חצי־שנתית' : 'בדיקה תקופתית שנתית',
+        old ? 'Vehicle over 10 years — semi-annual check' : 'Annual periodic inspection'),
+      R('Brake Service', heavy ? 20000 : 30000, 24, null,
+        heavy ? 'רכב כבד — בלמים בעומס גבוה' : 'רפידות, דיסקים ונוזל',
+        heavy ? 'Heavy vehicle — brakes under high load' : 'Pads, discs and fluid'),
+    ]
+  }
+  const existingTypes = new Set(existingPlans.filter(p => String(p.car_id) === String(car.id)).map(p => p.type))
+  return recs.filter(r => !existingTypes.has(r.type))
+}
+
+function PlanRecommendModal({ cars, plans, companyId, rtl, typeLabel, onClose, onCreated }) {
+  const isMobile = useIsMobile()
+  const [carId, setCarId] = useState(String(cars[0]?.id ?? ''))
+  const [edits, setEdits] = useState({}) // { [type]: { km_interval, month_interval, hours_interval, checked } }
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]     = useState('')
+  const car = cars.find(c => String(c.id) === carId)
+
+  // Recommendations are derived, not stored in state — switching vehicle simply
+  // recomputes them, and per-row edits live in a keyed overlay so nothing has to
+  // be synced in an effect.
+  const rows = useMemo(() => {
+    const base = recommendMaintenancePlans(car, plans)
+    return base.map(r => ({ ...r, checked: true, ...(edits[`${carId}:${r.type}`] || {}) }))
+  }, [car, carId, plans, edits])
+
+  const setRow = (i, k, v) => {
+    const key = `${carId}:${rows[i].type}`
+    setEdits(p => ({ ...p, [key]: { ...(p[key] || {}), [k]: v } }))
+  }
+  const checkedCount = rows.filter(r => r.checked).length
+
+  async function approve() {
+    if (!car || checkedCount === 0) return
+    setSaving(true); setErr('')
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const payloads = rows.filter(r => r.checked).map(r => ({
+      company_id: companyId, car_id: car.id, type: r.type,
+      km_interval:    r.km_interval    ? parseInt(r.km_interval, 10)    : null,
+      month_interval: r.month_interval ? parseInt(r.month_interval, 10) : null,
+      hours_interval: r.hours_interval ? parseInt(r.hours_interval, 10) : null,
+      last_km:    r.km_interval    && car.mileage      != null ? car.mileage : null,
+      last_hours: r.hours_interval && car.engine_hours != null ? car.engine_hours : null,
+      last_date:  r.month_interval ? todayStr : null,
+    }))
+    const { data, error } = await supabase.from('maintenance_plans').insert(payloads).select()
+    setSaving(false)
+    if (error) { setErr(friendlyDbError(error, rtl)); return }
+    onCreated(data || [])
+    onClose()
+  }
+
+  const numIn = { width: 76, padding: '6px 8px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, fontFamily: 'inherit', color: C.textPrimary, background: C.surface, boxSizing: 'border-box' }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 660, maxHeight: isMobile ? '92vh' : '88vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.25)', padding: isMobile ? '18px 16px' : '22px 24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="tool" size={16} color={C.primary} />{rtl ? 'תוכניות טיפולים מומלצות' : 'Recommended maintenance plans'}
+          </h3>
+          <button onClick={onClose} style={closeBtn}>×</button>
+        </div>
+        <p style={{ margin: '0 0 14px', fontSize: 12.5, color: C.textSecondary }}>
+          {rtl ? 'המלצות לפי סוג הדלק, אופן המדידה, המשקל והגיל של הרכב. ערכו את המרווחים, בטלו סימון של מה שלא רלוונטי — נשמר רק מה שתאשרו.'
+               : 'Based on the vehicle’s fuel type, metering, weight and age. Edit the intervals, untick anything irrelevant — only what you approve is saved.'}
+        </p>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{rtl ? 'רכב' : 'Vehicle'}</label>
+          <select value={carId} onChange={e => setCarId(e.target.value)} style={{ ...numIn, width: '100%', padding: '9px 12px' }}>
+            {cars.map(c => <option key={c.id} value={String(c.id)}>{formatPlate(c.plate)}{c.make ? ` · ${c.make} ${c.model || ''}` : ''}</option>)}
+          </select>
+        </div>
+
+        {rows.length === 0 ? (
+          <div style={{ padding: '22px 0', textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
+            {rtl ? 'לרכב זה כבר קיימות תוכניות לכל סוגי הטיפול המומלצים.' : 'This vehicle already has plans for every recommended service type.'}
+          </div>
+        ) : rows.map((r, i) => (
+          <div key={r.type} style={{ border: `1px solid ${r.checked ? C.primary + '55' : C.border}`, background: r.checked ? C.primary + '06' : C.bgSubtle, borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 8 }}>
+              <input type="checkbox" checked={r.checked} onChange={e => setRow(i, 'checked', e.target.checked)} style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+              <span style={{ fontWeight: 700, fontSize: 14, color: C.textPrimary }}>{typeLabel[r.type] || r.type}</span>
+              <span style={{ fontSize: 12, color: C.textMuted }}>{rtl ? r.reason.he : r.reason.en}</span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, auto)', justifyContent: 'start', gap: isMobile ? 8 : 14, paddingInlineStart: isMobile ? 0 : 26 }}>
+              <label style={{ fontSize: 12, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {rtl ? 'כל (ק״מ)' : 'Every (km)'}
+                <input type="number" min="0" value={r.km_interval} onChange={e => setRow(i, 'km_interval', e.target.value)} style={numIn} disabled={!r.checked} />
+              </label>
+              <label style={{ fontSize: 12, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {rtl ? 'כל (חודשים)' : 'Every (months)'}
+                <input type="number" min="0" value={r.month_interval} onChange={e => setRow(i, 'month_interval', e.target.value)} style={numIn} disabled={!r.checked} />
+              </label>
+              <label style={{ fontSize: 12, color: C.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {rtl ? 'כל (שעות מנוע)' : 'Every (engine h)'}
+                <input type="number" min="0" value={r.hours_interval} onChange={e => setRow(i, 'hours_interval', e.target.value)} style={numIn} disabled={!r.checked} />
+              </label>
+            </div>
+          </div>
+        ))}
+
+        {err && <div style={{ color: C.danger, fontSize: 12.5, fontWeight: 700, margin: '4px 0 8px' }}>{err}</div>}
+        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          <button onClick={approve} disabled={saving || checkedCount === 0}
+            style={{ ...btnPrimary, flex: 1, padding: '11px', fontSize: 14, opacity: saving || checkedCount === 0 ? 0.6 : 1 }}>
+            {saving ? '…' : rtl ? `אשר והוסף (${checkedCount})` : `Approve & add (${checkedCount})`}
+          </button>
+          <button onClick={onClose} style={{ ...btnGhost, padding: '11px 20px', fontSize: 14 }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Maintenance Tab ──────────────────────────────────────────────────────────
 function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   // All hooks first
@@ -4049,6 +4337,7 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
   const [form, setForm] = useState({ car_id: '', type: 'Oil Change', description: '', cost: '', date: '', next_due: '', status: 'done', mileage: '', next_service_mileage: '' })
   const [plans, setPlans] = useState([])
   const [showPlanAdd, setShowPlanAdd] = useState(false)
+  const [showRecommend, setShowRecommend] = useState(false)
   const [planForm, setPlanForm] = useState({ car_id: '', type: 'Oil Change', km_interval: '', month_interval: '', last_km: '', last_date: '', hours_interval: '', last_hours: '' })
   const inp = inlineInput(rtl)
   const isMobile = useIsMobile()
@@ -4278,13 +4567,28 @@ function MaintenanceTab({ cars, companyId, t, rtl, customLists }) {
         </>
       )}
 
+      {showRecommend && (
+        <PlanRecommendModal
+          cars={cars} plans={plans} companyId={companyId} rtl={rtl} typeLabel={typeLabel}
+          onClose={() => setShowRecommend(false)}
+          onCreated={created => setPlans(p => [...created, ...p])}
+        />
+      )}
+
       {/* ── Maintenance Plans ── */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', overflow: 'hidden', marginTop: 8 }}>
         <div style={{ background: gradient, padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fff', fontWeight: 700, fontSize: 13 }}><Icon name="calendar" size={15} />{t.maintenancePlans}</span>
-          <button onClick={() => setShowPlanAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
-            {showPlanAdd ? t.cancel : t.newPlan}
-          </button>
+          <span style={{ display: 'flex', gap: 8 }}>
+            {cars.length > 0 && (
+              <button onClick={() => setShowRecommend(true)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+                ✨ {rtl ? 'המלצות' : 'Recommend'}
+              </button>
+            )}
+            <button onClick={() => setShowPlanAdd(p => !p)} style={{ ...btnPrimary, padding: '5px 14px', fontSize: 12, boxShadow: 'none', background: 'rgba(255,255,255,0.2)' }}>
+              {showPlanAdd ? t.cancel : t.newPlan}
+            </button>
+          </span>
         </div>
 
         {showPlanAdd && (
@@ -6794,23 +7098,23 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <div style={{ fontWeight: 900, fontSize: 20, color: '#2B2630', marginBottom: 4 }}>{viewSubs?.title}</div>
-                <div style={{ fontSize: 13, color: '#64748b' }}>{printSub.submitter_name} · {new Date(printSub.submitted_at).toLocaleString('he-IL')}</div>
+                <div style={{ fontSize: 13, color: '#5A5460' }}>{printSub.submitter_name} · {new Date(printSub.submitted_at).toLocaleString('he-IL')}</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => window.print()} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}><Icon name="printer" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />הדפס</button>
-                <button onClick={() => setPrintSub(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>סגור</button>
+                <button onClick={() => setPrintSub(null)} style={{ background: '#F4F3EF', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}>סגור</button>
               </div>
             </div>
-            <hr style={{ border: 'none', borderTop: '2px solid #e2e8f0', marginBottom: 20 }} />
+            <hr style={{ border: 'none', borderTop: '2px solid #E5E1D8', marginBottom: 20 }} />
             {Object.entries(printSub.data || {}).filter(([k, v]) => v && k !== 'attachments' && k !== 'submitter_name').map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
-                <span style={{ fontWeight: 700, color: '#475569', minWidth: 160 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g,' ')}</span>
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F4F3EF', fontSize: 14 }}>
+                <span style={{ fontWeight: 700, color: '#5A5460', minWidth: 160 }}>{SUB_FIELD_LABELS[k] || k.replace(/_/g,' ')}</span>
                 <span style={{ color: '#2B2630', textAlign: 'left', flex: 1 }}>{fmtSubVal(v)}</span>
               </div>
             ))}
             {printSub.data?.attachments?.length > 0 && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontWeight: 700, color: '#475569', marginBottom: 8 }}>קבצים מצורפים</div>
+                <div style={{ fontWeight: 700, color: '#5A5460', marginBottom: 8 }}>קבצים מצורפים</div>
                 {printSub.data.attachments.map((a, i) => <div key={i} style={{ fontSize: 13, color: C.primary }}><Icon name="paperclip" size={13} style={{ marginInlineEnd: 4, verticalAlign: '-2px' }} />{a.name}</div>)}
               </div>
             )}
@@ -6823,12 +7127,12 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', maxWidth: 320, width: '100%' }}>
             <div style={{ fontWeight: 800, fontSize: 16, color: '#2B2630', marginBottom: 4 }}>{showQr.title}</div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 20 }}>{rtl ? 'סרוק כדי לפתוח את הטופס' : 'Scan to open the form'}</div>
-            <img src={qrUrl(showQr.token)} alt="QR" style={{ width: 220, height: 220, borderRadius: 10, border: '1px solid #e2e8f0' }} />
-            <div style={{ marginTop: 16, fontSize: 11, color: '#94a3b8', wordBreak: 'break-all', direction: 'ltr' }}>{formUrl(showQr.token)}</div>
+            <div style={{ fontSize: 12, color: '#8F8A94', marginBottom: 20 }}>{rtl ? 'סרוק כדי לפתוח את הטופס' : 'Scan to open the form'}</div>
+            <img src={qrUrl(showQr.token)} alt="QR" style={{ width: 220, height: 220, borderRadius: 10, border: '1px solid #E5E1D8' }} />
+            <div style={{ marginTop: 16, fontSize: 11, color: '#8F8A94', wordBreak: 'break-all', direction: 'ltr' }}>{formUrl(showQr.token)}</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
               <a href={qrUrl(showQr.token)} download={`qr-${showQr.title}.png`} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={14} />{rtl ? 'הורד QR' : 'Download QR'}</a>
-              <button onClick={() => setShowQr(null)} style={{ background: '#f1f5f9', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'סגור' : 'Close'}</button>
+              <button onClick={() => setShowQr(null)} style={{ background: '#F4F3EF', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'סגור' : 'Close'}</button>
             </div>
           </div>
         </div>
@@ -6847,7 +7151,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 720, direction: rtl ? 'rtl' : 'ltr' }}>
             <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ color: '#f8fafc', fontWeight: 800, fontSize: 16 }}>{viewSubs.title}</div>
+                <div style={{ color: '#F8F7F4', fontWeight: 800, fontSize: 16 }}>{viewSubs.title}</div>
                 <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>{filtered.length}/{subs.length} {rtl ? 'תגובות' : 'submissions'}</div>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -6856,7 +7160,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                     <Icon name="download" size={14} style={{ marginInlineEnd: 5, verticalAlign: '-2px' }} />{rtl ? 'יצא Excel' : 'Export Excel'}
                   </button>
                 )}
-                <button onClick={() => setViewSubs(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#f8fafc', fontSize: 18 }}><Icon name="x" size={15} /></button>
+                <button onClick={() => setViewSubs(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#F8F7F4', fontSize: 18 }}><Icon name="x" size={15} /></button>
               </div>
             </div>
             {/* Search & filter bar */}
@@ -6880,7 +7184,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                           <div style={{ fontSize: 12, color: C.textMuted }}>{new Date(sub.submitted_at).toLocaleString('he-IL')}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <button onClick={e => { e.stopPropagation(); setPrintSub(sub) }} style={{ background: '#f1f5f9', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', color: '#475569', fontWeight: 700 }}><Icon name="printer" size={13} /></button>
+                          <button onClick={e => { e.stopPropagation(); setPrintSub(sub) }} style={{ background: '#F4F3EF', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', color: '#5A5460', fontWeight: 700 }}><Icon name="printer" size={13} /></button>
                           <span style={{ color: C.textMuted, fontSize: 16 }}>{expandSub === sub.id ? '▲' : '▼'}</span>
                         </div>
                       </div>
@@ -6915,14 +7219,14 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: createType === 'custom' ? 580 : 480, direction: rtl ? 'rtl' : 'ltr', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ background: C.navBg, borderRadius: '16px 16px 0 0', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#f8fafc', fontWeight: 800, fontSize: 15 }}><Icon name="plus" size={16} />{rtl ? 'יצירת קישור טופס' : 'Create Form Link'}</span>
-              <button onClick={() => { setShowCreate(false); setCustomFields([]) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}><Icon name="x" size={15} /></button>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#F8F7F4', fontWeight: 800, fontSize: 15 }}><Icon name="plus" size={16} />{rtl ? 'יצירת קישור טופס' : 'Create Form Link'}</span>
+              <button onClick={() => { setShowCreate(false); setCustomFields([]) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#F8F7F4', fontSize: 16 }}><Icon name="x" size={15} /></button>
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
               {/* Form type selector */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'סוג טופס' : 'Form Type'}</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={grid2(isMobile, { gap: 8 })}>
                   {FORM_TYPES.map(f => (
                     <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 9, border: `2px solid ${createType === f.id ? C.primary : C.border}`, cursor: 'pointer', background: createType === f.id ? C.primary + '08' : C.bg, transition: 'all 0.15s' }}>
                       <input type="radio" name="formType" value={f.id} checked={createType === f.id} onChange={() => { setCreateType(f.id); setCustomFields([]) }} style={{ accentColor: C.primary }} />
@@ -6937,6 +7241,31 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               {createType === 'custom' && (
                 <div style={{ background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, padding: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: C.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 }}><Icon name="tool" size={13} color={C.textSecondary} />{rtl ? 'בנה את שדות הטופס' : 'Build Form Fields'}</div>
+
+                  {/* Ready-made inspection templates — load the whole checklist,
+                      then edit like any other custom form before saving. */}
+                  <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6 }}>
+                      {rtl ? 'תבניות ביקורת מוכנות — טוען את כל הסעיפים, ניתן לערוך אחר כך:' : 'Ready-made inspection templates — loads every item, editable after:'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {FORM_TEMPLATES.map(tpl => (
+                        <button key={tpl.id} type="button"
+                          onClick={() => {
+                            const built = tpl.build()
+                            if (customFields.length > 0 && !window.confirm(rtl
+                              ? `לטעון את "${tpl.label}" (${built.length} שדות)? השדות הקיימים יוחלפו.`
+                              : `Load "${tpl.labelEn}" (${built.length} fields)? Existing fields will be replaced.`)) return
+                            setCustomFields(built)
+                            if (!createTitle.trim()) setCreateTitle(rtl ? tpl.label : tpl.labelEn)
+                          }}
+                          title={tpl.ref}
+                          style={{ background: C.surface, border: `1px solid ${C.primary}45`, color: C.primary, borderRadius: 999, padding: '5px 11px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <span>{tpl.icon}</span>{rtl ? tpl.label : tpl.labelEn}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Preset field pills */}
                   <div style={{ marginBottom: 10 }}>
@@ -7030,7 +7359,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               {/* Worker/driver */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'עובד / נהג (אופציונלי)' : 'Worker / Driver (optional)'}</label>
-                <select value={createDriver} onChange={e => setCreateDriver(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }}>
+                <select value={createDriver} onChange={e => setCreateDriver(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#F8F7F4' }}>
                   <option value="">{rtl ? '— ללא שיוך לעובד —' : '— No specific worker —'}</option>
                   {(drivers || []).map(d => <option key={d.id} value={d.id}>{d.name}{d.phone ? ` · ${d.phone}` : ''}</option>)}
                 </select>
@@ -7038,7 +7367,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               {(createType === 'car_checklist' || createType === 'driver_car_check') && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'רכב (אופציונלי)' : 'Vehicle (optional)'}</label>
-                  <select value={createCar} onChange={e => setCreateCar(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }}>
+                  <select value={createCar} onChange={e => setCreateCar(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#F8F7F4' }}>
                     <option value="">{rtl ? '— ללא שיוך לרכב —' : '— No specific vehicle —'}</option>
                     {cars.map(c => <option key={c.id} value={c.id}>{c.plate} · {c.make} {c.model}</option>)}
                   </select>
@@ -7046,11 +7375,11 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
               )}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'כותרת (אופציונלי)' : 'Title (optional)'}</label>
-                <input value={createTitle} onChange={e => setCreateTitle(e.target.value)} placeholder={rtl ? 'למשל: בדיקת רכב חדש ינואר 2026' : 'e.g. Fleet check Jan 2026'} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc', boxSizing: 'border-box' }} />
+                <input value={createTitle} onChange={e => setCreateTitle(e.target.value)} placeholder={rtl ? 'למשל: בדיקת רכב חדש ינואר 2026' : 'e.g. Fleet check Jan 2026'} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#F8F7F4', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6, display: 'block' }}>{rtl ? 'תאריך תפוגה (אופציונלי)' : 'Expiry date (optional)'}</label>
-                <input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc', boxSizing: 'border-box' }} />
+                <input type="date" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#F8F7F4', boxSizing: 'border-box' }} />
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 9, border: `2px solid ${createSingle ? '#f59e0b' : C.border}`, cursor: 'pointer', background: createSingle ? '#fef3c708' : C.bg, transition: 'all 0.15s' }}>
                 <input type="checkbox" checked={createSingle} onChange={e => setCreateSingle(e.target.checked)} style={{ accentColor: '#f59e0b', width: 16, height: 16 }} />
@@ -7097,8 +7426,8 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 380, direction: rtl ? 'rtl' : 'ltr', overflow: 'hidden' }}>
               <div style={{ background: C.navBg, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#f8fafc', fontWeight: 800, fontSize: 15 }}><Icon name="send" size={15} />{rtl ? 'שלח טופס דוח תאונה' : 'Share Accident Report Form'}</span>
-                <button onClick={() => setAccFormShare(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#f8fafc', fontSize: 16 }}><Icon name="x" size={15} /></button>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#F8F7F4', fontWeight: 800, fontSize: 15 }}><Icon name="send" size={15} />{rtl ? 'שלח טופס דוח תאונה' : 'Share Accident Report Form'}</span>
+                <button onClick={() => setAccFormShare(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#F8F7F4', fontSize: 16 }}><Icon name="x" size={15} /></button>
               </div>
               <div style={{ padding: '20px 18px' }}>
                 <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, textAlign: 'center' }}>
@@ -7142,12 +7471,12 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', maxWidth: 300, width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, color: '#2B2630', marginBottom: 4 }}><Icon name="alert" size={15} color={C.danger} />{rtl ? 'QR לדוח תאונה' : 'Accident Report QR'}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>{rtl ? 'סרוק לקבלת פרטי הדוח' : 'Scan to get report details'}</div>
+              <div style={{ fontSize: 11, color: '#8F8A94', marginBottom: 16 }}>{rtl ? 'סרוק לקבלת פרטי הדוח' : 'Scan to get report details'}</div>
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(accidentQrData(accQrReport))}`}
-                alt="QR" style={{ width: 200, height: 200, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                alt="QR" style={{ width: 200, height: 200, borderRadius: 8, border: '1px solid #E5E1D8' }}
               />
-              <button onClick={() => setAccQrReport(null)} style={{ display: 'block', width: '100%', marginTop: 16, background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '9px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+              <button onClick={() => setAccQrReport(null)} style={{ display: 'block', width: '100%', marginTop: 16, background: '#F4F3EF', border: 'none', borderRadius: 8, padding: '9px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
                 {rtl ? 'סגור' : 'Close'}
               </button>
             </div>
@@ -7255,7 +7584,7 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
                       <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{rtl ? 'ניהול תביעת ביטוח' : 'Insurance Claim'}</div>
                       {!rep.insurance_company && priorClaim && <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, background: C.primary + '14', borderRadius: 4, padding: '2px 7px' }}>{rtl ? 'מולא מתביעה קודמת' : 'prefilled from last claim'}</span>}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div style={grid2(isMobile, { gap: 8 })}>
                       <input name="insurance_company" defaultValue={claimDefaults.insurance_company} placeholder={rtl ? 'חברת ביטוח' : 'Insurance company'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
                       <input name="policy_number" defaultValue={claimDefaults.policy_number} placeholder={rtl ? 'מספר פוליסה' : 'Policy number'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
                       <input name="deductible_pct" type="number" step="0.1" defaultValue={claimDefaults.deductible_pct} placeholder={rtl ? 'אחוז השתתפות עצמית' : 'Deductible %'} style={{ padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, background: C.surface, color: C.textPrimary }} />
@@ -7459,13 +7788,15 @@ function FormsTab({ companyId, cars, drivers, session, t, rtl }) {
 function EmailNotifSettings({ companyId, company, t, rtl }) {
   const [alertsOn,    setAlertsOn]    = useState(company?.email_alerts_enabled !== false)
   const [lang,        setLang]        = useState(company?.email_lang ?? 'he')
+  const [recipients,  setRecipients]  = useState((company?.alert_recipients || []).join(', '))
   const [saved,       setSaved]       = useState(false)
   const [sending,     setSending]     = useState(false)
   const [sendResult,  setSendResult]  = useState(null) // { ok, alerts_sent, reason }
   const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
 
   async function save() {
-    await supabase.from('companies').update({ email_alerts_enabled: alertsOn, email_lang: lang }).eq('id', companyId)
+    const list = recipients.split(/[,\n]/).map(s => s.trim()).filter(Boolean)
+    await supabase.from('companies').update({ email_alerts_enabled: alertsOn, email_lang: lang, alert_recipients: list }).eq('id', companyId)
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
@@ -7489,7 +7820,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
     return rtl ? 'שלח עכשיו' : 'Send Now'
   }
 
-  const sendBg = sendResult?.ok === false ? C.danger : sendResult?.ok ? C.success : '#475569'
+  const sendBg = sendResult?.ok === false ? C.danger : sendResult?.ok ? C.success : '#5A5460'
 
   return (
     <div style={card}>
@@ -7517,7 +7848,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
         </label>
         <div style={{ display: 'flex', gap: 8 }}>
           {[{ val: 'he', label: '🇮🇱 עברית' }, { val: 'en', label: '🇬🇧 English' }].map(opt => (
-            <label key={opt.val} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `2px solid ${lang === opt.val ? C.primary : C.border}`, cursor: 'pointer', background: lang === opt.val ? C.primary + '08' : '#f8fafc', fontSize: 13, fontWeight: 600 }}>
+            <label key={opt.val} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `2px solid ${lang === opt.val ? C.primary : C.border}`, cursor: 'pointer', background: lang === opt.val ? C.primary + '08' : '#F8F7F4', fontSize: 13, fontWeight: 600 }}>
               <input type="radio" name="emailLang" value={opt.val} checked={lang === opt.val} onChange={() => setLang(opt.val)} style={{ accentColor: C.primary }} />
               {opt.label}
             </label>
@@ -7525,11 +7856,26 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
         </div>
       </div>
 
+      {/* Recipients */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
+          {rtl ? 'נמעני התראות' : 'Alert recipients'}
+        </label>
+        <input
+          value={recipients}
+          onChange={e => setRecipients(e.target.value)}
+          placeholder="a@co.com, b@co.com"
+          style={{ width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, boxSizing: 'border-box', background: C.surface, color: C.textPrimary, fontFamily: 'inherit' }} />
+        <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+          {rtl ? 'מספר כתובות מופרדות בפסיק. ריק = מנהל החברה הראשון.' : 'Comma-separated addresses. Empty = first company admin.'}
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
           {saved ? (rtl ? 'נשמר' : 'Saved') : (rtl ? 'שמור' : 'Save')}
         </button>
-        <button onClick={sendNow} disabled={sending} style={{ background: sending || sendResult ? sendBg : '#475569', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', transition: 'background 0.2s', opacity: sending ? 0.8 : 1 }}>
+        <button onClick={sendNow} disabled={sending} style={{ background: sending || sendResult ? sendBg : '#5A5460', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', transition: 'background 0.2s', opacity: sending ? 0.8 : 1 }}>
           {sendLabel()}
         </button>
       </div>
@@ -7566,7 +7912,7 @@ function BudgetSettings({ companyId, t, rtl }) {
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <span style={{ fontSize: 16, fontWeight: 700, color: C.textSecondary }}>{RG.currency}</span>
         <input type="number" value={budget} onChange={e => setBudget(e.target.value)} min={0} placeholder={rtl ? 'ללא מגבלה' : 'No limit'}
-          style={{ flex: 1, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc' }} />
+          style={{ flex: 1, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#F8F7F4' }} />
         <button onClick={save} style={{ background: saved ? C.success : C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
           {saved ? (rtl ? 'נשמר' : 'Saved') : (rtl ? 'שמור' : 'Save')}
         </button>
@@ -7601,7 +7947,7 @@ function RegionSettings({ companyId, rtl }) {
       <p style={{ margin: '0 0 14px', fontSize: 12, color: C.textSecondary }}>{rtl ? 'קובע יחידות (ק"מ/מייל), מטבע, פורמט טלפון/תאריך, זיהוי רכב והאינטגרציות הזמינות.' : 'Sets units (km/mi), currency, phone/date format, vehicle lookup and available integrations.'}</p>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={country} disabled={saving} onChange={e => save(e.target.value)}
-          style={{ flex: 1, minWidth: 200, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#f8fafc', direction: rtl ? 'rtl' : 'ltr' }}>
+          style={{ flex: 1, minWidth: 200, padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, color: C.textPrimary, background: '#F8F7F4', direction: rtl ? 'rtl' : 'ltr' }}>
           {REGION_CODES.map(code => (
             <option key={code} value={code}>{REGIONS[code].flag} {rtl ? REGIONS[code].nameHe : REGIONS[code].name}</option>
           ))}
@@ -7675,7 +8021,7 @@ function WhatsAppTemplatesSettings({ companyId, rtl }) {
                 value={val}
                 onChange={e => setTpls(p => ({ ...p, [type]: e.target.value }))}
                 dir={rtl ? 'rtl' : 'ltr'}
-                style={{ width: '100%', minHeight: 72, resize: 'vertical', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', color: C.textPrimary, background: '#f8fafc', boxSizing: 'border-box', lineHeight: 1.6 }} />
+                style={{ width: '100%', minHeight: 72, resize: 'vertical', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', color: C.textPrimary, background: '#F8F7F4', boxSizing: 'border-box', lineHeight: 1.6 }} />
               <button type="button" onClick={() => setTpls(p => ({ ...p, [type]: defaultWaTemplate(type, rtl) }))}
                 style={{ background: 'transparent', border: 'none', color: C.textSecondary, fontSize: 11, cursor: 'pointer', marginTop: 4, padding: 0, textDecoration: 'underline' }}>
                 {rtl ? 'איפוס לברירת מחדל' : 'Reset to default'}
@@ -8259,7 +8605,7 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
               {showAddSched && (
                 <form onSubmit={addSchedule} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג דוח' : 'Report Type'}</label>
                       <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.report_type} onChange={e => setSchedForm(p => ({ ...p, report_type: e.target.value }))}>
@@ -8389,12 +8735,12 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
         direction: rtl ? 'rtl' : 'ltr',
       }}>
         {/* Header */}
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #E5E1D8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#2B2630' }}>{t.privacyTitle}</h2>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{t.privacyUpdated}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#5A5460' }}>{t.privacyUpdated}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#5A5460', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Scrollable body */}
@@ -8433,7 +8779,7 @@ function PrivacyPolicyModal({ onClose, t, rtl }) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '12px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+        <div style={{ padding: '12px 24px', borderTop: '1px solid #E5E1D8', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
           <button onClick={onClose} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             {t.privacyClose}
           </button>
@@ -8463,12 +8809,12 @@ function TermsOfServiceModal({ onClose, t, rtl }) {
         boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
         direction: rtl ? 'rtl' : 'ltr',
       }}>
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #E5E1D8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#2B2630' }}>{t.tosTitle}</h2>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>{t.tosUpdated}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#5A5460' }}>{t.tosUpdated}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: '#5A5460', lineHeight: 1, padding: '4px 8px', borderRadius: 6 }}><Icon name="x" size={15} /></button>
         </div>
         <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, fontSize: 14, color: '#334155', lineHeight: 1.7 }}>
           <Section title={t.tos1Title}><p style={{ margin: 0 }}>{t.tos1}</p></Section>
@@ -8486,7 +8832,7 @@ function TermsOfServiceModal({ onClose, t, rtl }) {
           <Section title={t.tos9Title}><p style={{ margin: 0 }}>{t.tos9}</p></Section>
           <Section title={t.tos10Title}><p style={{ margin: 0 }}>{t.tos10}</p></Section>
         </div>
-        <div style={{ padding: '12px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+        <div style={{ padding: '12px 24px', borderTop: '1px solid #E5E1D8', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
           <button onClick={onClose} style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             {t.privacyClose}
           </button>
@@ -8669,10 +9015,10 @@ function FMSignaturePad({ value, onChange, label = 'חתימה דיגיטלית'
 
 // ── Traffic Violations Tab ────────────────────────────────────────────────────
 const VIOLATION_PAYMENT_STATUS_HE = { unpaid: 'לא שולם', paid: 'שולם', disputed: 'בערעור', cancelled: 'בוטל' }
-const VIOLATION_PAYMENT_STATUS_COLORS = { unpaid: '#ef4444', paid: '#10b981', disputed: '#f59e0b', cancelled: '#94a3b8' }
+const VIOLATION_PAYMENT_STATUS_COLORS = { unpaid: '#ef4444', paid: '#10b981', disputed: '#f59e0b', cancelled: '#8F8A94' }
 const VIOLATION_TYPES_HE =['מהירות יתר','אי מתן זכות קדימה','חנייה אסורה','שימוש בטלפון בנהיגה','אי עצירה ברמזור אדום','חריגה מנתיב','אחר']
 const VIOLATION_TYPES_EN = ['Speeding','Right of way','Illegal parking','Phone while driving','Red light','Lane violation','Other']
-const VIOLATION_STATUS_COLORS = { new: C?.warning || '#f59e0b', assigned: '#8b5cf6', signed: C?.primary || '#2563eb', submitted: C?.success || '#10b981', resolved: '#64748b' }
+const VIOLATION_STATUS_COLORS = { new: C?.warning || '#f59e0b', assigned: '#8b5cf6', signed: C?.primary || '#2563eb', submitted: C?.success || '#10b981', resolved: '#5A5460' }
 
 function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
   const [violations, setViolations] = useState([])
@@ -8941,7 +9287,7 @@ function ViolationsTab({ cars, drivers, companyId, rtl, session }) {
                   </td>
                   <td style={{ padding: '12px 14px', fontSize: 12, color: C.textSecondary, fontFamily: 'monospace' }}>{v.fine_number || '—'}</td>
                   <td style={{ padding: '12px 14px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, background: (VIOLATION_STATUS_COLORS[v.status] || '#64748b') + '18', color: VIOLATION_STATUS_COLORS[v.status] || '#64748b' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, background: (VIOLATION_STATUS_COLORS[v.status] || '#5A5460') + '18', color: VIOLATION_STATUS_COLORS[v.status] || '#5A5460' }}>
                       {statusLabel[v.status] || v.status}
                     </span>
                   </td>
@@ -9346,17 +9692,17 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   function buildFleetHtml() {
     const active    = cars.filter(c => c.status === 'In Use' || c.status === 'Available').length
     const inMaint   = cars.filter(c => c.status === 'Maintenance').length
-    const rows = cars.map(c => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${formatPlate(c.plate)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${c.make||''} ${c.model||''}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${c.status||''}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${c.mileage?.toLocaleString()||'—'}</td></tr>`).join('')
+    const rows = cars.map(c => `<tr><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${formatPlate(c.plate)}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${c.make||''} ${c.model||''}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${c.status||''}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${c.mileage?.toLocaleString()||'—'}</td></tr>`).join('')
     return `<div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:32px">
-      <h1 style="color:#0f172a;margin:0 0 4px">דוח סטטוס צי</h1>
-      <p style="color:#64748b;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
+      <h1 style="color:#2B2630;margin:0 0 4px">דוח סטטוס צי</h1>
+      <p style="color:#5A5460;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
-        <div style="background:#eff6ff;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#2563eb">${cars.length}</div><div style="font-size:13px;color:#64748b">סה"כ רכבים</div></div>
-        <div style="background:#f0fdf4;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#16a34a">${active}</div><div style="font-size:13px;color:#64748b">פעילים</div></div>
-        <div style="background:#fef9c3;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#ca8a04">${inMaint}</div><div style="font-size:13px;color:#64748b">בתחזוקה</div></div>
+        <div style="background:#eff6ff;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#2563eb">${cars.length}</div><div style="font-size:13px;color:#5A5460">סה"כ רכבים</div></div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#16a34a">${active}</div><div style="font-size:13px;color:#5A5460">פעילים</div></div>
+        <div style="background:#fef9c3;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#ca8a04">${inMaint}</div><div style="font-size:13px;color:#5A5460">בתחזוקה</div></div>
       </div>
-      <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
-        <thead><tr style="background:#f8fafc"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">לוחית</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">רכב</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">סטטוס</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">ק"מ</th></tr></thead>
+      <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #E5E1D8;border-radius:8px;overflow:hidden">
+        <thead><tr style="background:#F8F7F4"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">לוחית</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">רכב</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">סטטוס</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">ק"מ</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`
@@ -9366,13 +9712,13 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
     const filtered = costs.filter(c => c.date >= dateFrom && c.date <= dateTo)
     const total    = filtered.reduce((s,c) => s + parseFloat(c.amount||0), 0)
     const byCat    = filtered.reduce((acc,c) => { acc[c.category]=(acc[c.category]||0)+parseFloat(c.amount||0); return acc }, {})
-    const catRows  = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${cat}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:700">${RG.currency}${amt.toLocaleString('en',{minimumFractionDigits:2})}</td></tr>`).join('')
+    const catRows  = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${cat}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF;font-weight:700">${RG.currency}${amt.toLocaleString('en',{minimumFractionDigits:2})}</td></tr>`).join('')
     return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px">
-      <h1 style="color:#0f172a;margin:0 0 4px">סיכום עלויות</h1>
-      <p style="color:#64748b;margin:0 0 24px">${dateFrom} – ${dateTo}</p>
+      <h1 style="color:#2B2630;margin:0 0 4px">סיכום עלויות</h1>
+      <p style="color:#5A5460;margin:0 0 24px">${dateFrom} – ${dateTo}</p>
       <div style="background:#eff6ff;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
         <div style="font-size:36px;font-weight:800;color:#2563eb">${RG.currency}${total.toLocaleString('en',{minimumFractionDigits:2})}</div>
-        <div style="font-size:13px;color:#64748b">סה"כ הוצאות</div>
+        <div style="font-size:13px;color:#5A5460">סה"כ הוצאות</div>
       </div>
       <table style="width:100%;border-collapse:collapse">
         <tbody>${catRows}</tbody>
@@ -9386,14 +9732,14 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
     const expRows = drivers.filter(d => d.license_expiry).map(d => {
       const exp = new Date(d.license_expiry); const days = Math.round((exp-today)/86400000)
       const color = days < 0 ? '#dc2626' : days < 30 ? '#d97706' : '#16a34a'
-      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${d.name}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">${d.license_expiry}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;color:${color};font-weight:700">${days < 0 ? 'פג תוקף' : days + ' ימים'}</td></tr>`
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${d.name}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${d.license_expiry}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF;color:${color};font-weight:700">${days < 0 ? 'פג תוקף' : days + ' ימים'}</td></tr>`
     }).join('')
     return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px">
-      <h1 style="color:#0f172a;margin:0 0 4px">התראות תפוגה</h1>
-      <p style="color:#64748b;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
+      <h1 style="color:#2B2630;margin:0 0 4px">התראות תפוגה</h1>
+      <p style="color:#5A5460;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
       <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#f8fafc"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">נהג</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">תפוגת רישיון</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#64748b">סטטוס</th></tr></thead>
-        <tbody>${expRows || '<tr><td colspan="3" style="padding:20px;text-align:center;color:#64748b">אין התראות פעילות</td></tr>'}</tbody>
+        <thead><tr style="background:#F8F7F4"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">נהג</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">תפוגת רישיון</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">סטטוס</th></tr></thead>
+        <tbody>${expRows || '<tr><td colspan="3" style="padding:20px;text-align:center;color:#5A5460">אין התראות פעילות</td></tr>'}</tbody>
       </table>
     </div>`
   }
@@ -9511,6 +9857,7 @@ const CERT_TYPES_HE = ['עזרה ראשונה','כיבוי אש','נהיגה מ�
 const CERT_TYPES_EN = ['First Aid','Fire Safety','Defensive Driving','Hazmat','Yearly Training','Other']
 
 function CertificationsPane({ driverId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [certs,    setCerts]    = useState([])
   const [loading,  setLoading]  = useState(true)
   const [showAdd,  setShowAdd]  = useState(false)
@@ -9574,7 +9921,7 @@ function CertificationsPane({ driverId, companyId, rtl }) {
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
             <div>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג הסמכה *' : 'Type *'}</label>
               <select style={inp} value={form.cert_type} onChange={e => set('cert_type', e.target.value)} required>
@@ -9634,6 +9981,7 @@ function CertificationsPane({ driverId, companyId, rtl }) {
 const TRAINING_TYPES_HE = ['נהיגה בטוחה', 'עזרה ראשונה', 'כיבוי אש', 'חומרים מסוכנים', 'ציות לחוק', 'אחר']
 
 function TrainingPane({ driverId, companyId, rtl }) {
+  const isMobile = useIsMobile()
   const [records,  setRecords]  = useState([])
   const [loading,  setLoading]  = useState(true)
   const [showAdd,  setShowAdd]  = useState(false)
@@ -9698,7 +10046,7 @@ function TrainingPane({ driverId, companyId, rtl }) {
 
       {showAdd && (
         <form onSubmit={add} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
             <div>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג הדרכה *' : 'Type *'}</label>
               <select style={inp} value={form.cert_type} onChange={e => set('cert_type', e.target.value)} required>
@@ -10161,7 +10509,7 @@ function NavTabsWithOverflow({ tabs, activeTab, onSwitch, rtl, isNarrow }) {
               transition: 'color 0.15s, background 0.15s',
               whiteSpace: 'nowrap',
             }}
-            onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#e2e8f0' }}
+            onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#E5E1D8' }}
             onMouseLeave={e => { if (!active) e.currentTarget.style.color = C.navText }}
           >
             <TabIcon id={item.id} size={14} />
@@ -10501,7 +10849,14 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
     if (form.mileage && !isPositive(form.mileage)) { setCrudError(rtl ? 'קילומטראז׳ חייב להיות מספר חיובי' : 'Mileage must be a positive number'); return }
     const { data, error } = await supabase.from('cars').insert([cleanCar(form)]).select()
     if (error || !data?.[0]) { setCrudError(error ? friendlyDbError(error, rtl) : (rtl ? 'שגיאה בשמירה. נסה שוב.' : 'Save failed.')); return }
-    setCars(p => [...p, data[0]]); setShowAdd(false); setCrudError('')
+    let saved = data[0]
+    // Registry enrichment from the plate lookup (extended gov.il fields).
+    // Best-effort: if this update fails the car is still added with the basics.
+    if (form._gov && Object.keys(form._gov).length) {
+      const { data: enriched } = await supabase.from('cars').update(form._gov).eq('id', saved.id).select()
+      if (enriched?.[0]) saved = enriched[0]
+    }
+    setCars(p => [...p, saved]); setShowAdd(false); setCrudError('')
     if (form.driver_id) await supabase.from('drivers').update({ car_id: String(data[0].id) }).eq('id', form.driver_id).eq('company_id', activeCompanyId)
     logActivity('add', 'car', `${form.plate} ${form.make}`)
   }
@@ -10702,7 +11057,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
               <circle cx="11.5" cy="13" r="1" fill="white" fillOpacity="0.8"/>
             </svg>
           </div>
-          {!isMobile && <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 13, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>Celox AI</span>}
+          {!isMobile && <span style={{ color: '#F8F7F4', fontWeight: 800, fontSize: 13, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>Celox AI</span>}
         </div>
 
         {/* Nav tabs — desktop only; auto-overflow into "+N" dropdown */}
@@ -10720,7 +11075,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
           {activeCompanyId && <NotificationBell companyId={activeCompanyId} userId={session?.user?.id} rtl={rtl} />}
           {installPrompt && (
-            <button onClick={async () => { await installPrompt.prompt(); setInstallPrompt(null) }} title={rtl ? 'הוסף לדף הבית' : 'Install app'} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 15, color: '#f8fafc' }}>
+            <button onClick={async () => { await installPrompt.prompt(); setInstallPrompt(null) }} title={rtl ? 'הוסף לדף הבית' : 'Install app'} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 15, color: '#F8F7F4' }}>
               <Icon name="download" size={16} />
             </button>
           )}
