@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en">
+<!-- lang defaults to Hebrew (primary market). App.jsx overrides
+     document.documentElement.lang at runtime when the user switches language.
+     Deliberately NOT setting dir="rtl" here — components set direction
+     themselves via inline styles, and a global dir would break LTR mode. -->
+<html lang="he">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -9,7 +13,81 @@
          under the notch and the home indicator when launched from the Home
          Screen. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Celox AI — Fleet Manager</title>
+    <title>Celox AI — מערכת לניהול צי רכב לעסקים</title>
+    <meta name="description" content="שליטה מלאה על כל הצי שלך. כל מה שאתה צריך לנהל רכבים, נהגים, עלויות ומסמכים — במקום אחד. התראות על טסטים, ביטוחים, רישיונות וטיפולים לפני שפג התוקף." />
+    <link rel="canonical" href="https://celoxai.com/" />
+    <!-- Regional landings (see src/regions.js). Per-URL canonicals are not
+         possible while all regions share this single index.html — that needs
+         the multi-entry build described in the SEO task on the Monday board. -->
+    <link rel="alternate" hreflang="he-IL" href="https://celoxai.com/il" />
+    <link rel="alternate" hreflang="en-US" href="https://celoxai.com/us" />
+    <link rel="alternate" hreflang="en-CA" href="https://celoxai.com/ca" />
+    <link rel="alternate" hreflang="x-default" href="https://celoxai.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Celox AI" />
+    <meta property="og:locale" content="he_IL" />
+    <meta property="og:title" content="Celox AI — מערכת לניהול צי רכב לעסקים" />
+    <meta property="og:description" content="שליטה מלאה על כל הצי שלך — רכבים, נהגים, עלויות ומסמכים במקום אחד." />
+    <meta property="og:url" content="https://celoxai.com/" />
+    <!-- TODO: replace with a purpose-built 1200x630 image; this one is square. -->
+    <meta property="og:image" content="https://celoxai.com/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Celox AI — מערכת לניהול צי רכב לעסקים" />
+    <meta name="twitter:description" content="שליטה מלאה על כל הצי שלך — רכבים, נהגים, עלויות ומסמכים במקום אחד." />
+    <meta name="twitter:image" content="https://celoxai.com/icon-512.png" />
+
+    <!-- Structured data. Answer engines weight this heavily.
+         application/ld+json is a data block, not executed script, so the
+         existing CSP script-src 'self' should not block it — verify in the
+         browser console after deploy. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://celoxai.com/#organization",
+          "name": "Celox AI",
+          "url": "https://celoxai.com/",
+          "logo": "https://celoxai.com/icon-512.png",
+          "email": "office@celoxai.com",
+          "areaServed": { "@type": "Country", "name": "Israel" },
+          "description": "מערכת לניהול צי רכב לעסקים בישראל."
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://celoxai.com/#website",
+          "url": "https://celoxai.com/",
+          "name": "Celox AI",
+          "inLanguage": "he-IL",
+          "publisher": { "@id": "https://celoxai.com/#organization" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://celoxai.com/#software",
+          "name": "Celox AI",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "Fleet Management Software",
+          "operatingSystem": "Web",
+          "inLanguage": "he-IL",
+          "url": "https://celoxai.com/",
+          "publisher": { "@id": "https://celoxai.com/#organization" },
+          "description": "ניהול, מעקב וייעול הפעילות הלוגיסטית — רכבים, נהגים, עלויות ומסמכים במערכת אחת.",
+          "featureList": [
+            "ניהול רכבים ומעקב סטטוס בזמן אמת",
+            "ניהול נהגים ומעקב רישיונות",
+            "ניהול עלויות ותקציב חודשי",
+            "מסמכים בענן — ביטוחים ורישיונות",
+            "תחזוקה מתוזמנת והתראות לפני פקיעת תוקף",
+            "דוחות וניתוח עלויות לכל רכב ולכל הצי"
+          ]
+        }
+      ]
+    }
+    </script>
+
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#2563eb" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -25,6 +103,44 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Crawler-visible fallback. Without JS this SPA renders an empty #root,
+         and most AI crawlers do not execute JS. Mirrors src/LandingPage.jsx —
+         keep in sync. Superseded once /il /us /ca are prerendered per region. -->
+    <noscript>
+      <div dir="rtl" lang="he" style="max-width:52rem;margin:0 auto;padding:2rem;font-family:Heebo,system-ui,sans-serif;line-height:1.7">
+        <h1>Celox AI — שליטה מלאה על כל הצי שלך</h1>
+        <p>כל מה שאתה צריך לנהל רכבים, נהגים, עלויות ומסמכים — במקום אחד. מהרכב הראשון ועד ציים גדולים.</p>
+
+        <h2>איך זה עובד</h2>
+        <ol>
+          <li><strong>מוסיפים צי</strong> — רכבים, נהגים וסניפים, כולל ייבוא מאקסל בקליק אחד.</li>
+          <li><strong>עוקבים ומקבלים התראות</strong> — טסטים, ביטוחים, רישיונות וטיפולים, הכל לפני שפג התוקף.</li>
+          <li><strong>מקבלים תובנות</strong> — עלויות, דוחות ותקציב, והחלטות על בסיס נתונים.</li>
+        </ol>
+
+        <h2>מה המערכת כוללת</h2>
+        <ul>
+          <li><strong>ניהול רכבים</strong> — הוספה, עדכון ומחיקה של רכבים, עם מעקב מצב וסטטוס בזמן אמת.</li>
+          <li><strong>ניהול נהגים</strong> — פרופילי נהגים מלאים, מעקב רישיונות ושיוך לרכבים.</li>
+          <li><strong>ניהול עלויות</strong> — מעקב אחר כל ההוצאות עם קטגוריות ותקציב חודשי.</li>
+          <li><strong>מסמכים בענן</strong> — ביטוחים, רישיונות ומסמכים נגישים מכל מכשיר.</li>
+          <li><strong>תחזוקה מתוזמנת</strong> — תזמון ומעקב אחר טיפולים מונעים לכל הצי.</li>
+          <li><strong>דוחות וניתוח</strong> — דוחות מפורטים של עלויות, תקציב ותחזוקה לכל רכב ולכל הצי.</li>
+        </ul>
+
+        <h2>למי זה מיועד</h2>
+        <p>מנהלי צי רכב וקציני בטיחות בתעבורה בחברות המפעילות ציי רכב בישראל.</p>
+
+        <h2>אזורים</h2>
+        <ul>
+          <li><a href="/il">ישראל — Celox AI לניהול צי רכב</a></li>
+          <li><a href="/us">United States — Celox AI Fleet Management</a></li>
+          <li><a href="/ca">Canada — Celox AI Fleet Management</a></li>
+        </ul>
+
+        <p><a href="/privacy">מדיניות פרטיות</a> · <a href="mailto:office@celoxai.com">office@celoxai.com</a></p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

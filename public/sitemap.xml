@@ -1,15 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Marketing surface only. src/main.jsx routes "/", "/il", "/us", "/ca" to the
+  landing page and "/privacy" to the privacy page; everything else is the app
+  and does not belong in a sitemap.
+
+  Add Phase 1 content pages here as each one ships with real crawlable HTML.
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
-  <!-- Homepage / App -->
   <url>
-    <loc>https://celoxai.com/</loc>
-    <lastmod>2026-04-20</lastmod>
+    <loc>https://celoxai.com/il</loc>
+    <lastmod>2026-08-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://celoxai.com/"/>
-    <xhtml:link rel="alternate" hreflang="he" href="https://celoxai.com/"/>
+    <xhtml:link rel="alternate" hreflang="he-IL" href="https://celoxai.com/il"/>
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://celoxai.com/us"/>
+    <xhtml:link rel="alternate" hreflang="en-CA" href="https://celoxai.com/ca"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://celoxai.com/"/>
+  </url>
+
+  <url>
+    <loc>https://celoxai.com/us</loc>
+    <lastmod>2026-08-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="he-IL" href="https://celoxai.com/il"/>
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://celoxai.com/us"/>
+    <xhtml:link rel="alternate" hreflang="en-CA" href="https://celoxai.com/ca"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://celoxai.com/"/>
+  </url>
+
+  <url>
+    <loc>https://celoxai.com/ca</loc>
+    <lastmod>2026-08-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="he-IL" href="https://celoxai.com/il"/>
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://celoxai.com/us"/>
+    <xhtml:link rel="alternate" hreflang="en-CA" href="https://celoxai.com/ca"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://celoxai.com/"/>
+  </url>
+
+  <url>
+    <loc>https://celoxai.com/privacy</loc>
+    <lastmod>2026-08-09</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
 
 </urlset>
