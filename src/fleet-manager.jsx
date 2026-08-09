@@ -278,7 +278,7 @@ const T = {
     // costs
     costsTab:'Costs', category:'Category', amount:'Amount', totalCosts:'Total Costs',
     noCosts:'No cost records yet.',
-    catFuel:'Fuel', catInsurance:'Insurance', catFine:'Fine', catRepair:'Repair', catOther:'Other',
+    catFuel:'Fuel', catToll:'Toll roads', catInsurance:'Insurance', catFine:'Fine', catRepair:'Repair', catOther:'Other',
     // history
     history:'Assignment History', assignedAt:'Assigned', unassignedAt:'Unassigned', current:'Current',
     noHistory:'No assignment history.',
@@ -474,7 +474,7 @@ const T = {
     // costs
     costsTab:'עלויות', category:'קטגוריה', amount:'סכום', totalCosts:'סה"כ עלויות',
     noCosts:'אין רשומות עלויות עדיין.',
-    catFuel:'דלק', catInsurance:'ביטוח', catFine:'קנס', catRepair:'תיקון', catOther:'אחר',
+    catFuel:'דלק', catToll:'כבישי אגרה', catInsurance:'ביטוח', catFine:'קנס', catRepair:'תיקון', catOther:'אחר',
     // history
     history:'היסטוריית שיבוץ', assignedAt:'שובץ', unassignedAt:'הוסר', current:'נוכחי',
     noHistory:'אין היסטוריית שיבוץ.',
@@ -3069,7 +3069,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                 {costs.length === 0
                   ? <div style={{ color: C.textMuted, fontSize: 13, textAlign: 'center', padding: '32px 0' }}>{rtl ? 'אין רשומות עלויות' : 'No cost records yet.'}</div>
                   : costs.map(r => {
-                    const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther, 'ביטוח': t.catInsurance, 'נתיב תשלום': rtl ? 'נתיב תשלום' : 'Toll' }
+                    const catLabel = { Fuel: t.catFuel, Toll: t.catToll, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther, 'ביטוח': t.catInsurance, 'נתיב תשלום': t.catToll }
                     return (
                       <div key={r.id} style={card}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -5079,14 +5079,106 @@ function parseFuelCsv(text, cars) {
   return rows
 }
 
+// ── Header-driven import ─────────────────────────────────────────────────────
+// The original parser above reads fixed column positions, which only works for
+// the one supplier's layout it was written against. Israeli fuel and toll
+// providers each export their own column order, so anything else silently
+// imported nothing. This maps by header name instead, in Hebrew or English, and
+// falls back to the fixed-position parser when a file has no usable header.
+const IMPORT_ALIASES = {
+  date:    ['תאריך', 'תאריך עסקה', 'תאריך תדלוק', 'תאריך נסיעה', 'date', 'transaction date'],
+  plate:   ['מספר רכב', 'מס רכב', 'מס׳ רכב', "מס' רכב", 'רכב', 'לוחית', 'לוחית רישוי', 'plate', 'vehicle', 'license plate'],
+  amount:  ['סכום', 'סה״כ', 'סה"כ', 'לתשלום', 'סכום לתשלום', 'עלות', 'amount', 'total', 'sum'],
+  liters:  ['ליטרים', 'כמות', 'כמות ליטרים', 'liters', 'litres', 'quantity'],
+  station: ['תחנה', 'שם תחנה', 'מקום', 'station', 'site', 'location'],
+  driver:  ['נהג', 'שם נהג', 'driver', 'driver name'],
+  odometer:['מד אוץ', 'קילומטראז', 'ק״מ', 'ק"מ', 'odometer', 'km', 'mileage'],
+  kwh:     ['קוט״ש', 'קוט"ש', 'kwh', 'kw/h'],
+}
+
+// A file is treated as toll when its header or name mentions a toll road.
+const TOLL_HINTS = ['כביש 6', 'כביש6', 'אגרה', 'נתיב מהיר', 'דרך ארץ', 'toll', 'kvish']
+
+const norm = s => (s || '').toString().trim().toLowerCase().replace(/["'׳״]/g, '')
+
+function matchColumn(header, key) {
+  const aliases = IMPORT_ALIASES[key] || []
+  return header.findIndex(h => aliases.some(a => norm(h) === norm(a)))
+    // fall back to a contains match, so "תאריך העסקה" still finds "תאריך"
+    ?? -1
+}
+function matchColumnLoose(header, key) {
+  const exact = matchColumn(header, key)
+  if (exact >= 0) return exact
+  const aliases = IMPORT_ALIASES[key] || []
+  return header.findIndex(h => aliases.some(a => norm(h).includes(norm(a))))
+}
+
+// Accepts DD/MM/YYYY, DD-MM-YYYY and YYYY-MM-DD.
+function parseImportDate(raw) {
+  const v = (raw || '').toString().trim()
+  if (!v) return null
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10)
+  const p = v.split(/[/.-]/)
+  if (p.length < 3) return null
+  const [d, m, y] = p
+  if (!d || !m || !y) return null
+  const year = y.length === 2 ? `20${y}` : y.slice(0, 4)
+  return `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
+function parseMappedCsv(text, cars, fileName = '') {
+  const lines = text.split(/\r?\n/).filter(l => l.trim())
+  if (!lines.length) return null
+  // Find the first row that names at least a date and a plate — that is the header.
+  let headerIdx = -1, header = []
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+    const cols = parseCsvLine(lines[i])
+    if (matchColumnLoose(cols, 'date') >= 0 && matchColumnLoose(cols, 'plate') >= 0) {
+      headerIdx = i; header = cols; break
+    }
+  }
+  if (headerIdx < 0) return null
+
+  const idx = {}
+  for (const k of Object.keys(IMPORT_ALIASES)) idx[k] = matchColumnLoose(header, k)
+
+  const haystack = norm(header.join(' ') + ' ' + fileName)
+  const kind = TOLL_HINTS.some(h => haystack.includes(norm(h))) ? 'toll' : 'fuel'
+
+  const rows = []
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const col = parseCsvLine(lines[i])
+    const date = parseImportDate(col[idx.date])
+    const plate = (col[idx.plate] || '').trim()
+    const amount = parseFloat((col[idx.amount] || '').toString().replace(/[^\d.-]/g, ''))
+    if (!date || !plate || isNaN(amount)) continue
+    const num = k => {
+      if (idx[k] < 0) return null
+      const n = parseFloat((col[idx[k]] || '').toString().replace(/[^\d.-]/g, ''))
+      return isNaN(n) ? null : n
+    }
+    const digits = plate.replace(/\D/g, '')
+    rows.push({
+      date, plate, amount, kind,
+      car: cars.find(c => (c.plate || '').replace(/\D/g, '') === digits),
+      liters: num('liters'), kwh: num('kwh'), odometer: num('odometer'),
+      station: idx.station >= 0 ? (col[idx.station] || '').trim() : '',
+      driverName: idx.driver >= 0 ? (col[idx.driver] || '').trim() : '',
+    })
+  }
+  return rows.length ? { kind, rows } : null
+}
+
 function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImported }) {
   const [rows, setRows] = useState([])
+  const [kind, setKind] = useState('fuel')
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
   const [done, setDone] = useState('')
   const [fileName, setFileName] = useState('')
 
-  function reset() { setRows([]); setError(''); setDone(''); setFileName('') }
+  function reset() { setRows([]); setKind('fuel'); setError(''); setDone(''); setFileName('') }
 
   function handleFile(e) {
     const file = e.target.files[0]
@@ -5097,10 +5189,19 @@ function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImp
     const reader = new FileReader()
     reader.onload = evt => {
       try {
-        const text = new TextDecoder('windows-1255').decode(evt.target.result)
-        const parsed = parseFuelCsv(text, cars)
-        if (parsed.length === 0) { setError(t.csvNoRows); return }
-        setRows(parsed)
+        const buf = evt.target.result
+        // Hebrew exports are usually windows-1255; newer ones are UTF-8. Try the
+        // legacy encoding first, then UTF-8, and keep whichever yields rows.
+        let parsed = null
+        for (const enc of ['windows-1255', 'utf-8']) {
+          const text = new TextDecoder(enc).decode(buf)
+          parsed = parseMappedCsv(text, cars, file.name)
+          if (parsed) break
+          const legacy = parseFuelCsv(text, cars)
+          if (legacy.length) { parsed = { kind: 'fuel', rows: legacy }; break }
+        }
+        if (!parsed) { setError(t.csvNoRows); return }
+        setKind(parsed.kind); setRows(parsed.rows)
       } catch { setError(t.csvError) }
     }
     reader.readAsArrayBuffer(file)
@@ -5108,18 +5209,38 @@ function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImp
 
   async function handleImport() {
     setImporting(true)
+    const isToll = kind === 'toll'
     const toInsert = rows.map(r => ({
       company_id: companyId,
       car_id: r.car ? r.car.id : null,
       driver_id: drivers.find(d => d.name?.trim() === r.driverName)?.id || null,
-      category: 'Fuel',
+      category: isToll ? 'Toll' : 'Fuel',
       amount: r.amount,
       date: r.date,
-      description: [r.station, r.liters ? `${r.liters}L` : '', r.fuelLabel].filter(Boolean).join(' | '),
+      odometer: r.odometer ?? null,
+      supplier_name: r.station || null,
+      description: [r.station, r.liters ? `${r.liters}L` : '', r.kwh ? `${r.kwh}kWh` : '', r.fuelLabel]
+        .filter(Boolean).join(' | '),
     }))
     const { error: insErr } = await supabase.from('costs').insert(toInsert)
+    if (insErr) { setImporting(false); setError(friendlyDbError(insErr, rtl)); return }
+
+    // A refuelling is also a fuel-ledger entry — without this the litres and
+    // odometer never reach fuel_records and consumption stays uncomputable.
+    // Best-effort: the costs rows are already saved either way.
+    if (!isToll) {
+      const ledger = rows
+        .filter(r => r.car && (r.liters != null || r.kwh != null))
+        .map(r => ({
+          company_id: companyId, car_id: r.car.id, fuel_date: r.date,
+          liters: r.liters ?? null, kwh: r.kwh ?? null,
+          total_amount: r.amount, odometer: r.odometer ?? null,
+          station: r.station || null,
+        }))
+      if (ledger.length) await supabase.from('fuel_records').insert(ledger)
+    }
+
     setImporting(false)
-    if (insErr) { setError(friendlyDbError(insErr, rtl)); return }
     setDone(typeof t.csvImported === 'function' ? t.csvImported(toInsert.length) : `${toInsert.length} imported.`)
     onImported()
   }
@@ -5154,6 +5275,29 @@ function CsvImportModal({ open, onClose, cars, drivers, companyId, t, rtl, onImp
 
           {rows.length > 0 && !done && (
             <>
+              {/* The file type is detected, not assumed — a mis-detected toll
+                  file would otherwise import as fuel and skew consumption. */}
+              <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:10 }}>
+                <span style={{ fontSize:12, fontWeight:800, color:C.textMuted, letterSpacing:0.6, textTransform:'uppercase' }}>
+                  {rtl ? 'סוג הקובץ' : 'File type'}
+                </span>
+                {[['fuel', rtl ? '⛽ תדלוקים' : '⛽ Fuel'], ['toll', rtl ? '🛣️ כבישי אגרה' : '🛣️ Toll roads']].map(([v, label]) => (
+                  <label key={v} style={{
+                    display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13, fontWeight:700,
+                    padding:'5px 12px', borderRadius:999,
+                    border:`1.5px solid ${kind === v ? C.primary : C.border}`,
+                    background: kind === v ? C.primary + '10' : C.surface,
+                    color: kind === v ? C.primary : C.textSecondary,
+                  }}>
+                    <input type="radio" name="importKind" value={v} checked={kind === v}
+                      onChange={() => setKind(v)} style={{ accentColor: C.primary, cursor:'pointer' }} />
+                    {label}
+                  </label>
+                ))}
+                <span style={{ fontSize:12, color:C.textMuted }}>
+                  {rtl ? `זוהו ${rows.length} שורות` : `${rows.length} rows detected`}
+                </span>
+              </div>
               <p style={{ margin:'0 0 10px', fontSize:12, color:C.textMuted }}>{t.csvSkipNote}</p>
               <div style={{ overflowX:'auto', borderRadius:8, border:`1px solid ${C.border}` }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
@@ -5315,7 +5459,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
   const displayedCosts = filterCostCenter ? costs.filter(c => (c.cost_center || '') === filterCostCenter) : costs
   const byCategory = costs.reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + parseFloat(c.amount || 0); return acc }, {})
   const catColors = { Fuel: C.primary, Insurance: C.success, Fine: C.danger, Repair: C.warning, Maintenance: '#8b5cf6', Other: C.textMuted, 'ביטוח': C.success, 'נתיב תשלום': C.primary }
-  const catLabel = { Fuel: t.catFuel, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther, 'ביטוח': t.catInsurance, 'נתיב תשלום': rtl ? 'נתיב תשלום' : 'Toll' }
+  const catLabel = { Fuel: t.catFuel, Toll: t.catToll, Insurance: t.catInsurance, Fine: t.catFine, Repair: t.catRepair, Maintenance: t.maintenance, Other: t.catOther, 'ביטוח': t.catInsurance, 'נתיב תשלום': t.catToll }
   const carName = id => formatPlate(cars.find(c => c.id === parseInt(id, 10))?.plate) || id
 
   return (
@@ -5360,7 +5504,7 @@ function CostsTab({ cars, drivers, companyId, t, rtl }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>{t.category}</label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={inp}>
-                {['Fuel','Insurance','Fine','Repair','Maintenance','Other'].map(v => <option key={v} value={v}>{catLabel[v] || v}</option>)}
+                {['Fuel','Toll','Insurance','Fine','Repair','Maintenance','Other'].map(v => <option key={v} value={v}>{catLabel[v] || v}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
