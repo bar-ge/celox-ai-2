@@ -21,11 +21,13 @@ async function request(path, options = {}) {
 
 export const fetchLeads = () => request('/api/wa/leads').then((p) => p.leads ?? [])
 
+// Phone goes in the query string, not the path: Vercel's `api/` directory
+// convention on this project does not deploy `[param]` files as functions.
 export const fetchMessages = (phone) =>
-  request(`/api/wa/messages/${encodeURIComponent(phone)}`).then((p) => p.messages ?? [])
+  request(`/api/wa/messages?phone=${encodeURIComponent(phone)}`).then((p) => p.messages ?? [])
 
 export const patchLead = (phone, patch) =>
-  request(`/api/wa/leads/${encodeURIComponent(phone)}`, {
+  request(`/api/wa/leads?phone=${encodeURIComponent(phone)}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
   }).then((p) => p.lead)

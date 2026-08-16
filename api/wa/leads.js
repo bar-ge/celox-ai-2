@@ -1,10 +1,17 @@
-// GET /api/wa/leads — every lead plus a preview of its most recent message.
+// GET   /api/wa/leads              — every lead plus a preview of its most recent message
+// PATCH /api/wa/leads?phone=+9725… — manual controls: bot_paused, status, assigned_rep
+//
+// The PATCH lives here rather than in a `leads/[phone].js` file because Vercel's
+// bare `api/` directory convention on a Vite project does not deploy `[param]`
+// files as functions — those requests fell through to the SPA rewrite instead.
 
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
 import { requireMaster } from '../_lib/auth.js'
+import { isStatus } from '../_lib/conversation-state.js'
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).end()
+  if (req.method === 'PATCH') return patchLead(req, res)
+  if (req.method !== 'GET') return res.status(405).json({ ok: false, reason: 'method_not_allowed' })
 
   const auth = await requireMaster(req)
   if (!auth.ok) return res.status(auth.status).json({ ok: false, reason: auth.reason })
@@ -57,6 +64,44 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, leads: rows })
   } catch (err) {
     console.error('GET /api/wa/leads failed', err instanceof Error ? err.message : 'unknown')
+    return res.status(500).json({ ok: false, reason: 'server_error' })
+  }
+}
+
+/** Only three fields are writable by hand. */
+async function patchLead(req, res) {
+  const auth = await requireMaster(req)
+  if (!auth.ok) return res.status(auth.status).json({ ok: false, reason: auth.reason })
+
+  const phone = String(req.query?.phone || '').trim()
+  if (!/^\+?\d{6,20}$/.test(phone)) return res.status(400).json({ ok: false, reason: 'bad_phone' })
+
+  const body = req.body ?? {}
+  /** @type {Record<string, unknown>} */
+  const patch = {}
+
+  if (typeof body.bot_paused === 'boolean') patch.bot_paused = body.bot_paused
+  if (body.status !== undefined) {
+    if (!isStatus(body.status)) return res.status(400).json({ ok: false, reason: 'bad_status' })
+    patch.status = body.status
+  }
+  if (body.assigned_rep !== undefined) {
+    if (body.assigned_rep !== null && typeof body.assigned_rep !== 'string') {
+      return res.status(400).json({ ok: false, reason: 'bad_rep' })
+    }
+    patch.assigned_rep = body.assigned_rep || null
+  }
+
+  if (Object.keys(patch).length === 0) return res.status(400).json({ ok: false, reason: 'nothing_to_update' })
+
+  try {
+    const { data, error } = await serviceClient()
+      .from(LEADS).update(patch).eq('phone', phone).select().single()
+
+    if (error) throw new Error(error.message)
+    return res.status(200).json({ ok: true, lead: data })
+  } catch (err) {
+    console.error('PATCH /api/wa/leads failed', err instanceof Error ? err.message : 'unknown')
     return res.status(500).json({ ok: false, reason: 'server_error' })
   }
 }

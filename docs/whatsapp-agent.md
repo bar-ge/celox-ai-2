@@ -41,10 +41,11 @@ api/
     auth.js                  master-only gate for the dashboard routes
   wa/
     webhook.js               GET verify + POST messages
-    leads.js                 GET all leads with last-message rollup
-    leads/[phone].js         PATCH bot_paused / status / assigned_rep
-    messages/[phone].js      GET one thread
+    leads.js                 GET all leads with rollup; PATCH ?phone= for manual controls
+    messages.js              GET ?phone= — one thread
     send-booking.js          POST — dashboard quick booking
+    leads/[phone].js         dead — see the routing note below
+    messages/[phone].js      dead — see the routing note below
   cron/
     wa-followups.js          hourly follow-up sweep
 
@@ -160,6 +161,24 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 `npm run test:wa` — 27 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
+
+## Routing note — no `[param]` files
+
+Vercel's bare `api/` directory convention on this Vite project does **not** deploy
+`[param]` files as functions. That is a Next.js feature; here the files are
+simply never built, and the request falls through to the SPA rewrite in
+`vercel.json`, so `/api/wa/messages/+9725…` answers `200 text/html` with
+`index.html` instead of JSON.
+
+It fails silently — the build is green and the endpoint "responds" — so it was
+only caught by probing the deployed routes and noticing the content type.
+
+Everything therefore takes the phone number as a query parameter:
+`/api/wa/messages?phone=…` and `PATCH /api/wa/leads?phone=…`.
+
+`api/wa/leads/[phone].js` and `api/wa/messages/[phone].js` are dead code kept
+only because this repo's rule 1 forbids deleting without asking. They are not
+routed and not imported; delete them whenever you want.
 
 ## Known deviations from the original spec
 
