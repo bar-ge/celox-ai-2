@@ -26,6 +26,18 @@ context; these rules override anything that conflicts with them.
    something in the platform (alerts, syncs, auto-fill, scheduled jobs),
    suggest it proactively.
 
+## WhatsApp lead agent
+8. The WhatsApp AI agent and its dashboard (**wab.celoxai.com**) live in
+   `api/wa/`, `api/_lib/` and `src/wab/`. Read `docs/whatsapp-agent.md` before
+   touching any of it.
+   - `api/_lib/conversation-script.js` holds the Hebrew script **verbatim**.
+     Do not paraphrase, shorten or translate it, and do not move it into a
+     route file.
+   - The agent may only state facts from `celox-info.js` and
+     `product-knowledge.js`. No prices, no unlisted integrations, no
+     implementation timelines — those go to a human.
+   - Run `npm run test:wa` after any change to the agent's logic.
+
 ## Competition
 7. Celox's two main competitors in Israel are **נצר (Netzer)**, by איתם מערכות
    / Cello, and **CarPro**. When Bar says "check the competition" it means:

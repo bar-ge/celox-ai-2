@@ -9,12 +9,15 @@
     "build": "vite build",
     "build:dev": "vite build --mode dev",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:wa": "node scripts/wa-agent-selftest.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.1",
     "@hcaptcha/react-hcaptcha": "^2.0.2",
     "@marsidev/react-turnstile": "^1.5.2",
     "@supabase/supabase-js": "^2.100.0",
+    "@vercel/functions": "^3.9.3",
     "@vercel/speed-insights": "^2.0.0",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",

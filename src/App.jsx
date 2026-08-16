@@ -9,6 +9,13 @@ const FleetManager = lazy(() => import('./fleet-manager'))
 const PublicForm   = lazy(() => import('./PublicForm'))
 const CRM          = lazy(() => import('./CRM'))
 const ContactForm  = lazy(() => import('./ContactForm'))
+const WaDashboard  = lazy(() => import('./wab/WaDashboard'))
+
+// The WhatsApp lead dashboard lives on its own subdomain, and is also reachable
+// at /wab on any host so it can be opened from a preview deployment.
+const WAB_HOST = 'wab.celoxai.com'
+const onWabHost  = () => window.location.hostname === WAB_HOST
+const onWabRoute = () => onWabHost() || /^\/wab(\/|$)/.test(window.location.pathname)
 
 const AppLoader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f1f5f9' }}>
@@ -900,6 +907,7 @@ export default function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [timedOut, setTimedOut]       = useState(false)
   const [crmMode, setCrmMode]         = useState(false)
+  const [wabMode, setWabMode]         = useState(() => onWabRoute())
   const t = L[lang]
 
   useEffect(() => { document.documentElement.lang = lang }, [lang])
@@ -1035,6 +1043,19 @@ export default function App() {
         </div>
       )
     }
+  }
+
+  if (isMaster && wabMode) {
+    return (
+      <Suspense fallback={<AppLoader />}>
+        <WaDashboard
+          onBack={onWabHost() ? undefined : () => {
+            window.history.pushState({}, '', '/')
+            setWabMode(false)
+          }}
+        />
+      </Suspense>
+    )
   }
 
   if (isMaster && crmMode) {
