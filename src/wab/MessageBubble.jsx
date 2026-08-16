@@ -4,7 +4,7 @@ import { T, FONT_SANS, FONT_MONO, bubbleTime } from './theme'
  * One message. The row is laid out LTR like the rest of the chrome; only the
  * text inside the bubble gets dir="auto" so Hebrew reads right-to-left.
  */
-export default function MessageBubble({ message, gapTop }) {
+export default function MessageBubble({ message, gapTop, narrow }) {
   const outbound = message.direction === 'outbound'
 
   return (
@@ -15,7 +15,8 @@ export default function MessageBubble({ message, gapTop }) {
       marginTop: gapTop,
     }}>
       <div style={{
-        maxWidth: '70%',
+        // A 70% cap leaves Hebrew unreadably narrow on a phone.
+        maxWidth: narrow ? '88%' : '70%',
         background: outbound ? T.accent : T.bubbleIn,
         color: outbound ? T.white : T.text,
         borderRadius: T.radius,

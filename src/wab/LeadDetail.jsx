@@ -7,7 +7,8 @@ import StageBadge from './StageBadge'
 const MANAGEMENT_LABEL = { excel: 'Excel', system: 'System', mixed: 'Mixed', none: 'None' }
 const DASH = '—'
 
-export default function LeadDetail({ lead, messages, onPatch, onSendBooking }) {
+export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, onSendBooking, onClose, showClose }) {
+  const narrow = layout === 'narrow'
   const [copied, setCopied] = useState(false)
   // Keyed by phone so switching leads resets the button without an effect.
   const [booking, setBooking] = useState({ phone: null, state: 'idle' })
@@ -29,7 +30,7 @@ export default function LeadDetail({ lead, messages, onPatch, onSendBooking }) {
 
   if (!lead) {
     return (
-      <aside style={panelStyle}>
+      <aside style={panelStyle(narrow)}>
         <div style={{
           height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
           textAlign: 'center', padding: T.pad,
@@ -66,21 +67,40 @@ export default function LeadDetail({ lead, messages, onPatch, onSendBooking }) {
   const rawDiffers = lead.fleet_size_raw && String(lead.fleet_size ?? '') !== String(lead.fleet_size_raw)
 
   return (
-    <aside style={panelStyle}>
-      <div style={{ padding: T.pad, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+    <aside style={panelStyle(narrow)}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: T.padTight,
+        padding: narrow ? T.padTight : T.pad, borderBottom: `1px solid ${T.border}`, flexShrink: 0,
+      }}>
         <span style={{
           fontFamily: FONT_SANS, fontSize: T.fs14, fontWeight: 700,
           textTransform: 'uppercase', letterSpacing: '0.08em', color: T.text,
         }}>
           Lead Details
         </span>
+        {showClose && onClose && (
+          <button onClick={onClose} aria-label="Close lead details" style={closeButtonStyle}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.text} strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: T.pad, display: 'flex', flexDirection: 'column', gap: T.pad }}>
+      <div style={{
+        flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+        padding: narrow ? T.padTight : T.pad,
+        display: 'flex', flexDirection: 'column', gap: T.pad,
+      }}>
         <Field label="Phone">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontFamily: FONT_MONO, fontSize: T.fs16, color: T.text }}>{lead.phone}</span>
-            <button onClick={copyPhone} title="Copy" style={iconButtonStyle} aria-label="Copy phone number">
+            <button
+              onClick={copyPhone}
+              title="Copy"
+              aria-label="Copy phone number"
+              style={{ ...iconButtonStyle, width: narrow ? 34 : 22, height: narrow ? 34 : 22 }}
+            >
               {copied ? (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="2"><path d="M20 6 9 17l-5-5" /></svg>
               ) : (
@@ -131,8 +151,12 @@ export default function LeadDetail({ lead, messages, onPatch, onSendBooking }) {
             dir="auto"
             style={{
               width: '100%', boxSizing: 'border-box',
-              fontFamily: FONT_SANS, fontSize: T.fs13, color: T.text,
-              padding: '6px 8px', background: T.white,
+              fontFamily: FONT_SANS,
+              fontSize: narrow ? T.fs16 : T.fs13,
+              color: T.text,
+              padding: narrow ? '10px 8px' : '6px 8px',
+              minHeight: narrow ? 44 : 0,
+              background: T.white,
               border: `1px solid ${T.border}`, borderRadius: T.radius, outline: 'none',
             }}
           >
@@ -189,7 +213,8 @@ export default function LeadDetail({ lead, messages, onPatch, onSendBooking }) {
             disabled={bookingState === 'sending' || lead.opted_out}
             style={{
               fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600,
-              padding: '8px 12px', borderRadius: T.radius, border: 'none',
+              padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
+              borderRadius: T.radius, border: 'none',
               background: T.accent, color: T.white,
               cursor: bookingState === 'sending' || lead.opted_out ? 'not-allowed' : 'pointer',
               opacity: lead.opted_out ? 0.5 : 1,
@@ -208,7 +233,8 @@ export default function LeadDetail({ lead, messages, onPatch, onSendBooking }) {
             onClick={() => onPatch(lead.phone, { bot_paused: !lead.bot_paused })}
             style={{
               fontFamily: FONT_SANS, fontSize: T.fs13,
-              padding: '8px 12px', borderRadius: T.radius,
+              padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
+              borderRadius: T.radius,
               border: `1px solid ${T.border}`, background: 'transparent', color: T.text,
               cursor: 'pointer', transition: 'background-color 150ms ease',
             }}
@@ -223,10 +249,18 @@ export default function LeadDetail({ lead, messages, onPatch, onSendBooking }) {
   )
 }
 
-const panelStyle = {
-  width: T.colWidth, flexShrink: 0, height: '100%',
+const panelStyle = (narrow) => ({
+  width: narrow ? '100%' : T.colWidth,
+  maxWidth: '100vw', flexShrink: 0, height: '100%',
   display: 'flex', flexDirection: 'column',
-  background: T.white, borderLeft: `1px solid ${T.border}`,
+  background: T.white, borderLeft: narrow ? 'none' : `1px solid ${T.border}`,
+})
+
+const closeButtonStyle = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  width: 36, height: 36, flexShrink: 0, padding: 0, cursor: 'pointer',
+  border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.white,
+  transition: 'background-color 150ms ease',
 }
 
 const iconButtonStyle = {

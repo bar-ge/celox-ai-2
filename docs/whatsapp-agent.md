@@ -86,12 +86,22 @@ If Calendly is unreachable it says so and hands off to a human.
 
 ### Follow-ups
 
-Hourly cron, business hours only (SUN–THU 09:00–17:00 Asia/Jerusalem). Fires
-only when the last message was ours, the bot is not paused, the lead has not
-opted out and no meeting is booked. Three at most: ~4h, next day, final. Each
-one resumes the exact script question the lead never answered, taken from a
-static map — never a model call, never a restart. After the third, status
-becomes `לא הגיב` and nothing more is sent.
+Daily cron at 07:00 UTC — 10:00 Israel in summer, 09:00 in winter, so it always
+lands inside business hours. The route re-checks SUN–THU 09:00–17:00
+Asia/Jerusalem itself and no-ops outside them, so Friday and Saturday runs send
+nothing.
+
+A follow-up fires only when the last message was ours, the bot is not paused,
+the lead has not opted out and no meeting is booked. Three at most, on
+consecutive business mornings. Each one resumes the exact script question the
+lead never answered, taken from a static map — never a model call, never a
+restart. After the third, status becomes `לא הגיב` and nothing more is sent.
+
+The delays (4h / 20h / 20h) are deliberately under a day: with one tick per
+morning, a 22h+ delay would slip each follow-up to the morning after the one it
+belongs to. If the project ever moves to a paid Vercel plan, changing the
+schedule to `0 * * * *` gives the spec's original ~4h-then-next-day cadence with
+no other change.
 
 ## Data model
 
@@ -141,9 +151,8 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 3. In Meta → WhatsApp → Configuration, set the callback URL to
    `https://celoxai.com/api/wa/webhook` and the verify token to
    `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, then subscribe to the `messages` field.
-4. The cron in `vercel.json` runs hourly. **Hourly crons need a paid Vercel
-   plan** — on Hobby, change the schedule to `0 9 * * 0-4` (once each business
-   morning) or the deployment will be rejected.
+4. The cron in `vercel.json` runs once a day at 07:00 UTC, which is what the
+   free plan allows. No action needed.
 5. Only the master account can open the dashboard or call its API routes.
 
 ## Tests
@@ -162,8 +171,11 @@ the composed system prompt. No network, no API keys.
 - **`selected_slot`.** One optional field was added to the agent's JSON contract
   so a confirmed booking can be verified against live availability instead of
   inferred from the reply text.
-- **Responsive.** Repo rule 5 says every screen is responsive; this spec says the
-  dashboard is desktop-only below 1024px. The spec wins for this screen — it
-  shows the "wider than 1024px" message on narrow viewports.
+- **Responsive.** The spec asked for a desktop-only dashboard with a "use a wider
+  screen" message below 1024px. Repo rule 5 wins instead: the screen adapts.
+  ≥1280 is the three-column layout; 768–1279 drops to list + thread with lead
+  details as a panel over the thread; below 768 it is one pane at a time with
+  back navigation, 44px touch targets and 16px inputs (which stops iOS Safari
+  zooming on focus).
 - **Table names.** `wab_leads` / `wab_messages`, so the unused Twilio-era `wa_*`
   tables stay untouched.

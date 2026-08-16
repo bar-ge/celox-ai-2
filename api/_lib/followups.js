@@ -5,10 +5,15 @@ import { nextUnansweredStage } from './conversation-state.js'
 const TZ = CELOX_INFO.timezone
 
 // Spec section 20: a few hours → next day → one last time. Never a fourth.
+//
+// Each delay is measured from the last thing we sent (or the lead's last
+// message, for the first one). The 20h figures are under a day on purpose: the
+// cron only fires once each business morning on Vercel's free plan, so a delay
+// of 22h+ would push a follow-up to the morning *after* the one it belongs to.
 export const FOLLOWUP_DELAYS_MS = {
   1: 4 * 60 * 60 * 1000,
-  2: 22 * 60 * 60 * 1000,
-  3: 48 * 60 * 60 * 1000,
+  2: 20 * 60 * 60 * 1000,
+  3: 20 * 60 * 60 * 1000,
 }
 
 export const MAX_FOLLOWUPS = 3

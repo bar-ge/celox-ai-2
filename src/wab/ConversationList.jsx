@@ -20,9 +20,11 @@ function matchesFilter(lead, key) {
   }
 }
 
-export default function ConversationList({ leads, selected, onSelect, loading }) {
+export default function ConversationList({ leads, selected, onSelect, loading, layout = 'wide' }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
+  const narrow = layout === 'narrow'
+  const medium = layout === 'medium'
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -33,9 +35,11 @@ export default function ConversationList({ leads, selected, onSelect, loading })
 
   return (
     <div style={{
-      width: T.colWidth, flexShrink: 0, height: '100%',
+      width: narrow ? '100%' : medium ? 280 : T.colWidth,
+      flexShrink: 0, height: '100%',
       display: 'flex', flexDirection: 'column',
-      background: T.subtle, borderRight: `1px solid ${T.border}`,
+      background: T.subtle,
+      borderRight: narrow ? 'none' : `1px solid ${T.border}`,
     }}>
       <div style={{ padding: T.pad, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: T.padTight }}>
@@ -57,13 +61,23 @@ export default function ConversationList({ leads, selected, onSelect, loading })
           placeholder="Search by phone, name or company..."
           style={{
             width: '100%', boxSizing: 'border-box',
-            fontFamily: FONT_SANS, fontSize: T.fs13, color: T.text,
-            padding: '7px 9px', background: T.white,
+            fontFamily: FONT_SANS,
+            // 16px on touch layouts stops iOS Safari zooming the page on focus.
+            fontSize: narrow ? T.fs16 : T.fs13,
+            color: T.text,
+            padding: narrow ? '10px 11px' : '7px 9px', background: T.white,
             border: `1px solid ${T.border}`, borderRadius: 2, outline: 'none',
           }}
         />
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: T.padTight }}>
+        <div style={{
+          display: 'flex', gap: 6, marginTop: T.padTight,
+          // On a phone the chips would eat a third of the screen if they wrapped.
+          flexWrap: narrow ? 'nowrap' : 'wrap',
+          overflowX: narrow ? 'auto' : 'visible',
+          scrollbarWidth: 'none',
+          paddingBottom: narrow ? 2 : 0,
+        }}>
           {FILTERS.map((f) => {
             const on = filter === f.key
             return (
@@ -71,8 +85,11 @@ export default function ConversationList({ leads, selected, onSelect, loading })
                 key={f.key}
                 onClick={() => setFilter(f.key)}
                 style={{
-                  fontFamily: FONT_SANS, fontSize: T.fs11, cursor: 'pointer',
-                  padding: '3px 8px', borderRadius: T.radius,
+                  fontFamily: FONT_SANS, fontSize: narrow ? T.fs12 : T.fs11, cursor: 'pointer',
+                  padding: narrow ? '7px 12px' : '3px 8px',
+                  minHeight: narrow ? 34 : 0,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                  borderRadius: T.radius,
                   border: `1px solid ${on ? T.accent : T.border}`,
                   background: on ? T.selected : T.white,
                   color: on ? T.accent : T.textMid,
@@ -103,6 +120,7 @@ export default function ConversationList({ leads, selected, onSelect, loading })
             key={lead.phone}
             lead={lead}
             selected={selected === lead.phone}
+            narrow={narrow}
             onSelect={() => onSelect(lead.phone)}
           />
         ))}
@@ -111,7 +129,7 @@ export default function ConversationList({ leads, selected, onSelect, loading })
   )
 }
 
-function Row({ lead, selected, onSelect }) {
+function Row({ lead, selected, narrow, onSelect }) {
   const [hover, setHover] = useState(false)
   const title = lead.first_name || lead.company
     ? [lead.first_name, lead.company].filter(Boolean).join(' · ')
@@ -124,7 +142,9 @@ function Row({ lead, selected, onSelect }) {
       onMouseLeave={() => setHover(false)}
       style={{
         display: 'flex', alignItems: 'flex-start', gap: 8,
-        padding: `${T.padTight}px ${T.pad}px`,
+        // 44px minimum keeps every row a comfortable touch target.
+        padding: narrow ? `14px ${T.padTight}px` : `${T.padTight}px ${T.pad}px`,
+        minHeight: narrow ? 44 : 0,
         borderBottom: `1px solid ${T.border}`,
         borderLeft: `3px solid ${selected ? T.accent : 'transparent'}`,
         background: selected ? T.selected : hover ? '#F3F4F6' : 'transparent',

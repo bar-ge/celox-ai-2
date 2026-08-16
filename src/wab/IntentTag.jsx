@@ -28,6 +28,8 @@ export function IntentDot({ intent }) {
     <span
       title={intent ? intentLabel(intent) : 'No intent yet'}
       style={{
+        // An inline span ignores width/height — this has to be a block.
+        display: 'block',
         width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
         background: intent ? intentColor(intent) : T.border,
       }}

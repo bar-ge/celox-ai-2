@@ -20,7 +20,6 @@ export const T = {
   pad: 16, padTight: 12,
   radius: 4,
   colWidth: 320,
-  minWidth: 1024,
 }
 
 export const FONT_SANS = "'IBM Plex Sans', 'Assistant', system-ui, sans-serif"

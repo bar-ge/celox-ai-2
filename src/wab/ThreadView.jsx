@@ -3,39 +3,62 @@ import { T, FONT_SANS, FONT_MONO, fullDateTime } from './theme'
 import MessageBubble from './MessageBubble'
 import StageBadge from './StageBadge'
 
-export default function ThreadView({ lead, messages, loading, onResumeBot }) {
+export default function ThreadView({ lead, messages, loading, layout = 'wide', onResumeBot, onBack, onOpenDetail }) {
   const endRef = useRef(null)
   const count = messages.length
+  const narrow = layout === 'narrow'
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [count, lead?.phone])
 
-  if (!lead) return <EmptyState />
+  if (!lead) return <EmptyState narrow={narrow} />
+
+  const pad = narrow ? T.padTight : T.pad
 
   return (
-    <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', background: T.white }}>
-      <div style={{ padding: T.pad, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          {(lead.first_name || lead.company) && (
-            <span dir="auto" style={{ fontFamily: FONT_SANS, fontSize: T.fs16, fontWeight: 700, color: T.text }}>
-              {[lead.first_name, lead.company].filter(Boolean).join(' · ')}
-            </span>
+    <div style={{
+      flex: 1, minWidth: 0, height: '100%',
+      display: 'flex', flexDirection: 'column', background: T.white,
+    }}>
+      <div style={{ padding: pad, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          {onBack && (
+            <button onClick={onBack} aria-label="Back to conversations" style={backButtonStyle}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.text} strokeWidth="2">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
           )}
-          <span style={{ fontFamily: FONT_MONO, fontSize: T.fs16, fontWeight: 700, color: T.text }}>
-            {lead.phone}
-          </span>
-          <StageBadge stage={lead.stage} />
-        </div>
-        <div style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid, marginTop: 4 }}>
-          First contact: <span style={{ fontFamily: FONT_MONO }}>{fullDateTime(lead.first_contact_at ?? lead.created_at)}</span>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              {(lead.first_name || lead.company) && (
+                <span dir="auto" style={{ fontFamily: FONT_SANS, fontSize: T.fs16, fontWeight: 700, color: T.text }}>
+                  {[lead.first_name, lead.company].filter(Boolean).join(' · ')}
+                </span>
+              )}
+              <span style={{ fontFamily: FONT_MONO, fontSize: narrow ? T.fs14 : T.fs16, fontWeight: 700, color: T.text }}>
+                {lead.phone}
+              </span>
+              <StageBadge stage={lead.stage} />
+            </div>
+            <div style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid, marginTop: 4 }}>
+              First contact: <span style={{ fontFamily: FONT_MONO }}>{fullDateTime(lead.first_contact_at ?? lead.created_at)}</span>
+            </div>
+          </div>
+
+          {onOpenDetail && (
+            <button onClick={onOpenDetail} style={detailButtonStyle(narrow)}>Details</button>
+          )}
         </div>
       </div>
 
       {lead.bot_paused && (
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: T.padTight,
-          padding: `8px ${T.pad}px`, borderBottom: `1px solid ${T.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: T.padTight, flexWrap: 'wrap',
+          padding: `8px ${pad}px`, borderBottom: `1px solid ${T.border}`,
           background: T.subtle, flexShrink: 0,
         }}>
           <span style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid }}>
@@ -45,7 +68,8 @@ export default function ThreadView({ lead, messages, loading, onResumeBot }) {
             onClick={onResumeBot}
             style={{
               fontFamily: FONT_SANS, fontSize: T.fs12, cursor: 'pointer',
-              padding: '3px 10px', borderRadius: T.radius,
+              padding: narrow ? '8px 12px' : '3px 10px', minHeight: narrow ? 36 : 0,
+              borderRadius: T.radius,
               border: `1px solid ${T.border}`, background: T.white, color: T.text,
               transition: 'background-color 150ms ease',
             }}
@@ -55,7 +79,7 @@ export default function ThreadView({ lead, messages, loading, onResumeBot }) {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: T.pad }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: pad, WebkitOverflowScrolling: 'touch' }}>
         {loading && count === 0 && <ThreadSkeleton />}
         {!loading && count === 0 && (
           <div style={{ fontFamily: FONT_SANS, fontSize: T.fs13, color: T.textMid, textAlign: 'center', paddingTop: 40 }}>
@@ -67,6 +91,7 @@ export default function ThreadView({ lead, messages, loading, onResumeBot }) {
           <MessageBubble
             key={m.id}
             message={m}
+            narrow={narrow}
             gapTop={i === 0 ? 0 : messages[i - 1].direction === m.direction ? 4 : 16}
           />
         ))}
@@ -76,11 +101,27 @@ export default function ThreadView({ lead, messages, loading, onResumeBot }) {
   )
 }
 
-function EmptyState() {
+const backButtonStyle = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  width: 36, height: 36, flexShrink: 0, padding: 0, marginTop: -2, cursor: 'pointer',
+  border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.white,
+  transition: 'background-color 150ms ease',
+}
+
+const detailButtonStyle = (narrow) => ({
+  fontFamily: FONT_SANS, fontSize: T.fs12, cursor: 'pointer', flexShrink: 0,
+  padding: narrow ? '9px 12px' : '6px 12px', minHeight: narrow ? 36 : 0,
+  borderRadius: T.radius, border: `1px solid ${T.border}`,
+  background: T.white, color: T.text, whiteSpace: 'nowrap',
+  transition: 'background-color 150ms ease',
+})
+
+function EmptyState({ narrow }) {
   return (
     <div style={{
       flex: 1, height: '100%', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: T.padTight, background: T.white,
+      alignItems: 'center', justifyContent: 'center', gap: T.padTight,
+      background: T.white, padding: narrow ? T.padTight : T.pad, textAlign: 'center',
     }}>
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" aria-hidden="true">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
