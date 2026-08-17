@@ -204,9 +204,13 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 1. Add every variable above in Vercel → Settings → Environment Variables, for
    **Preview** (dev.celoxai.com) first, then Production.
-2. Add `wab.celoxai.com` to the `my-fleet-app` project's domains and point the
-   DNS record at Vercel. The dashboard is also reachable at `/wab` on any host,
-   which is how to test it on a preview deployment.
+2. Add `wab.celoxai.com` to the `my-fleet-app` project's domains and add a
+   CNAME at Namecheap: host `wab` → the target Vercel shows on the domain row
+   (currently `a21eb454f40a5c8f.vercel-dns-017.com.`). A host-scoped redirect in
+   `vercel.json` sends `wab.celoxai.com/` to `/wab`, because the SPA router
+   otherwise reads `/` and bounces to the marketing site's locale route. The
+   dashboard is also reachable at `/wab` on any host, which is how to test it on
+   a preview deployment.
 3. In Meta → WhatsApp → Configuration, set the callback URL to
    `https://celoxai.com/api/wa/webhook` and the verify token to
    `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, then subscribe to the `messages` field.
