@@ -179,6 +179,69 @@ export function normaliseTurns(turns) {
   return out
 }
 
+/** How long a single webhook run may hold a lead before the claim goes stale. */
+const CLAIM_TTL_MS = 45000
+
+/**
+ * Take exclusive ownership of a lead for the length of one turn.
+ *
+ * Two messages arriving a second apart produce two concurrent invocations for
+ * the same phone. Without this they race: both read the same lead, both call the
+ * model, both reply, and the later write silently overwrites the earlier one —
+ * which is how a confirmed meeting can turn into a different meeting.
+ *
+ * The claim is a conditional update, so the database decides the winner. It
+ * expires on its own, so a crashed run cannot wedge a lead permanently.
+ *
+ * @param {string} phone
+ * @returns {Promise<boolean>} true if this run owns the lead
+ */
+export async function claimLead(phone) {
+  const db = serviceClient()
+  const now = new Date()
+  const until = new Date(now.getTime() + CLAIM_TTL_MS).toISOString()
+
+  const { data, error } = await db
+    .from(LEADS)
+    .update({ processing_until: until })
+    .eq('phone', phone)
+    .or(`processing_until.is.null,processing_until.lt.${now.toISOString()}`)
+    .select('phone')
+
+  if (error) {
+    // Never block a conversation because the lock itself failed.
+    console.error('claim failed, proceeding unserialised', error.message)
+    return true
+  }
+  return (data?.length ?? 0) > 0
+}
+
+/** @param {string} phone */
+export async function releaseLead(phone) {
+  const { error } = await serviceClient()
+    .from(LEADS).update({ processing_until: null }).eq('phone', phone)
+  if (error) console.error('claim release failed', error.message)
+}
+
+/**
+ * The most recent inbound message for a lead, used to spot messages that
+ * arrived while this run was busy.
+ * @param {string} phone
+ * @returns {Promise<{ wa_message_id: string|null, created_at: string, body: string }|null>}
+ */
+export async function latestInbound(phone) {
+  const { data, error } = await serviceClient()
+    .from(MESSAGES)
+    .select('wa_message_id, created_at, body')
+    .eq('phone', phone)
+    .eq('direction', 'inbound')
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (error) { console.error('latestInbound failed', error.message); return null }
+  return data?.[0] ?? null
+}
+
 /**
  * Pause or resume the bot for a lead, and keep status in step.
  * @param {string} phone

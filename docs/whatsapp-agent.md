@@ -123,6 +123,32 @@ authenticate the caller themselves (`api/_lib/auth.js`).
 Both tables are in the `supabase_realtime` publication, which is what drives the
 live dashboard.
 
+## Concurrency — one run per lead
+
+WhatsApp delivers each message as its own webhook call, so two messages a second
+apart start two independent invocations for the same phone. Before this was
+handled they raced: both read the same lead row, both called the model, both
+replied, and the later write won. In the first real booking conversation that
+produced two identical confirmations one second apart, and later silently moved
+a confirmed meeting from Thursday 12:00 to Thursday 09:00.
+
+The `wa_message_id` unique index does not help here — it stops the *same*
+message being processed twice, not two *different* messages colliding.
+
+Three things guard it now:
+
+- **`wab_leads.processing_until`** — a lease. `claimLead()` sets it with a
+  conditional update (`processing_until is null or < now`), so Postgres picks
+  the winner. Losers exit immediately; their message is already logged. The
+  lease expires after 45s, so a crashed run cannot wedge a lead forever, and a
+  failed claim query proceeds unserialised rather than dropping a conversation.
+- **A bounded drain loop** — the holder re-checks for inbound messages newer
+  than the moment its turn started and answers those too (max three turns), so
+  a message that lands mid-thought is not left unanswered.
+- **A rebooking guard** — `meeting_at` only moves when the lead was in
+  `MEETING_CONFIRMATION` this turn. Anything else restates the existing meeting
+  and asks for an explicit new time.
+
 ## Environment variables
 
 Server-side only — none of these may ever get a `VITE_` prefix.
@@ -158,7 +184,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 27 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 40 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 

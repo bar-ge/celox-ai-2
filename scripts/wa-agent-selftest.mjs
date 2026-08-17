@@ -3,6 +3,7 @@
 //   node scripts/wa-agent-selftest.mjs
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import { parseInbound, toE164 } from '../api/_lib/whatsapp.js'
 import { toAgentResponse } from '../api/_lib/claude.js'
@@ -364,6 +365,29 @@ test('sync is a no-op without a token, and never throws', async () => {
   assert.equal(res.ok, false)
   assert.equal(res.reason, 'monday_not_configured')
   if (before !== undefined) process.env.MONDAY_API_KEY = before
+})
+
+console.log('\nconcurrency')
+
+const WEBHOOK_SRC = readFileSync(new URL('../api/wa/webhook.js', import.meta.url), 'utf8')
+
+test('a lead is claimed before the agent runs and released afterwards', () => {
+  // Two messages a second apart used to spawn two independent runs against the
+  // same lead: both replied, and the later write overwrote the earlier one.
+  assert.ok(/if \(!\(await claimLead\(phone\)\)\) return/.test(WEBHOOK_SRC), 'no claim before processing')
+  assert.ok(/finally \{\s*await releaseLead\(phone\)/.test(WEBHOOK_SRC), 'claim not released in a finally')
+  assert.ok(WEBHOOK_SRC.indexOf('claimLead') < WEBHOOK_SRC.indexOf('runAgent'), 'claim taken too late')
+})
+
+test('the holder answers whatever arrived while it was thinking', () => {
+  assert.ok(/for \(let turn = 0; turn < 3; turn\+\+\)/.test(WEBHOOK_SRC), 'no bounded drain loop')
+  assert.ok(/newest\.created_at > startedAt/.test(WEBHOOK_SRC), 'does not re-check for later messages')
+})
+
+test('a booked meeting is never moved without an explicit confirmation', () => {
+  assert.ok(/const rebooking = lead\.meeting_at && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))
+  assert.ok(/refused to rebook without confirmation/.test(WEBHOOK_SRC))
+  assert.ok(/lead\.stage === 'MEETING_CONFIRMATION'/.test(WEBHOOK_SRC))
 })
 
 console.log(`\n${passed} checks passed${process.exitCode ? ' — with failures above' : ''}\n`)

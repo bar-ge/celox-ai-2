@@ -4,7 +4,10 @@
 //          the background so a slow model call can never time the webhook out.
 
 import { parseInbound, sendText, markRead } from '../_lib/whatsapp.js'
-import { getOrCreateLead, mergeLead, logMessage, recentTurns } from '../_lib/crm.js'
+import {
+  getOrCreateLead, mergeLead, logMessage, recentTurns,
+  claimLead, releaseLead, latestInbound,
+} from '../_lib/crm.js'
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
 import { availability, splitSlotHe } from '../_lib/calendly.js'
@@ -104,123 +107,30 @@ function verify(req, res) {
 async function handleInbound(inbound) {
   const { waMessageId, phone, profileName, text } = inbound
 
+  const seed = await getOrCreateLead(phone, { firstName: profileName })
+
+  // Dedupe + log in one step: the unique index on wa_message_id rejects replays.
+  const isNew = await logMessage({
+    phone, direction: 'inbound', body: text,
+    waMessageId, stage: seed.stage, intent: null,
+  })
+  if (!isNew) return
+
+  await markRead(waMessageId)
+
+  // Only one run may hold a lead at a time. A loser exits here: its message is
+  // already logged, and the holder re-checks for new messages before finishing,
+  // so nothing is dropped — it is answered by whichever run is still awake.
+  if (!(await claimLead(phone))) return
+
   try {
-    const lead = await getOrCreateLead(phone, { firstName: profileName })
-
-    // Dedupe + log in one step: the unique index on wa_message_id rejects replays.
-    const isNew = await logMessage({
-      phone, direction: 'inbound', body: text,
-      waMessageId, stage: lead.stage, intent: null,
-    })
-    if (!isNew) return
-
-    await markRead(waMessageId)
-
-    // Spec step 5: a paused or opted-out lead is logged and left alone.
-    if (lead.bot_paused || lead.opted_out) return
-
-    const history = await recentTurns(phone, 6)
-
-    // The current message is already logged, so it is the last history entry.
-    const messages = history.length ? history : [{ role: 'user', content: text }]
-
-    const wantsCalendar = CALENDAR_STAGES.includes(lead.stage) || isQualified(lead)
-    let calendar = { ok: false, reason: 'not_requested', slots: [], suggested: [] }
-    if (wantsCalendar) calendar = await availability({ days: 14, suggest: 3 })
-
-    const systemPrompt = buildSystemPrompt({
-      lead,
-      slots: calendar.ok ? calendar.slots : [],
-      suggested: calendar.ok ? calendar.suggested : [],
-      meetingMinutes: calendar.ok ? calendar.duration : undefined,
-      meetingKind: calendar.ok ? calendar.kind : undefined,
-    })
-
-    const result = await runAgent({ systemPrompt, messages })
-
-    if (!result.ok) {
-      await deliver({ phone, body: FALLBACK_MESSAGE, stage: lead.stage, intent: null })
-      return
-    }
-
-    const agent = result.data
-    let reply = agent.reply
-    let stage = agent.next_stage
-    let meetingAt = null
-    let meetingUrl = null
-
-    // Calendly was needed but unreachable — say so honestly, hand to a human.
-    if (wantsCalendar && !calendar.ok && calendar.reason !== 'not_requested' &&
-        ['CALENDAR_OPTIONS', 'MEETING_CONFIRMATION', 'MEETING_BOOKED'].includes(stage)) {
-      reply = CALENDAR_ERROR_MESSAGE
-      stage = 'HUMAN_HANDOFF'
-      agent.requires_human = true
-    }
-
-    // A meeting is only ever written after the lead confirmed a slot that is
-    // still genuinely available.
-    if (stage === 'MEETING_BOOKED') {
-      // Match on the local-time key the agent was given. Accept a raw ISO too,
-      // in case the model echoes the underlying timestamp instead.
-      const wanted = agent.selected_slot?.trim()
-      const chosen = calendar.ok && wanted
-        ? calendar.slots.find((s) => s.key === wanted || s.start === wanted)
-        : null
-
-      if (chosen) {
-        meetingAt = chosen.start
-        meetingUrl = chosen.schedulingUrl
-        const { date, time } = splitSlotHe(chosen.start)
-        reply =
-          `מעולה, שמרתי לך את המועד ✅\n` +
-          `📅 תאריך: ${date}\n🕐 שעה: ${time}\n📞 אופן השיחה: ${calendar.kind}\n` +
-          `רק נשאר לאשר בקישור הזה כדי שההזמנה תיכנס ליומן שלך: ${chosen.schedulingUrl}\n` +
-          `אם משהו משתנה, אפשר לכתוב לי כאן.`
-      } else {
-        // The model claimed a booking we cannot verify — do not fake it.
-        const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
-        if (fresh.ok) {
-          stage = 'CALENDAR_OPTIONS'
-          reply =
-            `רגע לפני שאני סוגר — המועד שבחרת כבר לא מופיע כפנוי אצלי ביומן, ואני לא רוצה לשמור לך שעה שלא באמת קיימת.\n` +
-            `אלה המועדים הקרובים שפנויים:\n${fresh.suggested.map((s) => s.label).join('\n')}\n` +
-            `איזה מהם מתאים לך?`
-        } else {
-          stage = 'HUMAN_HANDOFF'
-          reply = CALENDAR_ERROR_MESSAGE
-          agent.requires_human = true
-        }
-      }
-    }
-
-    const optedOut = agent.intent === 'opt_out' || stage === 'OPT_OUT'
-    const requiresHuman = agent.requires_human || stage === 'HUMAN_HANDOFF'
-
-    // Stamp the intent onto the inbound row now that we know it.
-    await tagInbound(waMessageId, agent.intent, stage)
-
-    const updated = await mergeLead(lead, agent.extracted, {
-      stage,
-      openQuestion: agent.open_question,
-      requiresHuman,
-      optedOut,
-      fleetSizeRaw: agent.extracted.fleet_size != null ? text.slice(0, 300) : null,
-      meetingAt,
-    })
-
-    if (meetingUrl) {
-      await serviceClient().from(LEADS).update({ meeting_url: meetingUrl }).eq('phone', phone)
-    }
-
-    // Intent belongs to the inbound message (data model); outbound rows leave it null.
-    await deliver({ phone, body: reply, stage: updated.stage, intent: null })
-
-    // Mirror onto the Monday CRM board. Deliberately last and deliberately
-    // swallowed — the lead already has their reply, and no CRM problem is worth
-    // failing a conversation over.
-    const synced = await syncLead(meetingUrl ? { ...updated, meeting_url: meetingUrl } : updated)
-    if (!synced.ok && synced.reason !== 'monday_not_configured') {
-      console.error('monday sync skipped', synced.reason)
+    // Answer everything that has arrived, including messages that land while
+    // the model is thinking. Bounded so a fast typist cannot spin this forever.
+    let pending = text
+    for (let turn = 0; turn < 3; turn++) {
+      const handled = await respond(phone, pending)
+      if (!handled.continue) break
+      pending = handled.next ?? pending
     }
   } catch (err) {
     console.error('webhook processing failed', err instanceof Error ? err.message : 'unknown')
@@ -229,7 +139,151 @@ async function handleInbound(inbound) {
     } catch (sendErr) {
       console.error('fallback send failed', sendErr instanceof Error ? sendErr.message : 'unknown')
     }
+  } finally {
+    await releaseLead(phone)
   }
+}
+
+/**
+ * One agent turn against the lead's current state.
+ * @param {string} phone
+ * @param {string} text  the message that triggered this run, for context only
+ * @returns {Promise<{ continue: boolean, next?: string }>} whether newer input
+ *   arrived meanwhile, and what it said
+ */
+async function respond(phone, text) {
+  const startedAt = new Date().toISOString()
+
+  const lead = await getOrCreateLead(phone)
+
+  // Spec step 5: a paused or opted-out lead is logged and left alone.
+  if (lead.bot_paused || lead.opted_out) return { continue: false }
+
+  const history = await recentTurns(phone, 6)
+
+  // The current message is already logged, so it is the last history entry.
+  const messages = history.length ? history : [{ role: 'user', content: text }]
+
+  const wantsCalendar = CALENDAR_STAGES.includes(lead.stage) || isQualified(lead)
+  let calendar = { ok: false, reason: 'not_requested', slots: [], suggested: [] }
+  if (wantsCalendar) calendar = await availability({ days: 14, suggest: 3 })
+
+  const systemPrompt = buildSystemPrompt({
+    lead,
+    slots: calendar.ok ? calendar.slots : [],
+    suggested: calendar.ok ? calendar.suggested : [],
+    meetingMinutes: calendar.ok ? calendar.duration : undefined,
+    meetingKind: calendar.ok ? calendar.kind : undefined,
+  })
+
+  const result = await runAgent({ systemPrompt, messages })
+
+  if (!result.ok) {
+    await deliver({ phone, body: FALLBACK_MESSAGE, stage: lead.stage, intent: null })
+    return { continue: false }
+  }
+
+  const agent = result.data
+  let reply = agent.reply
+  let stage = agent.next_stage
+  let meetingAt = null
+  let meetingUrl = null
+
+  // Calendly was needed but unreachable — say so honestly, hand to a human.
+  if (wantsCalendar && !calendar.ok && calendar.reason !== 'not_requested' &&
+      ['CALENDAR_OPTIONS', 'MEETING_CONFIRMATION', 'MEETING_BOOKED'].includes(stage)) {
+    reply = CALENDAR_ERROR_MESSAGE
+    stage = 'HUMAN_HANDOFF'
+    agent.requires_human = true
+  }
+
+  // A meeting is only ever written after the lead confirmed a slot that is
+  // still genuinely available.
+  if (stage === 'MEETING_BOOKED') {
+    // Match on the local-time key the agent was given. Accept a raw ISO too,
+    // in case the model echoes the underlying timestamp instead.
+    const wanted = agent.selected_slot?.trim()
+    const chosen = calendar.ok && wanted
+      ? calendar.slots.find((s) => s.key === wanted || s.start === wanted)
+      : null
+
+    const rebooking = lead.meeting_at && chosen && chosen.start !== lead.meeting_at
+    const confirmedThisTurn = lead.stage === 'MEETING_CONFIRMATION'
+
+    if (rebooking && !confirmedThisTurn) {
+      // A booked meeting only moves through an explicit confirmation step.
+      // Anything else is a stray message or a stale run, and must not silently
+      // overwrite a time the lead already agreed to.
+      console.error('refused to rebook without confirmation', phone)
+      const { date, time } = splitSlotHe(lead.meeting_at)
+      stage = 'MEETING_BOOKED'
+      reply =
+        `הפגישה שלנו כבר קבועה ל-${date} בשעה ${time} ✅\n` +
+        `אם בא לך לשנות אותה, תגיד לי איזה יום ושעה מתאימים ואבדוק ביומן.`
+    } else if (chosen) {
+      meetingAt = chosen.start
+      meetingUrl = chosen.schedulingUrl
+      const { date, time } = splitSlotHe(chosen.start)
+      reply =
+        `מעולה, שמרתי לך את המועד ✅\n` +
+        `📅 תאריך: ${date}\n🕐 שעה: ${time}\n📞 אופן השיחה: ${calendar.kind}\n` +
+        `רק נשאר לאשר בקישור הזה כדי שההזמנה תיכנס ליומן שלך: ${chosen.schedulingUrl}\n` +
+        `אם משהו משתנה, אפשר לכתוב לי כאן.`
+    } else {
+      // The model claimed a booking we cannot verify — do not fake it.
+      const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
+      if (fresh.ok) {
+        stage = 'CALENDAR_OPTIONS'
+        reply =
+          `רגע לפני שאני סוגר — המועד שבחרת כבר לא מופיע כפנוי אצלי ביומן, ואני לא רוצה לשמור לך שעה שלא באמת קיימת.\n` +
+          `אלה המועדים הקרובים שפנויים:\n${fresh.suggested.map((s) => s.label).join('\n')}\n` +
+          `איזה מהם מתאים לך?`
+      } else {
+        stage = 'HUMAN_HANDOFF'
+        reply = CALENDAR_ERROR_MESSAGE
+        agent.requires_human = true
+      }
+    }
+  }
+
+  const optedOut = agent.intent === 'opt_out' || stage === 'OPT_OUT'
+  const requiresHuman = agent.requires_human || stage === 'HUMAN_HANDOFF'
+
+  // Stamp the intent onto the newest inbound row now that we know it.
+  const tagged = await latestInbound(phone)
+  if (tagged?.wa_message_id) await tagInbound(tagged.wa_message_id, agent.intent, stage)
+
+  const updated = await mergeLead(lead, agent.extracted, {
+    stage,
+    openQuestion: agent.open_question,
+    requiresHuman,
+    optedOut,
+    fleetSizeRaw: agent.extracted.fleet_size != null ? text.slice(0, 300) : null,
+    meetingAt,
+  })
+
+  if (meetingUrl) {
+    await serviceClient().from(LEADS).update({ meeting_url: meetingUrl }).eq('phone', phone)
+  }
+
+  // Intent belongs to the inbound message (data model); outbound rows leave it null.
+  await deliver({ phone, body: reply, stage: updated.stage, intent: null })
+
+  // Mirror onto the Monday CRM board. Deliberately last and deliberately
+  // swallowed — the lead already has their reply, and no CRM problem is worth
+  // failing a conversation over.
+  const synced = await syncLead(meetingUrl ? { ...updated, meeting_url: meetingUrl } : updated)
+  if (!synced.ok && synced.reason !== 'monday_not_configured') {
+    console.error('monday sync skipped', synced.reason)
+  }
+
+  // Did anything land while we were thinking? If so, answer that too rather
+  // than leaving the lead waiting for a reply that will never come.
+  const newest = await latestInbound(phone)
+  if (newest && newest.created_at > startedAt) {
+    return { continue: true, next: newest.body || text }
+  }
+  return { continue: false }
 }
 
 /** Log then send, so an outbound message is recorded even if WhatsApp rejects it. */
