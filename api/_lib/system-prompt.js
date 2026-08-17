@@ -46,10 +46,10 @@ const OUTPUT_CONTRACT = `# פורמט הפלט
 - open_question מכיל שאלה שלא ידעת לענות עליה ושצריך להעביר לצוות, אחרת null.
 - requires_human הוא true רק כשהליד ביקש אדם, כשהוא כועס, או כשאין דרך להמשיך.
 - conversation_complete הוא true רק אחרי אישור פגישה, בקשת הסרה, או העברה לנציג.
-- selected_slot: כשהליד אישר במפורש מועד, החזר את מזהה ה-ISO המדויק של אותו מועד
-  מתוך רשימת המועדים שקיבלת (העמודה "מזהה"). בכל מצב אחר החזר null. אל תמציא
-  מזהה ואל תחזיר מזהה שאינו ברשימה — המערכת מאמתת אותו מול היומן ותתעלם ממנו
-  אם הוא אינו פנוי.
+- selected_slot: כשהליד אישר במפורש מועד, החזר את המזהה שלו בפורמט
+  "YYYY-MM-DD HH:MM" (שעון ישראל), בדיוק כפי שהוא מופיע ברשימת היומן. בכל מצב
+  אחר החזר null. אל תמציא מזהה ואל תחזיר מזהה שאינו ברשימה — המערכת מאמתת אותו
+  מול היומן ותתעלם ממנו אם הוא אינו פנוי.
 
 מגבלות על שדה reply:
 - עברית, אלא אם הליד כתב בשפה אחרת.
@@ -93,24 +93,59 @@ ${openQs.length ? `שאלות פתוחות שכבר תועדו: ${openQs.join(' 
 חלץ את כולם ודלג ישירות לשאלה החסרה הבאה.`
 }
 
+const HE_WEEKDAY = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
+
 /**
- * @param {{ start: string, label: string }[]} slots
+ * The calendar block: three slots to offer, plus every open slot so a
+ * lead-requested time can be answered truthfully rather than deflected.
+ *
+ * @param {{ key: string, label: string }[]} slots      every open slot
+ * @param {{ key: string, label: string }[]} suggested  the three to offer
  * @returns {string}
  */
-function slotsBlock(slots) {
+function slotsBlock(slots, suggested) {
   if (!slots || slots.length === 0) {
     return `# מועדים ביומן
 
 אין כרגע רשימת מועדים זמינה. אל תציע שעות ואל תאשר שעה שהליד ביקש. אם הליד רוצה
 לקבוע — אמור שאתה בודק מול היומן ותחזור עם מועדים.`
   }
-  return `# מועדים אמיתיים ופנויים ביומן
 
-${slots.map((s, i) => `${i + 1}. ${s.label}   — מזהה: ${s.start}`).join('\n')}
+  // Group by local date so a fortnight of slots stays readable and cheap.
+  /** @type {Map<string, string[]>} */
+  const byDay = new Map()
+  for (const s of slots) {
+    const [date, time] = s.key.split(' ')
+    if (!byDay.has(date)) byDay.set(date, [])
+    byDay.get(date).push(time)
+  }
 
-הצג ללקוח רק את הטקסט של המועדים (בלי המזהה), מילה במילה, כשאתה עובר לשלב
-CALENDAR_OPTIONS. אל תמציא מועד שאינו ברשימה ואל תאשר שעה שהליד ביקש לפני שהיא
-הופיעה כאן.`
+  const lines = []
+  for (const [date, times] of byDay) {
+    const [y, m, d] = date.split('-').map(Number)
+    const weekday = HE_WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+    lines.push(`${date} (${weekday}): ${times.join(', ')}`)
+  }
+
+  return `# היומן
+
+## המועדים שיש להציע ביוזמתך
+${suggested.map((s, i) => `${i + 1}. ${s.label}   — מזהה: ${s.key}`).join('\n')}
+
+כשאתה עובר לשלב CALENDAR_OPTIONS, הצג את שלושת אלה בלבד, בטקסט שלהם (בלי המזהה).
+
+## כל המועדים הפנויים ביומן
+כל שורה היא תאריך ואחריה כל השעות הפנויות בו:
+
+${lines.join('\n')}
+
+איך להשתמש ברשימה הזו:
+- אם הליד מבקש יום ושעה מסוימים, בדוק אותם מול הרשימה. אם השעה מופיעה — אשר
+  אותה והמשך לשלב אישור הפגישה. אם היא אינה מופיעה — אמור זאת בפשטות והצע את
+  השעות הקרובות ביותר באותו יום, או את היום הפנוי הקרוב.
+- אם הליד מבקש יום בלי שעה, הצע שתיים-שלוש שעות מאותו יום.
+- אל תמציא מועד שאינו ברשימה, ואל תאשר שעה לפני שראית אותה כאן.
+- המזהה של כל מועד הוא בפורמט "YYYY-MM-DD HH:MM" — למשל "${slots[0].key}".`
 }
 
 /**
@@ -118,12 +153,13 @@ CALENDAR_OPTIONS. אל תמציא מועד שאינו ברשימה ואל תאש
  *
  * @param {object} args
  * @param {Record<string, unknown>} args.lead        current leads row
- * @param {{ start: string, label: string }[]} [args.slots]  real Calendly slots, if fetched
+ * @param {{ key: string, label: string }[]} [args.slots]      every open Calendly slot
+ * @param {{ key: string, label: string }[]} [args.suggested]  the three to offer unprompted
  * @param {number} [args.meetingMinutes]             meeting length, if known
  * @param {string} [args.meetingKind]                'טלפון' | 'Zoom' | 'Google Meet'
  * @returns {string}
  */
-export function buildSystemPrompt({ lead, slots = [], meetingMinutes, meetingKind }) {
+export function buildSystemPrompt({ lead, slots = [], suggested, meetingMinutes, meetingKind }) {
   return [
     'אתה סוכן ה-AI של CELOX AI שמנהל שיחות WhatsApp ראשוניות עם לידים.',
     'התסריט למטה הוא ההנחיה המחייבת שלך. פעל לפיו במדויק.',
@@ -136,7 +172,7 @@ export function buildSystemPrompt({ lead, slots = [], meetingMinutes, meetingKin
     '',
     leadStateBlock(lead),
     '',
-    slotsBlock(slots),
+    slotsBlock(slots, suggested?.length ? suggested : slots.slice(0, 3)),
     meetingMinutes || meetingKind
       ? `\nפרטי הפגישה שאפשר למסור: ${[meetingKind, meetingMinutes ? `כ־${meetingMinutes} דקות` : null].filter(Boolean).join(', ')}.`
       : '\nאל תמסור משך פגישה או אופן פגישה שלא נמסרו לך.',

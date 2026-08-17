@@ -61,6 +61,27 @@ const heDate = new Intl.DateTimeFormat('he-IL', { timeZone: TZ, weekday: 'long',
 const heTime = new Intl.DateTimeFormat('he-IL', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false })
 const heShort = new Intl.DateTimeFormat('he-IL', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' })
 
+const keyParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+})
+
+/**
+ * Stable local-time key for a slot: "2026-08-19 12:00" in Asia/Jerusalem.
+ *
+ * The agent picks slots by this key rather than by ISO timestamp — it is what a
+ * lead actually says ("יום שלישי ב-12:00"), it is short enough to list every
+ * open slot in the prompt, and it round-trips through a lookup table so a
+ * confirmed time is always matched against real availability.
+ *
+ * @param {string} iso
+ * @returns {string}
+ */
+export function slotKey(iso) {
+  const p = Object.fromEntries(keyParts.formatToParts(new Date(iso)).map((x) => [x.type, x.value]))
+  return `${p.year}-${p.month}-${p.day} ${p.hour === '24' ? '00' : p.hour}:${p.minute}`
+}
+
 /** @param {string} iso @returns {string} e.g. "יום שלישי, 19 באוגוסט, 10:30" */
 export function formatSlotHe(iso) {
   const d = new Date(iso)
@@ -128,6 +149,103 @@ export async function availableSlots({ count = 3, from, days = 7 } = {}) {
  * @param {number} [count]
  */
 export const slotsNear = (preferred, count = 3) => availableSlots({ count, from: preferred })
+
+/** Hard cap on how many open slots we will list in a prompt. */
+const MAX_WINDOW_SLOTS = 240
+
+/**
+ * Every open slot in the next `days`, not just the next three.
+ *
+ * The agent still *offers* three (spec section 10), but it needs the full set
+ * in front of it so that when a lead names a time — "יום שלישי ב-12:00" — it can
+ * answer truthfully instead of re-offering its three. `suggested` is what to
+ * show by default; `slots` is what may be confirmed.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.days]      how far ahead to look (default 14)
+ * @param {number} [opts.suggest]   how many to put forward unprompted (default 3)
+ * @returns {Promise<{ ok: true, slots: {start:string,key:string,label:string,schedulingUrl:string}[], suggested: {start:string,key:string,label:string,schedulingUrl:string}[], duration: number, kind: string } | { ok: false, reason: string }>}
+ */
+export async function availability({ days = 14, suggest = 3 } = {}) {
+  if (!token() || !eventUrl()) return { ok: false, reason: 'calendly_not_configured' }
+
+  try {
+    const et = await resolveEventType()
+    const start = new Date(Date.now() + 2 * 60 * 60 * 1000)
+    /** @type {{start:string,key:string,label:string,schedulingUrl:string}[]} */
+    const slots = []
+
+    // Calendly caps each query at a 7-day window, so walk it in chunks.
+    for (let chunk = 0; chunk * 7 < days && slots.length < MAX_WINDOW_SLOTS; chunk++) {
+      const windowStart = new Date(start.getTime() + chunk * 7 * 86400000)
+      const windowEnd = new Date(Math.min(
+        windowStart.getTime() + 7 * 86400000 - 60000,
+        start.getTime() + days * 86400000,
+      ))
+      if (windowEnd <= windowStart) break
+
+      const res = await get(
+        `/event_type_available_times?event_type=${encodeURIComponent(et.uri)}` +
+        `&start_time=${encodeURIComponent(windowStart.toISOString())}` +
+        `&end_time=${encodeURIComponent(windowEnd.toISOString())}`,
+      )
+
+      for (const s of res?.collection ?? []) {
+        if (s.status !== 'available') continue
+        slots.push({
+          start: s.start_time,
+          key: slotKey(s.start_time),
+          label: formatSlotHe(s.start_time),
+          schedulingUrl: s.scheduling_url || et.schedulingUrl,
+        })
+        if (slots.length >= MAX_WINDOW_SLOTS) break
+      }
+    }
+
+    if (slots.length === 0) return { ok: false, reason: 'no_availability' }
+    return {
+      ok: true,
+      slots,
+      suggested: spreadAcrossDays(slots, suggest),
+      duration: et.duration,
+      kind: et.kind,
+    }
+  } catch (err) {
+    console.error('calendly availability window failed', err instanceof Error ? err.message : 'unknown')
+    return { ok: false, reason: 'calendly_error' }
+  }
+}
+
+/**
+ * Pick `n` slots on distinct days where possible.
+ *
+ * Taking the literal next three on a quiet calendar gives 10:00, 10:30 and
+ * 11:00 on one morning, which reads to a lead as "only one day is open".
+ * One per day is the same three options carrying far more information.
+ *
+ * @param {{start:string,key:string,label:string,schedulingUrl:string}[]} slots
+ * @param {number} n
+ */
+export function spreadAcrossDays(slots, n) {
+  /** @type {typeof slots} */
+  const picked = []
+  const daysUsed = new Set()
+
+  for (const s of slots) {
+    const day = s.key.slice(0, 10)
+    if (daysUsed.has(day)) continue
+    daysUsed.add(day)
+    picked.push(s)
+    if (picked.length >= n) return picked
+  }
+  // Fewer distinct days than requested — top up with whatever is left.
+  for (const s of slots) {
+    if (picked.includes(s)) continue
+    picked.push(s)
+    if (picked.length >= n) break
+  }
+  return picked
+}
 
 /** The plain scheduling link, for the dashboard's "Send booking link" button. */
 export async function schedulingLink() {

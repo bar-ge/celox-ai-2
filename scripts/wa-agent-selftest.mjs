@@ -10,6 +10,7 @@ import { nextUnansweredStage, deriveStatus, isQualified, isStage, isStatus } fro
 import { normaliseTurns } from '../api/_lib/crm.js'
 import { followupDue, followupMessage, withinBusinessHours, localParts } from '../api/_lib/followups.js'
 import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
+import { slotKey, spreadAcrossDays } from '../api/_lib/calendly.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
 
@@ -167,11 +168,12 @@ console.log('\nfollow-ups')
 
 const jerusalem = (y, m, d, h) => new Date(Date.UTC(y, m - 1, d, h - 3)) // UTC+3 in August
 
-test('business hours are SUN–THU 09:00–17:00 Jerusalem', () => {
+test('business hours are SUN–THU 09:00–18:00 Jerusalem', () => {
   assert.equal(localParts(jerusalem(2026, 8, 16, 10)).weekday, 0) // Sunday
   assert.equal(withinBusinessHours(jerusalem(2026, 8, 16, 10)), true)  // Sun 10:00
   assert.equal(withinBusinessHours(jerusalem(2026, 8, 16, 8)), false)  // Sun 08:00
-  assert.equal(withinBusinessHours(jerusalem(2026, 8, 16, 17)), false) // Sun 17:00
+  assert.equal(withinBusinessHours(jerusalem(2026, 8, 16, 17)), true)  // Sun 17:00
+  assert.equal(withinBusinessHours(jerusalem(2026, 8, 16, 18)), false) // Sun 18:00
   assert.equal(withinBusinessHours(jerusalem(2026, 8, 21, 10)), false) // Friday
   assert.equal(withinBusinessHours(jerusalem(2026, 8, 22, 10)), false) // Saturday
 })
@@ -240,15 +242,57 @@ test('forbids inventing slots when the calendar is unavailable', () => {
   assert.ok(p.includes('אל תציע שעות'))
 })
 
-test('passes real slots through with their machine ids', () => {
+test('offers only the suggested slots but lists the whole calendar', () => {
+  const slots = [
+    { key: '2026-08-18 10:30', label: 'יום שלישי, 18 באוגוסט, 10:30' },
+    { key: '2026-08-18 12:00', label: 'יום שלישי, 18 באוגוסט, 12:00' },
+    { key: '2026-08-19 09:00', label: 'יום רביעי, 19 באוגוסט, 09:00' },
+  ]
   const p = buildSystemPrompt({
     lead: { stage: 'CALENDAR_OPTIONS' },
-    slots: [{ start: '2026-08-18T07:30:00.000Z', label: 'יום שלישי, 18 באוגוסט, 10:30' }],
+    slots,
+    suggested: [slots[0], slots[2]],
     meetingMinutes: 30, meetingKind: 'Zoom',
   })
-  assert.ok(p.includes('יום שלישי, 18 באוגוסט, 10:30'))
-  assert.ok(p.includes('מזהה: 2026-08-18T07:30:00.000Z'))
+  assert.ok(p.includes('המועדים שיש להציע ביוזמתך'))
+  assert.ok(p.includes('מזהה: 2026-08-18 10:30'))
+  // The lead-requested time must be visible even though it is not offered.
+  assert.ok(p.includes('2026-08-18 (יום שלישי): 10:30, 12:00'), 'day grouping missing')
+  assert.ok(p.includes('2026-08-19 (יום רביעי): 09:00'))
   assert.ok(p.includes('כ־30 דקות'))
+})
+
+test('tells the agent how to answer a lead-requested time', () => {
+  const p = buildSystemPrompt({
+    lead: { stage: 'CALENDAR_OPTIONS' },
+    slots: [{ key: '2026-08-18 12:00', label: 'יום שלישי, 18 באוגוסט, 12:00' }],
+  })
+  assert.ok(p.includes('אם הליד מבקש יום ושעה מסוימים'))
+  assert.ok(p.includes('אל תאשר שעה לפני שראית אותה כאן'))
+})
+
+console.log('\ncalendar helpers')
+
+test('slotKey renders Israel local time', () => {
+  // 09:00 UTC in August is 12:00 in Jerusalem (UTC+3).
+  assert.equal(slotKey('2026-08-18T09:00:00.000Z'), '2026-08-18 12:00')
+  // Midnight local must not render as hour 24.
+  assert.equal(slotKey('2026-08-17T21:00:00.000Z'), '2026-08-18 00:00')
+})
+
+test('suggested slots spread across distinct days', () => {
+  const mk = (key) => ({ key, label: key, start: key, schedulingUrl: 'x' })
+  const picked = spreadAcrossDays(
+    ['2026-08-18 09:00', '2026-08-18 09:30', '2026-08-18 10:00',
+     '2026-08-19 09:00', '2026-08-20 11:00'].map(mk), 3)
+  assert.deepEqual(picked.map((s) => s.key),
+    ['2026-08-18 09:00', '2026-08-19 09:00', '2026-08-20 11:00'])
+})
+
+test('falls back to same-day slots when there are not enough days', () => {
+  const mk = (key) => ({ key, label: key, start: key, schedulingUrl: 'x' })
+  const picked = spreadAcrossDays(['2026-08-18 09:00', '2026-08-18 09:30'].map(mk), 3)
+  assert.equal(picked.length, 2)
 })
 
 test('the contract names only valid stages and intents', () => {

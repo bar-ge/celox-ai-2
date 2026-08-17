@@ -11,8 +11,8 @@ export const CELOX_INFO = {
   hours: {
     days: [0, 1, 2, 3, 4], // Sunday–Thursday (JS getDay)
     startHour: 9,
-    endHour: 17,
-    label: 'ראשון–חמישי, 09:00–17:00',
+    endHour: 18,
+    label: 'ראשון–חמישי, 09:00–18:00',
   },
 }
 

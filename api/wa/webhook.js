@@ -7,7 +7,7 @@ import { parseInbound, sendText, markRead } from '../_lib/whatsapp.js'
 import { getOrCreateLead, mergeLead, logMessage, recentTurns } from '../_lib/crm.js'
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
-import { availableSlots, splitSlotHe } from '../_lib/calendly.js'
+import { availability, splitSlotHe } from '../_lib/calendly.js'
 import { isQualified } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
@@ -124,12 +124,13 @@ async function handleInbound(inbound) {
     const messages = history.length ? history : [{ role: 'user', content: text }]
 
     const wantsCalendar = CALENDAR_STAGES.includes(lead.stage) || isQualified(lead)
-    let calendar = { ok: false, reason: 'not_requested', slots: [] }
-    if (wantsCalendar) calendar = await availableSlots({ count: 3 })
+    let calendar = { ok: false, reason: 'not_requested', slots: [], suggested: [] }
+    if (wantsCalendar) calendar = await availability({ days: 14, suggest: 3 })
 
     const systemPrompt = buildSystemPrompt({
       lead,
       slots: calendar.ok ? calendar.slots : [],
+      suggested: calendar.ok ? calendar.suggested : [],
       meetingMinutes: calendar.ok ? calendar.duration : undefined,
       meetingKind: calendar.ok ? calendar.kind : undefined,
     })
@@ -158,8 +159,11 @@ async function handleInbound(inbound) {
     // A meeting is only ever written after the lead confirmed a slot that is
     // still genuinely available.
     if (stage === 'MEETING_BOOKED') {
-      const chosen = calendar.ok && agent.selected_slot
-        ? calendar.slots.find((s) => s.start === agent.selected_slot)
+      // Match on the local-time key the agent was given. Accept a raw ISO too,
+      // in case the model echoes the underlying timestamp instead.
+      const wanted = agent.selected_slot?.trim()
+      const chosen = calendar.ok && wanted
+        ? calendar.slots.find((s) => s.key === wanted || s.start === wanted)
         : null
 
       if (chosen) {
@@ -173,12 +177,12 @@ async function handleInbound(inbound) {
           `אם משהו משתנה, אפשר לכתוב לי כאן.`
       } else {
         // The model claimed a booking we cannot verify — do not fake it.
-        const fresh = calendar.ok ? calendar : await availableSlots({ count: 3 })
+        const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
         if (fresh.ok) {
           stage = 'CALENDAR_OPTIONS'
           reply =
             `רגע לפני שאני סוגר — המועד שבחרת כבר לא מופיע כפנוי אצלי ביומן, ואני לא רוצה לשמור לך שעה שלא באמת קיימת.\n` +
-            `אלה המועדים הקרובים שפנויים:\n${fresh.slots.map((s) => s.label).join('\n')}\n` +
+            `אלה המועדים הקרובים שפנויים:\n${fresh.suggested.map((s) => s.label).join('\n')}\n` +
             `איזה מהם מתאים לך?`
         } else {
           stage = 'HUMAN_HANDOFF'
