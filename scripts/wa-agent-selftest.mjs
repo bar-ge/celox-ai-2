@@ -13,9 +13,12 @@ import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
 import { slotKey, spreadAcrossDays } from '../api/_lib/calendly.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
+import { groupForLead, columnValues, syncLead, COLUMNS } from '../api/_lib/monday.js'
 
 let passed = 0
+const pending = []
 const test = (name, fn) => {
+  if (fn.constructor.name === "AsyncFunction") { pending.push(fn().then(() => { passed++; console.log(`  ok  ${name}`) }).catch((e) => { console.error(`FAIL  ${name}\n      ${e.message}`); process.exitCode = 1 })); return }
   try { fn(); passed++; console.log(`  ok  ${name}`) }
   catch (err) { console.error(`FAIL  ${name}\n      ${err.message}`); process.exitCode = 1 }
 }
@@ -306,6 +309,61 @@ test('the contract names only valid stages and intents', () => {
   const p = buildSystemPrompt({ lead: {} })
   for (const intent of INTENT_VALUES) assert.ok(p.includes(intent))
   assert.ok(isStage('MEETING_CONFIRMATION'))
+})
+
+console.log('\nmonday sync mapping')
+
+test('status maps to the right pipeline group', () => {
+  assert.equal(groupForLead({ status: 'ליד חדש' }), 'topics')
+  assert.equal(groupForLead({ status: 'הושלם אפיון ראשוני' }), 'group_mm64n512')
+  assert.equal(groupForLead({ status: 'נקבעה פגישה' }), 'group_mm648mhn')
+  assert.equal(groupForLead({ status: 'ביקש הסרה' }), 'group_mm648307')
+})
+
+test('an unanswered lead lands in the matching follow-up group', () => {
+  assert.equal(groupForLead({ status: 'לא הגיב', followup_count: 1 }), 'group_mm648acn')
+  assert.equal(groupForLead({ status: 'לא הגיב', followup_count: 2 }), 'group_mm64bj5n')
+  assert.equal(groupForLead({ status: 'לא הגיב', followup_count: 3 }), 'group_mm64habb')
+  // Out-of-range counts must still resolve to a real group, never undefined.
+  assert.equal(groupForLead({ status: 'לא הגיב', followup_count: 0 }), 'group_mm648acn')
+  assert.equal(groupForLead({ status: 'לא הגיב', followup_count: 9 }), 'group_mm64habb')
+})
+
+test('an unknown status falls back rather than crashing', () => {
+  assert.equal(groupForLead({ status: 'something else' }), 'topics')
+  assert.equal(groupForLead({}), 'topics')
+})
+
+test('only known fields are written, so a blank never overwrites a value', () => {
+  const sparse = columnValues({ phone: '+972501234567', created_at: '2026-08-17T08:00:00Z' })
+  assert.equal(sparse[COLUMNS.phone], '+972501234567')
+  assert.deepEqual(sparse[COLUMNS.source], { labels: ['WhatsApp'] })
+  assert.deepEqual(sparse[COLUMNS.contactedAt], { date: '2026-08-17' })
+  assert.ok(!(COLUMNS.fleetSize in sparse), 'absent fleet size must not be sent')
+  assert.ok(!(COLUMNS.role in sparse))
+  assert.ok(!(COLUMNS.management in sparse))
+
+  const full = columnValues({
+    phone: '+972501234567', fleet_size: 80, email: 'a@b.com',
+    role: 'בעלים', current_management: 'excel',
+  })
+  assert.equal(full[COLUMNS.fleetSize], '80')
+  assert.equal(full[COLUMNS.role], 'בעלים')
+  assert.deepEqual(full[COLUMNS.management], { label: 'אקסל' })
+})
+
+test('an unrecognised management value is dropped, not guessed', () => {
+  const v = columnValues({ phone: '+1', current_management: 'carrier-pigeon' })
+  assert.ok(!(COLUMNS.management in v))
+})
+
+test('sync is a no-op without a token, and never throws', async () => {
+  const before = process.env.MONDAY_API_KEY
+  delete process.env.MONDAY_API_KEY
+  const res = await syncLead({ phone: '+972501234567', status: 'ליד חדש' })
+  assert.equal(res.ok, false)
+  assert.equal(res.reason, 'monday_not_configured')
+  if (before !== undefined) process.env.MONDAY_API_KEY = before
 })
 
 console.log(`\n${passed} checks passed${process.exitCode ? ' — with failures above' : ''}\n`)

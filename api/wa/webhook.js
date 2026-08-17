@@ -11,6 +11,7 @@ import { availability, splitSlotHe } from '../_lib/calendly.js'
 import { isQualified } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
+import { syncLead } from '../_lib/monday.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 // Raw body is needed to verify Meta's X-Hub-Signature-256, so parse it ourselves.
@@ -213,6 +214,14 @@ async function handleInbound(inbound) {
 
     // Intent belongs to the inbound message (data model); outbound rows leave it null.
     await deliver({ phone, body: reply, stage: updated.stage, intent: null })
+
+    // Mirror onto the Monday CRM board. Deliberately last and deliberately
+    // swallowed — the lead already has their reply, and no CRM problem is worth
+    // failing a conversation over.
+    const synced = await syncLead(meetingUrl ? { ...updated, meeting_url: meetingUrl } : updated)
+    if (!synced.ok && synced.reason !== 'monday_not_configured') {
+      console.error('monday sync skipped', synced.reason)
+    }
   } catch (err) {
     console.error('webhook processing failed', err instanceof Error ? err.message : 'unknown')
     try {
