@@ -73,6 +73,12 @@ export function followupDue(lead, now = new Date()) {
   if (lead.bot_paused) return { due: false, number: 0, reason: 'bot_paused' }
   if (lead.meeting_at) return { due: false, number: 0, reason: 'meeting_booked' }
 
+  // Meta's 24-hour customer service window only opens when the *lead* writes.
+  // A conversation we started from the dashboard has no window until they
+  // reply, and a plain-text follow-up into it is rejected — so chasing here
+  // would burn the ladder on messages that never arrive.
+  if (!lead.last_inbound_at) return { due: false, number: 0, reason: 'no_customer_window' }
+
   const count = Number(lead.followup_count) || 0
   if (count >= MAX_FOLLOWUPS) return { due: false, number: 0, reason: 'max_reached' }
 

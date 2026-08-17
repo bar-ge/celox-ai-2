@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import { parseInbound, toE164 } from '../api/_lib/whatsapp.js'
+import { parseInbound, toE164, normalisePhone, isE164, templatePayload } from '../api/_lib/whatsapp.js'
 import { toAgentResponse } from '../api/_lib/claude.js'
 import { nextUnansweredStage, deriveStatus, isQualified, isStage, isStatus } from '../api/_lib/conversation-state.js'
 import { normaliseTurns } from '../api/_lib/crm.js'
@@ -192,7 +192,11 @@ test('never chases an opted-out, paused or booked lead', () => {
 
 test('stops after three', () => {
   const now = jerusalem(2026, 8, 16, 12)
-  const lead = { last_followup_at: jerusalem(2026, 8, 10, 10).toISOString(), followup_count: 3 }
+  const lead = {
+    last_inbound_at: jerusalem(2026, 8, 9, 10).toISOString(),
+    last_followup_at: jerusalem(2026, 8, 10, 10).toISOString(),
+    followup_count: 3,
+  }
   const check = followupDue(lead, now)
   assert.equal(check.due, false)
   assert.equal(check.reason, 'max_reached')
@@ -402,6 +406,56 @@ test('a booked meeting is never moved without an explicit confirmation', () => {
   assert.ok(/const rebooking = lead\.meeting_at && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))
   assert.ok(/refused to rebook without confirmation/.test(WEBHOOK_SRC))
   assert.ok(/lead\.stage === 'MEETING_CONFIRMATION'/.test(WEBHOOK_SRC))
+})
+
+console.log('\nstarting a conversation')
+
+test('a number typed by a human becomes E.164', () => {
+  // Israeli local form is what someone actually types off a lead sheet.
+  assert.equal(normalisePhone('054-631-6133'), '+972546316133')
+  assert.equal(normalisePhone('0546316133'), '+972546316133')
+  assert.equal(normalisePhone('+972 54 631 6133'), '+972546316133')
+  assert.equal(normalisePhone('00972546316133'), '+972546316133')
+  assert.equal(normalisePhone('972546316133'), '+972546316133')
+  assert.equal(normalisePhone('546316133'), '+972546316133')
+  // A number that already carries another country code is left alone.
+  assert.equal(normalisePhone('+1 631 555 1181'), '+16315551181')
+  assert.equal(normalisePhone(''), '')
+  assert.equal(normalisePhone('not a phone'), '')
+})
+
+test('E.164 validation rejects what the API would reject', () => {
+  assert.ok(isE164('+972546316133'))
+  assert.ok(!isE164('972546316133'), 'missing +')
+  assert.ok(!isE164('+9725'), 'too short')
+  assert.ok(!isE164(''))
+})
+
+test('the opening template carries the name as a body parameter', () => {
+  const p = templatePayload('+972546316133', { name: 'celox_opening_he', language: 'he', params: ['בר'] })
+  assert.equal(p.type, 'template')
+  assert.equal(p.to, '972546316133', 'Cloud API wants digits, no +')
+  assert.equal(p.template.name, 'celox_opening_he')
+  assert.deepEqual(p.template.language, { code: 'he' })
+  assert.deepEqual(p.template.components, [
+    { type: 'body', parameters: [{ type: 'text', text: 'בר' }] },
+  ])
+})
+
+test('a template with no variables sends no components at all', () => {
+  // An empty components array is rejected by Meta, so it must be absent.
+  const p = templatePayload('+972546316133', { name: 'hello_world', language: 'en_US' })
+  assert.ok(!('components' in p.template))
+})
+
+test('a lead who never wrote to us is never chased', () => {
+  // Meta's 24h window opens on an inbound message; a follow-up before that
+  // would be rejected and would burn one of the three attempts.
+  const started = { last_followup_at: '2020-01-01T00:00:00.000Z', followup_count: 0 }
+  assert.equal(followupDue(started, new Date('2020-01-02T09:00:00.000Z')).reason, 'no_customer_window')
+
+  const replied = { ...started, last_inbound_at: '2020-01-01T00:00:00.000Z' }
+  assert.notEqual(followupDue(replied, new Date('2020-01-02T09:00:00.000Z')).reason, 'no_customer_window')
 })
 
 console.log(`\n${passed} checks passed${process.exitCode ? ' — with failures above' : ''}\n`)

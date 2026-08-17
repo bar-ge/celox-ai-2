@@ -44,6 +44,7 @@ api/
     leads.js                 GET all leads with rollup; PATCH ?phone= for manual controls
     messages.js              GET ?phone= — one thread
     send-booking.js          POST — dashboard quick booking
+    start.js                 POST — dashboard "New conversation" (template opening)
     leads/[phone].js         dead — see the routing note below
     messages/[phone].js      dead — see the routing note below
   cron/
@@ -51,7 +52,8 @@ api/
 
 src/wab/                     dashboard (lazy-loaded from App.jsx)
   WaDashboard.jsx  ConversationList.jsx  ThreadView.jsx  LeadDetail.jsx
-  MessageBubble.jsx  StageBadge.jsx  IntentTag.jsx  theme.js  api.js
+  MessageBubble.jsx  StageBadge.jsx  IntentTag.jsx  NewConversation.jsx
+  theme.js  api.js
 ```
 
 ### Message flow
@@ -103,6 +105,40 @@ morning, a 22h+ delay would slip each follow-up to the morning after the one it
 belongs to. If the project ever moves to a paid Vercel plan, changing the
 schedule to `0 * * * *` gives the spec's original ~4h-then-next-day cadence with
 no other change.
+
+## Starting a conversation from the dashboard
+
+The **+ New** button on the conversation list opens a thread with a number that
+has never written to us.
+
+Meta only allows free-form text inside the **24-hour customer service window**,
+and that window opens when the *lead* messages us — never when we message them.
+So the opening goes out as an approved template (`sendTemplate`), and everything
+after it is ordinary text handled by the webhook, exactly as if the lead had
+written first.
+
+| Env var | Default |
+|---|---|
+| `WHATSAPP_OPENING_TEMPLATE` | `celox_opening_he` |
+| `WHATSAPP_OPENING_TEMPLATE_LANG` | `he` |
+
+The template takes the lead's first name as `{{1}}`. Meta rejects an empty
+parameter, so the dashboard **requires** a name rather than treating it as
+optional.
+
+Consequences worth knowing:
+
+- The lead row is written only after Meta accepts the message, so a failed send
+  never leaves a phantom conversation in the list.
+- A number that already has messages is refused with `already_exists` rather
+  than restarted; an opted-out lead is refused outright.
+- **Follow-ups do not fire until the lead replies.** There is no customer
+  service window before that, so a plain-text chase would be rejected by Meta
+  and would burn one of the three attempts for nothing. `followupDue` returns
+  `no_customer_window` in that state.
+- Numbers are normalised from whatever a human types: `054-631-6133`,
+  `0546316133`, `+972 54 631 6133` and `00972…` all reach the same E.164 value.
+  A bare number with no country code is assumed Israeli.
 
 ## Data model
 
@@ -199,6 +235,8 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `CRON_SECRET` | set by Vercel when Cron is enabled |
 | `MONDAY_API_KEY` | optional; without it the CRM mirror is a no-op |
 | `MONDAY_BOARD_ID` | optional; defaults to `5101979328` |
+| `WHATSAPP_OPENING_TEMPLATE` | optional; defaults to `celox_opening_he` |
+| `WHATSAPP_OPENING_TEMPLATE_LANG` | optional; defaults to `he` |
 
 ## Deployment
 
@@ -220,7 +258,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 42 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 47 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 

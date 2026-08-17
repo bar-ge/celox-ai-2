@@ -6,6 +6,7 @@ import useLayout from './useLayout'
 import ConversationList from './ConversationList'
 import ThreadView from './ThreadView'
 import LeadDetail from './LeadDetail'
+import NewConversation from './NewConversation'
 
 const POLL_MS = 5000
 
@@ -18,6 +19,7 @@ export default function WaDashboard({ onBack }) {
   const [selected, setSelected] = useState(null)
   const [pane, setPane] = useState('list')       // narrow only: list | thread | detail
   const [detailOpen, setDetailOpen] = useState(false) // medium only: overlay panel
+  const [composing, setComposing] = useState(false)
   const [loadingLeads, setLoadingLeads] = useState(true)
   const [loadingThread, setLoadingThread] = useState(false)
   const [error, setError] = useState(null)
@@ -97,6 +99,15 @@ export default function WaDashboard({ onBack }) {
     }
   }, [loadLeads])
 
+  // A conversation started from here is one the lead has not opened, so jump
+  // straight to it — the point of starting it was to watch for the reply.
+  const handleStarted = useCallback(async (phone) => {
+    setComposing(false)
+    await loadLeads()
+    setSelected(phone)
+    setPane('thread')
+  }, [loadLeads])
+
   const handleSendBooking = useCallback(async (phone) => {
     await sendBookingLink(phone)
     await loadLeads()
@@ -157,6 +168,7 @@ export default function WaDashboard({ onBack }) {
             leads={leads}
             selected={selected}
             onSelect={handleSelect}
+            onNew={() => setComposing(true)}
             loading={loadingLeads}
             layout={layout}
           />
@@ -192,6 +204,14 @@ export default function WaDashboard({ onBack }) {
           </>
         )}
       </div>
+
+      {composing && (
+        <NewConversation
+          narrow={narrow}
+          onClose={() => setComposing(false)}
+          onStarted={handleStarted}
+        />
+      )}
     </div>
   )
 }

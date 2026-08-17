@@ -20,7 +20,7 @@ function matchesFilter(lead, key) {
   }
 }
 
-export default function ConversationList({ leads, selected, onSelect, loading, layout = 'wide' }) {
+export default function ConversationList({ leads, selected, onSelect, onNew, loading, layout = 'wide' }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const narrow = layout === 'narrow'
@@ -53,6 +53,30 @@ export default function ConversationList({ leads, selected, onSelect, loading, l
           }}>
             {leads.length}
           </span>
+
+          {onNew && (
+            <button
+              onClick={onNew}
+              title="Start a new conversation"
+              aria-label="Start a new conversation"
+              style={{
+                marginLeft: 'auto',
+                fontFamily: FONT_SANS, fontSize: narrow ? T.fs14 : T.fs13, lineHeight: 1,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: narrow ? '9px 12px' : '5px 9px',
+                minHeight: narrow ? 40 : 0,
+                borderRadius: T.radius,
+                border: `1px solid ${T.accent}`,
+                background: T.white, color: T.accent,
+                whiteSpace: 'nowrap',
+                transition: 'background-color 150ms ease',
+              }}
+            >
+              <span style={{ fontSize: narrow ? T.fs16 : T.fs14 }}>+</span>
+              {!medium && <span>New</span>}
+            </button>
+          )}
         </div>
 
         <input
