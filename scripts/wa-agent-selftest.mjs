@@ -262,6 +262,13 @@ test('offers only the suggested slots but lists the whole calendar', () => {
   assert.ok(p.includes('כ־30 דקות'))
 })
 
+test('forbids holding messages that strand the conversation', () => {
+  const p = buildSystemPrompt({ lead: {} })
+  assert.ok(p.includes('רגע אחד'), 'must name the failure mode explicitly')
+  assert.ok(p.includes('אני בודק ואחזור אליך'))
+  assert.ok(p.includes('הודעה אחת בלבד לכל הודעה של'))
+})
+
 test('tells the agent how to answer a lead-requested time', () => {
   const p = buildSystemPrompt({
     lead: { stage: 'CALENDAR_OPTIONS' },
