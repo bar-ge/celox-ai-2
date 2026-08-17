@@ -289,9 +289,22 @@ Server-side only — none of these may ever get a `VITE_` prefix.
    otherwise reads `/` and bounces to the marketing site's locale route. The
    dashboard is also reachable at `/wab` on any host, which is how to test it on
    a preview deployment.
-3. In Meta → WhatsApp → Configuration, set the callback URL to
-   `https://celoxai.com/api/wa/webhook` and the verify token to
-   `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, then subscribe to the `messages` field.
+3. In Meta → App Dashboard → Webhooks, set **Select product** to *Whatsapp
+   Business Account*, the callback URL to `https://celoxai.com/api/wa/webhook`
+   and the verify token to `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, then subscribe to
+   the `messages` field.
+
+   Two things bite here. Changing the callback URL forces Meta to re-ask for the
+   verify token, and `WHATSAPP_WEBHOOK_VERIFY_TOKEN` is stored **Sensitive** in
+   Vercel — write-only, so it cannot be read back. If it is not written down
+   elsewhere the only way forward is to rotate it: set a new value in Vercel,
+   **redeploy production so the new value is actually live**, then enter the
+   same value in Meta. Verifying before the redeploy fails against the old
+   value, and looks like a bad URL rather than a stale secret.
+
+   Subscriptions live per WABA, not per app. After any webhook change, confirm
+   `GET /<WABA_ID>/subscribed_apps` is not an empty array — an empty `data` is
+   why the agent once received nothing at all while every setting looked right.
 4. The cron in `vercel.json` runs once a day at 07:00 UTC, which is what the
    free plan allows. No action needed.
 5. Only the master account can open the dashboard or call its API routes.
