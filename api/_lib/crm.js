@@ -136,14 +136,22 @@ export async function logMessage(m) {
  * Recent conversation context for the model, oldest first.
  * @param {string} phone
  * @param {number} [limit]
+ * @param {string|null} [since] ISO timestamp; anything older is hidden
  * @returns {Promise<{ role: 'user'|'assistant', content: string }[]>}
  */
-export async function recentTurns(phone, limit = 6) {
+export async function recentTurns(phone, limit = 6, since = null) {
   const db = serviceClient()
-  const { data, error } = await db
+  let q = db
     .from(MESSAGES)
     .select('direction, body, created_at')
     .eq('phone', phone)
+
+  // A restarted conversation keeps its old messages for the audit trail, but the
+  // agent must not see them — otherwise it carries on the conversation we just
+  // decided to abandon.
+  if (since) q = q.gte('created_at', since)
+
+  const { data, error } = await q
     .order('created_at', { ascending: false })
     .limit(limit)
 

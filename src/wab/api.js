@@ -38,3 +38,7 @@ export const sendBookingLink = (phone) =>
 /** Open a thread with a number that has never written to us. */
 export const startConversation = ({ phone, firstName }) =>
   request('/api/wa/start', { method: 'POST', body: JSON.stringify({ phone, firstName }) })
+
+/** Send the opening again and clear what the agent collected. */
+export const restartConversation = (phone) =>
+  request('/api/wa/start', { method: 'POST', body: JSON.stringify({ phone, restart: true }) })

@@ -15,6 +15,7 @@ import { slotKey, spreadAcrossDays } from '../api/_lib/calendly.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
 import { groupForLead, columnValues, syncLead, meetingValue, COLUMNS } from '../api/_lib/monday.js'
+import { windowOpen } from '../api/wa/start.js'
 
 let passed = 0
 const pending = []
@@ -434,6 +435,38 @@ test('the agent is told not to invent a meeting or jump to booking', () => {
 })
 
 console.log('\nstarting a conversation')
+
+test('the 24-hour customer service window is measured from the last inbound', () => {
+  const now = Date.UTC(2026, 7, 17, 12, 0, 0)
+  const hoursAgo = (h) => new Date(now - h * 3600_000).toISOString()
+
+  assert.equal(windowOpen(hoursAgo(1), now), true)
+  assert.equal(windowOpen(hoursAgo(23.9), now), true)
+  assert.equal(windowOpen(hoursAgo(24.1), now), false)
+  // A lead who has never written has no window at all — template only.
+  assert.equal(windowOpen(null, now), false)
+  assert.equal(windowOpen('not a date', now), false)
+})
+
+test('a restart hides the old conversation from the agent without deleting it', () => {
+  const crm = readFileSync(new URL('../api/_lib/crm.js', import.meta.url), 'utf8')
+  assert.ok(/recentTurns\(phone, limit = 6, since = null\)/.test(crm), 'history cannot be windowed')
+  assert.ok(/if \(since\) q = q\.gte\('created_at', since\)/.test(crm))
+
+  const src = readFileSync(new URL('../api/wa/start.js', import.meta.url), 'utf8')
+  assert.ok(/conversation_started_at: startedAt/.test(src))
+  // Repo rule 1: nothing is deleted, the messages simply fall out of view.
+  assert.ok(!/\.delete\(\)/.test(src), 'a restart must never delete messages')
+  assert.ok(WEBHOOK_SRC.includes('recentTurns(phone, 6, lead.conversation_started_at)'))
+})
+
+test('a restart clears what the previous conversation collected', () => {
+  const src = readFileSync(new URL('../api/wa/start.js', import.meta.url), 'utf8')
+  for (const f of ['role', 'fleet_size', 'main_pain', 'why_now', 'meeting_at', 'bot_paused']) {
+    assert.ok(new RegExp(`${f}:`).test(src), `${f} survives a restart`)
+  }
+})
+
 
 test('a number typed by a human becomes E.164', () => {
   // Israeli local form is what someone actually types off a lead sheet.

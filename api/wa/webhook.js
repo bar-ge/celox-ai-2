@@ -187,7 +187,7 @@ async function respond(phone, text) {
   // Spec step 5: a paused or opted-out lead is logged and left alone.
   if (lead.bot_paused || lead.opted_out) return { continue: false }
 
-  const history = await recentTurns(phone, 6)
+  const history = await recentTurns(phone, 6, lead.conversation_started_at)
 
   // The current message is already logged, so it is the last history entry.
   const messages = history.length ? history : [{ role: 'user', content: text }]

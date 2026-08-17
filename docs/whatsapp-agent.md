@@ -126,6 +126,18 @@ The template takes the lead's first name as `{{1}}`. Meta rejects an empty
 parameter, so the dashboard **requires** a name rather than treating it as
 optional.
 
+**Restarting** an existing conversation uses the same route with
+`restart: true`, from the lead panel. Inside the 24-hour window it sends the
+opening as **plain text**, so a restart works even before the template is
+approved; outside it, the template is used.
+
+A restart clears what the previous conversation collected (role, fleet size,
+pain, why-now, meeting) and stamps `conversation_started_at`. Old messages are
+**not deleted** — repo rule 1 — they stay in the thread for reference, and
+`recentTurns` simply refuses to look further back than that timestamp. Without
+that, the agent reads the abandoned conversation and carries on where it left
+off, which is exactly what a restart is meant to undo.
+
 Consequences worth knowing:
 
 - The lead row is written only after Meta accepts the message, so a failed send
@@ -286,7 +298,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 50 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 53 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 

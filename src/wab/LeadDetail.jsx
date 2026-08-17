@@ -7,11 +7,12 @@ import StageBadge from './StageBadge'
 const MANAGEMENT_LABEL = { excel: 'Excel', system: 'System', mixed: 'Mixed', none: 'None' }
 const DASH = '—'
 
-export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, onSendBooking, onClose, showClose }) {
+export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, onSendBooking, onRestart, onClose, showClose }) {
   const narrow = layout === 'narrow'
   const [copied, setCopied] = useState(false)
   // Keyed by phone so switching leads resets the button without an effect.
   const [booking, setBooking] = useState({ phone: null, state: 'idle' })
+  const [restarting, setRestarting] = useState({ phone: null, state: null })
   const [, tick] = useState(0)
 
   // "Last active" is a relative string — refresh it without refetching.
@@ -21,6 +22,8 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
   }, [])
 
   const bookingState = booking.phone === lead?.phone ? booking.state : 'idle'
+  // Scoped to the lead, so switching threads never shows another one's result.
+  const restartState = restarting.phone === lead?.phone ? restarting.state : null
 
   const intentsSeen = useMemo(() => {
     const seen = []
@@ -60,6 +63,25 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
       setBooking({ phone, state: 'sent' })
     } catch {
       setBooking({ phone, state: 'failed' })
+    }
+  }
+
+  async function handleRestart() {
+    // Destructive in the way that matters to a lead: they get the opening
+    // message again and everything collected so far stops counting.
+    if (!window.confirm(
+      'Start this conversation over?\n\n'
+      + 'The lead gets the opening message again, and what the agent collected '
+      + '(role, fleet size, pain, meeting) is cleared. The old messages stay in '
+      + 'the thread for reference but the agent will not see them.',
+    )) return
+
+    setRestarting({ phone: lead.phone, state: 'sending' })
+    try {
+      await onRestart(lead.phone)
+      setRestarting({ phone: lead.phone, state: 'sent' })
+    } catch (err) {
+      setRestarting({ phone: lead.phone, state: err instanceof Error ? err.message : 'failed' })
     }
   }
 
@@ -243,6 +265,31 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
           >
             {lead.bot_paused ? 'Resume bot' : 'Pause bot'}
           </button>
+
+          {onRestart && (
+            <button
+              onClick={handleRestart}
+              disabled={restartState === 'sending' || lead.opted_out}
+              title="Send the opening message again and clear what was collected"
+              style={{
+                fontFamily: FONT_SANS, fontSize: T.fs13,
+                padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
+                borderRadius: T.radius,
+                border: `1px solid ${T.border}`, background: 'transparent',
+                color: restartState && restartState !== 'sent' && restartState !== 'sending' ? '#B91C1C' : T.textMid,
+                cursor: restartState === 'sending' || lead.opted_out ? 'not-allowed' : 'pointer',
+                opacity: lead.opted_out ? 0.5 : 1,
+                transition: 'background-color 150ms ease',
+              }}
+              onMouseEnter={(e) => { if (!lead.opted_out) e.currentTarget.style.background = T.subtle }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            >
+              {restartState === 'sending' ? 'Restarting...'
+                : restartState === 'sent' ? 'Conversation restarted'
+                : restartState ? `Failed: ${restartState}`
+                : 'Restart conversation'}
+            </button>
+          )}
         </div>
       </div>
     </aside>
