@@ -14,7 +14,7 @@ import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
 import { slotKey, spreadAcrossDays } from '../api/_lib/calendly.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
-import { groupForLead, columnValues, syncLead, COLUMNS } from '../api/_lib/monday.js'
+import { groupForLead, columnValues, syncLead, meetingValue, COLUMNS } from '../api/_lib/monday.js'
 
 let passed = 0
 const pending = []
@@ -351,6 +351,20 @@ test('only known fields are written, so a blank never overwrites a value', () =>
   assert.equal(full[COLUMNS.fleetSize], '80')
   assert.equal(full[COLUMNS.role], 'בעלים')
   assert.deepEqual(full[COLUMNS.management], { label: 'אקסל' })
+})
+
+test('a confirmed meeting reaches the board as UTC, which Monday renders locally', () => {
+  // 12:00 Israel in summer is 09:00 UTC; Monday shows it back as 12:00.
+  assert.deepEqual(meetingValue('2026-08-20T09:00:00.000Z'), { date: '2026-08-20', time: '09:00:00' })
+  assert.equal(meetingValue(null), null)
+  assert.equal(meetingValue('not a date'), null)
+
+  const v = columnValues({ phone: '+1', meeting_at: '2026-08-20T09:00:00.000Z' })
+  assert.deepEqual(v[COLUMNS.meetingAt], { date: '2026-08-20', time: '09:00:00' })
+})
+
+test('a lead with no meeting never blanks the board column', () => {
+  assert.ok(!(COLUMNS.meetingAt in columnValues({ phone: '+1' })))
 })
 
 test('an unrecognised management value is dropped, not guessed', () => {

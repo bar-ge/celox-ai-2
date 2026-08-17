@@ -21,6 +21,24 @@ export const COLUMNS = {
   source:     'dropdown_mm64fsda',// מקור הליד
   role:       'text_mm6atrs0',   // תפקיד
   management: 'color_mm6a4sq6',  // אופן ניהול הצי
+  meetingAt:  'date_mm6ayk',     // מועד פגישה
+}
+
+/**
+ * Monday stores a date column's time in UTC and renders it in each viewer's
+ * own timezone, so the ISO timestamp goes across as-is — no local conversion.
+ * A booking at 12:00 Israel is sent as 09:00 and displays as 12:00 for anyone
+ * on the board in Israel.
+ *
+ * @param {unknown} iso
+ * @returns {{ date: string, time: string }|null}
+ */
+export function meetingValue(iso) {
+  if (!iso) return null
+  const d = new Date(String(iso))
+  if (Number.isNaN(d.getTime())) return null
+  const [date, rest] = d.toISOString().split('T')
+  return { date, time: rest.slice(0, 8) }
 }
 
 /** wab_leads.current_management → the board's status labels. */
@@ -83,6 +101,13 @@ export function columnValues(lead) {
   if (lead.current_management && MANAGEMENT_LABEL[lead.current_management]) {
     v[COLUMNS.management] = { label: MANAGEMENT_LABEL[lead.current_management] }
   }
+
+  // A confirmed meeting is the point of the whole conversation, so it belongs
+  // on the board rather than only in the dashboard. Omitted when unset, so a
+  // later sync never blanks a time that is already there.
+  const meeting = meetingValue(lead.meeting_at)
+  if (meeting) v[COLUMNS.meetingAt] = meeting
+
   return v
 }
 

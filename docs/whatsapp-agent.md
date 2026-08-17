@@ -149,6 +149,36 @@ Three things guard it now:
   `MEETING_CONFIRMATION` this turn. Anything else restates the existing meeting
   and asks for an explicit new time.
 
+## Monday CRM mirror
+
+Board **CRM ללידים שלי** (`5101979328`). The sync runs live from the webhook,
+on every turn once the lead has replied, and writes **fields only** — never the
+conversation text, which stays in the dashboard.
+
+| Field | Column |
+|---|---|
+| `phone` | טלפון |
+| `created_at` | תאריך יצירת קשר |
+| `fleet_size` | מספר רכבים |
+| `email` | E-MAIL |
+| `role` | תפקיד |
+| `current_management` | אופן ניהול הצי |
+| `meeting_at` | מועד פגישה |
+| — | מקור הליד, always `WhatsApp` |
+
+`status` picks the group, so a lead moves down the pipeline as the conversation
+progresses (`נקבעה פגישה` → **נוצר דמו**, three unanswered follow-ups →
+**לא עונה 1/2/3**). `monday_item_id` is stamped on the lead the first time, and
+every later turn updates that item rather than creating another.
+
+Monday stores a date column's time in **UTC** and renders it in each viewer's
+timezone, so `meeting_at` goes across as the raw ISO time: a 12:00 Israel
+booking is sent as 09:00 and displays as 12:00 on the board.
+
+The whole thing is deliberately last in the turn and every failure is swallowed
+— a Monday outage, a revoked token or a renamed column must never stop the agent
+replying to a lead. Without `MONDAY_API_KEY` it is simply a no-op.
+
 ## Environment variables
 
 Server-side only — none of these may ever get a `VITE_` prefix.
@@ -167,6 +197,8 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `SUPABASE_SERVICE_ROLE_KEY` | server writes, bypasses RLS |
 | `MASTER_EMAIL` | gates the dashboard API; must match `VITE_MASTER_EMAIL` |
 | `CRON_SECRET` | set by Vercel when Cron is enabled |
+| `MONDAY_API_KEY` | optional; without it the CRM mirror is a no-op |
+| `MONDAY_BOARD_ID` | optional; defaults to `5101979328` |
 
 ## Deployment
 
@@ -184,7 +216,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 40 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 42 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 
