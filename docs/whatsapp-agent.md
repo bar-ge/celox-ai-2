@@ -185,6 +185,34 @@ Three things guard it now:
   `MEETING_CONFIRMATION` this turn. Anything else restates the existing meeting
   and asks for an explicit new time.
 
+## Guarding against a booking that never happened
+
+`next_stage` is the model's opinion, not a fact. A lead whose first message was
+*"היי אני לא מוצא את הפגישה שלנו"* got `MEETING_BOOKED` back — the model read a
+mention of a meeting as a booking. With no calendar fetched and no
+`selected_slot`, the code fell into its "the slot you chose is no longer
+available" branch and sent that to someone who had chosen nothing, on their very
+first message, skipping the whole qualification script.
+
+Two guards now:
+
+- **Code.** `MEETING_BOOKED` is only honoured when the lead actually reached a
+  booking stage (`CALENDAR_OPTIONS` / `MEETING_CONFIRMATION` / `MEETING_BOOKED`)
+  or already has a `meeting_at`. Otherwise the model's own reply is kept — we do
+  not fabricate one — and the stage is put back to `nextUnansweredStage(lead)`.
+- **Prompt.** The output contract forbids moving to a booking stage merely
+  because a meeting was mentioned, and forbids asserting a meeting exists unless
+  it appears in the lead-state block.
+
+## Function duration
+
+The reply is produced *after* the 200 goes back to Meta, and that background work
+is still charged to the invocation. `maxDuration` is set to 60s on the webhook,
+and the drain loop stops after a 40s wall-clock budget. Being killed mid-turn is
+the worst case available: the reply is lost *and* the lead's claim stays held
+until it expires, so every message in that window is silently dropped. A lost
+claim is now logged rather than silent.
+
 ## Monday CRM mirror
 
 Board **CRM ללידים שלי** (`5101979328`). The sync runs live from the webhook,
@@ -258,7 +286,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 47 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 50 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 

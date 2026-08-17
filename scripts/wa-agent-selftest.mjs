@@ -392,7 +392,7 @@ const WEBHOOK_SRC = readFileSync(new URL('../api/wa/webhook.js', import.meta.url
 test('a lead is claimed before the agent runs and released afterwards', () => {
   // Two messages a second apart used to spawn two independent runs against the
   // same lead: both replied, and the later write overwrote the earlier one.
-  assert.ok(/if \(!\(await claimLead\(phone\)\)\) return/.test(WEBHOOK_SRC), 'no claim before processing')
+  assert.ok(/if \(!\(await claimLead\(phone\)\)\) \{/.test(WEBHOOK_SRC), 'no claim before processing')
   assert.ok(/finally \{\s*await releaseLead\(phone\)/.test(WEBHOOK_SRC), 'claim not released in a finally')
   assert.ok(WEBHOOK_SRC.indexOf('claimLead') < WEBHOOK_SRC.indexOf('runAgent'), 'claim taken too late')
 })
@@ -406,6 +406,31 @@ test('a booked meeting is never moved without an explicit confirmation', () => {
   assert.ok(/const rebooking = lead\.meeting_at && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))
   assert.ok(/refused to rebook without confirmation/.test(WEBHOOK_SRC))
   assert.ok(/lead\.stage === 'MEETING_CONFIRMATION'/.test(WEBHOOK_SRC))
+})
+
+test('a bare mention of a meeting is not treated as a booking', () => {
+  // A first message like "I can't find our meeting" made the model answer
+  // MEETING_BOOKED. With no slot chosen and none ever offered, the old code
+  // told the lead the slot they picked was gone — they had picked nothing.
+  assert.ok(/const wasOfferedSlots = BOOKING_STAGES\.includes\(lead\.stage\) \|\| Boolean\(lead\.meeting_at\)/.test(WEBHOOK_SRC))
+  assert.ok(/if \(!wanted && !wasOfferedSlots\)/.test(WEBHOOK_SRC), 'no guard on an unbacked booking')
+  assert.ok(/ignored an unbacked MEETING_BOOKED/.test(WEBHOOK_SRC))
+  // and the stage goes back to the script rather than into the calendar
+  assert.ok(/stage = nextUnansweredStage\(lead\)/.test(WEBHOOK_SRC))
+})
+
+test('the drain loop stops before the runtime can kill it', () => {
+  // Being killed mid-turn loses the reply *and* leaves the claim held, which
+  // silently swallows every message for the rest of the lease.
+  assert.ok(/maxDuration: 60/.test(WEBHOOK_SRC), 'background work needs an explicit budget')
+  assert.ok(/Date\.now\(\) > deadline/.test(WEBHOOK_SRC), 'no wall-clock bound on draining')
+  assert.ok(/lead busy, leaving this message/.test(WEBHOOK_SRC), 'a dropped message leaves no trace')
+})
+
+test('the agent is told not to invent a meeting or jump to booking', () => {
+  const p = buildSystemPrompt({ lead: { stage: 'OPENING' } })
+  assert.ok(p.includes('next_stage אינו רשימת משאלות'))
+  assert.ok(p.includes('אל תאשר, אל תניח ואל תרמוז שקיימת פגישה קבועה'))
 })
 
 console.log('\nstarting a conversation')

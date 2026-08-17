@@ -11,17 +11,29 @@ import {
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
 import { availability, splitSlotHe } from '../_lib/calendly.js'
-import { isQualified } from '../_lib/conversation-state.js'
+import { isQualified, nextUnansweredStage } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
 import { syncLead } from '../_lib/monday.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 // Raw body is needed to verify Meta's X-Hub-Signature-256, so parse it ourselves.
-export const config = { api: { bodyParser: false } }
+//
+// maxDuration is explicit because the reply is produced *after* the 200 goes
+// back to Meta. That background work is still charged to this invocation, and
+// on the default budget a slow turn is killed mid-flight — which loses the
+// reply and leaves the lead's claim held until it expires.
+export const config = { api: { bodyParser: false }, maxDuration: 60 }
+
+// Stop draining before the runtime kills us, so the claim is always released
+// and a half-finished turn never strands a conversation.
+const TURN_BUDGET_MS = 40000
 
 /** Stages where real calendar availability is worth fetching. */
 const CALENDAR_STAGES = ['PROCESS_EXPLANATION', 'CALENDAR_OPTIONS', 'MEETING_CONFIRMATION']
+
+/** Stages that mean the lead has actually been shown times to choose from. */
+const BOOKING_STAGES = ['CALENDAR_OPTIONS', 'MEETING_CONFIRMATION', 'MEETING_BOOKED']
 
 /** Run work after the response, without the runtime freezing the function. */
 async function background(promise) {
@@ -121,15 +133,31 @@ async function handleInbound(inbound) {
   // Only one run may hold a lead at a time. A loser exits here: its message is
   // already logged, and the holder re-checks for new messages before finishing,
   // so nothing is dropped — it is answered by whichever run is still awake.
-  if (!(await claimLead(phone))) return
+  //
+  // Logged rather than silent: if the holder ever dies mid-turn this is the
+  // only trace that a message went unanswered.
+  if (!(await claimLead(phone))) {
+    console.error('lead busy, leaving this message to the run that holds it', phone, waMessageId)
+    return
+  }
+
+  const deadline = Date.now() + TURN_BUDGET_MS
 
   try {
     // Answer everything that has arrived, including messages that land while
-    // the model is thinking. Bounded so a fast typist cannot spin this forever.
+    // the model is thinking. Bounded twice over: by turns, so a fast typist
+    // cannot spin this forever, and by wall clock, so we stop while there is
+    // still time to release the claim.
     let pending = text
     for (let turn = 0; turn < 3; turn++) {
       const handled = await respond(phone, pending)
       if (!handled.continue) break
+      if (Date.now() > deadline) {
+        // Whatever arrived late is answered by the next inbound message, which
+        // sees it in the history — better than being killed holding the claim.
+        console.error('drain budget spent, leaving the rest to the next message', phone)
+        break
+      }
       pending = handled.next ?? pending
     }
   } catch (err) {
@@ -210,7 +238,19 @@ async function respond(phone, text) {
     const rebooking = lead.meeting_at && chosen && chosen.start !== lead.meeting_at
     const confirmedThisTurn = lead.stage === 'MEETING_CONFIRMATION'
 
-    if (rebooking && !confirmedThisTurn) {
+    // Did this lead ever actually get as far as picking a time? A lead who
+    // merely *mentions* a meeting ("I can't find our meeting") is not booking
+    // one, and the model sometimes reads that as MEETING_BOOKED on the very
+    // first message.
+    const wasOfferedSlots = BOOKING_STAGES.includes(lead.stage) || Boolean(lead.meeting_at)
+
+    if (!wanted && !wasOfferedSlots) {
+      // Nothing was ever offered and nothing was chosen, so there is no booking
+      // to verify and — crucially — no slot to tell them they have lost. Keep
+      // the model's own reply and put the stage back where the script is.
+      console.error('ignored an unbacked MEETING_BOOKED', phone, 'stage was', lead.stage)
+      stage = nextUnansweredStage(lead)
+    } else if (rebooking && !confirmedThisTurn) {
       // A booked meeting only moves through an explicit confirmation step.
       // Anything else is a stray message or a stale run, and must not silently
       // overwrite a time the lead already agreed to.
