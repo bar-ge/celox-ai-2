@@ -87,6 +87,7 @@ function leadStateBlock(lead) {
   push('למה עכשיו', lead.why_now)
   push('דוא״ל', lead.email)
   push('מועד פגישה שנקבע', lead.meeting_at)
+  push('מועד שסוכם וממתין רק לכתובת מייל', lead.pending_meeting_at)
 
   const openQs = Array.isArray(lead.open_questions) ? lead.open_questions : []
   const resume = nextUnansweredStage(lead)
@@ -156,6 +157,9 @@ ${lines.join('\n')}
   השעות הקרובות ביותר באותו יום, או את היום הפנוי הקרוב.
 - אם הליד מבקש יום בלי שעה, הצע שתיים-שלוש שעות מאותו יום.
 - אל תמציא מועד שאינו ברשימה, ואל תאשר שעה לפני שראית אותה כאן.
+- הפגישה נקבעת על ידי המערכת בפועל, ונשלחת הזמנה ליומן. לשם כך דרושה כתובת
+  מייל. אם היא עדיין לא ידועה, בקש אותה יחד עם אישור המועד — ואל תבטיח שההזמנה
+  נשלחה לפני שיש לך אותה.
 - המזהה של כל מועד הוא בפורמט "YYYY-MM-DD HH:MM" — למשל "${slots[0].key}".`
 }
 

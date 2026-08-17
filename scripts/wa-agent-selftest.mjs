@@ -434,6 +434,39 @@ test('the agent is told not to invent a meeting or jump to booking', () => {
   assert.ok(p.includes('אל תאשר, אל תניח ואל תרמוז שקיימת פגישה קבועה'))
 })
 
+test('a meeting is booked outright, not handed off as homework', () => {
+  // Calendly's Scheduling API books server-side, so the lead gets a calendar
+  // invite instead of a link they have to go and finish.
+  const cal = readFileSync(new URL('../api/_lib/calendly.js', import.meta.url), 'utf8')
+  assert.ok(/export async function bookSlot/.test(cal))
+  assert.ok(/\$\{API\}\/invitees/.test(cal), 'wrong booking endpoint')
+  assert.ok(/if \(!email\) return \{ ok: false, reason: 'email_required' \}/.test(cal))
+  // The raw location kind, not the Hebrew label, is what the API accepts.
+  assert.ok(/locationKind: locKind/.test(cal))
+
+  assert.ok(/const booked = await book\(/.test(WEBHOOK_SRC))
+  assert.ok(/booking fell back to a scheduling link/.test(WEBHOOK_SRC), 'no fallback path')
+})
+
+test('no email means the slot is held, not booked and not lost', () => {
+  assert.ok(/pendingMeetingAt = chosen\.start/.test(WEBHOOK_SRC))
+  assert.ok(/stage = 'MEETING_CONFIRMATION'/.test(WEBHOOK_SRC))
+  // The held slot is re-verified before it is finally booked.
+  assert.ok(/lead\.pending_meeting_at && !meetingAt/.test(WEBHOOK_SRC))
+  assert.ok(/fresh\.slots\.find\(\(s\) => s\.start === lead\.pending_meeting_at\)/.test(WEBHOOK_SRC))
+  // mergeLead never writes null, so clearing the held slot needs its own write.
+  assert.ok(/pending_meeting_at: pendingMeetingAt/.test(WEBHOOK_SRC))
+})
+
+test('the agent is told a real invite needs an email first', () => {
+  const p = buildSystemPrompt({
+    lead: { stage: 'CALENDAR_OPTIONS' },
+    slots: [{ key: '2026-08-20 17:30', label: 'יום חמישי, 20 באוגוסט, 17:30' }],
+  })
+  assert.ok(p.includes('הפגישה נקבעת על ידי המערכת בפועל'))
+  assert.ok(p.includes('אל תבטיח שההזמנה'))
+})
+
 console.log('\nstarting a conversation')
 
 test('the 24-hour customer service window is measured from the last inbound', () => {

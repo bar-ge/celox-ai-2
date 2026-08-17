@@ -77,15 +77,31 @@ src/wab/                     dashboard (lazy-loaded from App.jsx)
 
 ### Booking
 
-Calendly has no public "create invitee" endpoint, so a confirmed slot is booked
-by sending the **single-use scheduling URL** Calendly returns with that slot.
+The agent **books the meeting itself** — `POST https://api.calendly.com/invitees`
+(Calendly's Scheduling API). The lead gets a calendar invite with the Meet link;
+they are never asked to go and finish anything on a Calendly page.
 
 Availability is only fetched once the lead is qualified or the conversation has
 reached the meeting stages. The model is given the real slots with a machine id
 and must echo one back in `selected_slot` when the lead confirms. That id is
-re-validated against live availability before `meeting_at` is written — if the
-slot has gone, the agent says so and offers fresh times instead of faking it.
-If Calendly is unreachable it says so and hands off to a human.
+re-validated against live availability before anything is written — if the slot
+has gone, the agent says so and offers fresh times instead of faking it. If
+Calendly is unreachable it says so and hands off to a human.
+
+**The email.** Calendly cannot create an invitee without an address, so if the
+lead has agreed a time but we have no email, the slot is parked in
+`wab_leads.pending_meeting_at` and the agent asks for the address. The next turn
+re-checks that the slot is still free and finishes the booking. Parking it
+matters: without it the lead would have to agree the same time twice, and a
+model that forgot to re-emit `selected_slot` would lose the booking entirely.
+
+Clearing `pending_meeting_at` is a direct write rather than part of `mergeLead`,
+because `mergeLead` deliberately never overwrites a value with null.
+
+**Fallback.** If the booking API refuses — plan limits, the slot going in the
+last second, a network blip — the agent falls back to sending the single-use
+scheduling link, which is how this worked before and still gets the lead booked.
+Nothing regresses; the reply just asks for one more tap.
 
 ### Follow-ups
 
@@ -311,7 +327,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 53 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 56 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 

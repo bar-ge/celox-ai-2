@@ -52,9 +52,75 @@ async function resolveEventType() {
     uri: match.uri,
     duration: Number(match.duration) || 30,
     kind: kindMap[locKind] || 'שיחה',
+    // The raw kind is what the booking API wants; the Hebrew one is for humans.
+    locationKind: locKind || null,
+    location: match?.location?.location || match?.locations?.[0]?.location || null,
     schedulingUrl: match.scheduling_url || want,
   }
   return cachedEventType
+}
+
+/**
+ * Book a slot outright, so the lead does not have to finish anything on a
+ * Calendly page. Needs their email — Calendly has nowhere to send the invite
+ * otherwise, and rejects the request without it.
+ *
+ * Failure is never fatal: the caller falls back to sending the scheduling link,
+ * which is what happened before this existed.
+ *
+ * @param {object} args
+ * @param {string} args.startIso   slot start, as returned by availability()
+ * @param {string} args.email
+ * @param {string} [args.name]
+ * @param {string} [args.timezone]
+ * @returns {Promise<{ ok: true, eventUri: string|null, cancelUrl: string|null, rescheduleUrl: string|null } | { ok: false, reason: string }>}
+ */
+export async function bookSlot({ startIso, email, name, timezone = TZ }) {
+  if (!token() || !eventUrl()) return { ok: false, reason: 'calendly_not_configured' }
+  if (!email) return { ok: false, reason: 'email_required' }
+
+  try {
+    const et = await resolveEventType()
+
+    /** @type {Record<string, unknown>} */
+    const body = {
+      event_type: et.uri,
+      start_time: new Date(startIso).toISOString(),
+      invitee: { name: name || email, email, timezone },
+    }
+    // Conference locations need only the kind; physical and custom ones also
+    // carry the place itself.
+    if (et.locationKind) {
+      body.location = et.location
+        ? { kind: et.locationKind, location: et.location }
+        : { kind: et.locationKind }
+    }
+
+    const r = await fetch(`${API}/invitees`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    })
+
+    const payload = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      const message = payload?.message || payload?.title || `http_${r.status}`
+      console.error('calendly booking failed', r.status, message)
+      return { ok: false, reason: message }
+    }
+
+    const res = payload?.resource ?? payload
+    return {
+      ok: true,
+      eventUri: res?.event ?? res?.uri ?? null,
+      cancelUrl: res?.cancel_url ?? null,
+      rescheduleUrl: res?.reschedule_url ?? null,
+    }
+  } catch (err) {
+    console.error('calendly booking threw', err instanceof Error ? err.message : 'unknown')
+    return { ok: false, reason: 'network' }
+  }
 }
 
 const heDate = new Intl.DateTimeFormat('he-IL', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' })

@@ -10,7 +10,7 @@ import {
 } from '../_lib/crm.js'
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
-import { availability, splitSlotHe } from '../_lib/calendly.js'
+import { availability, splitSlotHe, bookSlot } from '../_lib/calendly.js'
 import { isQualified, nextUnansweredStage } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
@@ -216,6 +216,7 @@ async function respond(phone, text) {
   let stage = agent.next_stage
   let meetingAt = null
   let meetingUrl = null
+  let pendingMeetingAt = null
 
   // Calendly was needed but unreachable — say so honestly, hand to a human.
   if (wantsCalendar && !calendar.ok && calendar.reason !== 'not_requested' &&
@@ -261,14 +262,26 @@ async function respond(phone, text) {
         `הפגישה שלנו כבר קבועה ל-${date} בשעה ${time} ✅\n` +
         `אם בא לך לשנות אותה, תגיד לי איזה יום ושעה מתאימים ואבדוק ביומן.`
     } else if (chosen) {
-      meetingAt = chosen.start
-      meetingUrl = chosen.schedulingUrl
+      const email = agent.extracted?.email || lead.email
       const { date, time } = splitSlotHe(chosen.start)
-      reply =
-        `מעולה, שמרתי לך את המועד ✅\n` +
-        `📅 תאריך: ${date}\n🕐 שעה: ${time}\n📞 אופן השיחה: ${calendar.kind}\n` +
-        `רק נשאר לאשר בקישור הזה כדי שההזמנה תיכנס ליומן שלך: ${chosen.schedulingUrl}\n` +
-        `אם משהו משתנה, אפשר לכתוב לי כאן.`
+
+      if (!email) {
+        // Calendly has nowhere to send the invite without an address, and
+        // rejects the booking outright. Hold the agreed time so the next turn
+        // can finish the job the moment they answer.
+        pendingMeetingAt = chosen.start
+        stage = 'MEETING_CONFIRMATION'
+        reply =
+          `מעולה, ${date} בשעה ${time} שמור לך 👍\n` +
+          `רק צריך כתובת מייל כדי שאשלח לך את ההזמנה ליומן עם הקישור לשיחה. מה המייל שלך?`
+      } else {
+        const booked = await book({ startIso: chosen.start, email, lead, calendar, phone })
+        reply = booked.reply
+        meetingAt = booked.meetingAt
+        meetingUrl = booked.meetingUrl
+        stage = booked.stage
+        pendingMeetingAt = booked.pendingMeetingAt
+      }
     } else {
       // The model claimed a booking we cannot verify — do not fake it.
       const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
@@ -282,6 +295,35 @@ async function respond(phone, text) {
         stage = 'HUMAN_HANDOFF'
         reply = CALENDAR_ERROR_MESSAGE
         agent.requires_human = true
+      }
+    }
+  }
+
+  // The lead agreed a time last turn and we were only waiting on their email.
+  // Finish it here rather than making them confirm the same slot twice.
+  if (lead.pending_meeting_at && !meetingAt && stage !== 'OPT_OUT' && stage !== 'HUMAN_HANDOFF') {
+    const email = agent.extracted?.email || lead.email
+    if (email) {
+      const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
+      const still = fresh.ok
+        ? fresh.slots.find((s) => s.start === lead.pending_meeting_at)
+        : null
+
+      if (still) {
+        const booked = await book({ startIso: still.start, email, lead, calendar: fresh, phone })
+        reply = booked.reply
+        meetingAt = booked.meetingAt
+        meetingUrl = booked.meetingUrl
+        stage = booked.stage
+        pendingMeetingAt = booked.pendingMeetingAt
+      } else if (fresh.ok) {
+        // Someone else took it while we were waiting for the address.
+        pendingMeetingAt = null
+        stage = 'CALENDAR_OPTIONS'
+        reply =
+          `תודה! רק שנייה לפני שאני סוגר — המועד ששמרנו כבר נתפס בינתיים.\n` +
+          `אלה המועדים הקרובים שפנויים:\n${fresh.suggested.map((s) => s.label).join('\n')}\n` +
+          `איזה מהם מתאים לך?`
       }
     }
   }
@@ -301,6 +343,14 @@ async function respond(phone, text) {
     fleetSizeRaw: agent.extracted.fleet_size != null ? text.slice(0, 300) : null,
     meetingAt,
   })
+
+  // Written outside mergeLead because it must also be *cleared* — mergeLead
+  // deliberately never overwrites a value with null.
+  if (pendingMeetingAt !== lead.pending_meeting_at) {
+    const { error } = await serviceClient()
+      .from(LEADS).update({ pending_meeting_at: pendingMeetingAt }).eq('phone', phone)
+    if (error) console.error('pending slot write failed', error.message)
+  }
 
   if (meetingUrl) {
     await serviceClient().from(LEADS).update({ meeting_url: meetingUrl }).eq('phone', phone)
@@ -324,6 +374,62 @@ async function respond(phone, text) {
     return { continue: true, next: newest.body || text }
   }
   return { continue: false }
+}
+
+/**
+ * Put the meeting in the calendar for real.
+ *
+ * Calendly's booking API does the whole thing server-side, so the lead gets a
+ * calendar invite instead of homework. If it refuses — plan restrictions, the
+ * slot going in the last few seconds, anything — we fall back to the single-use
+ * scheduling link, which is how this worked before and still gets them booked.
+ *
+ * @param {{ startIso: string, email: string, lead: Record<string, unknown>, calendar: any, phone: string }} args
+ */
+async function book({ startIso, email, lead, calendar, phone }) {
+  const { date, time } = splitSlotHe(startIso)
+  const kind = calendar?.kind || 'שיחה'
+  const name = [lead.first_name, lead.company].filter(Boolean).join(' ') || String(lead.phone)
+
+  const res = await bookSlot({ startIso, email, name })
+
+  if (res.ok) {
+    return {
+      stage: 'MEETING_BOOKED',
+      meetingAt: startIso,
+      meetingUrl: res.rescheduleUrl || res.cancelUrl,
+      pendingMeetingAt: null,
+      reply:
+        `קבעתי — נתראה ב-${date} בשעה ${time} ✅\n` +
+        `📞 אופן השיחה: ${kind}\n` +
+        `שלחתי הזמנה ל-${email} עם הקישור לשיחה, והיא כבר ביומן שלנו.\n` +
+        `אם משהו משתנה, פשוט תכתוב לי כאן ואשנה.`,
+    }
+  }
+
+  console.error('booking fell back to a scheduling link', phone, res.reason)
+
+  const slot = calendar?.ok ? calendar.slots.find((s) => s.start === startIso) : null
+  const link = slot?.schedulingUrl
+  if (!link) {
+    return {
+      stage: 'HUMAN_HANDOFF',
+      meetingAt: null, meetingUrl: null, pendingMeetingAt: null,
+      reply: CALENDAR_ERROR_MESSAGE,
+    }
+  }
+
+  return {
+    stage: 'MEETING_BOOKED',
+    meetingAt: startIso,
+    meetingUrl: link,
+    pendingMeetingAt: null,
+    reply:
+      `מעולה, שמרתי לך את המועד ✅\n` +
+      `📅 תאריך: ${date}\n🕐 שעה: ${time}\n📞 אופן השיחה: ${kind}\n` +
+      `רק נשאר לאשר בקישור הזה כדי שההזמנה תיכנס ליומן שלך: ${link}\n` +
+      `אם משהו משתנה, אפשר לכתוב לי כאן.`,
+  }
 }
 
 /** Log then send, so an outbound message is recorded even if WhatsApp rejects it. */
