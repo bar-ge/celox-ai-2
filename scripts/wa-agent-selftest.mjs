@@ -117,6 +117,24 @@ test('a free-text fleet answer counts as answered', () => {
   assert.equal(nextUnansweredStage({ role: 'x', fleet_size_raw: 'אני לא יודע בדיוק' }), 'CURRENT_MANAGEMENT')
 })
 
+test('compressed script: why_now never blocks progress past main_pain / existing_system', () => {
+  // excel/mixed/none branch — main_pain answered, why_now never given: straight to the meeting.
+  assert.equal(
+    nextUnansweredStage({ role: 'x', fleet_size: 40, current_management: 'excel', main_pain: 'מסמכים' }),
+    'PROCESS_EXPLANATION',
+  )
+  // system branch — existing_system answered, why_now never given: straight to the meeting.
+  assert.equal(
+    nextUnansweredStage({
+      role: 'x',
+      fleet_size: 40,
+      current_management: 'system',
+      existing_system: 'אקסל מתקדם',
+    }),
+    'PROCESS_EXPLANATION',
+  )
+})
+
 test('terminal states win over the ladder', () => {
   assert.equal(nextUnansweredStage({ opted_out: true }), 'OPT_OUT')
   assert.equal(nextUnansweredStage({ bot_paused: true }), 'HUMAN_HANDOFF')

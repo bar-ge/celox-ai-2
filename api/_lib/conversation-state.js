@@ -85,10 +85,15 @@ export function nextUnansweredStage(lead) {
   if (lead.fleet_size == null && !lead.fleet_size_raw) return 'FLEET_SIZE'
   if (!lead.current_management) return 'CURRENT_MANAGEMENT'
   if (lead.current_management === 'system' && !lead.existing_system) return 'EXISTING_SYSTEM'
-  if (!lead.main_pain) return 'MAIN_PAIN'
-  if (!lead.why_now) return 'WHY_NOW'
+  // main_pain and why_now are asked together as one combined question, right after
+  // current_management (compressed script, 2026-08). why_now alone never blocks
+  // progress — it's captured opportunistically if the lead volunteers it. main_pain
+  // itself is only a blocking question for the excel/mixed/none branches, where it
+  // IS that combined follow-up; the system branch already asked its equivalent
+  // (existing_system) above, so it doesn't ask main_pain too.
+  if (lead.current_management !== 'system' && !lead.main_pain) return 'MAIN_PAIN'
 
-  // Role, fleet size and management are all in — the script moves to the meeting.
+  // Role, fleet size, management and the pain point are all in — move to the meeting.
   const stage = /** @type {Stage} */ (lead.stage)
   if (isStage(stage) && QUALIFICATION_ORDER.indexOf(stage) >= QUALIFICATION_ORDER.indexOf('PROCESS_EXPLANATION')) {
     return stage

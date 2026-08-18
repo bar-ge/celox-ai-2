@@ -327,7 +327,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 56 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 57 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 
@@ -367,3 +367,15 @@ routed and not imported; delete them whenever you want.
   zooming on focus).
 - **Table names.** `wab_leads` / `wab_messages`, so the unused Twilio-era `wa_*`
   tables stay untouched.
+- **Compressed qualification (2026-08).** The original spec asked five separate
+  questions before the meeting invite: role, fleet size, current management,
+  existing system or main pain, then why-now. Bar asked to cut this by
+  30–40%. `conversation-script.js` now merges role+fleet size into one opening
+  question, and merges "existing system" (or "main pain") with "why now" into
+  one closing question — three qualification messages total before the
+  summary + calendar invite, down from five. `why_now` is no longer a
+  blocking stage: `nextUnansweredStage` (`conversation-state.js`) skips it
+  entirely, and skips `main_pain` too when `current_management === 'system'`
+  (that branch's blocking question is `existing_system` instead — the two were
+  never both asked). Both fields are still collected and shown in the CRM
+  when the lead volunteers them; nothing was deleted, per repo rule 1.
