@@ -84,16 +84,13 @@ export function nextUnansweredStage(lead) {
   if (!lead.role) return 'ROLE'
   if (lead.fleet_size == null && !lead.fleet_size_raw) return 'FLEET_SIZE'
   if (!lead.current_management) return 'CURRENT_MANAGEMENT'
-  if (lead.current_management === 'system' && !lead.existing_system) return 'EXISTING_SYSTEM'
-  // main_pain and why_now are asked together as one combined question, right after
-  // current_management (compressed script, 2026-08). why_now alone never blocks
-  // progress — it's captured opportunistically if the lead volunteers it. main_pain
-  // itself is only a blocking question for the excel/mixed/none branches, where it
-  // IS that combined follow-up; the system branch already asked its equivalent
-  // (existing_system) above, so it doesn't ask main_pain too.
-  if (lead.current_management !== 'system' && !lead.main_pain) return 'MAIN_PAIN'
+  // existing_system, main_pain and why_now are no longer blocking questions at all
+  // (compressed script, 2026-08 — Bar asked to skip them outright, not just fold
+  // them together). The agent moves straight from current_management to the
+  // meeting. All three fields are still captured and shown in the CRM if the lead
+  // volunteers them unprompted; nothing was removed from the data model.
 
-  // Role, fleet size, management and the pain point are all in — move to the meeting.
+  // Role, fleet size and management are all in — move straight to the meeting.
   const stage = /** @type {Stage} */ (lead.stage)
   if (isStage(stage) && QUALIFICATION_ORDER.indexOf(stage) >= QUALIFICATION_ORDER.indexOf('PROCESS_EXPLANATION')) {
     return stage

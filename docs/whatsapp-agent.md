@@ -327,7 +327,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 58 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 59 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 
@@ -393,3 +393,16 @@ routed and not imported; delete them whenever you want.
   question depending on whether `first_name` is already known, and section 6
   spells out that "עם מי יש לי הכבוד?" is forbidden once the name is known,
   even folded into a combined question.
+- **Second compression round (2026-08): drop existing-system/main-pain/why-now
+  entirely, and skip the "when suits you" question.** Bar asked to go further
+  than the first compression pass. `existing_system`, `main_pain` and
+  `why_now` are no longer asked at all, in any form — `nextUnansweredStage`
+  goes straight from `current_management` to `PROCESS_EXPLANATION`. The
+  qualification phase is now two messages (role+fleet size, then current
+  management), not three. Separately, the summary-before-booking message no
+  longer asks an open "מתי נוח לך?" and waits for a reply before showing
+  slots — it shows the three real calendar slots in the same message as the
+  summary, so there's one fewer round trip before the lead can just pick a
+  time. All three dropped fields stay in the data model and CRM display —
+  they're captured opportunistically if a lead mentions them unprompted, per
+  repo rule 1, but the agent never asks about them.

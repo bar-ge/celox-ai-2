@@ -109,28 +109,21 @@ test('resumes at the first unanswered question', () => {
   assert.equal(nextUnansweredStage({}), 'ROLE')
   assert.equal(nextUnansweredStage({ role: 'מנהל צי' }), 'FLEET_SIZE')
   assert.equal(nextUnansweredStage({ role: 'מנהל צי', fleet_size: 85 }), 'CURRENT_MANAGEMENT')
-  assert.equal(nextUnansweredStage({ role: 'x', fleet_size: 85, current_management: 'system' }), 'EXISTING_SYSTEM')
-  assert.equal(nextUnansweredStage({ role: 'x', fleet_size: 85, current_management: 'excel' }), 'MAIN_PAIN')
 })
 
 test('a free-text fleet answer counts as answered', () => {
   assert.equal(nextUnansweredStage({ role: 'x', fleet_size_raw: 'אני לא יודע בדיוק' }), 'CURRENT_MANAGEMENT')
 })
 
-test('compressed script: why_now never blocks progress past main_pain / existing_system', () => {
-  // excel/mixed/none branch — main_pain answered, why_now never given: straight to the meeting.
+test('compressed script: existing_system, main_pain and why_now never block progress', () => {
+  // system branch — nothing past current_management given: straight to the meeting.
   assert.equal(
-    nextUnansweredStage({ role: 'x', fleet_size: 40, current_management: 'excel', main_pain: 'מסמכים' }),
+    nextUnansweredStage({ role: 'x', fleet_size: 40, current_management: 'system' }),
     'PROCESS_EXPLANATION',
   )
-  // system branch — existing_system answered, why_now never given: straight to the meeting.
+  // excel/mixed/none branch — same: straight to the meeting, no pain question asked.
   assert.equal(
-    nextUnansweredStage({
-      role: 'x',
-      fleet_size: 40,
-      current_management: 'system',
-      existing_system: 'אקסל מתקדם',
-    }),
+    nextUnansweredStage({ role: 'x', fleet_size: 40, current_management: 'excel' }),
     'PROCESS_EXPLANATION',
   )
 })
@@ -261,7 +254,7 @@ test('lists what is already known and where to resume', () => {
   assert.ok(p.includes('תפקיד: סמנכ״ל כספים'))
   assert.ok(p.includes('מספר כלי רכב: 85'))
   assert.ok(p.includes('אופן ניהול כיום: אקסלים ועבודה ידנית'))
-  assert.ok(p.includes('השלב הפתוח שאליו יש לחזור: MAIN_PAIN'))
+  assert.ok(p.includes('השלב הפתוח שאליו יש לחזור: PROCESS_EXPLANATION'))
 })
 
 test('forbids inventing slots when the calendar is unavailable', () => {
@@ -313,6 +306,13 @@ test('forbids re-asking for a name that is already known', () => {
     'must explain why the phrase is forbidden once the name is known',
   )
   assert.ok(p.includes('גם לא כחלק משאלה משולבת'))
+})
+
+test('offers real slots immediately instead of an open "when suits you" question', () => {
+  const p = buildSystemPrompt({ lead: {} })
+  assert.ok(!p.includes('מתי נוח לך שנראה לך את זה'), 'the old open-ended question must be gone')
+  assert.ok(p.includes('אין כאן שאלה פתוחה של "מתי נוח לך?"'))
+  assert.ok(p.includes('איזה מהם הכי נוח לך?'))
 })
 
 console.log('\ncalendar helpers')
