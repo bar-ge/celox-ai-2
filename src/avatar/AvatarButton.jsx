@@ -1,12 +1,12 @@
 import AvatarBadge from './AvatarBadge'
 
-// TCEL-076 — placement: fixed bottom-right (bottom-left in RTL would still
-// read "far corner" to a Hebrew user, but the app's other fixed elements —
-// CRM's bottom bar, fleet-manager's overflow menu — don't mirror by
-// language, so this doesn't either, for consistency).
-// TCEL-078 — shrinks on mobile.
+// TCEL-076 — placement: fixed bottom-left, per Bar's request (moved off the
+// original bottom-right, and sized 50% larger: 56px -> 84px desktop,
+// 48px -> 72px mobile). Uses literal `left`, not a logical property — this
+// is a screen-side placement call, not something that should flip with RTL.
+// TCEL-078 — still shrinks on mobile, just from a larger base.
 export default function AvatarButton({ state, open, onClick, isMobile }) {
-  const size = isMobile ? 48 : 56
+  const size = isMobile ? 72 : 84
   return (
     <button
       onClick={onClick}
@@ -14,7 +14,7 @@ export default function AvatarButton({ state, open, onClick, isMobile }) {
       aria-expanded={open}
       style={{
         position: 'fixed',
-        insetInlineEnd: isMobile ? 16 : 24,
+        left: isMobile ? 16 : 24,
         bottom: isMobile ? 16 : 24,
         zIndex: 'var(--avatar-z)',
         width: size, height: size, borderRadius: '50%',
