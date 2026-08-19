@@ -327,7 +327,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 
 ## Tests
 
-`npm run test:wa` — 57 checks over payload parsing, the JSON contract, stage
+`npm run test:wa` — 58 checks over payload parsing, the JSON contract, stage
 resume logic, status derivation, history normalisation, follow-up timing and
 the composed system prompt. No network, no API keys.
 
@@ -379,3 +379,17 @@ routed and not imported; delete them whenever you want.
   (that branch's blocking question is `existing_system` instead — the two were
   never both asked). Both fields are still collected and shown in the CRM
   when the lead volunteers them; nothing was deleted, per repo rule 1.
+- **No re-confirmation, and no re-asking for a known name (2026-08).** Two
+  related fixes to the compressed flow. First, the summary before offering
+  meeting times had drifted into restating whatever the lead just said and
+  tacking on "נכון?" — an unnecessary verification of something the lead
+  already stated outright. Second, and reported separately: a conversation
+  started from the dashboard's "New conversation" form (which takes a first
+  name) used that name in the opening message, then the combined role+fleet
+  question still opened with "עם מי יש לי הכבוד?" — which literally asks for
+  a name, so the lead saw their own name asked for twice. Both are the same
+  underlying rule: don't ask for or verify information already on the lead
+  row. `conversation-script.js` now has an explicit branch for the role+fleet
+  question depending on whether `first_name` is already known, and section 6
+  spells out that "עם מי יש לי הכבוד?" is forbidden once the name is known,
+  even folded into a combined question.

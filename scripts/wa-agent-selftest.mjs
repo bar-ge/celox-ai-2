@@ -305,6 +305,16 @@ test('tells the agent how to answer a lead-requested time', () => {
   assert.ok(p.includes('אל תאשר שעה לפני שראית אותה כאן'))
 })
 
+test('forbids re-asking for a name that is already known', () => {
+  const p = buildSystemPrompt({ lead: { first_name: 'שי' } })
+  assert.ok(p.includes('שי'), 'the known first name must reach the prompt')
+  assert.ok(
+    p.includes('"עם מי יש לי הכבוד?" שואל בפועל לשם'),
+    'must explain why the phrase is forbidden once the name is known',
+  )
+  assert.ok(p.includes('גם לא כחלק משאלה משולבת'))
+})
+
 console.log('\ncalendar helpers')
 
 test('slotKey renders Israel local time', () => {
