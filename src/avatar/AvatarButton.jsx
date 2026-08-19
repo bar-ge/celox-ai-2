@@ -1,12 +1,12 @@
 import AvatarBadge from './AvatarBadge'
 
 // TCEL-076 — placement: fixed bottom-left, per Bar's request (moved off the
-// original bottom-right, and sized 50% larger: 56px -> 84px desktop,
-// 48px -> 72px mobile). Uses literal `left`, not a logical property — this
-// is a screen-side placement call, not something that should flip with RTL.
-// TCEL-078 — still shrinks on mobile, just from a larger base.
+// original bottom-right). Sizing history: 56/48 -> +50% (84/72) -> -20%
+// (67/58) desktop/mobile. Uses literal `left`, not a logical property —
+// this is a screen-side placement call, not something that should flip with RTL.
+// TCEL-078 — still shrinks on mobile, just from the current base.
 export default function AvatarButton({ state, open, onClick, isMobile }) {
-  const size = isMobile ? 72 : 84
+  const size = isMobile ? 58 : 67
   return (
     <button
       onClick={onClick}
