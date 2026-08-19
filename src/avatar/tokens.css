@@ -70,6 +70,10 @@
   70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
   100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
 }
+@keyframes avatar-antenna-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 @keyframes avatar-highlight-glow {
   0%, 100% { box-shadow: 0 0 0 3px rgba(37,99,235,0.35); }
   50% { box-shadow: 0 0 0 7px rgba(37,99,235,0.12); }
@@ -80,6 +84,10 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+.avatar-antenna-blink {
+  animation: avatar-antenna-pulse 1s ease-in-out infinite;
 }
 
 /* TCEL-075 — nav-target glow. See src/avatar/HighlightTarget.jsx. */
