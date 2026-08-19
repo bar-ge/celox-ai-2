@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, isValidIsraeliId, friendlyDbError } from './validators'
 import { FORM_TEMPLATES } from './formTemplates'
 import { getRegion, REGIONS, REGION_CODES } from './regions'
+import AvatarWidget from './avatar/AvatarWidget'
 
 // ── Active company region — set once when the company loads, read app-wide ────
 // A session is scoped to a single company, so a module-level value is sufficient
@@ -11766,6 +11767,19 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
       {/* Terms of Service modal */}
       {showTerms && (
         <TermsOfServiceModal onClose={() => setShowTerms(false)} t={t} rtl={rtl} />
+      )}
+
+      {/* Avatar assistant — TCEL-045..062. Additive; no existing UI touched. */}
+      {session && (
+        <AvatarWidget
+          rtl={rtl}
+          lang={lang}
+          activeTab={activeTab}
+          setActiveTab={switchTab}
+          profile={profile}
+          userId={session?.user?.id}
+          isMobile={isMobile}
+        />
       )}
     </div>
   )

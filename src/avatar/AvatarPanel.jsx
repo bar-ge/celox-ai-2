@@ -1,0 +1,63 @@
+import AvatarBadge from './AvatarBadge'
+import ChatThread from './ChatThread'
+import ChatInput from './ChatInput'
+
+// TCEL-077 — chat panel layout. TCEL-078 — becomes a bottom sheet on mobile.
+export default function AvatarPanel({
+  rtl, isMobile, state, messages, thinking,
+  onSend, onClose, onConfirmEscalation, onCancelEscalation,
+}) {
+  const desktopStyle = {
+    position: 'fixed',
+    insetInlineEnd: 24, bottom: 92,
+    width: 380, height: 480,
+    borderRadius: 'var(--avatar-radius-xl)',
+  }
+  const mobileStyle = {
+    position: 'fixed',
+    inset: 'auto 0 0 0',
+    height: '85vh',
+    borderRadius: '16px 16px 0 0',
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="avatar-panel-title"
+      dir={rtl ? 'rtl' : 'ltr'}
+      style={{
+        ...(isMobile ? mobileStyle : desktopStyle),
+        zIndex: 'var(--avatar-z)',
+        background: 'var(--avatar-surface)',
+        boxShadow: 'var(--avatar-shadow-float)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}
+    >
+      <div style={{
+        background: 'var(--avatar-header-dark)', color: 'var(--avatar-surface)',
+        height: 56, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px',
+      }}>
+        <AvatarBadge state={state} size={28} />
+        <div id="avatar-panel-title" style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>עוזר CELOX</div>
+        <button
+          onClick={onClose}
+          aria-label="סגור"
+          style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4 }}
+        >
+          ×
+        </button>
+      </div>
+
+      <ChatThread
+        messages={messages}
+        thinking={thinking}
+        state={state}
+        onConfirmEscalation={onConfirmEscalation}
+        onCancelEscalation={onCancelEscalation}
+      />
+
+      <ChatInput onSend={onSend} disabled={thinking} />
+    </div>
+  )
+}

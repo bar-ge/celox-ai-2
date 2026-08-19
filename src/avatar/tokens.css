@@ -1,0 +1,85 @@
+/*
+ * CELOX Avatar Assistant — design tokens.
+ * Values are NOT invented — they are pulled 1:1 from docs/design-system/tokens.json
+ * and src/fleet-manager.jsx `const C`. Keep these two in sync if the brand palette
+ * ever changes; do not hand-tune hex values here.
+ */
+:root {
+  --avatar-primary: #2563eb;
+  --avatar-primary-hover: #1d4ed8;
+  --avatar-surface: #ffffff;
+  --avatar-surface-alt: #F4F3EF;
+  --avatar-border: #E5E1D8;
+  --avatar-text: #2B2630;
+  --avatar-text-secondary: #5A5460;
+  --avatar-text-muted: #8F8A94; /* AA-safe only at >=18px/bold — see spec §9 */
+  --avatar-success: #10b981;
+  --avatar-warning: #f59e0b;
+  --avatar-error: #ef4444;
+  --avatar-header-dark: #2E2830; /* reuses navBg — do not invent a new dark */
+  --avatar-overlay: rgba(43,38,48,0.55); /* reuses C.overlay */
+
+  --avatar-radius-sm: 6px;
+  --avatar-radius-md: 8px;
+  --avatar-radius-lg: 12px;
+  --avatar-radius-xl: 16px;
+  --avatar-radius-full: 999px;
+
+  --avatar-shadow-card: 0 1px 4px rgba(0,0,0,0.05);
+  --avatar-shadow-hover: 0 1px 8px rgba(0,0,0,0.06);
+  --avatar-shadow-float: 0 24px 80px rgba(0,0,0,0.25);
+
+  --avatar-ease: cubic-bezier(.4,0,.2,1);
+  --avatar-duration-fast: 120ms;
+  --avatar-duration-base: 200ms;
+  --avatar-duration-slow: 400ms;
+  --avatar-pulse-duration: 1.6s;
+
+  --avatar-z: 9600; /* below the app's highest modals (10000-10500), above nav/content */
+}
+
+@keyframes avatar-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+@keyframes avatar-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes avatar-pulse-dot {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+@keyframes avatar-bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes avatar-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+@keyframes avatar-ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+@keyframes avatar-highlight-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(37,99,235,0.35); }
+  50% { box-shadow: 0 0 0 7px rgba(37,99,235,0.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-badge, .avatar-highlight, .avatar-badge * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* TCEL-075 — nav-target glow. See src/avatar/HighlightTarget.jsx. */
+.avatar-highlight {
+  outline: 2px solid var(--avatar-primary);
+  outline-offset: 2px;
+  border-radius: var(--avatar-radius-md);
+  animation: avatar-highlight-glow 1s ease-in-out 3;
+}
