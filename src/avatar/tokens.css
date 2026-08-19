@@ -45,6 +45,12 @@
 @keyframes avatar-spin {
   to { transform: rotate(360deg); }
 }
+@keyframes avatar-spin-slow {
+  /* used by the 3D mascot for "navigating" — a gentle rock rather than a
+     full spin, so the face doesn't go upside down mid-animation. */
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
 @keyframes avatar-pulse-dot {
   0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
   40% { opacity: 1; transform: translateY(-2px); }
