@@ -22,7 +22,7 @@ import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
 // anything more sensitive goes through this path.
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
-const MAX_TOKENS = 400
+const MAX_TOKENS = 2048
 const VALID_INTENTS = ['qa', 'navigate', 'escalate', 'unclear']
 
 const RESPONSE_SCHEMA = {
