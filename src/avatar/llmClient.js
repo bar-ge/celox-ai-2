@@ -1,14 +1,12 @@
 // TCEL-054 — LLM API connection.
 //
-// Vendor decision: this project already has @anthropic-ai/sdk wired up and paid
-// for (see api/_lib/claude.js, used by the WhatsApp lead agent), so the avatar
-// backend (api/avatar/chat.js) reuses that same Anthropic setup rather than
-// introducing a second vendor. That's a reasonable default given existing
-// infra, but Bar should confirm it — it does add call volume/cost on top of
-// the WA agent's usage.
+// Vendor: Google Gemini (api/avatar/chat.js), switched 2026-08-24 from
+// Anthropic at Bar's request to run this widget on Gemini's free tier instead
+// of spending Anthropic tokens. The WhatsApp lead agent (api/_lib/claude.js)
+// is a separate integration and still uses Claude.
 //
-// The API key lives server-side only (ANTHROPIC_API_KEY). This client never
-// talks to Anthropic directly from the browser — it always goes through the
+// The API key lives server-side only (GEMINI_API_KEY). This client never
+// talks to Gemini directly from the browser — it always goes through the
 // app's own backend, same as every other API call in this codebase.
 
 /**

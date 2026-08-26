@@ -1,21 +1,40 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
 
 // TCEL-054 — LLM API connection for the in-app avatar.
 //
-// Reuses the same Anthropic setup as the WhatsApp lead agent (api/_lib/claude.js)
-// rather than a separate wrapper, since the pattern (call Messages API, parse
-// JSON out of the reply, validate/coerce) is identical. Kept as its own file
-// instead of importing claude.js directly because the schema (reply/intent/
-// actionId/confidence) is different from the WA agent's AgentResponse shape.
+// Vendor: Google Gemini, not Anthropic. Switched 2026-08-24 at Bar's request
+// to keep this widget off Anthropic token spend — the WhatsApp lead agent
+// (api/_lib/claude.js) still runs on Claude and is untouched by this change.
+// Gemini's free tier (2.5 Flash: 1,500 requests/day, no card required) covers
+// this widget's traffic; the work here is small structured replies, not deep
+// reasoning, so the quality gap vs Claude is an acceptable tradeoff. Calls the
+// REST API directly (no new npm dependency) and uses responseSchema to force
+// valid JSON back — more reliable than the old extract-JSON-from-freeform-text
+// approach this file used with Anthropic.
 //
-// ANTHROPIC_API_KEY must be set. If it isn't, this returns 503 rather than
-// crashing — the frontend (src/avatar/llmClient.js) shows a "not configured"
-// message instead of a silent failure.
+// GEMINI_API_KEY must be set (free key: aistudio.google.com/apikey). If it
+// isn't, this returns 503 rather than crashing — the frontend
+// (src/avatar/llmClient.js) shows a "not configured" message instead of a
+// silent failure.
+//
+// Note for Bar: Google's free tier logs prompts to improve their products
+// (the paid tier doesn't). Fine for fleet-ops Q&A; worth knowing before
+// anything more sensitive goes through this path.
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5'
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 const MAX_TOKENS = 400
 const VALID_INTENTS = ['qa', 'navigate', 'escalate', 'unclear']
+
+const RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    reply: { type: 'STRING' },
+    intent: { type: 'STRING', enum: VALID_INTENTS },
+    actionId: { type: 'STRING', nullable: true },
+    confidence: { type: 'NUMBER' },
+  },
+  required: ['reply', 'intent', 'confidence'],
+}
 
 function extractJson(raw) {
   let s = String(raw || '').trim()
@@ -29,9 +48,9 @@ function extractJson(raw) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY is not set — avatar chat unavailable')
+    console.error('GEMINI_API_KEY is not set — avatar chat unavailable')
     return res.status(503).json({ reply: null, reason: 'not_configured' })
   }
 
@@ -43,18 +62,41 @@ export default async function handler(req, res) {
   const lang = context?.lang === 'he' ? 'he' : 'he' // Hebrew-first app; default he regardless of context for now
   const systemPrompt = buildSystemPrompt(lang)
 
-  const messages = [
+  const contents = [
     ...(Array.isArray(history) ? history.slice(-10) : []).map(m => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: String(m.text || '').slice(0, 2000),
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: String(m.text || '').slice(0, 2000) }],
     })),
-    { role: 'user', content: message.slice(0, 2000) },
+    { role: 'user', parts: [{ text: message.slice(0, 2000) }] },
   ]
 
   try {
-    const client = new Anthropic({ apiKey, timeout: 20000, maxRetries: 0 })
-    const resp = await client.messages.create({ model: MODEL, max_tokens: MAX_TOKENS, system: systemPrompt, messages })
-    const text = resp.content.filter(b => b.type === 'text').map(b => b.text).join('')
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(20000),
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: {
+            maxOutputTokens: MAX_TOKENS,
+            responseMimeType: 'application/json',
+            responseSchema: RESPONSE_SCHEMA,
+          },
+        }),
+      }
+    )
+
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => '')
+      console.error('avatar chat: Gemini call failed', resp.status, errBody.slice(0, 500))
+      return res.status(500).json({ reply: null, reason: 'api_error' })
+    }
+
+    const data = await resp.json()
+    const text = (data?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')
     const parsed = extractJson(text)
 
     if (!parsed || typeof parsed.reply !== 'string') {
@@ -69,7 +111,7 @@ export default async function handler(req, res) {
       confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
     })
   } catch (err) {
-    console.error('avatar chat: Anthropic call failed', err instanceof Error ? err.message : err)
+    console.error('avatar chat: Gemini call failed', err instanceof Error ? err.message : err)
     return res.status(500).json({ reply: null, reason: 'api_error' })
   }
 }
