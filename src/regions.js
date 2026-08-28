@@ -37,6 +37,17 @@ export function detectRegion() {
   return DEFAULT_REGION
 }
 
+// Language default. Hebrew is the product's primary language, so it is what a
+// visitor gets unless the URL explicitly asks for a North American market:
+// only "/us" and "/ca" opt into English. Region detection still drives
+// currency, units, phone codes and marketing copy — it no longer decides
+// language, which is why celoxai.com opens in Hebrew for an American visitor.
+// An in-app language pick still wins over this (see fleet_lang_manual).
+export function defaultLang(pathname = '') {
+  const r = regionFromPath(pathname)
+  return (r === 'us' || r === 'ca') ? REGIONS[r].lang : REGIONS.il.lang
+}
+
 export function getRegion(code) {
   return REGIONS[(code || '').toLowerCase()] || REGIONS[DEFAULT_REGION]
 }

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, isValidIsraeliId, friendlyDbError } from './validators'
 import { FORM_TEMPLATES } from './formTemplates'
-import { getRegion, REGIONS, REGION_CODES } from './regions'
+import { getRegion, REGIONS, REGION_CODES, defaultLang } from './regions'
 import AvatarWidget from './avatar/AvatarWidget'
 
 // ── Active company region — set once when the company loads, read app-wide ────
@@ -10739,7 +10739,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
   const [loading, setLoading]     = useState(true)
   const [showAdd, setShowAdd]     = useState(false)
   const [search, setSearch]       = useState('')
-  const [lang, setLang]           = useState(() => localStorage.getItem('fleet_lang') || initialLang || 'en')
+  const [lang, setLang]           = useState(() => localStorage.getItem('fleet_lang') || initialLang || defaultLang(window.location.pathname))
   useEffect(() => { document.documentElement.lang = lang }, [lang])
   const isMobile                  = useIsMobile()
   const isNarrow                  = useIsNarrow()
