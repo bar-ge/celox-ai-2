@@ -13,10 +13,14 @@ export default function AvatarPanel({
     width: 380, height: 480,
     borderRadius: 'var(--avatar-radius-xl)',
   }
+  // TCEL-078 — 85vh left barely a sliver of the app visible; Bar asked for a
+  // shorter sheet. 62vh keeps ~4 messages in view while the fleet screen stays
+  // legible behind it. The 560px cap stops it stretching on tall phones and
+  // small tablets, where 62vh is more room than the thread ever needs.
   const mobileStyle = {
     position: 'fixed',
     inset: 'auto 0 0 0',
-    height: '85vh',
+    height: 'min(62vh, 560px)',
     borderRadius: '16px 16px 0 0',
   }
 
