@@ -95,10 +95,13 @@
 .avatar-scanband { animation: avatar-scan 1.15s linear infinite; }
 .avatar-spark { animation: avatar-sparkle 1.9s ease-in-out infinite; }
 
-/* TCEL-075 — nav-target glow. See src/avatar/HighlightTarget.jsx. */
+/* TCEL-075 — nav-target glow, applied by src/avatar/avatarPointer.js while the
+   avatar is standing at the target. It used to run three times and stop; the
+   class is now removed explicitly when he leaves, so it can pulse for as long
+   as he is actually there instead of going quiet mid-point. */
 .avatar-highlight {
   outline: 2px solid var(--avatar-primary);
   outline-offset: 2px;
   border-radius: var(--avatar-radius-md);
-  animation: avatar-highlight-glow 1s ease-in-out 3;
+  animation: avatar-highlight-glow 1.4s ease-in-out infinite;
 }

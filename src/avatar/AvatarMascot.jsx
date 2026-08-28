@@ -66,7 +66,7 @@ export default function AvatarMascot({
       {look.sparkle && <Sparkles />}
       {look.query && (
         <text
-          x="626" y="132" fontSize="86" fill="#FFC14D"
+          x="626" y="132" fontSize="86" fill={look.eye}
           fontFamily="system-ui, sans-serif" fontWeight="700"
           className="avatar-spark" style={{ transformOrigin: '626px 106px' }}
         >?</text>

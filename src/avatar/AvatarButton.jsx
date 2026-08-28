@@ -1,17 +1,33 @@
+import { useEffect, useState } from 'react'
 import AvatarBadge from './AvatarBadge'
+import { subscribePointer, getPointer } from './avatarPointer'
 
-// TCEL-076 (rev 2) — the launcher is no longer a white circle with an icon in
-// it: the character stands directly on the page, bottom-left. Placement is
-// unchanged (literal `left`, not a logical property — this is a screen-side
-// call that must not flip with RTL).
+// TCEL-076 (rev 3) — the launcher is the character standing on the page,
+// bottom-left. Placement uses a literal `left`, not a logical property: this is
+// a screen-side call that must not flip with RTL.
 //
-// Height, not width: 96px desktop / 80px mobile is the smallest the full
-// figure stays readable at. Hit area is padded out to meet the 44px minimum
-// on its narrow axis.
+// It is also the thing that walks. avatarPointer publishes a translation and
+// the figure transforms away from its fixed corner to stand under whatever it
+// is pointing at, then comes back. Keeping the anchor fixed and only
+// transforming means nothing about layout or hit-testing changes while he is
+// away, and a reduced-motion visitor simply never sees him move.
 export default function AvatarButton({ state, open, onClick, isMobile }) {
   const size = isMobile ? 80 : 96
+  const [pointer, setPointer] = useState(getPointer)
+  const [hover, setHover] = useState(false)
+  const [press, setPress] = useState(false)
+
+  useEffect(() => subscribePointer(setPointer), [])
+
+  // One place decides the transform — otherwise a stray hover would strand him
+  // mid-journey, which is exactly the kind of bug inline handlers cause.
+  const travel = `translate(${pointer.dx}px, ${pointer.dy}px)`
+  const idle = press ? 'scale(0.96)' : hover ? 'translateY(-4px) scale(1.03)' : 'none'
+  const transform = pointer.pointing ? `${travel} scale(1.06)` : idle
+
   return (
     <button
+      data-avatar-launcher=""
       onClick={onClick}
       aria-label={open ? 'סגור את עוזר CELOX' : 'פתח את עוזר CELOX'}
       aria-expanded={open}
@@ -19,19 +35,24 @@ export default function AvatarButton({ state, open, onClick, isMobile }) {
         position: 'fixed',
         left: isMobile ? 12 : 20,
         bottom: isMobile ? 12 : 20,
-        zIndex: 'var(--avatar-z)',
+        // While pointing he has to clear the onboarding spotlight, which sits
+        // at +50. At rest he stays below the app's own overlays.
+        zIndex: pointer.pointing ? 'calc(var(--avatar-z) + 60)' : 'var(--avatar-z)',
         minWidth: 48,
         padding: 0,
         border: 'none',
         background: 'transparent',
         cursor: 'pointer',
         lineHeight: 0,
-        transition: 'transform var(--avatar-duration-base) var(--avatar-ease)',
+        transform,
+        transition: pointer.pointing || pointer.dx || pointer.dy
+          ? 'transform 600ms cubic-bezier(.34,.8,.3,1)'
+          : 'transform var(--avatar-duration-base) var(--avatar-ease)',
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px) scale(1.03)' }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
-      onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)' }}
-      onMouseUp={e => { e.currentTarget.style.transform = 'translateY(-4px) scale(1.03)' }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => { setHover(false); setPress(false) }}
+      onMouseDown={() => setPress(true)}
+      onMouseUp={() => setPress(false)}
     >
       <AvatarBadge state={open ? 'idle' : state} size={size} />
     </button>

@@ -24,12 +24,18 @@ export const EYE_L = { x: 416, y: 201, r: 40 }
 export const EYE_R = { x: 518, y: 200, r: 33 }
 export const VISOR = { cx: 445, cy: 202, rx: 102, ry: 69 }
 
+// Bar asked for the blue eyes in every state, so colour no longer carries the
+// state — expression and motion do. That is the stronger signal anyway: at
+// 28px a hue shift is nearly invisible, while a caret vs a circle vs a chevron
+// still reads. EYE is the one glow colour; `bright` only varies its intensity.
+export const EYE = '#4FD8FF'
+
 export const STATE_LOOK = {
-  idle:       { eye: '#4FD8FF', opacity: 0.86, face: 'wink' },
-  onboarding: { eye: '#7FE3FF', opacity: 1,    face: 'open',    sparkle: true },
-  qa:         { eye: '#4FD8FF', opacity: 1,    face: 'open' },
-  navigating: { eye: '#4FD8FF', opacity: 1,    face: 'chevron' },
-  escalating: { eye: '#FF7A6E', opacity: 1,    face: 'narrow' },
-  success:    { eye: '#6BE3AC', opacity: 1,    face: 'happy' },
-  confused:   { eye: '#FFC14D', opacity: 0.95, face: 'lost',    query: true },
+  idle:       { eye: EYE, opacity: 0.86, face: 'wink' },
+  onboarding: { eye: EYE, opacity: 1,    face: 'open',    sparkle: true },
+  qa:         { eye: EYE, opacity: 1,    face: 'open' },
+  navigating: { eye: EYE, opacity: 1,    face: 'chevron' },
+  escalating: { eye: EYE, opacity: 1,    face: 'narrow' },
+  success:    { eye: EYE, opacity: 1,    face: 'happy' },
+  confused:   { eye: EYE, opacity: 0.95, face: 'lost',    query: true },
 }

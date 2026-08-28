@@ -11298,7 +11298,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           {tabs.map(item => {
             const isActive = activeTab === item.id
             return (
-              <button key={item.id} onClick={() => switchTab(item.id)} style={{
+              <button key={item.id} data-ntab={item.id} onClick={() => switchTab(item.id)} style={{
                 flex: '1 0 auto', minWidth: 52, display: 'flex', flexDirection: 'column', alignItems: 'center',
                 justifyContent: 'center', gap: 2, padding: '11px 4px',
                 border: 'none', cursor: 'pointer', background: 'transparent',
