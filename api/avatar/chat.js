@@ -5,12 +5,11 @@ import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
 // Vendor: Google Gemini, not Anthropic. Switched 2026-08-24 at Bar's request
 // to keep this widget off Anthropic token spend — the WhatsApp lead agent
 // (api/_lib/claude.js) still runs on Claude and is untouched by this change.
-// Gemini's free tier (2.5 Flash: 1,500 requests/day, no card required) covers
-// this widget's traffic; the work here is small structured replies, not deep
-// reasoning, so the quality gap vs Claude is an acceptable tradeoff. Calls the
-// REST API directly (no new npm dependency) and uses responseSchema to force
-// valid JSON back — more reliable than the old extract-JSON-from-freeform-text
-// approach this file used with Anthropic.
+// Gemini's free tier covers this widget's traffic; the work here is small
+// structured replies, not deep reasoning, so the quality gap vs Claude is an
+// acceptable tradeoff. Calls the REST API directly (no new npm dependency)
+// and uses responseSchema to force valid JSON back — more reliable than the
+// old extract-JSON-from-freeform-text approach this file used with Anthropic.
 //
 // GEMINI_API_KEY must be set (free key: aistudio.google.com/apikey). If it
 // isn't, this returns 503 rather than crashing — the frontend
@@ -21,7 +20,11 @@ import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
 // (the paid tier doesn't). Fine for fleet-ops Q&A; worth knowing before
 // anything more sensitive goes through this path.
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+// 2026-08-27: gemini-2.5-flash now 404s with "no longer available to new
+// users" — 2 failures logged on /api/avatar/chat, so the widget has been
+// answering with an error, not a reply. Default moved to Google's current
+// Flash model. GEMINI_MODEL still overrides this without a deploy.
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.7-flash'
 const MAX_TOKENS = 2048
 const VALID_INTENTS = ['qa', 'navigate', 'escalate', 'unclear']
 

@@ -35,7 +35,9 @@
   --avatar-duration-slow: 400ms;
   --avatar-pulse-duration: 1.6s;
 
-  --avatar-z: 9600; /* below the app's highest modals (10000-10500), above nav/content */
+  --avatar-z: 8000; /* TCEL-076 — the empty slot between app chrome (<=1000)
+                       and the overlay range (>=9000). 9600 used to sit ABOVE
+                       the app's own 9000/9500 surfaces, which was a bug. */
 }
 
 @keyframes avatar-breathe {
@@ -45,12 +47,13 @@
 @keyframes avatar-spin {
   to { transform: rotate(360deg); }
 }
-@keyframes avatar-spin-slow {
-  /* used by the 3D mascot for "navigating" — a gentle rock rather than a
-     full spin, so the face doesn't go upside down mid-animation. */
-  0%, 100% { transform: rotate(-6deg); }
-  50% { transform: rotate(6deg); }
-}
+/* Character motion. Percentages, not pixels, so one keyframe set serves the
+   28px header badge and the 132px onboarding figure alike. */
+@keyframes avatar-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.2%); } }
+@keyframes avatar-perk  { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1.2%) scale(1.012); } }
+@keyframes avatar-lean  { 0%, 100% { transform: translateY(0) rotate(-2.5deg); } 50% { transform: translateY(-1.4%) rotate(2.5deg); } }
+@keyframes avatar-hop   { 0%, 60%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-6%) scale(1.03); } }
+@keyframes avatar-tilt  { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
 @keyframes avatar-pulse-dot {
   0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
   40% { opacity: 1; transform: translateY(-2px); }
@@ -62,9 +65,12 @@
 }
 @keyframes avatar-shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+  25% { transform: translateX(-1.6%); }
+  75% { transform: translateX(1.6%); }
 }
+/* visor scanline sweep while the model is generating a reply */
+@keyframes avatar-scan { from { transform: translateY(-46px); } to { transform: translateY(46px); } }
+@keyframes avatar-sparkle { 0%, 100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
 @keyframes avatar-ring-pulse {
   0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
   70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
@@ -86,9 +92,8 @@
   }
 }
 
-.avatar-antenna-blink {
-  animation: avatar-antenna-pulse 1s ease-in-out infinite;
-}
+.avatar-scanband { animation: avatar-scan 1.15s linear infinite; }
+.avatar-spark { animation: avatar-sparkle 1.9s ease-in-out infinite; }
 
 /* TCEL-075 — nav-target glow. See src/avatar/HighlightTarget.jsx. */
 .avatar-highlight {

@@ -9,7 +9,7 @@ export default function AvatarPanel({
 }) {
   const desktopStyle = {
     position: 'fixed',
-    left: 24, bottom: 99, // 99 = 24 (button offset) + 67 (button size) + 8 gap
+    left: 20, bottom: 124, // 124 = 20 (figure offset) + 96 (figure height) + 8 gap
     width: 380, height: 480,
     borderRadius: 'var(--avatar-radius-xl)',
   }

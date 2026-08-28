@@ -1,12 +1,15 @@
 import AvatarBadge from './AvatarBadge'
 
-// TCEL-076 — placement: fixed bottom-left, per Bar's request (moved off the
-// original bottom-right). Sizing history: 56/48 -> +50% (84/72) -> -20%
-// (67/58) desktop/mobile. Uses literal `left`, not a logical property —
-// this is a screen-side placement call, not something that should flip with RTL.
-// TCEL-078 — still shrinks on mobile, just from the current base.
+// TCEL-076 (rev 2) — the launcher is no longer a white circle with an icon in
+// it: the character stands directly on the page, bottom-left. Placement is
+// unchanged (literal `left`, not a logical property — this is a screen-side
+// call that must not flip with RTL).
+//
+// Height, not width: 96px desktop / 80px mobile is the smallest the full
+// figure stays readable at. Hit area is padded out to meet the 44px minimum
+// on its narrow axis.
 export default function AvatarButton({ state, open, onClick, isMobile }) {
-  const size = isMobile ? 58 : 67
+  const size = isMobile ? 80 : 96
   return (
     <button
       onClick={onClick}
@@ -14,21 +17,23 @@ export default function AvatarButton({ state, open, onClick, isMobile }) {
       aria-expanded={open}
       style={{
         position: 'fixed',
-        left: isMobile ? 16 : 24,
-        bottom: isMobile ? 16 : 24,
+        left: isMobile ? 12 : 20,
+        bottom: isMobile ? 12 : 20,
         zIndex: 'var(--avatar-z)',
-        width: size, height: size, borderRadius: '50%',
-        border: 'none', cursor: 'pointer',
-        background: 'var(--avatar-surface)',
-        boxShadow: 'var(--avatar-shadow-float)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'transform var(--avatar-duration-fast) var(--avatar-ease)',
+        minWidth: 48,
+        padding: 0,
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        lineHeight: 0,
+        transition: 'transform var(--avatar-duration-base) var(--avatar-ease)',
       }}
-      onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.94)' }}
-      onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px) scale(1.03)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
+      onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)' }}
+      onMouseUp={e => { e.currentTarget.style.transform = 'translateY(-4px) scale(1.03)' }}
     >
-      <AvatarBadge state={open ? 'idle' : state} size={size - 16} />
+      <AvatarBadge state={open ? 'idle' : state} size={size} />
     </button>
   )
 }
