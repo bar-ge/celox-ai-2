@@ -11,6 +11,7 @@ import {
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
 import { availability, splitSlotHe, bookSlot } from '../_lib/calendly.js'
+import { sendNewLeadAlert } from '../_lib/alerts.js'
 import { isQualified, nextUnansweredStage } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
@@ -120,6 +121,14 @@ async function handleInbound(inbound) {
   const { waMessageId, phone, profileName, text } = inbound
 
   const seed = await getOrCreateLead(phone, { firstName: profileName })
+
+  // A brand-new lead, first message ever — Bar wants to know the moment
+  // someone starts talking to the bot. Fired once, right here, since this is
+  // the only place a lead's row gets created from their own inbound message.
+  // Never allowed to block or fail the actual conversation.
+  if (seed.isNewLead) {
+    await sendNewLeadAlert({ phone, firstName: profileName }).catch(() => {})
+  }
 
   // Dedupe + log in one step: the unique index on wa_message_id rejects replays.
   const isNew = await logMessage({

@@ -39,7 +39,12 @@ export async function getOrCreateLead(phone, seed = {}) {
     if (raced) return raced
     throw new Error(`lead insert failed: ${insertErr.message}`)
   }
-  return data
+  // Non-enumerable-in-spirit marker: read by the webhook to fire the "someone
+  // just started a conversation" alert exactly once, on the row that was
+  // actually just created. mergeLead only ever writes named fields from
+  // `patch`, so this extra property on the in-memory object never reaches the
+  // database.
+  return { ...data, isNewLead: true }
 }
 
 /**
