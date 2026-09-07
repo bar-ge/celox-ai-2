@@ -1,6 +1,29 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { INTENT_VALUES, isIntent } from './intents.js'
 import { isStage } from './conversation-state.js'
+
+// Vendor: Mistral, not Anthropic — despite the filename. Switched
+// 2026-09-07 at Bar's request after ANTHROPIC_API_KEY died in production and
+// took the entire WhatsApp lead flow down with it (see
+// claude/qa-agent-sep-2026.md, "the WhatsApp 401 is not intermittent"). A
+// same-day Gemini version of this file was drafted and replaced before ever
+// shipping — Bar's key was for Mistral, not Google — so there is no Gemini
+// history to reconcile here, only this.
+//
+// File kept as api/_lib/claude.js on purpose: every caller (webhook.js, the
+// self-test suite, docs/whatsapp-agent.md) imports from this path and this
+// change is additive, not a rename. `runAgent`'s signature and return shape
+// are byte-for-byte the same as before, so nothing downstream needed to
+// change — only what happens inside this file.
+//
+// Mistral's Chat Completions API is OpenAI-shaped: POST /v1/chat/completions
+// with a `messages` array (system role included inline, unlike Gemini's
+// separate systemInstruction) and `response_format: { type: 'json_object' }`
+// to force valid JSON back. That is a weaker guarantee than Gemini's
+// responseSchema (shape, not just validity), so this file leans on the same
+// runtime type guard (toAgentResponse) that carried the whole Anthropic-era
+// contract — nothing about validation had to change, only how the raw text
+// gets fetched. The system prompt already instructs JSON-only output in
+// Hebrew (system-prompt.js:16), which is what made that safe to keep as-is.
 
 /**
  * @typedef {object} AgentExtracted
@@ -27,9 +50,20 @@ import { isStage } from './conversation-state.js'
  * @property {string|null} selected_slot  ISO start time the lead explicitly confirmed
  */
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5'
+// Same two-tier model strategy as the rest of this codebase's non-Anthropic
+// integrations (see api/avatar/chat.js): try the current model twice, then
+// drop to a smaller/cheaper one rather than fail the whole turn. Both
+// overridable from Vercel with no deploy. Scoped with a WA_ prefix in case
+// another feature ever wants its own Mistral model tuned independently.
+const MODEL = process.env.WA_MISTRAL_MODEL || 'mistral-large-latest'
+const FALLBACK_MODEL = process.env.WA_MISTRAL_FALLBACK_MODEL || 'mistral-small-latest'
+export { MODEL as AGENT_MODEL }
+
+const API_URL = 'https://api.mistral.ai/v1/chat/completions'
 const MAX_TOKENS = 700
-const TIMEOUT_MS = 25000
+const ATTEMPT_TIMEOUT_MS = 11000
+const TOTAL_BUDGET_MS = 22000
+const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
 
 const EMPTY_EXTRACTED = {
   first_name: null, company: null, role: null, fleet_size: null,
@@ -38,15 +72,6 @@ const EMPTY_EXTRACTED = {
 }
 
 const MANAGEMENT_VALUES = ['excel', 'system', 'mixed', 'none']
-
-let sdk = null
-function client() {
-  if (sdk) return sdk
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set')
-  sdk = new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: 0 })
-  return sdk
-}
 
 /** Strip markdown fences and any preamble/postamble around the JSON object. */
 function extractJson(raw) {
@@ -108,9 +133,58 @@ export function toAgentResponse(parsed) {
   }
 }
 
+// Preferred model twice, then the fallback. A 429/5xx from Mistral is usually
+// momentary (rate limit or demand spike), so a second attempt at the same
+// model often succeeds; the third only exists for when it does not.
+// Non-retryable statuses (bad request, dead key, unknown model) break
+// immediately rather than burning the budget on a call that will only ever
+// fail the same way.
+async function callMistral({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
+  const attempts = [MODEL, MODEL, FALLBACK_MODEL]
+  const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)))
+  const startedAt = now()
+  let lastError = 'no attempt made'
+
+  for (let i = 0; i < attempts.length; i++) {
+    const model = attempts[i]
+    if (i > 0) {
+      if (now() - startedAt > TOTAL_BUDGET_MS) break
+      await wait(400 * i)
+    }
+    try {
+      const resp = await fetchImpl(API_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+        body: JSON.stringify({
+          model,
+          max_tokens: MAX_TOKENS,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
+          ],
+        }),
+      })
+      if (resp.ok) {
+        if (i > 0) console.warn('wa agent: recovered on attempt', i + 1, 'with', model)
+        return { data: await resp.json(), lastError: null }
+      }
+      const errBody = await resp.text().catch(() => '')
+      lastError = `${resp.status} ${errBody.slice(0, 300)}`
+      if (!RETRYABLE_STATUS.has(resp.status)) break
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err) // timeout / network
+    }
+  }
+  return { data: null, lastError }
+}
+
 /**
- * One agent turn. Calls the Messages API, retries once on failure, and returns
- * either a validated AgentResponse or a typed failure the caller can fall back on.
+ * One agent turn. Calls Mistral, retries per callMistral's own strategy, and
+ * returns either a validated AgentResponse or a typed failure the caller can
+ * fall back on. Signature and return shape unchanged from the Anthropic
+ * version — see the file-level comment.
  *
  * @param {object} args
  * @param {string} args.systemPrompt
@@ -118,54 +192,42 @@ export function toAgentResponse(parsed) {
  * @returns {Promise<{ ok: true, data: AgentResponse } | { ok: false, reason: string }>}
  */
 export async function runAgent({ systemPrompt, messages }) {
-  let lastReason = 'unknown'
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let text = ''
-    try {
-      const res = await client().messages.create({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system: systemPrompt,
-        messages,
-      })
-      text = res.content
-        .filter((b) => b.type === 'text')
-        .map((b) => b.text)
-        .join('')
-    } catch (err) {
-      lastReason = err instanceof Error ? err.message : 'api_error'
-      console.error(`agent api call failed (attempt ${attempt + 1})`, lastReason)
-      continue
-    }
-
-    const json = extractJson(text)
-    if (!json) {
-      lastReason = 'no_json_in_response'
-      console.error('agent returned no parsable JSON. raw:', text.slice(0, 800))
-      continue
-    }
-
-    let parsed
-    try {
-      parsed = JSON.parse(json)
-    } catch (err) {
-      lastReason = 'json_parse_failed'
-      console.error('agent JSON.parse failed:', err instanceof Error ? err.message : 'unknown', '| raw:', json.slice(0, 800))
-      continue
-    }
-
-    const data = toAgentResponse(parsed)
-    if (!data) {
-      lastReason = 'schema_mismatch'
-      console.error('agent response failed the type guard. raw:', json.slice(0, 800))
-      continue
-    }
-
-    return { ok: true, data }
+  const apiKey = process.env.MISTRAL_API_KEY
+  if (!apiKey) {
+    console.error('agent api call failed: MISTRAL_API_KEY is not set')
+    return { ok: false, reason: 'MISTRAL_API_KEY is not set' }
   }
 
-  return { ok: false, reason: lastReason }
+  const { data, lastError } = await callMistral({ apiKey, systemPrompt, messages })
+
+  if (!data) {
+    console.error('agent api call failed', lastError)
+    return { ok: false, reason: lastError ?? 'api_error' }
+  }
+
+  const text = data?.choices?.[0]?.message?.content ?? ''
+
+  const json = extractJson(text)
+  if (!json) {
+    console.error('agent returned no parsable JSON. raw:', String(text).slice(0, 800))
+    return { ok: false, reason: 'no_json_in_response' }
+  }
+
+  let parsed
+  try {
+    parsed = JSON.parse(json)
+  } catch (err) {
+    console.error('agent JSON.parse failed:', err instanceof Error ? err.message : 'unknown', '| raw:', json.slice(0, 800))
+    return { ok: false, reason: 'json_parse_failed' }
+  }
+
+  const result = toAgentResponse(parsed)
+  if (!result) {
+    console.error('agent response failed the type guard. raw:', json.slice(0, 800))
+    return { ok: false, reason: 'schema_mismatch' }
+  }
+
+  return { ok: true, data: result }
 }
 
-export { MODEL as AGENT_MODEL, EMPTY_EXTRACTED, INTENT_VALUES }
+export { EMPTY_EXTRACTED, INTENT_VALUES }
