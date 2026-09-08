@@ -6,7 +6,8 @@ import AvatarButton from './AvatarButton'
 import AvatarPanel from './AvatarPanel'
 import OnboardingOverlay from './OnboardingOverlay'
 import { askAvatar, isLowConfidence } from './llmClient'
-import { runNavAction } from './avatarActions'
+import { runNavAction, NAV_ACTIONS } from './avatarActions'
+import { pointAt } from './avatarPointer'
 
 // TCEL-045 — composition root. Owns no business logic beyond wiring the
 // pieces together; state machine + provider carry the real logic (TCEL-053,
@@ -51,7 +52,12 @@ function AvatarWidgetInner({ isMobile }) {
       const ok = runNavAction(reply.actionId, setActiveTab)
       addMessage('assistant', reply.reply)
       send(ok ? 'navigateIntent' : 'lowConfidence')
-      if (ok) setTimeout(() => send('done'), 50)
+      if (ok) {
+        // Walk over and glow the tab we just switched to, so "I took you to
+        // Vehicles" is something the user sees rather than has to find. The
+        // machine leaves `navigating` only once he is back in his corner.
+        pointAt(NAV_ACTIONS[reply.actionId]).then(() => send('done'))
+      }
       return
     }
 

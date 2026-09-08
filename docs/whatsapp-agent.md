@@ -34,7 +34,9 @@ api/
     intents.js               intent taxonomy + colours (shared with the UI)
     supabase.js              service-role client
     whatsapp.js              Cloud API send / read receipt / payload parsing
-    claude.js                Messages API wrapper, strict JSON parsing, retry
+    claude.js                Mistral agent wrapper (filename predates the 2026-09-07
+                              vendor switch — see the file-level comment), strict
+                              JSON parsing via response_format, retry + model fallback
     calendly.js              real availability + single-use booking links
     crm.js                   lead upsert, field merge, message log, history
     followups.js             follow-up timing + wording
@@ -283,8 +285,11 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `WHATSAPP_APP_SECRET` | optional; verifies `X-Hub-Signature-256` |
 | `CALENDLY_API_KEY` | personal access token |
 | `CALENDLY_EVENT_URL` | scheduling URL of the event type to book |
-| `ANTHROPIC_API_KEY` | Messages API |
-| `ANTHROPIC_MODEL` | optional; defaults to `claude-sonnet-5` |
+| `MISTRAL_API_KEY` | powers the agent since 2026-09-07 (was Anthropic); key at console.mistral.ai/api-keys |
+| `WA_MISTRAL_MODEL` | optional; defaults to `mistral-large-latest` |
+| `WA_MISTRAL_FALLBACK_MODEL` | optional; defaults to `mistral-small-latest`, used if the primary model is overloaded |
+| `ANTHROPIC_API_KEY` | no longer used by the WhatsApp agent; harmless to leave unset |
+| `ANTHROPIC_MODEL` | no longer used by the WhatsApp agent; harmless to leave unset |
 | `SUPABASE_URL` | falls back to `VITE_SUPABASE_URL` |
 | `SUPABASE_SERVICE_ROLE_KEY` | server writes, bypasses RLS |
 | `MASTER_EMAIL` | gates the dashboard API; must match `VITE_MASTER_EMAIL` |

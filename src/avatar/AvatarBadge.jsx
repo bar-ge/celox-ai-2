@@ -1,36 +1,41 @@
 import AvatarMascot from './AvatarMascot'
 
-// TCEL-073 — visual states, revised per Bar's request for a "cool 3D" look
-// (see AvatarMascot.jsx for why this is SVG shading rather than generated
-// artwork). The wrapper here only controls motion (breathe/spin/pulse/bounce/
-// shake) — all the shape+color 3D work lives in the mascot SVG itself.
+// TCEL-073 (rev 3) — the wrapper still owns motion only; expression and colour
+// live in AvatarMascot. Props and aria labels are unchanged from the previous
+// revision, so AvatarPanel, AvatarWidget and OnboardingOverlay need no edits.
+//
+// `size` is now the character's HEIGHT — the figure is taller than it is wide.
+// Width follows the artwork. Below 72px the mascot swaps itself to the head
+// crop; pass frame="head" to force it at any size.
 
 const STATE_ANIM = {
-  idle:       'avatar-breathe 4s ease-in-out infinite',
-  onboarding: 'none',
-  qa:         'none',
-  navigating: 'avatar-spin-slow 2.4s linear infinite',
-  escalating: 'avatar-ring-pulse 1.6s infinite',
-  success:    'avatar-bounce 0.3s ease-in-out',
-  confused:   'avatar-shake 0.24s ease-in-out',
+  idle:       'avatar-float 5.2s ease-in-out infinite',
+  onboarding: 'avatar-perk 3s ease-in-out infinite',
+  qa:         'avatar-perk 3s ease-in-out infinite',
+  navigating: 'avatar-lean 1.5s ease-in-out infinite',
+  escalating: 'avatar-shake 0.5s ease-in-out infinite',
+  success:    'avatar-hop 1.1s ease-in-out',
+  confused:   'avatar-tilt 2.2s ease-in-out infinite',
 }
 
-export default function AvatarBadge({ state = 'idle', typing = false, size = 32 }) {
-  const anim = STATE_ANIM[state] || STATE_ANIM.idle
+export default function AvatarBadge({ state = 'idle', typing = false, size = 96, frame = 'auto' }) {
   return (
     <div
       className="avatar-badge"
       role="img"
       aria-label={ariaLabel(state, typing)}
       style={{
-        width: size, height: size,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        animation: anim,
+        height: size,
+        display: 'inline-flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
         flexShrink: 0,
-        filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.18))',
+        transformOrigin: '50% 88%',
+        animation: STATE_ANIM[state] || STATE_ANIM.idle,
+        filter: 'drop-shadow(0 6px 14px rgba(16,27,46,0.22))',
       }}
     >
-      <AvatarMascot state={state} typing={typing} size={size} />
+      <AvatarMascot state={state} typing={typing} size={size} frame={frame} />
     </div>
   )
 }

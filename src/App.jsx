@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { supabase } from './supabaseClient'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { friendlyDbError } from './validators'
-import { getRegion, detectRegion } from './regions.js'
+import { defaultLang } from './regions.js'
 import './App.css'
 
 const FleetManager = lazy(() => import('./fleet-manager'))
@@ -900,10 +900,10 @@ export default function App() {
 
   const [session, setSession]         = useState(undefined)
   const [profile, setProfile]         = useState(undefined)
-  // The landing writes fleet_lang from the visitor's region; falling back to a
-  // detected region (not a hardcoded 'en') keeps a direct /app visit consistent.
+  // main.jsx seeds fleet_lang on every entry; defaultLang is the belt-and-braces
+  // fallback for the case where storage is unavailable (private mode).
   const [lang, setLang]               = useState(() =>
-    localStorage.getItem('fleet_lang') || getRegion(detectRegion()).lang)
+    localStorage.getItem('fleet_lang') || defaultLang(window.location.pathname))
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [timedOut, setTimedOut]       = useState(false)
   const [crmMode, setCrmMode]         = useState(false)

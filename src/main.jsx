@@ -2,7 +2,7 @@ import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { SpeedInsights } from '@vercel/speed-insights/react'
-import { regionFromPath, detectRegion, getRegion } from './regions.js'
+import { regionFromPath, detectRegion, defaultLang } from './regions.js'
 
 const App         = lazy(() => import('./App.jsx'))
 const LandingPage = lazy(() => import('./LandingPage.jsx'))
@@ -29,16 +29,17 @@ if (!region && isHome && !isAuthCallback) {
   window.history.replaceState(null, '', '/' + region)   // "/" -> "/il" (or detected)
 }
 
-// The landing is where the market gets picked, and language follows the market.
-// Persist it so /app opens in the same language the visitor was just reading —
-// without this, a stale fleet_lang would show the app in Hebrew to a /us visitor.
 if (region && isHome && !isAuthCallback) {
   localStorage.setItem('celox_region', region)
-  // An explicit in-app language pick wins — only seed the language when the
-  // visitor has never chosen one themselves.
-  if (!localStorage.getItem('fleet_lang_manual')) {
-    localStorage.setItem('fleet_lang', getRegion(region).lang)
-  }
+}
+
+// Language is seeded from the URL, not from the detected region, and on every
+// entry rather than only on the landing — otherwise a visitor who goes straight
+// to /app keeps whatever fleet_lang was written months ago. `path` is read
+// before the redirect above, so an auto-detected "/us" does not count as asking
+// for English; only typing /us or /ca does. An explicit in-app pick still wins.
+if (!isAuthCallback && !localStorage.getItem('fleet_lang_manual')) {
+  localStorage.setItem('fleet_lang', defaultLang(path))
 }
 
 const Root = path === '/privacy' ? PrivacyPage : (isHome && !isAuthCallback) ? LandingPage : App
