@@ -63,15 +63,28 @@ import { isStage } from './conversation-state.js'
 // overridable from Vercel with no deploy. Scoped with a WA_ prefix in case
 // another feature ever wants its own NVIDIA model tuned independently.
 //
-// meta/llama-3.1-70b-instruct as the primary: solid multilingual/Hebrew
-// output and NVIDIA's free-tier API key (build.nvidia.com) covers it.
-// meta/llama-3.1-8b-instruct as the fallback: a genuinely smaller/cheaper
-// model, distinct from the primary, so the ladder in callNvidia below has
-// somewhere real to go if the 70b model is rate-limited or unavailable —
-// the exact gap that took the Mistral integration down (both of its rungs
-// pointed at the same account with no throughput left).
-const MODEL = process.env.WA_NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct'
-const FALLBACK_MODEL = process.env.WA_NVIDIA_FALLBACK_MODEL || 'meta/llama-3.1-8b-instruct'
+// CHANGED 2026-09-09, hours after the first NVIDIA deploy: the original pair
+// here (meta/llama-3.1-70b-instruct / meta/llama-3.1-8b-instruct) came back
+// `410 Gone — "has reached its end of life on 2026-08-26T09:00:00Z"` on the
+// fallback the moment a real lead used it. NVIDIA retires whole model
+// families off NIM's hosted catalog on a schedule, same as any other vendor
+// catalog — this file just hadn't been bitten by it yet. The 70b attempts
+// failed too (only the last attempt's error is ever logged — see
+// callNvidia's own comment above runAgent), consistent with the entire
+// Llama 3.1 line having been pulled on the same date, not just the 8b size.
+//
+// New pair picked from two DIFFERENT model families on purpose, so a single
+// vendor decision to retire one line can't take out both rungs the way it
+// just did: meta/llama-3.3-70b-instruct (a newer Llama generation, released
+// after 3.1) as primary, qwen/qwen3-235b-a22b (an unrelated, more recently
+// released family) as fallback. Neither had an end-of-life notice as of
+// 2026-09-09, but that is exactly what could not have been said about
+// llama-3.1 a few weeks ago either — if this pair also 410s, check NVIDIA's
+// build.nvidia.com model catalog for current model IDs before re-guessing,
+// and consider having runAgent query NVIDIA's GET /v1/models at call time
+// instead of trusting hardcoded IDs to stay valid indefinitely.
+const MODEL = process.env.WA_NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct'
+const FALLBACK_MODEL = process.env.WA_NVIDIA_FALLBACK_MODEL || 'qwen/qwen3-235b-a22b'
 export { MODEL as AGENT_MODEL }
 
 const API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
