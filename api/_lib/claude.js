@@ -1,13 +1,16 @@
 import { INTENT_VALUES, isIntent } from './intents.js'
 import { isStage } from './conversation-state.js'
 
-// Vendor: Mistral, not Anthropic — despite the filename. Switched
-// 2026-09-07 at Bar's request after ANTHROPIC_API_KEY died in production and
-// took the entire WhatsApp lead flow down with it (see
-// claude/qa-agent-sep-2026.md, "the WhatsApp 401 is not intermittent"). A
-// same-day Gemini version of this file was drafted and replaced before ever
-// shipping — Bar's key was for Mistral, not Google — so there is no Gemini
-// history to reconcile here, only this.
+// Vendor: NVIDIA NIM (build.nvidia.com), not Anthropic — despite the
+// filename. Switched 2026-09-09 at Bar's request after the Mistral account
+// turned out to have no usable throughput on either model in the fallback
+// ladder — mistral-large-latest 403 tier_not_allowed, then
+// mistral-small-latest 429 rate_limited on a single lone request (see
+// claude/review-checker-sep-2026.md, "the ladder fix shipped, WORKS, and the
+// funnel is STILL 100% DOWN"). That was the third distinct provider outage
+// in three weeks (Anthropic 401 → Mistral 403/429), so this move is off
+// Mistral entirely rather than another billing fix-up, onto NVIDIA's NIM
+// free-credit API key.
 //
 // File kept as api/_lib/claude.js on purpose: every caller (webhook.js, the
 // self-test suite, docs/whatsapp-agent.md) imports from this path and this
@@ -15,15 +18,19 @@ import { isStage } from './conversation-state.js'
 // are byte-for-byte the same as before, so nothing downstream needed to
 // change — only what happens inside this file.
 //
-// Mistral's Chat Completions API is OpenAI-shaped: POST /v1/chat/completions
-// with a `messages` array (system role included inline, unlike Gemini's
-// separate systemInstruction) and `response_format: { type: 'json_object' }`
-// to force valid JSON back. That is a weaker guarantee than Gemini's
-// responseSchema (shape, not just validity), so this file leans on the same
-// runtime type guard (toAgentResponse) that carried the whole Anthropic-era
+// NVIDIA NIM's Chat Completions API is OpenAI-shaped, same as Mistral's:
+// POST /v1/chat/completions with a `messages` array (system role included
+// inline). Unlike the Mistral integration this replaces, this file does NOT
+// send `response_format: { type: 'json_object' }` — NIM is a catalog of many
+// independently-hosted models (Llama, Nemotron, Mixtral, ...) on a vLLM
+// backend, and JSON-mode support is not guaranteed uniformly across them.
+// Getting a 400 for an unsupported field would retire a model for no good
+// reason, which is exactly the kind of failure that took Mistral down. So
+// this leans entirely on the system prompt's existing JSON-only Hebrew
+// instruction (system-prompt.js:16) plus the same runtime type guard
+// (toAgentResponse) that carried the whole Anthropic- and Mistral-era
 // contract — nothing about validation had to change, only how the raw text
-// gets fetched. The system prompt already instructs JSON-only output in
-// Hebrew (system-prompt.js:16), which is what made that safe to keep as-is.
+// gets fetched.
 
 /**
  * @typedef {object} AgentExtracted
@@ -54,12 +61,20 @@ import { isStage } from './conversation-state.js'
 // integrations (see api/avatar/chat.js): try the current model twice, then
 // drop to a smaller/cheaper one rather than fail the whole turn. Both
 // overridable from Vercel with no deploy. Scoped with a WA_ prefix in case
-// another feature ever wants its own Mistral model tuned independently.
-const MODEL = process.env.WA_MISTRAL_MODEL || 'mistral-large-latest'
-const FALLBACK_MODEL = process.env.WA_MISTRAL_FALLBACK_MODEL || 'mistral-small-latest'
+// another feature ever wants its own NVIDIA model tuned independently.
+//
+// meta/llama-3.1-70b-instruct as the primary: solid multilingual/Hebrew
+// output and NVIDIA's free-tier API key (build.nvidia.com) covers it.
+// meta/llama-3.1-8b-instruct as the fallback: a genuinely smaller/cheaper
+// model, distinct from the primary, so the ladder in callNvidia below has
+// somewhere real to go if the 70b model is rate-limited or unavailable —
+// the exact gap that took the Mistral integration down (both of its rungs
+// pointed at the same account with no throughput left).
+const MODEL = process.env.WA_NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct'
+const FALLBACK_MODEL = process.env.WA_NVIDIA_FALLBACK_MODEL || 'meta/llama-3.1-8b-instruct'
 export { MODEL as AGENT_MODEL }
 
-const API_URL = 'https://api.mistral.ai/v1/chat/completions'
+const API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
 const MAX_TOKENS = 700
 const ATTEMPT_TIMEOUT_MS = 11000
 const TOTAL_BUDGET_MS = 22000
@@ -133,22 +148,19 @@ export function toAgentResponse(parsed) {
   }
 }
 
-// Preferred model twice, then the fallback. A 429/5xx from Mistral is usually
-// momentary (rate limit or demand spike), so a second attempt at the same
-// model often succeeds; the third only exists for when it does not.
+// Preferred model twice, then the fallback. A 429/5xx from NVIDIA NIM is
+// usually momentary (rate limit or demand spike), so a second attempt at the
+// same model often succeeds; the third only exists for when it does not.
 //
-// A non-retryable status (bad request, dead key, model not on this
-// account's tier, unknown model) means THIS model will never work this
-// call — but it says nothing about a *different* model. Discovered
-// 2026-09-08 in production: MODEL (mistral-large-latest) came back 403
-// "This model is not available in your subscription tier" on every real
-// message, and the old code treated that as fatal and gave up instead of
-// ever trying FALLBACK_MODEL, even though the fallback is specifically
-// configured to be a smaller/cheaper model more likely to be in reach of a
-// lower tier. So: a non-retryable failure now retires only that model
-// (skips its remaining attempts) and lets the loop move on to the next
-// distinct model in the list, rather than aborting the whole call.
-async function callMistral({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
+// A non-retryable status (bad request, dead key, model not deployed, unknown
+// model) means THIS model will never work this call — but it says nothing
+// about a *different* model. This ladder logic (deadModels) is unchanged
+// from the Mistral integration it replaces: it is what let the retry loop
+// walk on to a second model instead of aborting outright when the first one
+// died non-retryably. Keeping it here matters even more with NVIDIA, since
+// NIM is a shared catalog of independently-hosted models — one being
+// unavailable or rate-limited says nothing about the other.
+async function callNvidia({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
   const attempts = [MODEL, MODEL, FALLBACK_MODEL]
   const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)))
   const startedAt = now()
@@ -170,7 +182,6 @@ async function callMistral({ apiKey, systemPrompt, messages, fetchImpl = fetch, 
         body: JSON.stringify({
           model,
           max_tokens: MAX_TOKENS,
-          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: systemPrompt },
             ...messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
@@ -192,10 +203,10 @@ async function callMistral({ apiKey, systemPrompt, messages, fetchImpl = fetch, 
 }
 
 /**
- * One agent turn. Calls Mistral, retries per callMistral's own strategy, and
- * returns either a validated AgentResponse or a typed failure the caller can
- * fall back on. Signature and return shape unchanged from the Anthropic
- * version — see the file-level comment.
+ * One agent turn. Calls NVIDIA NIM, retries per callNvidia's own strategy,
+ * and returns either a validated AgentResponse or a typed failure the caller
+ * can fall back on. Signature and return shape unchanged from the Anthropic
+ * and Mistral versions — see the file-level comment.
  *
  * @param {object} args
  * @param {string} args.systemPrompt
@@ -203,13 +214,13 @@ async function callMistral({ apiKey, systemPrompt, messages, fetchImpl = fetch, 
  * @returns {Promise<{ ok: true, data: AgentResponse } | { ok: false, reason: string }>}
  */
 export async function runAgent({ systemPrompt, messages }) {
-  const apiKey = process.env.MISTRAL_API_KEY
+  const apiKey = process.env.NVIDIA_API_KEY
   if (!apiKey) {
-    console.error('agent api call failed: MISTRAL_API_KEY is not set')
-    return { ok: false, reason: 'MISTRAL_API_KEY is not set' }
+    console.error('agent api call failed: NVIDIA_API_KEY is not set')
+    return { ok: false, reason: 'NVIDIA_API_KEY is not set' }
   }
 
-  const { data, lastError } = await callMistral({ apiKey, systemPrompt, messages })
+  const { data, lastError } = await callNvidia({ apiKey, systemPrompt, messages })
 
   if (!data) {
     console.error('agent api call failed', lastError)
