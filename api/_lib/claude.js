@@ -136,17 +136,28 @@ export function toAgentResponse(parsed) {
 // Preferred model twice, then the fallback. A 429/5xx from Mistral is usually
 // momentary (rate limit or demand spike), so a second attempt at the same
 // model often succeeds; the third only exists for when it does not.
-// Non-retryable statuses (bad request, dead key, unknown model) break
-// immediately rather than burning the budget on a call that will only ever
-// fail the same way.
+//
+// A non-retryable status (bad request, dead key, model not on this
+// account's tier, unknown model) means THIS model will never work this
+// call — but it says nothing about a *different* model. Discovered
+// 2026-09-08 in production: MODEL (mistral-large-latest) came back 403
+// "This model is not available in your subscription tier" on every real
+// message, and the old code treated that as fatal and gave up instead of
+// ever trying FALLBACK_MODEL, even though the fallback is specifically
+// configured to be a smaller/cheaper model more likely to be in reach of a
+// lower tier. So: a non-retryable failure now retires only that model
+// (skips its remaining attempts) and lets the loop move on to the next
+// distinct model in the list, rather than aborting the whole call.
 async function callMistral({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
   const attempts = [MODEL, MODEL, FALLBACK_MODEL]
   const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)))
   const startedAt = now()
   let lastError = 'no attempt made'
+  const deadModels = new Set()
 
   for (let i = 0; i < attempts.length; i++) {
     const model = attempts[i]
+    if (deadModels.has(model)) continue // already failed non-retryably this call — don't burn another attempt on it
     if (i > 0) {
       if (now() - startedAt > TOTAL_BUDGET_MS) break
       await wait(400 * i)
@@ -172,7 +183,7 @@ async function callMistral({ apiKey, systemPrompt, messages, fetchImpl = fetch, 
       }
       const errBody = await resp.text().catch(() => '')
       lastError = `${resp.status} ${errBody.slice(0, 300)}`
-      if (!RETRYABLE_STATUS.has(resp.status)) break
+      if (!RETRYABLE_STATUS.has(resp.status)) deadModels.add(model)
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err) // timeout / network
     }
