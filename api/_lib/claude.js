@@ -76,13 +76,18 @@ import { isStage } from './conversation-state.js'
 // New pair picked from two DIFFERENT model families on purpose, so a single
 // vendor decision to retire one line can't take out both rungs the way it
 // just did: meta/llama-3.3-70b-instruct (a newer Llama generation, released
-// after 3.1) as primary, qwen/qwen3-235b-a22b (an unrelated, more recently
-// released family) as fallback. Neither had an end-of-life notice as of
-// 2026-09-09, but that is exactly what could not have been said about
-// llama-3.1 a few weeks ago either — if this pair also 410s, check NVIDIA's
-// build.nvidia.com model catalog for current model IDs before re-guessing,
-// and consider having runAgent query NVIDIA's GET /v1/models at call time
-// instead of trusting hardcoded IDs to stay valid indefinitely.
+// after 3.1) as primary, qwen/qwen3-235b-a22b as fallback.
+//
+// SAME DAY, SECOND FIX: qwen/qwen3-235b-a22b turned out to 404 outright —
+// wrong/unlisted id, guessed from search results same as llama-3.1 was.
+// These two names are now only the last-resort default; resolveAttempts()
+// below (used by callNvidia) checks NVIDIA's live GET /v1/models at call
+// time and substitutes a real chat model from that list if either configured
+// name isn't in it, so a bad guess here degrades instead of hard-failing the
+// whole turn. If you're reading this because it broke again anyway: check
+// the Vercel logs for a "not in NVIDIA live catalog, substituting" warning
+// first — that tells you discovery worked and picked something, and the
+// actual problem is that substitute's own reply quality, not a dead model id.
 const MODEL = process.env.WA_NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct'
 const FALLBACK_MODEL = process.env.WA_NVIDIA_FALLBACK_MODEL || 'qwen/qwen3-235b-a22b'
 export { MODEL as AGENT_MODEL }
@@ -161,6 +166,77 @@ export function toAgentResponse(parsed) {
   }
 }
 
+// CHANGED again 2026-09-09, same day as the llama-3.1 EOL fix: the
+// replacement fallback (qwen/qwen3-235b-a22b) 404'd outright — wrong or
+// unlisted model id, not even a real NIM chat endpoint. Two guesses from
+// search results, two wrong model ids in one day. That is the pattern this
+// section exists to stop: instead of a human (or an assistant reading stale
+// docs) guessing what NVIDIA currently hosts, ask NVIDIA's own /v1/models
+// endpoint at call time and only trust the hardcoded names above as a
+// last-resort default when that ask itself is unreachable.
+const MODELS_URL = 'https://integrate.api.nvidia.com/v1/models'
+const MODELS_CACHE_MS = 10 * 60 * 1000 // long enough not to hit /v1/models every turn; short enough that a same-day retirement is caught on the next cold cache, not stuck for hours
+let modelsCache = null // { ids: string[], fetchedAt: number } — module-scope, so it survives across warm Vercel invocations
+
+async function liveModelIds(apiKey, fetchImpl) {
+  if (modelsCache && Date.now() - modelsCache.fetchedAt < MODELS_CACHE_MS) return modelsCache.ids
+  try {
+    const resp = await fetchImpl(MODELS_URL, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!resp.ok) return modelsCache?.ids ?? null
+    const body = await resp.json()
+    const ids = Array.isArray(body?.data) ? body.data.map((m) => m?.id).filter((id) => typeof id === 'string') : null
+    if (ids?.length) modelsCache = { ids, fetchedAt: Date.now() }
+    return ids?.length ? ids : (modelsCache?.ids ?? null)
+  } catch {
+    return modelsCache?.ids ?? null // discovery failing is not fatal — resolveAttempts falls back to the configured pair
+  }
+}
+
+// /v1/models lists embeddings, rerankers, guardrail and safety models
+// alongside chat models with nothing that says which is which, so this is a
+// denylist on the id string rather than a real capability check. It only
+// has to avoid an obviously-wrong substitute; it is not a guarantee the
+// picked model actually answers well.
+const NON_CHAT_HINTS = ['embed', 'rerank', 'guard', 'safety', 'reward', 'moderation', 'clip', 'nv-embedqa']
+const looksLikeChatModel = (id) => !NON_CHAT_HINTS.some((hint) => id.toLowerCase().includes(hint))
+
+/**
+ * The ladder of models to try this call. Starts from the configured
+ * MODEL/FALLBACK_MODEL; if NVIDIA's live catalog is reachable and says one
+ * of them is gone, swaps in another chat-looking model from that live list
+ * instead of burning an attempt (or the whole call) on a model guaranteed
+ * to 404/410. Falls back to the configured pair unchanged whenever
+ * discovery itself is unavailable — the same behavior this file had before
+ * today, never worse.
+ */
+async function resolveAttempts(apiKey, fetchImpl) {
+  const live = await liveModelIds(apiKey, fetchImpl)
+  if (!live) return [MODEL, MODEL, FALLBACK_MODEL]
+
+  const liveSet = new Set(live)
+  let primary = MODEL
+  let fallback = FALLBACK_MODEL
+
+  if (!liveSet.has(primary)) {
+    const swap = live.find((id) => looksLikeChatModel(id) && id !== fallback)
+    if (swap) {
+      console.warn('wa agent: configured MODEL', primary, 'not in NVIDIA live catalog, substituting', swap)
+      primary = swap
+    }
+  }
+  if (!liveSet.has(fallback)) {
+    const swap = live.find((id) => looksLikeChatModel(id) && id !== primary)
+    if (swap) {
+      console.warn('wa agent: configured FALLBACK_MODEL', fallback, 'not in NVIDIA live catalog, substituting', swap)
+      fallback = swap
+    }
+  }
+  return [primary, primary, fallback]
+}
+
 // Preferred model twice, then the fallback. A 429/5xx from NVIDIA NIM is
 // usually momentary (rate limit or demand spike), so a second attempt at the
 // same model often succeeds; the third only exists for when it does not.
@@ -174,9 +250,8 @@ export function toAgentResponse(parsed) {
 // NIM is a shared catalog of independently-hosted models — one being
 // unavailable or rate-limited says nothing about the other.
 async function callNvidia({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
-  const attempts = [MODEL, MODEL, FALLBACK_MODEL]
-  const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)))
   const startedAt = now()
+  const attempts = await resolveAttempts(apiKey, fetchImpl)
   let lastError = 'no attempt made'
   const deadModels = new Set()
 
