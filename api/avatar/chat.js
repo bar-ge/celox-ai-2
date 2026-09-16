@@ -1,4 +1,13 @@
 import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
+import { callOnPrem, onPremConfigured, onPremText } from '../_lib/onprem-llm.js'
+import { callHuggingFace, hfConfigured, hfText } from '../_lib/hf-llm.js'
+
+// maxDuration explicit: this route now tries up to two extra tiers (on-prem,
+// then Hugging Face's free router) before Gemini, same reasoning as
+// api/wa/webhook.js's explicit maxDuration. Purely a ceiling raise; normal
+// replies return in a couple of seconds either way, and Gemini's own
+// TOTAL_BUDGET_MS is unchanged below.
+export const config = { maxDuration: 60 }
 
 // TCEL-054 — LLM API connection for the in-app avatar.
 //
@@ -67,12 +76,6 @@ function extractJson(raw) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    console.error('GEMINI_API_KEY is not set — avatar chat unavailable')
-    return res.status(503).json({ reply: null, reason: 'not_configured' })
-  }
-
   const { message, history, context } = req.body ?? {}
   if (typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ reply: null, reason: 'missing_message' })
@@ -80,9 +83,37 @@ export default async function handler(req, res) {
 
   const lang = context?.lang === 'he' ? 'he' : 'he' // Hebrew-first app; default he regardless of context for now
   const systemPrompt = buildSystemPrompt(lang)
+  const priorTurns = Array.isArray(history) ? history.slice(-10) : []
+
+  // Three tiers, in order: self-hosted VPS, Hugging Face's free router, then
+  // Gemini below, unchanged. Same pattern and reasoning as api/_lib/claude.js
+  // — see onprem-llm.js / hf-llm.js. Each tier is a silent no-op when
+  // unconfigured, so today this runs exactly the Gemini path, unchanged.
+  const onPremMessages = [
+    ...priorTurns.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 2000) })),
+    { role: 'user', content: message.slice(0, 2000) },
+  ]
+
+  const onPrem = await callOnPrem({ systemPrompt, messages: onPremMessages, maxTokens: MAX_TOKENS, jsonMode: true })
+  if (onPrem.data) {
+    return respondFromText(res, onPremText(onPrem.data))
+  }
+  if (onPremConfigured()) console.warn('avatar chat: onprem LLM failed, trying Hugging Face —', onPrem.lastError)
+
+  const hf = await callHuggingFace({ systemPrompt, messages: onPremMessages, maxTokens: MAX_TOKENS, jsonMode: true })
+  if (hf.data) {
+    return respondFromText(res, hfText(hf.data))
+  }
+  if (hfConfigured()) console.warn('avatar chat: Hugging Face failed, falling back to Gemini —', hf.lastError)
+
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    console.error('GEMINI_API_KEY is not set — avatar chat unavailable')
+    return res.status(503).json({ reply: null, reason: 'not_configured' })
+  }
 
   const contents = [
-    ...(Array.isArray(history) ? history.slice(-10) : []).map(m => ({
+    ...priorTurns.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: String(m.text || '').slice(0, 2000) }],
     })),
@@ -106,8 +137,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ reply: null, reason: 'api_error' })
   }
 
+  const text = (data?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')
+  return respondFromText(res, text)
+}
+
+/** Shared JSON-extract + validate + respond tail, used by all three tiers so
+ * none of them has to duplicate the parsing rules. */
+function respondFromText(res, text) {
   try {
-    const text = (data?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')
     const parsed = extractJson(text)
 
     if (!parsed || typeof parsed.reply !== 'string') {
@@ -122,7 +159,7 @@ export default async function handler(req, res) {
       confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
     })
   } catch (err) {
-    console.error('avatar chat: could not read Gemini response', err instanceof Error ? err.message : err)
+    console.error('avatar chat: could not read model response', err instanceof Error ? err.message : err)
     return res.status(500).json({ reply: null, reason: 'api_error' })
   }
 }
@@ -131,6 +168,17 @@ export default async function handler(req, res) {
 // momentary demand spike, so a second attempt at the same model often
 // succeeds; the third only exists for when it does not.
 //
+// 🚨 2026-09-16: this used to `break` on a non-retryable status (400/403/404),
+// which means a dead/retired PRIMARY model killed the whole call and
+// FALLBACK_MODEL was NEVER reached — the exact bug that took down
+// api/_lib/claude.js's NVIDIA path for real (410 on the primary, no
+// fallback attempt). This file was flagged by this repo's own review-checker
+// as carrying the same defect (see claude/review-checker-sep-2026.md, "0e")
+// even though it's also the file the CORRECT `wait`-based retry pattern was
+// copied FROM — ironic, but both true. Now uses the same deadModels/continue
+// approach as callNvidia: a non-retryable failure retires that one model for
+// the rest of this call and moves on, instead of aborting everything.
+//
 // `fetchImpl` is injectable so the retry behaviour can be tested without
 // hitting Google — see the note in claude/avatar-chat-gemini-model.md.
 export async function callGemini({ apiKey, body, fetchImpl = fetch, now = Date.now, sleep }) {
@@ -138,9 +186,11 @@ export async function callGemini({ apiKey, body, fetchImpl = fetch, now = Date.n
   const wait = sleep || (ms => new Promise(r => setTimeout(r, ms)))
   const startedAt = now()
   let lastError = 'no attempt made'
+  const deadModels = new Set()
 
   for (let i = 0; i < attempts.length; i++) {
     const model = attempts[i]
+    if (deadModels.has(model)) continue // already failed non-retryably this call — don't burn another attempt on it
     if (i > 0) {
       if (now() - startedAt > TOTAL_BUDGET_MS) break
       await wait(400 * i)
@@ -161,8 +211,9 @@ export async function callGemini({ apiKey, body, fetchImpl = fetch, now = Date.n
       }
       const errBody = await resp.text().catch(() => '')
       lastError = `${resp.status} ${errBody.slice(0, 300)}`
-      // 400/403/404 are our bug or a dead key — retrying just wastes the budget.
-      if (!RETRYABLE_STATUS.has(resp.status)) break
+      // 400/403/404 mean THIS model is dead for the call — but says nothing
+      // about FALLBACK_MODEL, so retire only this one and keep going.
+      if (!RETRYABLE_STATUS.has(resp.status)) deadModels.add(model)
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err)   // timeout / network
     }
