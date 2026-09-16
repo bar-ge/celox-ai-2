@@ -34,9 +34,12 @@ api/
     intents.js               intent taxonomy + colours (shared with the UI)
     supabase.js              service-role client
     whatsapp.js              Cloud API send / read receipt / payload parsing
-    claude.js                Mistral agent wrapper (filename predates the 2026-09-07
-                              vendor switch — see the file-level comment), strict
-                              JSON parsing via response_format, retry + model fallback
+    claude.js                on-prem -> Hugging Face -> NVIDIA agent wrapper (filename
+                              predates several vendor switches — see the file-level
+                              comment), strict JSON parsing, retry + model fallback
+    onprem-llm.js             shared self-hosted-model client, used by claude.js AND
+                              api/avatar/chat.js — see docs/onprem-llm-setup.md
+    hf-llm.js                 shared Hugging Face free-tier client, same two callers
     calendly.js              real availability + single-use booking links
     crm.js                   lead upsert, field merge, message log, history
     followups.js             follow-up timing + wording
@@ -282,14 +285,19 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `WHATSAPP_PHONE_NUMBER_ID` | Cloud API sender |
 | `WHATSAPP_ACCESS_TOKEN` | Cloud API token |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | GET handshake |
-| `WHATSAPP_APP_SECRET` | optional; verifies `X-Hub-Signature-256` |
+| `WHATSAPP_APP_SECRET` | **required in production** since 2026-09-16 — verifies `X-Hub-Signature-256`; the route now fails closed (401) without it in production instead of silently skipping verification (was a live open-proxy hole, see the comment on `signatureValid` in `api/wa/webhook.js`) |
 | `CALENDLY_API_KEY` | personal access token |
 | `CALENDLY_EVENT_URL` | scheduling URL of the event type to book |
-| `MISTRAL_API_KEY` | powers the agent since 2026-09-07 (was Anthropic); key at console.mistral.ai/api-keys |
-| `WA_MISTRAL_MODEL` | optional; defaults to `mistral-large-latest` |
-| `WA_MISTRAL_FALLBACK_MODEL` | optional; defaults to `mistral-small-latest`, used if the primary model is overloaded |
+| `ONPREM_LLM_URL` | optional; self-hosted model, tried FIRST when set — see docs/onprem-llm-setup.md |
+| `ONPREM_LLM_API_KEY` | bearer token for the on-prem box's reverse proxy |
+| `ONPREM_LLM_MODEL` | which model tag the on-prem box should use |
+| `HF_API_TOKEN` | optional; Hugging Face free-tier token, tried SECOND when set (and `HF_MODEL` is also set) |
+| `HF_MODEL` | `provider/model:backend` string, no default on purpose — see `api/_lib/hf-llm.js` |
+| `NVIDIA_API_KEY` | powers the agent since 2026-09-09 (was Mistral, was Anthropic); free key at build.nvidia.com |
+| `WA_NVIDIA_MODEL` | optional; defaults to `meta/llama-3.3-70b-instruct`. Self-corrected against NVIDIA's live catalog at call time if stale. |
+| `WA_NVIDIA_FALLBACK_MODEL` | optional; defaults to `qwen/qwen3-235b-a22b`, used if the primary model is unavailable |
+| `MISTRAL_API_KEY` | no longer used by the WhatsApp agent; harmless to leave unset |
 | `ANTHROPIC_API_KEY` | no longer used by the WhatsApp agent; harmless to leave unset |
-| `ANTHROPIC_MODEL` | no longer used by the WhatsApp agent; harmless to leave unset |
 | `SUPABASE_URL` | falls back to `VITE_SUPABASE_URL` |
 | `SUPABASE_SERVICE_ROLE_KEY` | server writes, bypasses RLS |
 | `MASTER_EMAIL` | gates the dashboard API; must match `VITE_MASTER_EMAIL` |
