@@ -1,5 +1,22 @@
 import { INTENT_VALUES, isIntent } from './intents.js'
 import { isStage } from './conversation-state.js'
+import { callHuggingFace, hfConfigured, hfText } from './hf-llm.js'
+import { callOnPrem, onPremConfigured, onPremText } from './onprem-llm.js'
+
+// 🚨 2026-09-16: CRITICAL FIX — `wait` was undefined in callNvidia below,
+// confirmed by this repo's own QA/review-checker agents (item 3216281292)
+// to have caused a `ReferenceError` on the FIRST retry of every single call
+// since 2026-09-09 (commit 3e286e7), silently killing the entire retry/
+// fallback ladder. Net effect: the WhatsApp agent has answered zero leads
+// successfully in 27 days across four vendor attempts (Anthropic, Mistral,
+// NVIDIA before this fix, and now NVIDIA after it) — every inbound message
+// got the generic FALLBACK_MESSAGE instead of a real reply, including at
+// least one lead who explicitly asked to book a demo. See
+// claude/review-checker-sep-2026.md ("0f") and claude/qa-agent-sep-10-2026.md
+// in the project for the full trail. The fix is the one line restored in
+// callNvidia below — this file had it correctly as recently as 2026-09-09's
+// first NVIDIA commit, then lost it again when resolveAttempts() was added
+// the same day and callNvidia was rewritten without carrying it over.
 
 // Vendor: NVIDIA NIM (build.nvidia.com), not Anthropic — despite the
 // filename. Switched 2026-09-09 at Bar's request after the Mistral account
@@ -252,6 +269,7 @@ async function resolveAttempts(apiKey, fetchImpl) {
 async function callNvidia({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
   const startedAt = now()
   const attempts = await resolveAttempts(apiKey, fetchImpl)
+  const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms))) // see the file-level 2026-09-16 comment — this line going missing is what caused the 27-day outage
   let lastError = 'no attempt made'
   const deadModels = new Set()
 
@@ -302,20 +320,45 @@ async function callNvidia({ apiKey, systemPrompt, messages, fetchImpl = fetch, n
  * @returns {Promise<{ ok: true, data: AgentResponse } | { ok: false, reason: string }>}
  */
 export async function runAgent({ systemPrompt, messages }) {
-  const apiKey = process.env.NVIDIA_API_KEY
-  if (!apiKey) {
-    console.error('agent api call failed: NVIDIA_API_KEY is not set')
-    return { ok: false, reason: 'NVIDIA_API_KEY is not set' }
+  // Three tiers, in order: self-hosted VPS (see onprem-llm.js — not yet set
+  // up as of 2026-09-16), Hugging Face's free Inference Providers router
+  // (see hf-llm.js — a lower-friction free option added 2026-09-16, still a
+  // third-party vendor), then NVIDIA NIM below, unchanged. Each tier is a
+  // silent no-op when unconfigured, so today — with neither ONPREM_LLM_URL
+  // nor HF_API_TOKEN/HF_MODEL set — this runs exactly the NVIDIA path,
+  // same as before either of these were added. This webhook runs in the
+  // background (webhook.js's 200 already went out before runAgent is
+  // called — config.maxDuration=60 there), so there's real budget to try
+  // more than one tier before falling through to NVIDIA.
+  let text
+  const onPrem = await callOnPrem({ systemPrompt, messages, maxTokens: MAX_TOKENS })
+  if (onPrem.data) {
+    text = onPremText(onPrem.data)
+  } else {
+    if (onPremConfigured()) console.warn('wa agent: onprem LLM failed, trying Hugging Face —', onPrem.lastError)
+
+    const hf = await callHuggingFace({ systemPrompt, messages, maxTokens: MAX_TOKENS })
+    if (hf.data) {
+      text = hfText(hf.data)
+    } else {
+      if (hfConfigured()) console.warn('wa agent: Hugging Face failed, falling back to NVIDIA —', hf.lastError)
+
+      const apiKey = process.env.NVIDIA_API_KEY
+      if (!apiKey) {
+        console.error('agent api call failed: NVIDIA_API_KEY is not set')
+        return { ok: false, reason: 'NVIDIA_API_KEY is not set' }
+      }
+
+      const { data, lastError } = await callNvidia({ apiKey, systemPrompt, messages })
+
+      if (!data) {
+        console.error('agent api call failed', lastError)
+        return { ok: false, reason: lastError ?? 'api_error' }
+      }
+
+      text = data?.choices?.[0]?.message?.content ?? ''
+    }
   }
-
-  const { data, lastError } = await callNvidia({ apiKey, systemPrompt, messages })
-
-  if (!data) {
-    console.error('agent api call failed', lastError)
-    return { ok: false, reason: lastError ?? 'api_error' }
-  }
-
-  const text = data?.choices?.[0]?.message?.content ?? ''
 
   const json = extractJson(text)
   if (!json) {
