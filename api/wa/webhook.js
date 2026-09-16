@@ -55,13 +55,35 @@ async function readRawBody(req) {
 
 /**
  * Meta signs every webhook delivery with the app secret. Verified when
- * WHATSAPP_APP_SECRET is set; skipped (with a warning) when it is not.
+ * WHATSAPP_APP_SECRET is set.
+ *
+ * 🚨 2026-09-16: this used to fail OPEN (return true) when the secret was
+ * unset, with a docstring claiming a warning was logged — it wasn't (this
+ * app's own QA agent caught it, item 3224385196-adjacent /
+ * qa-wa-webhook-signature-fail-open). An unset secret meant ANY caller could
+ * POST directly to this route: write wab_leads/wab_messages with
+ * service-role (RLS bypassed), trigger an email to Bar with unescaped
+ * caller-controlled text, burn the NVIDIA/HF/on-prem key, and — the sharpest
+ * one — send an outbound WhatsApp from Celox's verified business number to
+ * any number the caller chose, which risks the WhatsApp Business Account
+ * itself, not just spend. That whole path was dormant only because the
+ * agent itself was dead (the `wait is not defined` bug fixed in
+ * api/_lib/claude.js the same day as this fix) — fixing that one without
+ * this one would have reopened it. Now fails CLOSED; the only escape hatch
+ * is local dev (NODE_ENV !== 'production'), never the secret's own absence.
  * @param {Buffer} raw
  * @param {string|undefined} header
  */
 function signatureValid(raw, header) {
   const secret = process.env.WHATSAPP_APP_SECRET
-  if (!secret) return true
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('webhook signature rejected: WHATSAPP_APP_SECRET is not set in production')
+      return false
+    }
+    console.warn('webhook signature check skipped: WHATSAPP_APP_SECRET is not set (non-production only)')
+    return true
+  }
   if (typeof header !== 'string' || !header.startsWith('sha256=')) return false
 
   const expected = Buffer.from(`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`)
