@@ -18,36 +18,39 @@ import { callOnPrem, onPremConfigured, onPremText } from './onprem-llm.js'
 // first NVIDIA commit, then lost it again when resolveAttempts() was added
 // the same day and callNvidia was rewritten without carrying it over.
 
-// Vendor: NVIDIA NIM (build.nvidia.com), not Anthropic — despite the
-// filename. Switched 2026-09-09 at Bar's request after the Mistral account
-// turned out to have no usable throughput on either model in the fallback
-// ladder — mistral-large-latest 403 tier_not_allowed, then
-// mistral-small-latest 429 rate_limited on a single lone request (see
-// claude/review-checker-sep-2026.md, "the ladder fix shipped, WORKS, and the
-// funnel is STILL 100% DOWN"). That was the third distinct provider outage
-// in three weeks (Anthropic 401 → Mistral 403/429), so this move is off
-// Mistral entirely rather than another billing fix-up, onto NVIDIA's NIM
-// free-credit API key.
+// Vendor: back on Anthropic (api.anthropic.com), which IS what the filename
+// says, as of 2026-09-17. History: Anthropic (401, key dead) → Mistral (403
+// tier_not_allowed / 429 rate_limited) → NVIDIA NIM (free-credit key, worked
+// at the API-auth level but every model this account tried came back `404
+// Not Found for account` — an entitlement gap on NVIDIA's side, confirmed via
+// get_runtime_errors' sample error body, not fixable from Vercel env vars
+// alone; see claude/qa-agent-sep-17-2026.md). Three vendor changes and 27+
+// days of zero successful replies later, Bar's call: stop chasing NVIDIA
+// account entitlements and switch back to Anthropic, using the
+// ANTHROPIC_API_KEY already sitting in Vercel (added 2026-08-19, previously
+// only wired up for the avatar chatbot before that moved to Gemini
+// 2026-08-24 — unconfirmed whether this specific key is the same one that
+// 401'd originally, so watch get_runtime_errors after this deploy for a 401
+// here too, not just silence-means-success).
 //
-// File kept as api/_lib/claude.js on purpose: every caller (webhook.js, the
-// self-test suite, docs/whatsapp-agent.md) imports from this path and this
-// change is additive, not a rename. `runAgent`'s signature and return shape
-// are byte-for-byte the same as before, so nothing downstream needed to
-// change — only what happens inside this file.
+// File kept as api/_lib/claude.js — always was the right name again. Every
+// caller (webhook.js, the self-test suite, docs/whatsapp-agent.md) imports
+// from this path and this change is additive, not a rename. `runAgent`'s
+// signature and return shape are byte-for-byte the same as before, so
+// nothing downstream needed to change — only what happens inside this file.
 //
-// NVIDIA NIM's Chat Completions API is OpenAI-shaped, same as Mistral's:
-// POST /v1/chat/completions with a `messages` array (system role included
-// inline). Unlike the Mistral integration this replaces, this file does NOT
-// send `response_format: { type: 'json_object' }` — NIM is a catalog of many
-// independently-hosted models (Llama, Nemotron, Mixtral, ...) on a vLLM
-// backend, and JSON-mode support is not guaranteed uniformly across them.
-// Getting a 400 for an unsupported field would retire a model for no good
-// reason, which is exactly the kind of failure that took Mistral down. So
-// this leans entirely on the system prompt's existing JSON-only Hebrew
-// instruction (system-prompt.js:16) plus the same runtime type guard
-// (toAgentResponse) that carried the whole Anthropic- and Mistral-era
-// contract — nothing about validation had to change, only how the raw text
-// gets fetched.
+// Anthropic's Messages API is NOT OpenAI-shaped like the NVIDIA/Mistral
+// calls it replaces: POST /v1/messages, auth via `x-api-key` + an
+// `anthropic-version` header (not `Authorization: Bearer`), and the system
+// prompt is its own top-level `system` field rather than a `system`-role
+// message in the array — the existing `messages` array here already only
+// contains user/assistant turns, so it passes through unchanged, just
+// re-homed. No live model-catalog discovery here (unlike NVIDIA's NIM,
+// which hosts many independently-retired third-party models) — Anthropic's
+// own model ids are stable and versioned, so the same runtime type guard
+// (toAgentResponse) plus the system prompt's existing JSON-only Hebrew
+// instruction (system-prompt.js:16) is all that's needed, same as every
+// vendor before this one.
 
 /**
  * @typedef {object} AgentExtracted
@@ -74,46 +77,31 @@ import { callOnPrem, onPremConfigured, onPremText } from './onprem-llm.js'
  * @property {string|null} selected_slot  ISO start time the lead explicitly confirmed
  */
 
-// Same two-tier model strategy as the rest of this codebase's non-Anthropic
+// Same two-tier model strategy as the rest of this codebase's cloud-vendor
 // integrations (see api/avatar/chat.js): try the current model twice, then
-// drop to a smaller/cheaper one rather than fail the whole turn. Both
-// overridable from Vercel with no deploy. Scoped with a WA_ prefix in case
-// another feature ever wants its own NVIDIA model tuned independently.
+// drop to a fallback rather than fail the whole turn. Both overridable from
+// Vercel with no deploy. Scoped with a WA_ prefix in case another feature
+// ever wants its own Anthropic model tuned independently.
 //
-// CHANGED 2026-09-09, hours after the first NVIDIA deploy: the original pair
-// here (meta/llama-3.1-70b-instruct / meta/llama-3.1-8b-instruct) came back
-// `410 Gone — "has reached its end of life on 2026-08-26T09:00:00Z"` on the
-// fallback the moment a real lead used it. NVIDIA retires whole model
-// families off NIM's hosted catalog on a schedule, same as any other vendor
-// catalog — this file just hadn't been bitten by it yet. The 70b attempts
-// failed too (only the last attempt's error is ever logged — see
-// callNvidia's own comment above runAgent), consistent with the entire
-// Llama 3.1 line having been pulled on the same date, not just the 8b size.
-//
-// New pair picked from two DIFFERENT model families on purpose, so a single
-// vendor decision to retire one line can't take out both rungs the way it
-// just did: meta/llama-3.3-70b-instruct (a newer Llama generation, released
-// after 3.1) as primary, qwen/qwen3-235b-a22b as fallback.
-//
-// SAME DAY, SECOND FIX: qwen/qwen3-235b-a22b turned out to 404 outright —
-// wrong/unlisted id, guessed from search results same as llama-3.1 was.
-// These two names are now only the last-resort default; resolveAttempts()
-// below (used by callNvidia) checks NVIDIA's live GET /v1/models at call
-// time and substitutes a real chat model from that list if either configured
-// name isn't in it, so a bad guess here degrades instead of hard-failing the
-// whole turn. If you're reading this because it broke again anyway: check
-// the Vercel logs for a "not in NVIDIA live catalog, substituting" warning
-// first — that tells you discovery worked and picked something, and the
-// actual problem is that substitute's own reply quality, not a dead model id.
-const MODEL = process.env.WA_NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct'
-const FALLBACK_MODEL = process.env.WA_NVIDIA_FALLBACK_MODEL || 'qwen/qwen3-235b-a22b'
+// Model pair for the 2026-09-17 Anthropic switch: claude-3-5-haiku-20241022
+// as primary (fast/cheap, plenty for a structured-JSON lead-qualification
+// reply), claude-3-5-sonnet-20241022 as fallback (higher quality, in case
+// haiku specifically is degraded/unavailable while the account otherwise
+// works). Both are long-stable, versioned Anthropic model ids — not a guess
+// the way the NVIDIA/qwen ids repeatedly were — so there is no live-catalog
+// discovery step here the way callNvidia needed; a 404 on a versioned
+// Anthropic model id would mean the id itself is wrong, not that the vendor
+// quietly retired it out from under this file.
+const MODEL = process.env.WA_ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022'
+const FALLBACK_MODEL = process.env.WA_ANTHROPIC_FALLBACK_MODEL || 'claude-3-5-sonnet-20241022'
 export { MODEL as AGENT_MODEL }
 
-const API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
+const API_URL = 'https://api.anthropic.com/v1/messages'
+const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_TOKENS = 700
 const ATTEMPT_TIMEOUT_MS = 11000
 const TOTAL_BUDGET_MS = 22000
-const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
+const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504, 529]) // 529 is Anthropic's "overloaded", equivalent to a 503
 
 const EMPTY_EXTRACTED = {
   first_name: null, company: null, role: null, fleet_size: null,
@@ -183,93 +171,19 @@ export function toAgentResponse(parsed) {
   }
 }
 
-// CHANGED again 2026-09-09, same day as the llama-3.1 EOL fix: the
-// replacement fallback (qwen/qwen3-235b-a22b) 404'd outright — wrong or
-// unlisted model id, not even a real NIM chat endpoint. Two guesses from
-// search results, two wrong model ids in one day. That is the pattern this
-// section exists to stop: instead of a human (or an assistant reading stale
-// docs) guessing what NVIDIA currently hosts, ask NVIDIA's own /v1/models
-// endpoint at call time and only trust the hardcoded names above as a
-// last-resort default when that ask itself is unreachable.
-const MODELS_URL = 'https://integrate.api.nvidia.com/v1/models'
-const MODELS_CACHE_MS = 10 * 60 * 1000 // long enough not to hit /v1/models every turn; short enough that a same-day retirement is caught on the next cold cache, not stuck for hours
-let modelsCache = null // { ids: string[], fetchedAt: number } — module-scope, so it survives across warm Vercel invocations
-
-async function liveModelIds(apiKey, fetchImpl) {
-  if (modelsCache && Date.now() - modelsCache.fetchedAt < MODELS_CACHE_MS) return modelsCache.ids
-  try {
-    const resp = await fetchImpl(MODELS_URL, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!resp.ok) return modelsCache?.ids ?? null
-    const body = await resp.json()
-    const ids = Array.isArray(body?.data) ? body.data.map((m) => m?.id).filter((id) => typeof id === 'string') : null
-    if (ids?.length) modelsCache = { ids, fetchedAt: Date.now() }
-    return ids?.length ? ids : (modelsCache?.ids ?? null)
-  } catch {
-    return modelsCache?.ids ?? null // discovery failing is not fatal — resolveAttempts falls back to the configured pair
-  }
-}
-
-// /v1/models lists embeddings, rerankers, guardrail and safety models
-// alongside chat models with nothing that says which is which, so this is a
-// denylist on the id string rather than a real capability check. It only
-// has to avoid an obviously-wrong substitute; it is not a guarantee the
-// picked model actually answers well.
-const NON_CHAT_HINTS = ['embed', 'rerank', 'guard', 'safety', 'reward', 'moderation', 'clip', 'nv-embedqa']
-const looksLikeChatModel = (id) => !NON_CHAT_HINTS.some((hint) => id.toLowerCase().includes(hint))
-
-/**
- * The ladder of models to try this call. Starts from the configured
- * MODEL/FALLBACK_MODEL; if NVIDIA's live catalog is reachable and says one
- * of them is gone, swaps in another chat-looking model from that live list
- * instead of burning an attempt (or the whole call) on a model guaranteed
- * to 404/410. Falls back to the configured pair unchanged whenever
- * discovery itself is unavailable — the same behavior this file had before
- * today, never worse.
- */
-async function resolveAttempts(apiKey, fetchImpl) {
-  const live = await liveModelIds(apiKey, fetchImpl)
-  if (!live) return [MODEL, MODEL, FALLBACK_MODEL]
-
-  const liveSet = new Set(live)
-  let primary = MODEL
-  let fallback = FALLBACK_MODEL
-
-  if (!liveSet.has(primary)) {
-    const swap = live.find((id) => looksLikeChatModel(id) && id !== fallback)
-    if (swap) {
-      console.warn('wa agent: configured MODEL', primary, 'not in NVIDIA live catalog, substituting', swap)
-      primary = swap
-    }
-  }
-  if (!liveSet.has(fallback)) {
-    const swap = live.find((id) => looksLikeChatModel(id) && id !== primary)
-    if (swap) {
-      console.warn('wa agent: configured FALLBACK_MODEL', fallback, 'not in NVIDIA live catalog, substituting', swap)
-      fallback = swap
-    }
-  }
-  return [primary, primary, fallback]
-}
-
-// Preferred model twice, then the fallback. A 429/5xx from NVIDIA NIM is
-// usually momentary (rate limit or demand spike), so a second attempt at the
-// same model often succeeds; the third only exists for when it does not.
+// Preferred model twice, then the fallback. A 429/5xx/529 from Anthropic is
+// usually momentary (rate limit or transient overload), so a second attempt
+// at the same model often succeeds; the third only exists for when it does
+// not.
 //
-// A non-retryable status (bad request, dead key, model not deployed, unknown
-// model) means THIS model will never work this call — but it says nothing
-// about a *different* model. This ladder logic (deadModels) is unchanged
-// from the Mistral integration it replaces: it is what let the retry loop
-// walk on to a second model instead of aborting outright when the first one
-// died non-retryably. Keeping it here matters even more with NVIDIA, since
-// NIM is a shared catalog of independently-hosted models — one being
-// unavailable or rate-limited says nothing about the other.
-async function callNvidia({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
+// A non-retryable status (bad request, dead key, unknown model) means THIS
+// model will never work this call — but it says nothing about a *different*
+// model. This ladder logic (deadModels) carries over unchanged from the
+// NVIDIA/Mistral integrations this replaces.
+async function callAnthropic({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
   const startedAt = now()
-  const attempts = await resolveAttempts(apiKey, fetchImpl)
-  const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms))) // see the file-level 2026-09-16 comment — this line going missing is what caused the 27-day outage
+  const attempts = [MODEL, MODEL, FALLBACK_MODEL]
+  const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)))
   let lastError = 'no attempt made'
   const deadModels = new Set()
 
@@ -283,15 +197,17 @@ async function callNvidia({ apiKey, systemPrompt, messages, fetchImpl = fetch, n
     try {
       const resp = await fetchImpl(API_URL, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': ANTHROPIC_VERSION,
+          'Content-Type': 'application/json',
+        },
         signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
         body: JSON.stringify({
           model,
           max_tokens: MAX_TOKENS,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
-          ],
+          system: systemPrompt,
+          messages: messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
         }),
       })
       if (resp.ok) {
@@ -309,10 +225,10 @@ async function callNvidia({ apiKey, systemPrompt, messages, fetchImpl = fetch, n
 }
 
 /**
- * One agent turn. Calls NVIDIA NIM, retries per callNvidia's own strategy,
- * and returns either a validated AgentResponse or a typed failure the caller
- * can fall back on. Signature and return shape unchanged from the Anthropic
- * and Mistral versions — see the file-level comment.
+ * One agent turn. Calls Anthropic's Messages API, retries per callAnthropic's
+ * own strategy, and returns either a validated AgentResponse or a typed
+ * failure the caller can fall back on. Signature and return shape unchanged
+ * from every vendor before this one — see the file-level comment.
  *
  * @param {object} args
  * @param {string} args.systemPrompt
@@ -323,13 +239,12 @@ export async function runAgent({ systemPrompt, messages }) {
   // Three tiers, in order: self-hosted VPS (see onprem-llm.js — not yet set
   // up as of 2026-09-16), Hugging Face's free Inference Providers router
   // (see hf-llm.js — a lower-friction free option added 2026-09-16, still a
-  // third-party vendor), then NVIDIA NIM below, unchanged. Each tier is a
-  // silent no-op when unconfigured, so today — with neither ONPREM_LLM_URL
-  // nor HF_API_TOKEN/HF_MODEL set — this runs exactly the NVIDIA path,
-  // same as before either of these were added. This webhook runs in the
-  // background (webhook.js's 200 already went out before runAgent is
-  // called — config.maxDuration=60 there), so there's real budget to try
-  // more than one tier before falling through to NVIDIA.
+  // third-party vendor), then Anthropic below. Each tier is a silent no-op
+  // when unconfigured, so today — with neither ONPREM_LLM_URL nor
+  // HF_API_TOKEN/HF_MODEL set — this runs exactly the Anthropic path. This
+  // webhook runs in the background (webhook.js's 200 already went out
+  // before runAgent is called — config.maxDuration=60 there), so there's
+  // real budget to try more than one tier before falling through here.
   let text
   const onPrem = await callOnPrem({ systemPrompt, messages, maxTokens: MAX_TOKENS })
   if (onPrem.data) {
@@ -341,22 +256,22 @@ export async function runAgent({ systemPrompt, messages }) {
     if (hf.data) {
       text = hfText(hf.data)
     } else {
-      if (hfConfigured()) console.warn('wa agent: Hugging Face failed, falling back to NVIDIA —', hf.lastError)
+      if (hfConfigured()) console.warn('wa agent: Hugging Face failed, falling back to Anthropic —', hf.lastError)
 
-      const apiKey = process.env.NVIDIA_API_KEY
+      const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) {
-        console.error('agent api call failed: NVIDIA_API_KEY is not set')
-        return { ok: false, reason: 'NVIDIA_API_KEY is not set' }
+        console.error('agent api call failed: ANTHROPIC_API_KEY is not set')
+        return { ok: false, reason: 'ANTHROPIC_API_KEY is not set' }
       }
 
-      const { data, lastError } = await callNvidia({ apiKey, systemPrompt, messages })
+      const { data, lastError } = await callAnthropic({ apiKey, systemPrompt, messages })
 
       if (!data) {
         console.error('agent api call failed', lastError)
         return { ok: false, reason: lastError ?? 'api_error' }
       }
 
-      text = data?.choices?.[0]?.message?.content ?? ''
+      text = data?.content?.[0]?.text ?? ''
     }
   }
 
