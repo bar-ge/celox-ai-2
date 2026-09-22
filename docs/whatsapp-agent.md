@@ -34,9 +34,10 @@ api/
     intents.js               intent taxonomy + colours (shared with the UI)
     supabase.js              service-role client
     whatsapp.js              Cloud API send / read receipt / payload parsing
-    claude.js                on-prem -> Hugging Face -> NVIDIA agent wrapper (filename
-                              predates several vendor switches — see the file-level
-                              comment), strict JSON parsing, retry + model fallback
+    claude.js                on-prem -> Hugging Face -> Anthropic agent wrapper (filename
+                              is accurate again as of 2026-09-17 — see the file-level
+                              comment for the full vendor history), strict JSON parsing,
+                              retry + model fallback
     onprem-llm.js             shared self-hosted-model client, used by claude.js AND
                               api/avatar/chat.js — see docs/onprem-llm-setup.md
     hf-llm.js                 shared Hugging Face free-tier client, same two callers
@@ -293,11 +294,11 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `ONPREM_LLM_MODEL` | which model tag the on-prem box should use |
 | `HF_API_TOKEN` | optional; Hugging Face free-tier token, tried SECOND when set (and `HF_MODEL` is also set) |
 | `HF_MODEL` | `provider/model:backend` string, no default on purpose — see `api/_lib/hf-llm.js` |
-| `NVIDIA_API_KEY` | powers the agent since 2026-09-09 (was Mistral, was Anthropic); free key at build.nvidia.com |
-| `WA_NVIDIA_MODEL` | optional; defaults to `meta/llama-3.3-70b-instruct`. Self-corrected against NVIDIA's live catalog at call time if stale. |
-| `WA_NVIDIA_FALLBACK_MODEL` | optional; defaults to `qwen/qwen3-235b-a22b`, used if the primary model is unavailable |
+| `ANTHROPIC_API_KEY` | powers the agent since 2026-09-17 (was NVIDIA, was Mistral); key at console.anthropic.com |
+| `WA_ANTHROPIC_MODEL` | optional; defaults to `claude-haiku-4-5-20251001` (corrected 2026-09-22 — the original default, `claude-3-5-haiku-20241022`, was a retired model id) |
+| `WA_ANTHROPIC_FALLBACK_MODEL` | optional; defaults to `claude-sonnet-4-5-20250929` (corrected 2026-09-22, same reason), used if the primary model is unavailable |
 | `MISTRAL_API_KEY` | no longer used by the WhatsApp agent; harmless to leave unset |
-| `ANTHROPIC_API_KEY` | no longer used by the WhatsApp agent; harmless to leave unset |
+| `NVIDIA_API_KEY` | no longer used by the WhatsApp agent (replaced by Anthropic 2026-09-17); harmless to leave unset |
 | `SUPABASE_URL` | falls back to `VITE_SUPABASE_URL` |
 | `SUPABASE_SERVICE_ROLE_KEY` | server writes, bypasses RLS |
 | `MASTER_EMAIL` | gates the dashboard API; must match `VITE_MASTER_EMAIL` |
