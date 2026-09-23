@@ -591,6 +591,6 @@ export const FOLLOWUP_PREAMBLE = {
 export const FALLBACK_MESSAGE =
   'סליחה, נתקלתי בתקלה טכנית רגעית ולא הצלחתי לעבד את ההודעה. אפשר לכתוב לי שוב בעוד רגע, ואם זה חוזר — אעביר אותך לנציג מהצוות.'
 
-/** Sent when Calendly is unreachable (spec: say so honestly, offer a human). */
+/** Sent when the calendar is unreachable (spec: say so honestly, offer a human). */
 export const CALENDAR_ERROR_MESSAGE =
   'לא הצלחתי כרגע למשוך את המועדים הפנויים מהיומן, ואני לא רוצה לתת לך שעה שאולי כבר תפוסה. אעביר אותך לנציג מהצוות שיתאם איתך מועד ישירות. מה השאלה המרכזית שחשוב לך שהנציג יתייחס אליה?'

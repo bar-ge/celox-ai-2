@@ -168,7 +168,7 @@ ${lines.join('\n')}
  *
  * @param {object} args
  * @param {Record<string, unknown>} args.lead        current leads row
- * @param {{ key: string, label: string }[]} [args.slots]      every open Calendly slot
+ * @param {{ key: string, label: string }[]} [args.slots]      every open calendar slot
  * @param {{ key: string, label: string }[]} [args.suggested]  the three to offer unprompted
  * @param {number} [args.meetingMinutes]             meeting length, if known
  * @param {string} [args.meetingKind]                'טלפון' | 'Zoom' | 'Google Meet'

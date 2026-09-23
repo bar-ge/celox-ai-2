@@ -12,7 +12,7 @@ conversation to the next unanswered script question.
 - [x] Phase 1: Schema + shared lib modules
 - [x] Phase 2: WhatsApp Cloud API webhook + send/read helpers
 - [x] Phase 3: AI agent, system prompt, conversation state
-- [x] Phase 4: Calendly availability + confirmed booking
+- [x] Phase 4: real availability + confirmed booking (Calendly, then Google Calendar since 2026-09-22)
 - [x] Phase 5: Dashboard UI
 - [x] Phase 6: Realtime, follow-up cron, self-tests
 - [ ] Live end-to-end test against the real WhatsApp number (needs credentials in Vercel)
@@ -41,7 +41,9 @@ api/
     onprem-llm.js             shared self-hosted-model client, used by claude.js AND
                               api/avatar/chat.js — see docs/onprem-llm-setup.md
     hf-llm.js                 shared Hugging Face free-tier client, same two callers
-    calendly.js              real availability + single-use booking links
+    google-calendar.js       real availability + booking, via a service-account JWT
+                              (replaced calendly.js 2026-09-22 — file kept for reference,
+                              no longer imported anywhere)
     crm.js                   lead upsert, field merge, message log, history
     followups.js             follow-up timing + wording
     auth.js                  master-only gate for the dashboard routes
@@ -83,19 +85,32 @@ src/wab/                     dashboard (lazy-loaded from App.jsx)
 
 ### Booking
 
-The agent **books the meeting itself** — `POST https://api.calendly.com/invitees`
-(Calendly's Scheduling API). The lead gets a calendar invite with the Meet link;
-they are never asked to go and finish anything on a Calendly page.
+The agent **books the meeting itself** on Google Calendar, via
+`api/_lib/google-calendar.js` — a service-account JWT flow (no
+googleapis/google-auth-library dependency) against the Calendar v3 REST API,
+writing directly onto `office@celoxai.com` (env `GOOGLE_CALENDAR_ID`). Each
+event gets a Google Meet link via `conferenceData`. The service account only
+has calendar-level sharing on that calendar (granted 2026-09-22 through
+Workspace Admin Console → external sharing, not domain-wide delegation), so
+it cannot always send a native email invite — `bookSlot()` detects that
+specific Google error and re-books the same slot without attendees rather
+than losing the booking; the WhatsApp reply carries the meeting details and
+Meet link either way.
 
-Availability is only fetched once the lead is qualified or the conversation has
-reached the meeting stages. The model is given the real slots with a machine id
-and must echo one back in `selected_slot` when the lead confirms. That id is
-re-validated against live availability before anything is written — if the slot
-has gone, the agent says so and offers fresh times instead of faking it. If
-Calendly is unreachable it says so and hands off to a human.
+Availability is computed ourselves (Google Calendar has no "list open slots"
+endpoint): `google-calendar.js` reads `/freeBusy` for the window, generates
+candidate slots at `GOOGLE_CALENDAR_MEETING_MINUTES`-minute steps across
+`CELOX_INFO.hours` (Sun–Thu 09:00–18:00 Israel time), and drops any that
+overlap a busy block. It is only fetched once the lead is qualified or the
+conversation has reached the meeting stages. The model is given the real
+slots with a machine id and must echo one back in `selected_slot` when the
+lead confirms. That id is re-validated against live availability before
+anything is written — if the slot has gone, the agent says so and offers
+fresh times instead of faking it. If the calendar is unreachable it says so
+and hands off to a human.
 
-**The email.** Calendly cannot create an invitee without an address, so if the
-lead has agreed a time but we have no email, the slot is parked in
+**The email.** The booking API needs an address to invite, so if the lead has
+agreed a time but we have no email, the slot is parked in
 `wab_leads.pending_meeting_at` and the agent asks for the address. The next turn
 re-checks that the slot is still free and finishes the booking. Parking it
 matters: without it the lead would have to agree the same time twice, and a
@@ -104,10 +119,14 @@ model that forgot to re-emit `selected_slot` would lose the booking entirely.
 Clearing `pending_meeting_at` is a direct write rather than part of `mergeLead`,
 because `mergeLead` deliberately never overwrites a value with null.
 
-**Fallback.** If the booking API refuses — plan limits, the slot going in the
-last second, a network blip — the agent falls back to sending the single-use
-scheduling link, which is how this worked before and still gets the lead booked.
-Nothing regresses; the reply just asks for one more tap.
+**Fallback.** If the booking API refuses — the slot going in the last second, a
+network blip, calendar misconfiguration — the agent falls back to sending the
+public Appointment Schedule link (`GOOGLE_CALENDAR_BOOKING_URL`), which still
+gets the lead booked. Nothing regresses; the reply just asks for one more tap.
+
+**Dashboard "Send booking link".** `api/wa/send-booking.js` also uses this
+same link (`schedulingLink()`) for its manual one-off WhatsApp message — it
+does not go through the agent's own booking flow.
 
 ### Follow-ups
 
@@ -287,8 +306,13 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `WHATSAPP_ACCESS_TOKEN` | Cloud API token |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | GET handshake |
 | `WHATSAPP_APP_SECRET` | **required in production** since 2026-09-16 — verifies `X-Hub-Signature-256`; the route now fails closed (401) without it in production instead of silently skipping verification (was a live open-proxy hole, see the comment on `signatureValid` in `api/wa/webhook.js`) |
-| `CALENDLY_API_KEY` | personal access token |
-| `CALENDLY_EVENT_URL` | scheduling URL of the event type to book |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | service account's `client_email`, from its downloaded JSON key |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | service account's `private_key`, same JSON key |
+| `GOOGLE_CALENDAR_ID` | calendar the service account writes to; defaults to `office@celoxai.com` |
+| `GOOGLE_CALENDAR_BOOKING_URL` | public Appointment Schedule link (Google Calendar → Booking pages → Copy link) — dashboard "send booking link" + the agent's own fallback |
+| `GOOGLE_CALENDAR_MEETING_MINUTES` | optional; defaults to 45 |
+| `CALENDLY_API_KEY` | retired 2026-09-22, replaced by the above |
+| `CALENDLY_EVENT_URL` | retired 2026-09-22, replaced by the above |
 | `ONPREM_LLM_URL` | optional; self-hosted model, tried FIRST when set — see docs/onprem-llm-setup.md |
 | `ONPREM_LLM_API_KEY` | bearer token for the on-prem box's reverse proxy |
 | `ONPREM_LLM_MODEL` | which model tag the on-prem box should use |

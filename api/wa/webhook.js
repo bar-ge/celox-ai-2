@@ -10,7 +10,7 @@ import {
 } from '../_lib/crm.js'
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
-import { availability, splitSlotHe, bookSlot } from '../_lib/calendly.js'
+import { availability, splitSlotHe, bookSlot } from '../_lib/google-calendar.js'
 import { sendNewLeadAlert } from '../_lib/alerts.js'
 import { isQualified, nextUnansweredStage } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
@@ -249,7 +249,7 @@ async function respond(phone, text) {
   let meetingUrl = null
   let pendingMeetingAt = null
 
-  // Calendly was needed but unreachable — say so honestly, hand to a human.
+  // The calendar was needed but unreachable — say so honestly, hand to a human.
   if (wantsCalendar && !calendar.ok && calendar.reason !== 'not_requested' &&
       ['CALENDAR_OPTIONS', 'MEETING_CONFIRMATION', 'MEETING_BOOKED'].includes(stage)) {
     reply = CALENDAR_ERROR_MESSAGE
@@ -297,7 +297,7 @@ async function respond(phone, text) {
       const { date, time } = splitSlotHe(chosen.start)
 
       if (!email) {
-        // Calendly has nowhere to send the invite without an address, and
+        // Google Calendar has nowhere to send the invite without an address, and
         // rejects the booking outright. Hold the agreed time so the next turn
         // can finish the job the moment they answer.
         pendingMeetingAt = chosen.start
@@ -410,7 +410,7 @@ async function respond(phone, text) {
 /**
  * Put the meeting in the calendar for real.
  *
- * Calendly's booking API does the whole thing server-side, so the lead gets a
+ * The Calendar API does the whole thing server-side, so the lead gets a
  * calendar invite instead of homework. If it refuses — plan restrictions, the
  * slot going in the last few seconds, anything — we fall back to the single-use
  * scheduling link, which is how this worked before and still gets them booked.

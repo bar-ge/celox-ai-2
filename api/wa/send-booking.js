@@ -3,7 +3,7 @@
 
 import { sendText } from '../_lib/whatsapp.js'
 import { logMessage, getOrCreateLead } from '../_lib/crm.js'
-import { schedulingLink } from '../_lib/calendly.js'
+import { schedulingLink } from '../_lib/google-calendar.js'
 import { requireMaster } from '../_lib/auth.js'
 
 export default async function handler(req, res) {
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     if (lead.opted_out) return res.status(409).json({ ok: false, reason: 'opted_out' })
 
     const link = await schedulingLink()
-    if (!link) return res.status(503).json({ ok: false, reason: 'calendly_not_configured' })
+    if (!link) return res.status(503).json({ ok: false, reason: 'calendar_not_configured' })
 
     const name = lead.first_name ? ` ${lead.first_name}` : ''
     const body =

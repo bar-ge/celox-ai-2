@@ -11,7 +11,7 @@ import { nextUnansweredStage, deriveStatus, isQualified, isStage, isStatus } fro
 import { normaliseTurns } from '../api/_lib/crm.js'
 import { followupDue, followupMessage, withinBusinessHours, localParts } from '../api/_lib/followups.js'
 import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
-import { slotKey, spreadAcrossDays } from '../api/_lib/calendly.js'
+import { slotKey, spreadAcrossDays } from '../api/_lib/google-calendar.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
 import { groupForLead, columnValues, syncLead, meetingValue, COLUMNS } from '../api/_lib/monday.js'
@@ -463,14 +463,15 @@ test('the agent is told not to invent a meeting or jump to booking', () => {
 })
 
 test('a meeting is booked outright, not handed off as homework', () => {
-  // Calendly's Scheduling API books server-side, so the lead gets a calendar
-  // invite instead of a link they have to go and finish.
-  const cal = readFileSync(new URL('../api/_lib/calendly.js', import.meta.url), 'utf8')
+  // The Calendar API books server-side, so the lead gets a calendar event
+  // (and Meet link) instead of a link they have to go and finish.
+  const cal = readFileSync(new URL('../api/_lib/google-calendar.js', import.meta.url), 'utf8')
   assert.ok(/export async function bookSlot/.test(cal))
-  assert.ok(/\$\{API\}\/invitees/.test(cal), 'wrong booking endpoint')
+  assert.ok(/\/calendars\/\$\{encodeURIComponent\(calId\)\}\/events/.test(cal), 'wrong booking endpoint')
   assert.ok(/if \(!email\) return \{ ok: false, reason: 'email_required' \}/.test(cal))
-  // The raw location kind, not the Hebrew label, is what the API accepts.
-  assert.ok(/locationKind: locKind/.test(cal))
+  // A service account without domain-wide delegation can be refused when
+  // inviting attendees — the booking must still go through without one.
+  assert.ok(/domain-wide delegation|cannot invite attendees/.test(cal), 'no fallback for blocked attendee invites')
 
   assert.ok(/const booked = await book\(/.test(WEBHOOK_SRC))
   assert.ok(/booking fell back to a scheduling link/.test(WEBHOOK_SRC), 'no fallback path')
