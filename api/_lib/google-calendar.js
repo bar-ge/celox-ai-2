@@ -3,10 +3,16 @@
 // Auth is a bare service-account JWT flow (no googleapis/google-auth-library
 // dependency) — sign a claim set with the service account's private key,
 // trade it for an OAuth access token, then call the Calendar v3 REST API
-// directly. The service account only has calendar-level sharing on
-// GOOGLE_CALENDAR_ID (no domain-wide delegation), so it cannot always send a
-// native attendee invite — bookSlot() detects that specific failure and
-// retries without attendees rather than losing the booking.
+// directly. The JWT's "sub" claim impersonates GOOGLE_CALENDAR_IMPERSONATE
+// (domain-wide delegation, granted 2026-09-23 in Workspace Admin Console —
+// Security > API controls > Domain-wide delegation, scoped to
+// https://www.googleapis.com/auth/calendar only), so calls act as a real
+// Workspace user rather than the bare service account. Without this, Google
+// rejects both attendee invites ("cannot invite attendees without
+// domain-wide delegation") and Meet-link creation ("Invalid conference type
+// value") — bookSlot() still has a fallback for the attendee case alone, in
+// case delegation is ever revoked, but impersonation is what actually makes
+// both work end to end.
 //
 // Availability is computed ourselves from free/busy + CELOX_INFO.hours,
 // since Google Calendar has no "list open slots" endpoint the way Calendly
@@ -25,6 +31,10 @@ const serviceAccountKey = () => (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY 
 const calendarId = () => process.env.GOOGLE_CALENDAR_ID || 'office@celoxai.com'
 const meetingMinutes = () => Number(process.env.GOOGLE_CALENDAR_MEETING_MINUTES) || 45
 const bookingUrl = () => process.env.GOOGLE_CALENDAR_BOOKING_URL || null
+// Who the service account impersonates via domain-wide delegation. Defaults to
+// the calendar owner, since that is who Google needs to act as to invite
+// attendees and create a Meet link on that calendar.
+const impersonate = () => process.env.GOOGLE_CALENDAR_IMPERSONATE || calendarId()
 
 const isConfigured = () => Boolean(serviceAccountEmail() && serviceAccountKey() && calendarId())
 
@@ -44,7 +54,7 @@ async function getAccessToken() {
 
   const now = Math.floor(Date.now() / 1000)
   const header = { alg: 'RS256', typ: 'JWT' }
-  const claims = { iss: email, scope: SCOPE, aud: TOKEN_URL, iat: now, exp: now + 3600 }
+  const claims = { iss: email, scope: SCOPE, aud: TOKEN_URL, iat: now, exp: now + 3600, sub: impersonate() }
   const unsigned = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claims))}`
   const signature = crypto.sign('RSA-SHA256', Buffer.from(unsigned), key)
   const jwt = `${unsigned}.${b64url(signature)}`

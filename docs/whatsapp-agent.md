@@ -89,13 +89,20 @@ The agent **books the meeting itself** on Google Calendar, via
 `api/_lib/google-calendar.js` — a service-account JWT flow (no
 googleapis/google-auth-library dependency) against the Calendar v3 REST API,
 writing directly onto `office@celoxai.com` (env `GOOGLE_CALENDAR_ID`). Each
-event gets a Google Meet link via `conferenceData`. The service account only
-has calendar-level sharing on that calendar (granted 2026-09-22 through
-Workspace Admin Console → external sharing, not domain-wide delegation), so
-it cannot always send a native email invite — `bookSlot()` detects that
-specific Google error and re-books the same slot without attendees rather
-than losing the booking; the WhatsApp reply carries the meeting details and
-Meet link either way.
+event gets a real Google Meet link via `conferenceData`, and the lead gets a
+native attendee invite — both require the service account to act as a real
+Workspace user, which is why it has **domain-wide delegation** (Workspace
+Admin Console → Security → API controls → Domain-wide delegation, granted
+2026-09-23, scoped to `https://www.googleapis.com/auth/calendar` only) and
+impersonates `GOOGLE_CALENDAR_IMPERSONATE` (defaults to `GOOGLE_CALENDAR_ID`)
+via the JWT's `sub` claim. A bare service account with only calendar-level
+sharing (the original 2026-09-22 setup) gets `400 Invalid conference type
+value` on Meet creation and is refused on attendee invites — delegation is
+what actually fixes both. `bookSlot()` still detects the specific
+"cannot invite attendees" error and retries without attendees as a last-resort
+fallback, in case delegation is ever revoked; the WhatsApp reply carries the
+meeting details and Meet link either way, and never asks the lead to click a
+confirmation link when the direct booking succeeds.
 
 Availability is computed ourselves (Google Calendar has no "list open slots"
 endpoint): `google-calendar.js` reads `/freeBusy` for the window, generates
@@ -309,6 +316,7 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | service account's `client_email`, from its downloaded JSON key |
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | service account's `private_key`, same JSON key |
 | `GOOGLE_CALENDAR_ID` | calendar the service account writes to; defaults to `office@celoxai.com` |
+| `GOOGLE_CALENDAR_IMPERSONATE` | Workspace user the service account impersonates via domain-wide delegation (JWT `sub` claim); optional, defaults to `GOOGLE_CALENDAR_ID` |
 | `GOOGLE_CALENDAR_BOOKING_URL` | public Appointment Schedule link (Google Calendar → Booking pages → Copy link) — dashboard "send booking link" + the agent's own fallback |
 | `GOOGLE_CALENDAR_MEETING_MINUTES` | optional; defaults to 45 |
 | `CALENDLY_API_KEY` | retired 2026-09-22, replaced by the above |
