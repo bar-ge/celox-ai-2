@@ -11,7 +11,7 @@ import {
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
 import { availability, splitSlotHe, bookSlot } from '../_lib/google-calendar.js'
-import { sendNewLeadAlert } from '../_lib/alerts.js'
+import { sendNewLeadAlert, sendMeetingBookedAlert } from '../_lib/alerts.js'
 import { isQualified, nextUnansweredStage } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
@@ -425,10 +425,17 @@ async function book({ startIso, email, lead, calendar, phone }) {
   const res = await bookSlot({ startIso, email, name })
 
   if (res.ok) {
+    const meetingUrl = res.rescheduleUrl || res.cancelUrl
+    // Fire-and-forget — Bar wants an email the moment any meeting is booked,
+    // same pattern as the new-lead alert. Never blocks or fails the reply.
+    sendMeetingBookedAlert({
+      phone, firstName: lead.first_name, email, dateLabel: date, timeLabel: time, meetingUrl,
+    }).catch(() => {})
+
     return {
       stage: 'MEETING_BOOKED',
       meetingAt: startIso,
-      meetingUrl: res.rescheduleUrl || res.cancelUrl,
+      meetingUrl,
       pendingMeetingAt: null,
       reply:
         `קבעתי — נתראה ב-${date} בשעה ${time} ✅\n` +
