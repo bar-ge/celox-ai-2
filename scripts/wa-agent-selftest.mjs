@@ -312,7 +312,22 @@ test('offers real slots immediately instead of an open "when suits you" question
   const p = buildSystemPrompt({ lead: {} })
   assert.ok(!p.includes('מתי נוח לך שנראה לך את זה'), 'the old open-ended question must be gone')
   assert.ok(p.includes('אין כאן שאלה פתוחה של "מתי נוח לך?"'))
-  assert.ok(p.includes('איזה מהם הכי נוח לך?'))
+  assert.ok(p.includes('איזה מהם הכי נוח לך, ולאיזה כתובת מייל אשלח את ההזמנה לפגישה?'))
+})
+
+test('asks for the email in the same message that offers the slots, not after', () => {
+  const p = buildSystemPrompt({
+    lead: { stage: 'CALENDAR_OPTIONS' },
+    slots: [{ key: '2026-08-18 12:00', label: 'יום שלישי, 18 באוגוסט, 12:00' }],
+  })
+  assert.ok(
+    p.includes('כתובת המייל נשאלת באותה הודעה, יחד עם שאלת המועד'),
+    'the script must fold the email ask into the slot-offer message',
+  )
+  assert.ok(
+    p.includes('בקש אותה כבר בהודעה שמציעה את שלושת המועדים'),
+    'the calendar block instructions must tell the model to ask for email upfront',
+  )
 })
 
 console.log('\ncalendar helpers')
