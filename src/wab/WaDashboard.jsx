@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { fetchLeads, fetchMessages, patchLead, sendBookingLink, restartConversation } from './api'
+import { fetchLeads, fetchMessages, patchLead, sendBookingLink, nudgeCalendar, restartConversation } from './api'
 import { T, FONT_SANS, useDashboardFonts } from './theme'
 import useLayout from './useLayout'
 import ConversationList from './ConversationList'
@@ -120,6 +120,12 @@ export default function WaDashboard({ onBack }) {
     if (phone === selectedRef.current) await loadThread(phone)
   }, [loadLeads, loadThread])
 
+  const handleNudge = useCallback(async (phone) => {
+    await nudgeCalendar(phone)
+    await loadLeads()
+    if (phone === selectedRef.current) await loadThread(phone)
+  }, [loadLeads, loadThread])
+
   const narrow = layout === 'narrow'
   const showList   = layout === 'wide' || layout === 'medium' || pane === 'list'
   const showThread = layout === 'wide' || layout === 'medium' || pane === 'thread'
@@ -132,6 +138,7 @@ export default function WaDashboard({ onBack }) {
       layout={layout}
       onPatch={handlePatch}
       onSendBooking={handleSendBooking}
+      onNudge={handleNudge}
       onRestart={handleRestart}
       onClose={narrow ? () => setPane('thread') : () => setDetailOpen(false)}
       showClose={narrow || layout === 'medium'}

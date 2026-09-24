@@ -35,6 +35,11 @@ export const patchLead = (phone, patch) =>
 export const sendBookingLink = (phone) =>
   request('/api/wa/send-booking', { method: 'POST', body: JSON.stringify({ phone }) })
 
+// Re-sends the section-10 summary + real calendar slots when the agent stalled
+// instead of presenting them (e.g. said "checking and I'll get back to you").
+export const nudgeCalendar = (phone) =>
+  request('/api/wa/nudge', { method: 'POST', body: JSON.stringify({ phone }) })
+
 /** Open a thread with a number that has never written to us. */
 export const startConversation = ({ phone, firstName }) =>
   request('/api/wa/start', { method: 'POST', body: JSON.stringify({ phone, firstName }) })
