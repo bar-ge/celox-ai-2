@@ -3,8 +3,12 @@
 //
 // Reuses the same Resend setup as api/contact.js. Never fatal: a failed alert
 // must not stop the webhook from answering the lead.
-
-const ALERT_TO = 'bar.gershenzon@gmail.com'
+//
+// Two different inboxes on purpose: every new conversation goes to the office
+// inbox (shared/team-visible), while a booked meeting — something Bar wants to
+// personally see land — goes to his own address.
+const NEW_CONVERSATION_ALERT_TO = 'office@celoxai.com'
+const MEETING_BOOKED_ALERT_TO = 'bar.gershenzon@gmail.com'
 
 /**
  * Fire-and-forget email the moment a brand-new lead sends their first
@@ -38,7 +42,7 @@ export async function sendNewLeadAlert({ phone, firstName }) {
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'Celox AI <noreply@celoxai.com>',
-        to: ALERT_TO,
+        to: NEW_CONVERSATION_ALERT_TO,
         subject: `💬 שיחה חדשה בוואטסאפ — ${who}`,
         html,
       }),
@@ -93,7 +97,7 @@ export async function sendMeetingBookedAlert({ phone, firstName, email, dateLabe
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'Celox AI <noreply@celoxai.com>',
-        to: ALERT_TO,
+        to: MEETING_BOOKED_ALERT_TO,
         subject: `📅 נקבעה פגישה — ${who}, ${dateLabel} ${timeLabel}`,
         html,
       }),
