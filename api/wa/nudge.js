@@ -16,7 +16,7 @@ import { logMessage, getOrCreateLead } from '../_lib/crm.js'
 import { availability } from '../_lib/google-calendar.js'
 import { isQualified } from '../_lib/conversation-state.js'
 import { CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
-import { MANAGEMENT_LABEL } from '../_lib/system-prompt.js'
+import { summaryAndSlotsMessage } from '../_lib/calendar-message.js'
 import { serviceClient, LEADS } from '../_lib/supabase.js'
 import { requireMaster } from '../_lib/auth.js'
 import { syncLead } from '../_lib/monday.js'
@@ -41,6 +41,8 @@ export default async function handler(req, res) {
     const body = cal.ok
       ? summaryAndSlotsMessage(lead, cal.suggested)
       : CALENDAR_ERROR_MESSAGE
+    // (summaryAndSlotsMessage now lives in ../_lib/calendar-message.js, shared
+    // with webhook.js's own CALENDAR_OPTIONS-entry override — see that file.)
 
     const sent = await sendText(phone, body)
     if (!sent.ok) return res.status(502).json({ ok: false, reason: sent.error ?? 'send_failed' })
@@ -68,33 +70,4 @@ export default async function handler(req, res) {
     console.error('POST /api/wa/nudge failed', err instanceof Error ? err.message : 'unknown')
     return res.status(500).json({ ok: false, reason: 'server_error' })
   }
-}
-
-/**
- * Spec section 10, built from data instead of the model — same wording,
- * same fold-in of the email ask from the same section.
- * @param {Record<string, unknown>} lead
- * @param {{ label: string }[]} suggested
- */
-function summaryAndSlotsMessage(lead, suggested) {
-  const managementLabel = lead.current_management
-    ? MANAGEMENT_LABEL[lead.current_management] || lead.current_management
-    : null
-
-  const painClause = lead.main_pain ? `, והנושא המרכזי שחשוב לכם הוא ${lead.main_pain}` : ''
-  const fleetClause = lead.fleet_size != null ? lead.fleet_size : (lead.fleet_size_raw || '')
-
-  const intro = managementLabel
-    ? `הבנתי. אתם מנהלים כ־${fleetClause} באמצעות ${managementLabel}${painClause}.`
-    : `הבנתי. אתם מנהלים כ־${fleetClause} כלי רכב${painClause}.`
-
-  const slotLines = suggested.map((s) => s.label).join('\n')
-
-  return (
-    `${intro}\n` +
-    `בשיחה קצרה עם הצוות שלנו נראה לכם את החלקים הרלוונטיים במערכת ונבדוק אם CELOX AI מתאימה לכם. ` +
-    `לא שיחת מכירה בלחץ ולא התחייבות לכלום.\n` +
-    `אלה המועדים הקרובים שפנויים:\n\n${slotLines}\n\n` +
-    `איזה מהם הכי נוח לך, ולאיזה כתובת מייל אשלח את ההזמנה לפגישה?`
-  )
 }

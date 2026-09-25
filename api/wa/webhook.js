@@ -14,6 +14,7 @@ import { availability, splitSlotHe, bookSlot } from '../_lib/google-calendar.js'
 import { sendNewLeadAlert, sendMeetingBookedAlert } from '../_lib/alerts.js'
 import { isQualified, nextUnansweredStage } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
+import { summaryAndSlotsMessage } from '../_lib/calendar-message.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
 import { syncLead } from '../_lib/monday.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
@@ -255,6 +256,19 @@ async function respond(phone, text) {
     reply = CALENDAR_ERROR_MESSAGE
     stage = 'HUMAN_HANDOFF'
     agent.requires_human = true
+  }
+
+  // The moment a lead first reaches CALENDAR_OPTIONS, build the "summary +
+  // real slots" message deterministically instead of trusting the model's
+  // own wording — it has fabricated or misformatted dates here before (e.g.
+  // offering slots in January while the real calendar had next-week
+  // openings). BOOKING_STAGES.includes(lead.stage) means this isn't the
+  // first entry (the lead was already offered slots earlier), so leave the
+  // model's reply alone on later turns — this override is only for the
+  // transition itself.
+  if (stage === 'CALENDAR_OPTIONS' && !BOOKING_STAGES.includes(lead.stage) && calendar.ok) {
+    const effectiveLead = { ...lead, ...agent.extracted }
+    reply = summaryAndSlotsMessage(effectiveLead, calendar.suggested)
   }
 
   // A meeting is only ever written after the lead confirmed a slot that is

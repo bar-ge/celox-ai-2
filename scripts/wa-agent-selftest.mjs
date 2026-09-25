@@ -13,6 +13,7 @@ import { followupDue, followupMessage, withinBusinessHours, localParts } from '.
 import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
 import { slotKey, spreadAcrossDays } from '../api/_lib/google-calendar.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
+import { summaryAndSlotsMessage } from '../api/_lib/calendar-message.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
 import { groupForLead, columnValues, syncLead, meetingValue, COLUMNS } from '../api/_lib/monday.js'
 import { windowOpen } from '../api/wa/start.js'
@@ -500,6 +501,43 @@ test('no email means the slot is held, not booked and not lost', () => {
   assert.ok(/fresh\.slots\.find\(\(s\) => s\.start === lead\.pending_meeting_at\)/.test(WEBHOOK_SRC))
   // mergeLead never writes null, so clearing the held slot needs its own write.
   assert.ok(/pending_meeting_at: pendingMeetingAt/.test(WEBHOOK_SRC))
+})
+
+test('the CALENDAR_OPTIONS entry message is built from real slots, not the model', () => {
+  // Itay Asulin's conversation: the model's first CALENDAR_OPTIONS reply
+  // fabricated three dates in January in a wrong format, when the real
+  // calendar had openings next week. The fix overrides `reply` at the
+  // transition itself, using the same builder as the dashboard's manual
+  // "Ask for real dates" recovery action (nudge.js).
+  assert.ok(
+    /if \(stage === 'CALENDAR_OPTIONS' && !BOOKING_STAGES\.includes\(lead\.stage\) && calendar\.ok\) \{/.test(WEBHOOK_SRC),
+    'no deterministic override at CALENDAR_OPTIONS entry'
+  )
+  assert.ok(/reply = summaryAndSlotsMessage\(effectiveLead, calendar\.suggested\)/.test(WEBHOOK_SRC))
+  // Must run before the MEETING_BOOKED handling, and only on first entry —
+  // a lead already in BOOKING_STAGES (re-offered slots mid-conversation)
+  // keeps the model's own reply.
+  assert.ok(
+    WEBHOOK_SRC.indexOf("stage === 'CALENDAR_OPTIONS' && !BOOKING_STAGES") <
+      WEBHOOK_SRC.indexOf("if (stage === 'MEETING_BOOKED')"),
+    'override placed after the MEETING_BOOKED branch'
+  )
+})
+
+test('summaryAndSlotsMessage: real slots, folded-in email ask, no fabrication', () => {
+  const lead = { current_management: 'excel', fleet_size: 12, main_pain: 'תחזוקה' }
+  const suggested = [
+    { label: 'יום שני, 28 בספטמבר, 10:00' },
+    { label: 'יום שלישי, 29 בספטמבר, 14:00' },
+  ]
+  const msg = summaryAndSlotsMessage(lead, suggested)
+  assert.ok(msg.includes('יום שני, 28 בספטמבר, 10:00'))
+  assert.ok(msg.includes('יום שלישי, 29 בספטמבר, 14:00'))
+  assert.ok(msg.includes('12'))
+  assert.ok(msg.includes('איזה מהם הכי נוח לך, ולאיזה כתובת מייל אשלח את ההזמנה לפגישה?'))
+  // Nothing outside the given suggested labels can appear as a date/time —
+  // the whole point is that this is assembled from data, never generated.
+  assert.equal(msg.split('\n\n')[1], suggested.map((s) => s.label).join('\n'))
 })
 
 test('the agent is told a real invite needs an email first', () => {
