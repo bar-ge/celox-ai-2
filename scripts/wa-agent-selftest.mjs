@@ -11,7 +11,9 @@ import { nextUnansweredStage, deriveStatus, isQualified, isStage, isStatus } fro
 import { normaliseTurns } from '../api/_lib/crm.js'
 import { followupDue, followupMessage, withinBusinessHours, localParts } from '../api/_lib/followups.js'
 import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
-import { slotKey, spreadAcrossDays } from '../api/_lib/google-calendar.js'
+import {
+  slotKey, spreadAcrossDays, daySlots, nthBusinessDay, busyCountByDay, MAX_MEETINGS_PER_DAY,
+} from '../api/_lib/google-calendar.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
 import { summaryAndSlotsMessage } from '../api/_lib/calendar-message.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
@@ -242,12 +244,34 @@ test('a follow-up resumes the unanswered question, never the opening', () => {
   assert.ok(three.includes('להשאיר את הפנייה פתוחה'))
 })
 
+test('a MEETING_CONFIRMATION follow-up chases the missing email, not a yes/no', () => {
+  // Booking no longer waits on a separate "confirm this time?" round-trip
+  // (spec section 12) — MEETING_CONFIRMATION now only means "slot picked,
+  // email still missing", so the follow-up must ask for the email.
+  const lead = {
+    first_name: 'בר', role: 'מנהל צי', fleet_size: 12, current_management: 'excel',
+    stage: 'MEETING_CONFIRMATION', followup_count: 0,
+  }
+  const one = followupMessage(lead, 1)
+  assert.ok(one.includes('כתובת המייל'), one)
+  assert.ok(!one.includes('לאשר את הפגישה'), 'must not ask for a stale yes/no confirmation')
+})
+
 console.log('\nsystem prompt')
 
 test('carries the Hebrew script verbatim', () => {
   const p = buildSystemPrompt({ lead: { stage: 'OPENING' } })
   assert.ok(p.includes(CONVERSATION_SCRIPT), 'script must be embedded unmodified')
   assert.ok(p.includes('## 24. הנחיית מערכת מרכזית לסוכן'))
+})
+
+test('books as soon as a slot and an email are both known, no extra confirm round-trip', () => {
+  // Bar: once the meeting details are sent, no need to wait on the lead to
+  // separately confirm — a chosen slot + an email is itself the go-ahead.
+  assert.ok(CONVERSATION_SCRIPT.includes('## 12. קביעת הפגישה'))
+  assert.ok(CONVERSATION_SCRIPT.includes('הסוכן קובע את\nהפגישה מיד'))
+  assert.ok(CONVERSATION_SCRIPT.includes('אין שולחים הודעת\nביניים נוספת'), 'no rule against a separate confirm round-trip')
+  assert.ok(CONVERSATION_SCRIPT.includes('אין צורך במעקב שמבקש ממנו לאשר שוב'))
 })
 
 test('lists what is already known and where to resume', () => {
@@ -353,6 +377,57 @@ test('falls back to same-day slots when there are not enough days', () => {
   const mk = (key) => ({ key, label: key, start: key, schedulingUrl: 'x' })
   const picked = spreadAcrossDays(['2026-08-18 09:00', '2026-08-18 09:30'].map(mk), 3)
   assert.equal(picked.length, 2)
+})
+
+test('daySlots spaces 45-minute sessions with a 15-minute break', () => {
+  // Bar: 45-minute demos, at least 15 minutes before the next one starts.
+  const slots = daySlots('2026-08-18', 45)
+  const keys = slots.map((d) => slotKey(d.toISOString()))
+  assert.deepEqual(keys, [
+    '2026-08-18 09:00', '2026-08-18 10:00', '2026-08-18 11:00', '2026-08-18 12:00',
+    '2026-08-18 13:00', '2026-08-18 14:00', '2026-08-18 15:00', '2026-08-18 16:00', '2026-08-18 17:00',
+  ])
+  for (let i = 1; i < slots.length; i++) {
+    assert.equal(slots[i].getTime() - slots[i - 1].getTime(), 60 * 60000, 'slots must be 60 minutes apart')
+  }
+})
+
+test('nthBusinessDay counts only SUN–THU, skipping weekends', () => {
+  const friday = new Date('2026-08-14T00:00:00Z') // Friday — not itself a business day
+  assert.equal(nthBusinessDay(friday, 1), '2026-08-16', 'first business day is the following Sunday')
+  assert.equal(nthBusinessDay(friday, 5), '2026-08-20', '5th business day, right before the next weekend')
+  assert.equal(nthBusinessDay(friday, 6), '2026-08-23', '6th business day skips the weekend entirely')
+})
+
+test('busyCountByDay counts meetings per Jerusalem-local day, and the daily cap is 3', () => {
+  // Bar: never more than 3 demos booked on the same day.
+  assert.equal(MAX_MEETINGS_PER_DAY, 3)
+  const busy = [
+    { start: '2026-08-18T06:00:00Z', end: '2026-08-18T06:45:00Z' }, // 09:00 local
+    { start: '2026-08-18T09:00:00Z', end: '2026-08-18T09:45:00Z' }, // 12:00 local
+    { start: '2026-08-19T06:00:00Z', end: '2026-08-19T06:45:00Z' }, // a different day
+  ]
+  const counts = busyCountByDay(busy)
+  assert.equal(counts.get('2026-08-18'), 2)
+  assert.equal(counts.get('2026-08-19'), 1)
+})
+
+const CALENDAR_SRC = readFileSync(new URL('../api/_lib/google-calendar.js', import.meta.url), 'utf8')
+
+test('a day already at the meeting cap is skipped entirely when building availability', () => {
+  assert.ok(
+    /const dayFull = \(dayCounts\.get\(dateStr\) \|\| 0\) >= MAX_MEETINGS_PER_DAY/.test(CALENDAR_SRC),
+    'no daily-cap check in freeSlotsBetween'
+  )
+  assert.ok(/if \(isBusinessDay && !dayFull\) \{/.test(CALENDAR_SRC), 'cap not actually applied before generating slots')
+})
+
+test('availability() tries the next 7 working days before reaching further out', () => {
+  // Bar: offer 3 real options within the next 7 working days; only look past
+  // that — a second 7 working days, 14 total — if 7 wasn't enough.
+  assert.ok(/let end = endOfDayUtc\(nthBusinessDay\(start, 7\)\)/.test(CALENDAR_SRC))
+  assert.ok(/if \(raw\.length < suggest\) \{/.test(CALENDAR_SRC), 'no fallback when the first window is short')
+  assert.ok(/end = endOfDayUtc\(nthBusinessDay\(start, 14\)\)/.test(CALENDAR_SRC))
 })
 
 test('the contract names only valid stages and intents', () => {

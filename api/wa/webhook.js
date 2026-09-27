@@ -226,7 +226,7 @@ async function respond(phone, text) {
 
   const wantsCalendar = CALENDAR_STAGES.includes(lead.stage) || isQualified(lead)
   let calendar = { ok: false, reason: 'not_requested', slots: [], suggested: [] }
-  if (wantsCalendar) calendar = await availability({ days: 14, suggest: 3 })
+  if (wantsCalendar) calendar = await availability({ suggest: 3 })
 
   const systemPrompt = buildSystemPrompt({
     lead,
@@ -329,7 +329,7 @@ async function respond(phone, text) {
       }
     } else {
       // The model claimed a booking we cannot verify — do not fake it.
-      const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
+      const fresh = calendar.ok ? calendar : await availability({ suggest: 3 })
       if (fresh.ok) {
         stage = 'CALENDAR_OPTIONS'
         reply =
@@ -349,7 +349,7 @@ async function respond(phone, text) {
   if (lead.pending_meeting_at && !meetingAt && stage !== 'OPT_OUT' && stage !== 'HUMAN_HANDOFF') {
     const email = agent.extracted?.email || lead.email
     if (email) {
-      const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
+      const fresh = calendar.ok ? calendar : await availability({ suggest: 3 })
       const still = fresh.ok
         ? fresh.slots.find((s) => s.start === lead.pending_meeting_at)
         : null

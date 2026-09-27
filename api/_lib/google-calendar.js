@@ -30,6 +30,11 @@ const serviceAccountEmail = () => process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
 const serviceAccountKey = () => (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n')
 const calendarId = () => process.env.GOOGLE_CALENDAR_ID || 'office@celoxai.com'
 const meetingMinutes = () => Number(process.env.GOOGLE_CALENDAR_MEETING_MINUTES) || 45
+// Bar: 45-minute sessions, at least 15 minutes between them so the team
+// isn't walking straight from one demo into the next.
+const breakMinutes = () => Number(process.env.GOOGLE_CALENDAR_BREAK_MINUTES) || 15
+// Bar: never more than 3 demos booked on the same day.
+export const MAX_MEETINGS_PER_DAY = Number(process.env.GOOGLE_CALENDAR_MAX_PER_DAY) || 3
 const bookingUrl = () => process.env.GOOGLE_CALENDAR_BOOKING_URL || null
 // Who the service account impersonates via domain-wide delegation. Defaults to
 // the calendar owner, since that is who Google needs to act as to invite
@@ -140,17 +145,64 @@ function zonedTimeToUtc(dateStr, timeStr, tz) {
   return new Date(asUtc.getTime() - offset)
 }
 
-/** Every slot start, at `duration`-minute steps, within business hours on a given local date. */
-function daySlots(dateStr, duration) {
+/**
+ * Every slot start within business hours on a given local date, spaced
+ * `duration + breakMinutes()` apart so two sessions are never back to back.
+ * Exported for tests only — not part of the public availability() API.
+ */
+export function daySlots(dateStr, duration) {
   const { startHour, endHour } = CELOX_INFO.hours
   const totalMinutes = (endHour - startHour) * 60
+  const step = duration + breakMinutes()
   const slots = []
-  for (let cursor = 0; cursor + duration <= totalMinutes; cursor += duration) {
+  for (let cursor = 0; cursor + duration <= totalMinutes; cursor += step) {
     const hh = String(startHour + Math.floor(cursor / 60)).padStart(2, '0')
     const mm = String(cursor % 60).padStart(2, '0')
     slots.push(zonedTimeToUtc(dateStr, `${hh}:${mm}`, TZ))
   }
   return slots
+}
+
+/**
+ * How many busy intervals fall on each Jerusalem-local day — a stand-in for
+ * "meetings already booked that day", since this calendar is dedicated to
+ * demo meetings. Used to enforce the daily cap below.
+ * Exported for tests only — not part of the public availability() API.
+ * @param {{start:string,end:string}[]} busy
+ * @returns {Map<string, number>}
+ */
+export function busyCountByDay(busy) {
+  const counts = new Map()
+  for (const b of busy) {
+    const day = jerusalemDateString(new Date(b.start))
+    counts.set(day, (counts.get(day) || 0) + 1)
+  }
+  return counts
+}
+
+/**
+ * The Nth business day (per CELOX_INFO.hours.days) counting `fromDate`'s own
+ * local day as day 1 if it is itself a business day.
+ * Exported for tests only — not part of the public availability() API.
+ * @param {Date} fromDate @param {number} n @returns {string} "YYYY-MM-DD"
+ */
+export function nthBusinessDay(fromDate, n) {
+  let cursor = jerusalemDateString(fromDate)
+  let count = 0
+  let guard = 0
+  while (guard++ < 400) {
+    if (CELOX_INFO.hours.days.includes(dayOfWeekFromDateString(cursor))) {
+      count++
+      if (count === n) return cursor
+    }
+    cursor = addDaysToDateString(cursor, 1)
+  }
+  return cursor
+}
+
+/** Midnight Jerusalem at the start of the day *after* `dateStr` — the exclusive end of that day. */
+function endOfDayUtc(dateStr) {
+  return zonedTimeToUtc(addDaysToDateString(dateStr, 1), '00:00', TZ)
 }
 
 function overlapsBusy(slotStart, duration, busy) {
@@ -169,6 +221,7 @@ function overlapsBusy(slotStart, duration, busy) {
  */
 async function freeSlotsBetween(start, end, duration) {
   const busy = await busyIntervals(start.toISOString(), end.toISOString())
+  const dayCounts = busyCountByDay(busy)
 
   const slots = []
   let dateStr = jerusalemDateString(start)
@@ -176,7 +229,11 @@ async function freeSlotsBetween(start, end, duration) {
   let guard = 0
   while (dateStr <= endDate && guard < 400 && slots.length < MAX_WINDOW_SLOTS) {
     guard++
-    if (CELOX_INFO.hours.days.includes(dayOfWeekFromDateString(dateStr))) {
+    const isBusinessDay = CELOX_INFO.hours.days.includes(dayOfWeekFromDateString(dateStr))
+    // A day that already has 3 meetings on it is skipped entirely, even if
+    // business hours technically still have an open slot.
+    const dayFull = (dayCounts.get(dateStr) || 0) >= MAX_MEETINGS_PER_DAY
+    if (isBusinessDay && !dayFull) {
       for (const slotStart of daySlots(dateStr, duration)) {
         if (slotStart >= start && slotStart < end && !overlapsBusy(slotStart, duration, busy)) {
           slots.push(slotStart)
@@ -287,20 +344,27 @@ export async function availableSlots({ count = 3, from, days = 7 } = {}) {
 export const slotsNear = (preferred, count = 3) => availableSlots({ count, from: preferred })
 
 /**
- * Every open slot in the next `days`, not just the next three.
+ * Every open slot, preferring the next 7 working days. Only reaches further
+ * out — a second 7 working days, 14 total — when that first window can't
+ * fill the requested number of suggestions.
  * @param {object} [opts]
- * @param {number} [opts.days] @param {number} [opts.suggest]
+ * @param {number} [opts.suggest]
  */
-export async function availability({ days = 14, suggest = 3 } = {}) {
+export async function availability({ suggest = 3 } = {}) {
   if (!isConfigured()) return { ok: false, reason: 'google_calendar_not_configured' }
 
   try {
     const duration = meetingMinutes()
     const start = new Date(Date.now() + 2 * 60 * 60 * 1000)
-    const end = new Date(start.getTime() + days * 86400000)
     const link = await schedulingLink()
 
-    const raw = await freeSlotsBetween(start, end, duration)
+    let end = endOfDayUtc(nthBusinessDay(start, 7))
+    let raw = await freeSlotsBetween(start, end, duration)
+    if (raw.length < suggest) {
+      end = endOfDayUtc(nthBusinessDay(start, 14))
+      raw = await freeSlotsBetween(start, end, duration)
+    }
+
     const slots = raw.map((d) => {
       const iso = d.toISOString()
       return { start: iso, key: slotKey(iso), label: formatSlotHe(iso), schedulingUrl: link }

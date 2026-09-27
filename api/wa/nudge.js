@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     if (lead.meeting_at) return res.status(409).json({ ok: false, reason: 'already_booked' })
     if (!isQualified(lead)) return res.status(409).json({ ok: false, reason: 'not_qualified_yet' })
 
-    const cal = await availability({ days: 14, suggest: 3 })
+    const cal = await availability({ suggest: 3 })
 
     const body = cal.ok
       ? summaryAndSlotsMessage(lead, cal.suggested)

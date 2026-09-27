@@ -33,7 +33,11 @@ const STAGE_QUESTION = {
   WHY_NOW: 'מה גרם לכם לבדוק את הנושא דווקא עכשיו?',
   PROCESS_EXPLANATION: 'מתי נוח לך שנראה לך איך אפשר לנהל את כל זה עם קצת פחות ניירת וקצת יותר רגל על רגל?',
   CALENDAR_OPTIONS: 'איזה יום ושעה יהיו לך נוחים?',
-  MEETING_CONFIRMATION: 'לאשר את הפגישה למועד הזה?',
+  // MEETING_CONFIRMATION now means "slot picked, only the email is missing"
+  // (webhook.js's pending_meeting_at flow) — booking itself no longer waits
+  // on a separate "confirm this time?" round-trip (spec section 12), so the
+  // follow-up here has to chase the actual missing piece, the email.
+  MEETING_CONFIRMATION: 'מה כתובת המייל שלך, כדי שאשלח את ההזמנה ליומן?',
 }
 
 /**
