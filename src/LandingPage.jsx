@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { CeloxIcon } from './LogoIcon'
 import { validateField, isEmail, isIsraeliPhone, isEmpty } from './validators'
-import { REGIONS, REGION_CODES, getRegion } from './regions'
+import { REGIONS, MARKETING_REGION_CODES, getRegion } from './regions'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
@@ -406,7 +406,7 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div className="lp-region" style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(255,255,255,.06)', borderRadius: 100, padding: 2 }} title={region?.name}>
-            {REGION_CODES.map(code => (
+            {MARKETING_REGION_CODES.map(code => (
               <button key={code} onClick={() => switchRegion(code)}
                 style={{ background: region?.code === code ? 'rgba(255,255,255,.16)' : 'transparent', border: 'none', borderRadius: 100, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '4px 6px', opacity: region?.code === code ? 1 : .55 }}
                 title={REGIONS[code].name}>

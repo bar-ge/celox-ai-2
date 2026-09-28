@@ -1,5 +1,7 @@
 {
   "redirects": [
+    { "source": "/ca", "destination": "/us", "permanent": true },
+    { "source": "/ca/:path*", "destination": "/us", "permanent": true },
     {
       "source": "/",
       "has": [{ "type": "host", "value": "wab.celoxai.com" }],

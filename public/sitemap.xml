@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Marketing surface only. src/main.jsx routes "/", "/il", "/us", "/ca" to the
+  Marketing surface only. src/main.jsx routes "/", "/il", "/us" to the
   landing page and "/privacy" to the privacy page; everything else is the app
   and does not belong in a sitemap.
 
@@ -16,7 +16,6 @@
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="he-IL" href="https://celoxai.com/il"/>
     <xhtml:link rel="alternate" hreflang="en-US" href="https://celoxai.com/us"/>
-    <xhtml:link rel="alternate" hreflang="en-CA" href="https://celoxai.com/ca"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://celoxai.com/"/>
   </url>
 
@@ -27,18 +26,6 @@
     <priority>0.5</priority>
     <xhtml:link rel="alternate" hreflang="he-IL" href="https://celoxai.com/il"/>
     <xhtml:link rel="alternate" hreflang="en-US" href="https://celoxai.com/us"/>
-    <xhtml:link rel="alternate" hreflang="en-CA" href="https://celoxai.com/ca"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://celoxai.com/"/>
-  </url>
-
-  <url>
-    <loc>https://celoxai.com/ca</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-    <xhtml:link rel="alternate" hreflang="he-IL" href="https://celoxai.com/il"/>
-    <xhtml:link rel="alternate" hreflang="en-US" href="https://celoxai.com/us"/>
-    <xhtml:link rel="alternate" hreflang="en-CA" href="https://celoxai.com/ca"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://celoxai.com/"/>
   </url>
 
