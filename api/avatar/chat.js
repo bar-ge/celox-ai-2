@@ -87,19 +87,23 @@ export default async function handler(req, res) {
   let lastError = null
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const isFinalRound = round === MAX_TOOL_ROUNDS
-    // json_object mode and tools aren't mutually exclusive (OpenAI-shaped
-    // APIs apply response_format only to the branch where the model answers
-    // in plain content rather than calling a tool) — kept on for every round
-    // so a model that skips the tool and answers directly still gets the
-    // {reply, intent, ...} JSON contract the system prompt asks for. Tools
-    // themselves are only offered while rounds remain; the final round omits
-    // them so the loop always terminates in a real answer.
+    // 🚨 2026-09-28: first shipped with jsonMode always on, on the assumption
+    // response_format json_object and tools were independent — wrong, at
+    // least for Groq (one of the providers OpenRouter can route this model
+    // to): "Groq does not support response_format type json_object combined
+    // with tool calling" (400, confirmed in production logs within minutes
+    // of deploy). So: tools are only offered on a non-final round, and
+    // jsonMode only forced on the final round once tools are off the table —
+    // a round that offers tools leaves response_format unset and relies on
+    // the system prompt's own "return valid JSON only" instruction plus
+    // extractJson()'s markdown-fence/preamble stripping below for the case
+    // where the model answers in plain content without calling a tool.
     const { data, lastError: err } = await callOpenRouterRaw({
       messages,
       model: MODEL,
       fallbackModel: FALLBACK_MODEL,
       maxTokens: MAX_TOKENS,
-      jsonMode: true,
+      jsonMode: isFinalRound,
       tools: !isFinalRound ? tools : undefined,
     })
 
