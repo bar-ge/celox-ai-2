@@ -161,9 +161,13 @@ function verify(req, res) {
 }
 
 /**
+ * Exported so api/wa/simulate.js (the protected test-chat endpoint, 2026-09-28)
+ * can drive the exact same inbound-message pipeline a real WhatsApp message
+ * hits — claim/release, dedupe, drain loop, alerts, the lot — instead of a
+ * hand-rolled re-implementation that could quietly drift from the real thing.
  * @param {{ waMessageId: string, phone: string, profileName: string|null, text: string }} inbound
  */
-async function handleInbound(inbound) {
+export async function handleInbound(inbound) {
   const { waMessageId, phone, profileName, text } = inbound
 
   const seed = await getOrCreateLead(phone, { firstName: profileName })
