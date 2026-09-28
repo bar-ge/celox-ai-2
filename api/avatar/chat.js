@@ -125,6 +125,14 @@ export default async function handler(req, res) {
 
     const msg = openRouterMessage(data)
     const toolCalls = msg?.tool_calls
+    // Temporary diagnostic (2026-09-28) — a live reply came back as
+    // nonsense ("אני ישרד") with no error logged anywhere, which only tells
+    // us the model itself produced bad content, not why. This logs which
+    // underlying model OpenRouter actually routed to (it can differ per
+    // call) and whether it chose to call a tool, so the next bad reply is
+    // traceable instead of a dead end. Safe to remove once the tool-calling
+    // path has proven reliable for a while.
+    console.log('avatar chat round', round, 'openrouter model=', data?.model, 'tool_calls=', toolCalls?.length || 0, toolCalls?.map(c => c.function?.name))
     if (Array.isArray(toolCalls) && toolCalls.length && !isFinalRound) {
       messages.push({ role: 'assistant', content: msg.content || '', tool_calls: toolCalls })
       // Run every requested call (models sometimes batch a couple together);
@@ -145,7 +153,9 @@ export default async function handler(req, res) {
     }
 
     // No tool call (or we're out of rounds) — this is the final answer.
-    return respondFromText(res, openRouterText(data))
+    const finalText = openRouterText(data)
+    console.log('avatar chat final raw text:', finalText.slice(0, 400))
+    return respondFromText(res, finalText)
   }
 
   console.error('avatar chat: OpenRouter call failed —', lastError)
