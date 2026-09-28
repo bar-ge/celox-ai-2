@@ -34,7 +34,7 @@ const CONFIDENCE_THRESHOLD = 0.55
  * @param {object} args
  * @param {string} args.message
  * @param {{role: 'user'|'assistant', text: string}[]} args.history
- * @param {{route: string, lang: string}} args.context
+ * @param {{route: string, lang: string, companyId?: string|null}} args.context  companyId is the dashboard's currently active company (see AvatarWidget.jsx); the backend only trusts it from a re-verified master session
  * @returns {Promise<AvatarReply>}
  */
 export async function askAvatar({ message, history, context }) {

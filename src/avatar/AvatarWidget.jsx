@@ -12,16 +12,16 @@ import { pointAt } from './avatarPointer'
 // TCEL-045 — composition root. Owns no business logic beyond wiring the
 // pieces together; state machine + provider carry the real logic (TCEL-053,
 // TCEL-048). Mount once near the root of FleetManager (see fleet-manager.jsx).
-export default function AvatarWidget({ rtl, lang, activeTab, setActiveTab, profile, userId, isMobile }) {
+export default function AvatarWidget({ rtl, lang, activeTab, setActiveTab, profile, userId, companyId, isMobile }) {
   return (
-    <AvatarProvider rtl={rtl} lang={lang} activeTab={activeTab} setActiveTab={setActiveTab} profile={profile} userId={userId}>
+    <AvatarProvider rtl={rtl} lang={lang} activeTab={activeTab} setActiveTab={setActiveTab} profile={profile} userId={userId} companyId={companyId}>
       <AvatarWidgetInner isMobile={isMobile} />
     </AvatarProvider>
   )
 }
 
 function AvatarWidgetInner({ isMobile }) {
-  const { rtl, lang, activeTab, setActiveTab, state, send, messages, addMessage, markOnboardingSeen } = useAvatarCtx()
+  const { rtl, lang, activeTab, setActiveTab, companyId, state, send, messages, addMessage, markOnboardingSeen } = useAvatarCtx()
   const [open, setOpen] = useState(false)
   const [thinking, setThinking] = useState(false)
 
@@ -39,7 +39,13 @@ function AvatarWidgetInner({ isMobile }) {
     addMessage('user', text)
     setThinking(true)
     const history = messages.map(m => ({ role: m.role, text: m.text }))
-    const reply = await askAvatar({ message: text, history, context: { route: activeTab, lang } })
+    // companyId here is the dashboard's ACTIVE company — for a normal user
+    // that's always their own; for the master account it's whichever
+    // company the "view as" switcher currently has selected (see
+    // activeCompanyId in fleet-manager.jsx). The backend only honors this
+    // for a caller it independently re-verifies as master — see the
+    // requestedCompanyId comment in api/_lib/auth.js.
+    const reply = await askAvatar({ message: text, history, context: { route: activeTab, lang, companyId } })
     setThinking(false)
 
     if (isLowConfidence(reply)) {
@@ -68,7 +74,7 @@ function AvatarWidgetInner({ isMobile }) {
     }
 
     addMessage('assistant', reply.reply)
-  }, [addMessage, messages, activeTab, lang, setActiveTab, send])
+  }, [addMessage, messages, activeTab, lang, companyId, setActiveTab, send])
 
   const handleConfirmEscalation = useCallback(async (draft) => {
     setThinking(true)

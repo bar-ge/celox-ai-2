@@ -14,7 +14,7 @@ import { AvatarCtx } from './avatarCtx'
 
 const SEEN_KEY = 'celox_avatar_onboarding_seen_v1'
 
-export function AvatarProvider({ children, rtl, lang, activeTab, setActiveTab, profile, userId }) {
+export function AvatarProvider({ children, rtl, lang, activeTab, setActiveTab, profile, userId, companyId }) {
   const [state, send] = useAvatarStateMachine('idle')
   const [messages, setMessages] = useState([])
   const [pendingEscalation, setPendingEscalation] = useState(null)
@@ -45,12 +45,12 @@ export function AvatarProvider({ children, rtl, lang, activeTab, setActiveTab, p
   }, [])
 
   const value = useMemo(() => ({
-    rtl, lang, activeTab, setActiveTab, profile,
+    rtl, lang, activeTab, setActiveTab, profile, companyId,
     state, send,
     messages, addMessage, setMessages,
     pendingEscalation, setPendingEscalation,
     markOnboardingSeen, replayOnboarding,
-  }), [rtl, lang, activeTab, setActiveTab, profile, state, send, messages, addMessage, pendingEscalation, markOnboardingSeen, replayOnboarding])
+  }), [rtl, lang, activeTab, setActiveTab, profile, companyId, state, send, messages, addMessage, pendingEscalation, markOnboardingSeen, replayOnboarding])
 
   return <AvatarCtx.Provider value={value}>{children}</AvatarCtx.Provider>
 }

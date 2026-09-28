@@ -11778,6 +11778,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           setActiveTab={switchTab}
           profile={profile}
           userId={session?.user?.id}
+          companyId={activeCompanyId}
           isMobile={isMobile}
         />
       )}

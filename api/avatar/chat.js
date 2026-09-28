@@ -73,7 +73,18 @@ export default async function handler(req, res) {
 
   // Never trust a client-supplied company/user id for tool scoping — resolve
   // it ourselves from the verified session, or fall back to no-tools mode.
-  const auth = await requireUser(req)
+  // The one exception: context.companyId (the dashboard's currently active
+  // company — see AvatarWidget.jsx) is passed through as requestedCompanyId,
+  // but requireUser() only honors it for a caller it independently
+  // re-verifies as the master account server-side; everyone else's request
+  // is silently ignored in favor of their own profiles.company_id. This
+  // exists because the master "view as company" switcher is client-side
+  // React state — it never changes whose company the session actually
+  // belongs to — see the requestedCompanyId comment in auth.js for the bug
+  // this fixed (the avatar answering from Bar's own small test company
+  // while he was viewing a different one).
+  const requestedCompanyId = typeof context?.companyId === 'string' ? context.companyId : null
+  const auth = await requireUser(req, { requestedCompanyId })
   const companyId = auth.ok ? auth.companyId : null
   const tools = companyId ? TOOL_DEFS : undefined
   if (!auth.ok) console.warn('avatar chat: no verified session, answering without live-data tools —', auth.reason)
