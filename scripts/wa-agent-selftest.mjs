@@ -539,9 +539,21 @@ test('the holder answers whatever arrived while it was thinking', () => {
 })
 
 test('a booked meeting is never moved without an explicit confirmation', () => {
-  assert.ok(/const rebooking = lead\.meeting_at && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))
+  assert.ok(/const meetingIsUpcoming = lead\.meeting_at && new Date\(lead\.meeting_at\)\.getTime\(\) > Date\.now\(\)/.test(WEBHOOK_SRC))
+  assert.ok(/const rebooking = meetingIsUpcoming && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))
   assert.ok(/refused to rebook without confirmation/.test(WEBHOOK_SRC))
   assert.ok(/lead\.stage === 'MEETING_CONFIRMATION'/.test(WEBHOOK_SRC))
+})
+
+test('a meeting that already happened does not block a brand-new booking — regression for +972546316133', () => {
+  // Traced via Supabase: a lead's 24.09.2026 12:00 demo was in the past by
+  // the time they messaged again on 28.09 asking for a new slot. lead.meeting_at
+  // is never cleared after a meeting (mergeLead never overwrites with null), so
+  // the old `rebooking` check read that stale, elapsed date as an active booking
+  // and refused to touch it — replying with the old meeting instead of booking
+  // the new slot the lead had just picked. Only an upcoming meeting_at should
+  // gate a rebooking; a past one must not.
+  assert.ok(/meetingIsUpcoming && chosen/.test(WEBHOOK_SRC), 'rebooking guard must require the existing meeting to be upcoming, not just present')
 })
 
 test('a bare mention of a meeting is not treated as a booking', () => {

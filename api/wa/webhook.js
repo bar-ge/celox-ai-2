@@ -281,7 +281,19 @@ async function respond(phone, text) {
       ? calendar.slots.find((s) => s.key === wanted || s.start === wanted)
       : null
 
-    const rebooking = lead.meeting_at && chosen && chosen.start !== lead.meeting_at
+    // 2026-09-28: lead.meeting_at is never cleared once a meeting is booked
+    // (mergeLead intentionally never overwrites a value with null — see its
+    // own comment), so it is still sitting in the lead row days later, long
+    // after that meeting has come and gone. Traced via Supabase
+    // (+972546316133): the lead's 24.09.2026 12:00 demo was in the past by
+    // the time they messaged again on 28.09 asking for a brand-new slot —
+    // this guard read the stale past date as "an active booking" and
+    // refused to touch it, replying with the old meeting instead of booking
+    // the new one the lead had just picked from the options the bot itself
+    // had offered seconds earlier. Only a meeting still in the future counts
+    // as something worth protecting from a silent overwrite.
+    const meetingIsUpcoming = lead.meeting_at && new Date(lead.meeting_at).getTime() > Date.now()
+    const rebooking = meetingIsUpcoming && chosen && chosen.start !== lead.meeting_at
     const confirmedThisTurn = lead.stage === 'MEETING_CONFIRMATION'
 
     // Did this lead ever actually get as far as picking a time? A lead who
