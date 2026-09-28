@@ -134,7 +134,21 @@ test('compressed script: existing_system, main_pain and why_now never block prog
 test('terminal states win over the ladder', () => {
   assert.equal(nextUnansweredStage({ opted_out: true }), 'OPT_OUT')
   assert.equal(nextUnansweredStage({ bot_paused: true }), 'HUMAN_HANDOFF')
-  assert.equal(nextUnansweredStage({ meeting_at: '2026-08-20T10:00:00Z' }), 'MEETING_BOOKED')
+  const future = new Date(Date.now() + 3 * 86400000).toISOString()
+  assert.equal(nextUnansweredStage({ meeting_at: future }), 'MEETING_BOOKED')
+})
+
+test('a meeting that already happened does not force MEETING_BOOKED — regression for +972546316133', () => {
+  // Same staleness bug as the rebooking guard (api/wa/webhook.js): meeting_at is
+  // never cleared after the meeting happens, so a lead re-engaging days later
+  // was told to "resume" at MEETING_BOOKED for a meeting long over. Only an
+  // upcoming meeting_at should short-circuit here.
+  const past = new Date(Date.now() - 3 * 86400000).toISOString()
+  assert.equal(nextUnansweredStage({ meeting_at: past }), 'ROLE')
+  assert.equal(
+    nextUnansweredStage({ meeting_at: past, role: 'x', fleet_size: 40, current_management: 'excel' }),
+    'PROCESS_EXPLANATION',
+  )
 })
 
 test('qualification needs role + fleet + management', () => {
@@ -296,6 +310,17 @@ test('lists what is already known and where to resume', () => {
   assert.ok(p.includes('מספר כלי רכב: 85'))
   assert.ok(p.includes('אופן ניהול כיום: אקסלים ועבודה ידנית'))
   assert.ok(p.includes('השלב הפתוח שאליו יש לחזור: PROCESS_EXPLANATION'))
+})
+
+test('a returning lead with known qualification info is never re-qualified from scratch', () => {
+  // Bar's call, 2026-09-28 (regression for +972546316133): a lead who already
+  // gave role/fleet/management — even in an earlier conversation, even after a
+  // prior meeting came and went — must not be asked those questions again.
+  assert.ok(
+    CONVERSATION_SCRIPT.includes('"כבר נמסר" כולל גם מידע שנאסף בשיחה קודמת עם אותו ליד'),
+    'must extend "never re-ask" to info collected in an earlier conversation, not just this one',
+  )
+  assert.ok(CONVERSATION_SCRIPT.includes('אינך שואל את שאלות האפיון שוב, גם לא בניסוח שונה'))
 })
 
 test('forbids inventing slots when the calendar is unavailable', () => {
