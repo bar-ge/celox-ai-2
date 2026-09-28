@@ -563,6 +563,20 @@ test('the holder answers whatever arrived while it was thinking', () => {
   assert.ok(/newest\.created_at > startedAt/.test(WEBHOOK_SRC), 'does not re-check for later messages')
 })
 
+test('the calendar is fetched a stage early so qualifying mid-turn is never left with no dates to offer — regression for +972546316133', () => {
+  // The lead answered the last missing qualifying question (current
+  // management) and the agent moved straight to CALENDAR_OPTIONS in that
+  // same turn. wantsCalendar was computed from the lead's PRE-message state,
+  // which wasn't qualified yet, so availability() never ran and the model
+  // had to answer with an empty slots list — it produced a vague "we'll get
+  // back to you with dates soon" instead of real dates.
+  assert.ok(
+    /const wantsCalendar = !CALENDAR_NOT_NEEDED_STAGES\.includes\(lead\.stage\) \|\| isQualified\(lead\)/.test(WEBHOOK_SRC),
+    'wantsCalendar must be a deny-list (fetch by default) so any single last qualifying answer already has real dates ready',
+  )
+  assert.ok(/const CALENDAR_NOT_NEEDED_STAGES = \['OPENING', 'OPT_OUT', 'NOT_RELEVANT', 'HUMAN_HANDOFF'\]/.test(WEBHOOK_SRC))
+})
+
 test('a booked meeting is never moved without an explicit confirmation', () => {
   assert.ok(/const meetingIsUpcoming = lead\.meeting_at && new Date\(lead\.meeting_at\)\.getTime\(\) > Date\.now\(\)/.test(WEBHOOK_SRC))
   assert.ok(/const rebooking = meetingIsUpcoming && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))

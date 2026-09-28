@@ -31,8 +31,31 @@ export const config = { api: { bodyParser: false }, maxDuration: 60 }
 // and a half-finished turn never strands a conversation.
 const TURN_BUDGET_MS = 40000
 
-/** Stages where real calendar availability is worth fetching. */
-const CALENDAR_STAGES = ['PROCESS_EXPLANATION', 'CALENDAR_OPTIONS', 'MEETING_CONFIRMATION']
+/**
+ * Stages where the lead has not even started answering qualifying questions
+ * yet, or the conversation is somewhere calendar availability can never be
+ * useful — the only stages where it's safe to skip fetching it.
+ *
+ * 🚨 2026-09-28: calendar fetching used to be gated by isQualified(lead) as
+ * computed BEFORE this turn's message is processed (an allow-list of just
+ * PROCESS_EXPLANATION/CALENDAR_OPTIONS/MEETING_CONFIRMATION). Traced via
+ * Supabase (+972546316133): a lead can complete qualification (role + fleet
+ * size + current management) mid-turn — answering the last missing piece in
+ * the very message that also pushes next_stage straight to CALENDAR_OPTIONS.
+ * On that exact turn, isQualified(lead) was still false pre-message, so
+ * availability() was never called, and the model was asked to offer real
+ * dates with an empty slots list — it improvised a vague "we'll get back to
+ * you with dates soon" instead of actually offering anything.
+ *
+ * The fix is a deny-list instead of an allow-list: fetch the calendar for
+ * every stage except the ones below, so whichever single qualifying
+ * question happens to be the lead's last unanswered one — ROLE, FLEET_SIZE
+ * or CURRENT_MANAGEMENT, now that a returning lead can jump straight to
+ * whichever is actually still missing (see conversation-state.js,
+ * 2026-09-28) — the calendar is already in hand the moment that question
+ * gets answered, not one turn late.
+ */
+const CALENDAR_NOT_NEEDED_STAGES = ['OPENING', 'OPT_OUT', 'NOT_RELEVANT', 'HUMAN_HANDOFF']
 
 /** Stages that mean the lead has actually been shown times to choose from. */
 const BOOKING_STAGES = ['CALENDAR_OPTIONS', 'MEETING_CONFIRMATION', 'MEETING_BOOKED']
@@ -224,7 +247,7 @@ async function respond(phone, text) {
   // The current message is already logged, so it is the last history entry.
   const messages = history.length ? history : [{ role: 'user', content: text }]
 
-  const wantsCalendar = CALENDAR_STAGES.includes(lead.stage) || isQualified(lead)
+  const wantsCalendar = !CALENDAR_NOT_NEEDED_STAGES.includes(lead.stage) || isQualified(lead)
   let calendar = { ok: false, reason: 'not_requested', slots: [], suggested: [] }
   if (wantsCalendar) calendar = await availability({ suggest: 3 })
 
