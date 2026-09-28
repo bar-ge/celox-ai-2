@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { fetchLeads, fetchMessages, patchLead, sendBookingLink, nudgeCalendar, restartConversation } from './api'
+import {
+  fetchLeads, fetchMessages, patchLead, sendBookingLink, nudgeCalendar, restartConversation, sendManualReply,
+} from './api'
 import { T, FONT_SANS, useDashboardFonts } from './theme'
 import useLayout from './useLayout'
 import ConversationList from './ConversationList'
@@ -126,6 +128,16 @@ export default function WaDashboard({ onBack }) {
     if (phone === selectedRef.current) await loadThread(phone)
   }, [loadLeads, loadThread])
 
+  // "Take control" — the WhatsApp number is a Cloud API sender, so there is
+  // no companion app to type back from; this is the only way a human message
+  // actually reaches the lead. Re-throws on failure so ThreadView's reply box
+  // can show "Failed — retry" and keep the typed text instead of clearing it.
+  const handleManualReply = useCallback(async (phone, text) => {
+    await sendManualReply(phone, text)
+    await loadLeads()
+    if (phone === selectedRef.current) await loadThread(phone)
+  }, [loadLeads, loadThread])
+
   const narrow = layout === 'narrow'
   const showList   = layout === 'wide' || layout === 'medium' || pane === 'list'
   const showThread = layout === 'wide' || layout === 'medium' || pane === 'thread'
@@ -195,6 +207,7 @@ export default function WaDashboard({ onBack }) {
             loading={loadingThread}
             layout={layout}
             onResumeBot={() => selectedLead && handlePatch(selectedLead.phone, { bot_paused: false })}
+            onSendReply={handleManualReply}
             onBack={narrow ? () => setPane('list') : undefined}
             onOpenDetail={
               narrow ? () => setPane('detail')
