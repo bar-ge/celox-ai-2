@@ -128,3 +128,93 @@ export async function callOpenRouter({
 export function openRouterText(data) {
   return data?.choices?.[0]?.message?.content ?? ''
 }
+
+/**
+ * Lower-level sibling of callOpenRouter() for callers that need to build
+ * their own `messages` array (e.g. to append a `role: 'tool'` result after a
+ * tool call) rather than the systemPrompt+messages shape callOpenRouter
+ * assumes. Added 2026-09-28 for the avatar's live-data tool calling (see
+ * api/_lib/avatar-tools.js) — api/_lib/claude.js is unaffected and keeps
+ * using callOpenRouter above.
+ *
+ * Same retry/fallback-model/deadModels shape as callOpenRouter. `jsonMode`
+ * and `tools` are mutually exclusive on a single call in practice: a call
+ * offering tools should leave jsonMode off (a model can't both call a tool
+ * and honor "reply with only a JSON object" in the same turn), then the
+ * FOLLOW-UP call — after the tool result is appended to `messages` — sets
+ * jsonMode true and omits tools to force the final structured reply.
+ *
+ * @param {object} args
+ * @param {{role: string, content?: string, tool_calls?: any[], tool_call_id?: string, name?: string}[]} args.messages  raw, sent as-is
+ * @param {string} args.model
+ * @param {string} [args.fallbackModel]
+ * @param {number} [args.maxTokens]
+ * @param {boolean} [args.jsonMode]
+ * @param {any[]} [args.tools]  OpenAI-shaped tool definitions
+ * @param {number} [args.attemptTimeoutMs]
+ * @param {number} [args.totalBudgetMs]
+ * @returns {Promise<{ data: any, lastError: string|null }>}
+ */
+export async function callOpenRouterRaw({
+  messages,
+  model,
+  fallbackModel = model,
+  maxTokens = 700,
+  jsonMode = false,
+  tools,
+  attemptTimeoutMs = 11000,
+  totalBudgetMs = 22000,
+  fetchImpl = fetch,
+  now = Date.now,
+  sleep,
+}) {
+  const apiKey = process.env.OPEN_ROUTER_KEY
+  if (!apiKey) return { data: null, lastError: 'OPEN_ROUTER_KEY is not set' }
+
+  const attempts = [model, model, fallbackModel]
+  const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)))
+  const startedAt = now()
+  let lastError = 'no attempt made'
+  const deadModels = new Set()
+
+  for (let i = 0; i < attempts.length; i++) {
+    const m = attempts[i]
+    if (deadModels.has(m)) continue
+    if (i > 0) {
+      if (now() - startedAt > totalBudgetMs) break
+      await wait(400 * i)
+    }
+    try {
+      const body = { model: m, max_tokens: maxTokens, messages }
+      if (jsonMode) body.response_format = { type: 'json_object' }
+      if (tools?.length) body.tools = tools
+
+      const resp = await fetchImpl(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://celoxai.com',
+          'X-Title': 'CELOX AI',
+        },
+        signal: AbortSignal.timeout(attemptTimeoutMs),
+        body: JSON.stringify(body),
+      })
+      if (resp.ok) {
+        if (i > 0) console.warn('openrouter: recovered on attempt', i + 1, 'with', m)
+        return { data: await resp.json(), lastError: null }
+      }
+      const errBody = await resp.text().catch(() => '')
+      lastError = `${resp.status} ${errBody.slice(0, 300)}`
+      if (!RETRYABLE_STATUS.has(resp.status)) deadModels.add(m)
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+    }
+  }
+  return { data: null, lastError }
+}
+
+/** The model's first-choice message, tool_calls and all. */
+export function openRouterMessage(data) {
+  return data?.choices?.[0]?.message ?? null
+}

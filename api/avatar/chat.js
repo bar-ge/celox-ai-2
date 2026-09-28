@@ -1,51 +1,49 @@
 import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
-import { callOpenRouter, openRouterText, openRouterConfigured, DEFAULT_OPEN_ROUTER_MODEL } from '../_lib/openrouter-llm.js'
+import { callOpenRouterRaw, openRouterMessage, openRouterText, openRouterConfigured, DEFAULT_OPEN_ROUTER_MODEL } from '../_lib/openrouter-llm.js'
+import { TOOL_DEFS, runTool } from '../_lib/avatar-tools.js'
+import { requireUser } from '../_lib/auth.js'
 
 // maxDuration left at 60 from the Gemini-era three-tier setup (on-prem → HF →
-// Gemini). This route is down to a single OpenRouter call now, so it could
-// come down, but Bar didn't ask for that change and a generous ceiling is
-// harmless — left as-is rather than tuning something nobody flagged.
+// Gemini). This route now does at most MAX_TOOL_ROUNDS+1 OpenRouter calls
+// (one for each tool round trip, plus the final answer), comfortably inside
+// that budget, but nobody asked to tune the ceiling down, so it's left as-is.
 export const config = { maxDuration: 60 }
 
 // TCEL-054 — LLM API connection for the in-app avatar.
 //
-// Vendor history: Anthropic → Gemini (2026-08-24, to keep this widget off
-// Anthropic token spend) → OpenRouter (2026-09-28, Bar's request). Same
-// reasoning as api/_lib/claude.js's switch — see that file's comment and
-// api/_lib/openrouter-llm.js for the shared client and full rationale. This
-// also drops the on-prem/Hugging-Face free pre-tiers that used to sit ahead
-// of the cloud vendor here: Bar's explicit call was OpenRouter as the only
-// cloud vendor for this surface, not one more tier in a ladder.
-// api/_lib/onprem-llm.js and api/_lib/hf-llm.js are left in place (unused)
-// rather than deleted, since deleting files needs sign-off per this repo's
-// rule 1 and only the call sites here were asked about.
+// Vendor history: Anthropic → Gemini (2026-08-24) → OpenRouter (2026-09-28,
+// Bar's request). See api/_lib/openrouter-llm.js for the shared client and
+// full rationale, and api/_lib/claude.js for the WhatsApp agent's identical
+// switch made the same day.
+//
+// 2026-09-28, same day — live fleet data. The avatar used to be pure static
+// knowledge (app tabs, form templates, domain terms — see
+// api/_lib/avatar-knowledge.js) with no way to answer a question like "how
+// many cars do I have," so it correctly said "I don't know" rather than
+// guess. Bar asked for the model to be able to look up real answers, and
+// picked OpenRouter's standard tool-calling over a fixed pre-computed
+// snapshot (see api/_lib/avatar-tools.js for the tool definitions and their
+// rationale) so it can answer whatever shape of live-data question comes in.
+//
+// This means the route now needs to know WHO is asking, to scope any tool
+// call to that person's own company and nobody else's — requireUser() in
+// auth.js verifies the browser's Supabase session token server-side and
+// resolves company_id from `profiles`, the same trust boundary every other
+// dashboard API route in this app uses. If the token is missing or invalid,
+// the assistant still answers from static knowledge — it just can't use the
+// live-data tools for that request, rather than hard-failing the whole chat.
 //
 // OPEN_ROUTER_KEY must be set (Bar creates it at openrouter.ai/keys and
 // pastes it into Vercel himself). If it isn't, this returns 503 rather than
 // crashing — the frontend (src/avatar/llmClient.js) shows a "not configured"
 // message instead of a silent failure.
-//
-// This surface no longer depends on Gemini's proprietary responseSchema for
-// structured output — OpenRouter's json_object mode plus this file's own
-// extractJson()/respondFromText() validation tail (unchanged from the Gemini
-// era) carries the JSON-shape guarantee instead, the same way
-// api/_lib/claude.js relies on its system prompt's own JSON instructions.
-// The system prompt built by buildSystemPrompt() already spells out the
-// exact {reply, intent, actionId, confidence} shape (see
-// api/_lib/avatar-knowledge.js), so nothing else needed to change here.
 
-// Model id in OpenRouter's "org/model" shape. Bar picked
-// meta-llama/llama-3.1-8b-instruct for this surface 2026-09-28, same as the
-// WhatsApp bot; overridable from Vercel with no deploy, scoped with an
-// AVATAR_ prefix in case this surface ever wants a different model tuned
-// independently from api/_lib/claude.js's WA_ prefix. No separate fallback
-// model was specified, so it defaults to the same model — callOpenRouter
-// still retries once before giving up, per its own comment.
 const MODEL = process.env.AVATAR_OPEN_ROUTER_MODEL || DEFAULT_OPEN_ROUTER_MODEL
 const FALLBACK_MODEL = process.env.AVATAR_OPEN_ROUTER_FALLBACK_MODEL || MODEL
 
 const MAX_TOKENS = 2048
 const VALID_INTENTS = ['qa', 'navigate', 'escalate', 'unclear']
+const MAX_TOOL_ROUNDS = 2 // bounds latency/cost; also blocks a runaway tool-call loop
 
 function extractJson(raw) {
   let s = String(raw || '').trim()
@@ -73,21 +71,70 @@ export default async function handler(req, res) {
     return res.status(503).json({ reply: null, reason: 'not_configured' })
   }
 
+  // Never trust a client-supplied company/user id for tool scoping — resolve
+  // it ourselves from the verified session, or fall back to no-tools mode.
+  const auth = await requireUser(req)
+  const companyId = auth.ok ? auth.companyId : null
+  const tools = companyId ? TOOL_DEFS : undefined
+  if (!auth.ok) console.warn('avatar chat: no verified session, answering without live-data tools —', auth.reason)
+
   const messages = [
+    { role: 'system', content: systemPrompt },
     ...priorTurns.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 2000) })),
     { role: 'user', content: message.slice(0, 2000) },
   ]
 
-  const { data, lastError } = await callOpenRouter({
-    systemPrompt, messages, model: MODEL, fallbackModel: FALLBACK_MODEL, maxTokens: MAX_TOKENS, jsonMode: true,
-  })
+  let lastError = null
+  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+    const isFinalRound = round === MAX_TOOL_ROUNDS
+    // json_object mode and tools aren't mutually exclusive (OpenAI-shaped
+    // APIs apply response_format only to the branch where the model answers
+    // in plain content rather than calling a tool) — kept on for every round
+    // so a model that skips the tool and answers directly still gets the
+    // {reply, intent, ...} JSON contract the system prompt asks for. Tools
+    // themselves are only offered while rounds remain; the final round omits
+    // them so the loop always terminates in a real answer.
+    const { data, lastError: err } = await callOpenRouterRaw({
+      messages,
+      model: MODEL,
+      fallbackModel: FALLBACK_MODEL,
+      maxTokens: MAX_TOKENS,
+      jsonMode: true,
+      tools: !isFinalRound ? tools : undefined,
+    })
 
-  if (!data) {
-    console.error('avatar chat: OpenRouter call failed —', lastError)
-    return res.status(500).json({ reply: null, reason: 'api_error' })
+    if (!data) {
+      lastError = err
+      break
+    }
+
+    const msg = openRouterMessage(data)
+    const toolCalls = msg?.tool_calls
+    if (Array.isArray(toolCalls) && toolCalls.length && !isFinalRound) {
+      messages.push({ role: 'assistant', content: msg.content || '', tool_calls: toolCalls })
+      // Run every requested call (models sometimes batch a couple together);
+      // each is independently scoped to companyId, never to anything the
+      // model passed in its arguments.
+      for (const call of toolCalls) {
+        let args = {}
+        try { args = JSON.parse(call.function?.arguments || '{}') } catch { /* malformed args → empty */ }
+        const result = await runTool(call.function?.name, args, companyId)
+        messages.push({
+          role: 'tool',
+          tool_call_id: call.id,
+          name: call.function?.name,
+          content: JSON.stringify(result),
+        })
+      }
+      continue // let the model see the tool result(s) and respond
+    }
+
+    // No tool call (or we're out of rounds) — this is the final answer.
+    return respondFromText(res, openRouterText(data))
   }
 
-  return respondFromText(res, openRouterText(data))
+  console.error('avatar chat: OpenRouter call failed —', lastError)
+  return res.status(500).json({ reply: null, reason: 'api_error' })
 }
 
 /** Shared JSON-extract + validate + respond tail. */

@@ -9,6 +9,16 @@
 // The API key lives server-side only (OPEN_ROUTER_KEY). This client never
 // talks to OpenRouter directly from the browser — it always goes through the
 // app's own backend, same as every other API call in this codebase.
+//
+// 2026-09-28 — now also sends the caller's Supabase session token, the same
+// way src/fleet-manager.jsx already does for its own API calls (see its
+// supabase.auth.getSession() use). The backend verifies this itself and
+// resolves which company's data to scope any live-data tool call to — it
+// never trusts anything this client sends about who's asking. Without a
+// session (or if getSession() fails) the request still goes through; the
+// avatar just answers from static knowledge instead of live fleet data.
+
+import { supabase } from '../supabaseClient'
 
 /**
  * @typedef {object} AvatarReply
@@ -29,9 +39,20 @@ const CONFIDENCE_THRESHOLD = 0.55
  */
 export async function askAvatar({ message, history, context }) {
   try {
+    let token = null
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      token = session?.access_token ?? null
+    } catch {
+      /* no session available — proceed without it, backend degrades gracefully */
+    }
+
     const res = await fetch('/api/avatar/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         message,
         history: history.slice(-10), // keep the request small

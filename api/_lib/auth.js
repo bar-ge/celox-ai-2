@@ -33,6 +33,37 @@ export async function requireMaster(req) {
 }
 
 /**
+ * Any signed-in user (not master-only) — used by routes that need to know
+ * WHO is asking so they can scope a query to that person's own company,
+ * never by anything the browser claims. The browser sends its Supabase
+ * session access token; we verify it server-side with the service role key
+ * and resolve the caller's company_id from `profiles` ourselves. A route
+ * using this must never accept a company_id/user_id from the request body —
+ * that would let a tampered client read another company's data.
+ *
+ * @param {import('http').IncomingMessage & { headers: Record<string, string|string[]|undefined> }} req
+ * @returns {Promise<{ ok: true, userId: string, email: string, companyId: string } | { ok: false, status: number, reason: string }>}
+ */
+export async function requireUser(req) {
+  const header = req.headers?.authorization
+  const token = typeof header === 'string' && header.startsWith('Bearer ')
+    ? header.slice(7).trim()
+    : null
+
+  if (!token) return { ok: false, status: 401, reason: 'missing_token' }
+
+  const { data, error } = await serviceClient().auth.getUser(token)
+  if (error || !data?.user?.id) return { ok: false, status: 401, reason: 'invalid_token' }
+
+  const { data: profile, error: profileErr } = await serviceClient()
+    .from('profiles').select('company_id').eq('id', data.user.id).maybeSingle()
+  if (profileErr) return { ok: false, status: 500, reason: 'profile_lookup_failed' }
+  if (!profile?.company_id) return { ok: false, status: 403, reason: 'no_company' }
+
+  return { ok: true, userId: data.user.id, email: data.user.email, companyId: profile.company_id }
+}
+
+/**
  * Vercel Cron requests carry a bearer token equal to CRON_SECRET.
  * @param {{ headers: Record<string, string|string[]|undefined> }} req
  */
