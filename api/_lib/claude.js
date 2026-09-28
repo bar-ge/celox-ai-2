@@ -1,56 +1,31 @@
 import { INTENT_VALUES, isIntent } from './intents.js'
 import { isStage } from './conversation-state.js'
-import { callHuggingFace, hfConfigured, hfText } from './hf-llm.js'
-import { callOnPrem, onPremConfigured, onPremText } from './onprem-llm.js'
+import { callOpenRouter, openRouterText, openRouterConfigured, DEFAULT_OPEN_ROUTER_MODEL } from './openrouter-llm.js'
 
-// 🚨 2026-09-16: CRITICAL FIX — `wait` was undefined in callNvidia below,
-// confirmed by this repo's own QA/review-checker agents (item 3216281292)
-// to have caused a `ReferenceError` on the FIRST retry of every single call
-// since 2026-09-09 (commit 3e286e7), silently killing the entire retry/
-// fallback ladder. Net effect: the WhatsApp agent has answered zero leads
-// successfully in 27 days across four vendor attempts (Anthropic, Mistral,
-// NVIDIA before this fix, and now NVIDIA after it) — every inbound message
-// got the generic FALLBACK_MESSAGE instead of a real reply, including at
-// least one lead who explicitly asked to book a demo. See
-// claude/review-checker-sep-2026.md ("0f") and claude/qa-agent-sep-10-2026.md
-// in the project for the full trail. The fix is the one line restored in
-// callNvidia below — this file had it correctly as recently as 2026-09-09's
-// first NVIDIA commit, then lost it again when resolveAttempts() was added
-// the same day and callNvidia was rewritten without carrying it over.
-
-// Vendor: back on Anthropic (api.anthropic.com), which IS what the filename
-// says, as of 2026-09-17. History: Anthropic (401, key dead) → Mistral (403
-// tier_not_allowed / 429 rate_limited) → NVIDIA NIM (free-credit key, worked
-// at the API-auth level but every model this account tried came back `404
-// Not Found for account` — an entitlement gap on NVIDIA's side, confirmed via
-// get_runtime_errors' sample error body, not fixable from Vercel env vars
-// alone; see claude/qa-agent-sep-17-2026.md). Three vendor changes and 27+
-// days of zero successful replies later, Bar's call: stop chasing NVIDIA
-// account entitlements and switch back to Anthropic, using the
-// ANTHROPIC_API_KEY already sitting in Vercel (added 2026-08-19, previously
-// only wired up for the avatar chatbot before that moved to Gemini
-// 2026-08-24 — unconfirmed whether this specific key is the same one that
-// 401'd originally, so watch get_runtime_errors after this deploy for a 401
-// here too, not just silence-means-success).
+// File kept as api/_lib/claude.js — every caller (webhook.js, the self-test
+// suite, docs/whatsapp-agent.md) imports from this path, and this rename-in-
+// spirit-only change is additive: `runAgent`'s signature and return shape
+// are byte-for-byte the same as every vendor before this one, so nothing
+// downstream needed to change.
 //
-// File kept as api/_lib/claude.js — always was the right name again. Every
-// caller (webhook.js, the self-test suite, docs/whatsapp-agent.md) imports
-// from this path and this change is additive, not a rename. `runAgent`'s
-// signature and return shape are byte-for-byte the same as before, so
-// nothing downstream needed to change — only what happens inside this file.
+// Vendor history, in order: Anthropic (401, key dead) → Mistral (403
+// tier_not_allowed / 429 rate_limited) → NVIDIA NIM (404, account not
+// entitled) → Anthropic again (worked, but two model-id retirements caused
+// two more outages along the way — see git history on this file for the
+// full trail if it's ever needed). Bar's call 2026-09-28: stop absorbing a
+// new vendor integration every time one of these breaks or a model gets
+// retired, and move to OpenRouter — one API, one key, hundreds of models
+// behind an OpenAI-shaped endpoint, so a future model swap is an env var
+// change in Vercel, not new code and a new outage. See
+// api/_lib/openrouter-llm.js for the shared client (also now used by
+// api/avatar/chat.js) and its own history/rationale comment.
 //
-// Anthropic's Messages API is NOT OpenAI-shaped like the NVIDIA/Mistral
-// calls it replaces: POST /v1/messages, auth via `x-api-key` + an
-// `anthropic-version` header (not `Authorization: Bearer`), and the system
-// prompt is its own top-level `system` field rather than a `system`-role
-// message in the array — the existing `messages` array here already only
-// contains user/assistant turns, so it passes through unchanged, just
-// re-homed. No live model-catalog discovery here (unlike NVIDIA's NIM,
-// which hosts many independently-retired third-party models) — Anthropic's
-// own model ids are stable and versioned, so the same runtime type guard
-// (toAgentResponse) plus the system prompt's existing JSON-only Hebrew
-// instruction (system-prompt.js:16) is all that's needed, same as every
-// vendor before this one.
+// This also replaces the on-prem/Hugging-Face free pre-tiers that used to
+// sit ahead of the cloud vendor here — Bar's explicit call was OpenRouter as
+// the only cloud vendor for this surface, not one more tier in a ladder.
+// api/_lib/onprem-llm.js and api/_lib/hf-llm.js are left in place (unused)
+// rather than deleted, since deleting files needs sign-off per this repo's
+// rule 1 and only the call sites here were asked about.
 
 /**
  * @typedef {object} AgentExtracted
@@ -77,44 +52,17 @@ import { callOnPrem, onPremConfigured, onPremText } from './onprem-llm.js'
  * @property {string|null} selected_slot  ISO start time the lead explicitly confirmed
  */
 
-// Same two-tier model strategy as the rest of this codebase's cloud-vendor
-// integrations (see api/avatar/chat.js): try the current model twice, then
-// drop to a fallback rather than fail the whole turn. Both overridable from
-// Vercel with no deploy. Scoped with a WA_ prefix in case another feature
-// ever wants its own Anthropic model tuned independently.
-//
-// CORRECTED 2026-09-22: the pair this section originally shipped with
-// (claude-3-5-haiku-20241022 / claude-3-5-sonnet-20241022) was wrong the day
-// it was written — haiku-3-5-20241022 was retired by Anthropic on
-// 2026-02-19, seven months earlier, and sonnet-3-5-20241022 was never on the
-// active list either. A retired/unknown model id is a non-retryable status,
-// so every attempt in the ladder died and runAgent fell through to
-// FALLBACK_MESSAGE — outwardly identical to the NVIDIA 404 this file was
-// switched off of, and to the 401 before that. Caught by the review checker
-// (claude/whatsapp-anthropic-switch-sep-17-2026.md §2b) after this ran
-// unmerged on `dev` for four days; see that doc for the full trail. The
-// claim below that these are "long-stable" ids was false — do not repeat
-// it; re-verify against platform.claude.com/docs/en/about-claude/models/overview
-// before ever hardcoding a dated model id here again.
-//
-// Current pair: claude-haiku-4-5-20251001 as primary (fast/cheap, plenty for
-// a structured-JSON lead-qualification reply), claude-sonnet-4-5-20250929 as
-// fallback (higher quality, in case haiku specifically is degraded while the
-// account otherwise works). Both are dated ids, not the `claude-sonnet-5` /
-// `claude-opus-5` aliases, so this pair cannot silently move under the file
-// the way an alias could — but a dated id CAN still be retired later, so
-// there is no live-catalog discovery step the way callNvidia needed; a 404
-// here means check the deprecation table first, not assume the key is bad.
-const MODEL = process.env.WA_ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001'
-const FALLBACK_MODEL = process.env.WA_ANTHROPIC_FALLBACK_MODEL || 'claude-sonnet-4-5-20250929'
+// Model id in OpenRouter's "org/model" shape. Bar picked
+// meta-llama/llama-3.1-8b-instruct for this surface 2026-09-28; overridable
+// from Vercel with no deploy, scoped with a WA_ prefix in case the avatar
+// (api/avatar/chat.js) ever wants a different model tuned independently. No
+// separate fallback model was specified, so it defaults to the same model —
+// callOpenRouter still retries once before giving up, per its own comment.
+const MODEL = process.env.WA_OPEN_ROUTER_MODEL || DEFAULT_OPEN_ROUTER_MODEL
+const FALLBACK_MODEL = process.env.WA_OPEN_ROUTER_FALLBACK_MODEL || MODEL
 export { MODEL as AGENT_MODEL }
 
-const API_URL = 'https://api.anthropic.com/v1/messages'
-const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_TOKENS = 700
-const ATTEMPT_TIMEOUT_MS = 11000
-const TOTAL_BUDGET_MS = 22000
-const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504, 529]) // 529 is Anthropic's "overloaded", equivalent to a 503
 
 const EMPTY_EXTRACTED = {
   first_name: null, company: null, role: null, fleet_size: null,
@@ -184,64 +132,12 @@ export function toAgentResponse(parsed) {
   }
 }
 
-// Preferred model twice, then the fallback. A 429/5xx/529 from Anthropic is
-// usually momentary (rate limit or transient overload), so a second attempt
-// at the same model often succeeds; the third only exists for when it does
-// not.
-//
-// A non-retryable status (bad request, dead key, unknown model) means THIS
-// model will never work this call — but it says nothing about a *different*
-// model. This ladder logic (deadModels) carries over unchanged from the
-// NVIDIA/Mistral integrations this replaces.
-async function callAnthropic({ apiKey, systemPrompt, messages, fetchImpl = fetch, now = Date.now, sleep }) {
-  const startedAt = now()
-  const attempts = [MODEL, MODEL, FALLBACK_MODEL]
-  const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)))
-  let lastError = 'no attempt made'
-  const deadModels = new Set()
-
-  for (let i = 0; i < attempts.length; i++) {
-    const model = attempts[i]
-    if (deadModels.has(model)) continue // already failed non-retryably this call — don't burn another attempt on it
-    if (i > 0) {
-      if (now() - startedAt > TOTAL_BUDGET_MS) break
-      await wait(400 * i)
-    }
-    try {
-      const resp = await fetchImpl(API_URL, {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': ANTHROPIC_VERSION,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
-        body: JSON.stringify({
-          model,
-          max_tokens: MAX_TOKENS,
-          system: systemPrompt,
-          messages: messages.map((m) => ({ role: m.role, content: String(m.content ?? '') })),
-        }),
-      })
-      if (resp.ok) {
-        if (i > 0) console.warn('wa agent: recovered on attempt', i + 1, 'with', model)
-        return { data: await resp.json(), lastError: null }
-      }
-      const errBody = await resp.text().catch(() => '')
-      lastError = `${resp.status} ${errBody.slice(0, 300)}`
-      if (!RETRYABLE_STATUS.has(resp.status)) deadModels.add(model)
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err) // timeout / network
-    }
-  }
-  return { data: null, lastError }
-}
-
 /**
- * One agent turn. Calls Anthropic's Messages API, retries per callAnthropic's
- * own strategy, and returns either a validated AgentResponse or a typed
- * failure the caller can fall back on. Signature and return shape unchanged
- * from every vendor before this one — see the file-level comment.
+ * One agent turn. Calls OpenRouter's chat completions endpoint (see
+ * openrouter-llm.js for the retry/fallback-model shape), and returns either
+ * a validated AgentResponse or a typed failure the caller can fall back on.
+ * Signature and return shape unchanged from every vendor before this one —
+ * see the file-level comment.
  *
  * @param {object} args
  * @param {string} args.systemPrompt
@@ -249,44 +145,21 @@ async function callAnthropic({ apiKey, systemPrompt, messages, fetchImpl = fetch
  * @returns {Promise<{ ok: true, data: AgentResponse } | { ok: false, reason: string }>}
  */
 export async function runAgent({ systemPrompt, messages }) {
-  // Three tiers, in order: self-hosted VPS (see onprem-llm.js — not yet set
-  // up as of 2026-09-16), Hugging Face's free Inference Providers router
-  // (see hf-llm.js — a lower-friction free option added 2026-09-16, still a
-  // third-party vendor), then Anthropic below. Each tier is a silent no-op
-  // when unconfigured, so today — with neither ONPREM_LLM_URL nor
-  // HF_API_TOKEN/HF_MODEL set — this runs exactly the Anthropic path. This
-  // webhook runs in the background (webhook.js's 200 already went out
-  // before runAgent is called — config.maxDuration=60 there), so there's
-  // real budget to try more than one tier before falling through here.
-  let text
-  const onPrem = await callOnPrem({ systemPrompt, messages, maxTokens: MAX_TOKENS })
-  if (onPrem.data) {
-    text = onPremText(onPrem.data)
-  } else {
-    if (onPremConfigured()) console.warn('wa agent: onprem LLM failed, trying Hugging Face —', onPrem.lastError)
-
-    const hf = await callHuggingFace({ systemPrompt, messages, maxTokens: MAX_TOKENS })
-    if (hf.data) {
-      text = hfText(hf.data)
-    } else {
-      if (hfConfigured()) console.warn('wa agent: Hugging Face failed, falling back to Anthropic —', hf.lastError)
-
-      const apiKey = process.env.ANTHROPIC_API_KEY
-      if (!apiKey) {
-        console.error('agent api call failed: ANTHROPIC_API_KEY is not set')
-        return { ok: false, reason: 'ANTHROPIC_API_KEY is not set' }
-      }
-
-      const { data, lastError } = await callAnthropic({ apiKey, systemPrompt, messages })
-
-      if (!data) {
-        console.error('agent api call failed', lastError)
-        return { ok: false, reason: lastError ?? 'api_error' }
-      }
-
-      text = data?.content?.[0]?.text ?? ''
-    }
+  if (!openRouterConfigured()) {
+    console.error('agent api call failed: OPEN_ROUTER_KEY is not set')
+    return { ok: false, reason: 'OPEN_ROUTER_KEY is not set' }
   }
+
+  const { data, lastError } = await callOpenRouter({
+    systemPrompt, messages, model: MODEL, fallbackModel: FALLBACK_MODEL, maxTokens: MAX_TOKENS, jsonMode: true,
+  })
+
+  if (!data) {
+    console.error('agent api call failed', lastError)
+    return { ok: false, reason: lastError ?? 'api_error' }
+  }
+
+  const text = openRouterText(data)
 
   const json = extractJson(text)
   if (!json) {

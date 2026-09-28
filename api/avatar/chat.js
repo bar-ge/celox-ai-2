@@ -1,68 +1,51 @@
 import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
-import { callOnPrem, onPremConfigured, onPremText } from '../_lib/onprem-llm.js'
-import { callHuggingFace, hfConfigured, hfText } from '../_lib/hf-llm.js'
+import { callOpenRouter, openRouterText, openRouterConfigured, DEFAULT_OPEN_ROUTER_MODEL } from '../_lib/openrouter-llm.js'
 
-// maxDuration explicit: this route now tries up to two extra tiers (on-prem,
-// then Hugging Face's free router) before Gemini, same reasoning as
-// api/wa/webhook.js's explicit maxDuration. Purely a ceiling raise; normal
-// replies return in a couple of seconds either way, and Gemini's own
-// TOTAL_BUDGET_MS is unchanged below.
+// maxDuration left at 60 from the Gemini-era three-tier setup (on-prem → HF →
+// Gemini). This route is down to a single OpenRouter call now, so it could
+// come down, but Bar didn't ask for that change and a generous ceiling is
+// harmless — left as-is rather than tuning something nobody flagged.
 export const config = { maxDuration: 60 }
 
 // TCEL-054 — LLM API connection for the in-app avatar.
 //
-// Vendor: Google Gemini, not Anthropic. Switched 2026-08-24 at Bar's request
-// to keep this widget off Anthropic token spend — the WhatsApp lead agent
-// (api/_lib/claude.js) still runs on Claude and is untouched by this change.
-// Gemini's free tier covers this widget's traffic; the work here is small
-// structured replies, not deep reasoning, so the quality gap vs Claude is an
-// acceptable tradeoff. Calls the REST API directly (no new npm dependency)
-// and uses responseSchema to force valid JSON back — more reliable than the
-// old extract-JSON-from-freeform-text approach this file used with Anthropic.
+// Vendor history: Anthropic → Gemini (2026-08-24, to keep this widget off
+// Anthropic token spend) → OpenRouter (2026-09-28, Bar's request). Same
+// reasoning as api/_lib/claude.js's switch — see that file's comment and
+// api/_lib/openrouter-llm.js for the shared client and full rationale. This
+// also drops the on-prem/Hugging-Face free pre-tiers that used to sit ahead
+// of the cloud vendor here: Bar's explicit call was OpenRouter as the only
+// cloud vendor for this surface, not one more tier in a ladder.
+// api/_lib/onprem-llm.js and api/_lib/hf-llm.js are left in place (unused)
+// rather than deleted, since deleting files needs sign-off per this repo's
+// rule 1 and only the call sites here were asked about.
 //
-// GEMINI_API_KEY must be set (free key: aistudio.google.com/apikey). If it
-// isn't, this returns 503 rather than crashing — the frontend
-// (src/avatar/llmClient.js) shows a "not configured" message instead of a
-// silent failure.
+// OPEN_ROUTER_KEY must be set (Bar creates it at openrouter.ai/keys and
+// pastes it into Vercel himself). If it isn't, this returns 503 rather than
+// crashing — the frontend (src/avatar/llmClient.js) shows a "not configured"
+// message instead of a silent failure.
 //
-// Note for Bar: Google's free tier logs prompts to improve their products
-// (the paid tier doesn't). Fine for fleet-ops Q&A; worth knowing before
-// anything more sensitive goes through this path.
+// This surface no longer depends on Gemini's proprietary responseSchema for
+// structured output — OpenRouter's json_object mode plus this file's own
+// extractJson()/respondFromText() validation tail (unchanged from the Gemini
+// era) carries the JSON-shape guarantee instead, the same way
+// api/_lib/claude.js relies on its system prompt's own JSON instructions.
+// The system prompt built by buildSystemPrompt() already spells out the
+// exact {reply, intent, actionId, confidence} shape (see
+// api/_lib/avatar-knowledge.js), so nothing else needed to change here.
 
-// 2026-08-27: gemini-2.5-flash started 404ing with "no longer available to
-// new users", so the default moved to Google's current Flash model.
-//
-// 2026-08-28: that fixed the 404 and immediately surfaced the next problem —
-// 3.7-flash is the newest model, so on the free tier it is the most contended.
-// Live errors were 503 "This model is currently experiencing high demand" and
-// outright request timeouts. A single attempt against a busy model is not
-// good enough for a chat widget, so the call now retries and, if the preferred
-// model is still refusing, drops to an older and far less contended one for
-// that request. Quality dips slightly; a reply beats an error.
-//
-// Both are overridable from the Vercel dashboard with no deploy.
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.7-flash'
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash'
+// Model id in OpenRouter's "org/model" shape. Bar picked
+// meta-llama/llama-3.1-8b-instruct for this surface 2026-09-28, same as the
+// WhatsApp bot; overridable from Vercel with no deploy, scoped with an
+// AVATAR_ prefix in case this surface ever wants a different model tuned
+// independently from api/_lib/claude.js's WA_ prefix. No separate fallback
+// model was specified, so it defaults to the same model — callOpenRouter
+// still retries once before giving up, per its own comment.
+const MODEL = process.env.AVATAR_OPEN_ROUTER_MODEL || DEFAULT_OPEN_ROUTER_MODEL
+const FALLBACK_MODEL = process.env.AVATAR_OPEN_ROUTER_FALLBACK_MODEL || MODEL
 
-// Per-attempt, not total. Three attempts at 11s each plus backoff stays inside
-// the function's execution budget; TOTAL_BUDGET_MS stops the last attempt from
-// starting if the earlier ones already burned the time.
-const ATTEMPT_TIMEOUT_MS = 11000
-const TOTAL_BUDGET_MS = 24000
-const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
 const MAX_TOKENS = 2048
 const VALID_INTENTS = ['qa', 'navigate', 'escalate', 'unclear']
-
-const RESPONSE_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    reply: { type: 'STRING' },
-    intent: { type: 'STRING', enum: VALID_INTENTS },
-    actionId: { type: 'STRING', nullable: true },
-    confidence: { type: 'NUMBER' },
-  },
-  required: ['reply', 'intent', 'confidence'],
-}
 
 function extractJson(raw) {
   let s = String(raw || '').trim()
@@ -85,64 +68,29 @@ export default async function handler(req, res) {
   const systemPrompt = buildSystemPrompt(lang)
   const priorTurns = Array.isArray(history) ? history.slice(-10) : []
 
-  // Three tiers, in order: self-hosted VPS, Hugging Face's free router, then
-  // Gemini below, unchanged. Same pattern and reasoning as api/_lib/claude.js
-  // — see onprem-llm.js / hf-llm.js. Each tier is a silent no-op when
-  // unconfigured, so today this runs exactly the Gemini path, unchanged.
-  const onPremMessages = [
+  if (!openRouterConfigured()) {
+    console.error('OPEN_ROUTER_KEY is not set — avatar chat unavailable')
+    return res.status(503).json({ reply: null, reason: 'not_configured' })
+  }
+
+  const messages = [
     ...priorTurns.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 2000) })),
     { role: 'user', content: message.slice(0, 2000) },
   ]
 
-  const onPrem = await callOnPrem({ systemPrompt, messages: onPremMessages, maxTokens: MAX_TOKENS, jsonMode: true })
-  if (onPrem.data) {
-    return respondFromText(res, onPremText(onPrem.data))
-  }
-  if (onPremConfigured()) console.warn('avatar chat: onprem LLM failed, trying Hugging Face —', onPrem.lastError)
-
-  const hf = await callHuggingFace({ systemPrompt, messages: onPremMessages, maxTokens: MAX_TOKENS, jsonMode: true })
-  if (hf.data) {
-    return respondFromText(res, hfText(hf.data))
-  }
-  if (hfConfigured()) console.warn('avatar chat: Hugging Face failed, falling back to Gemini —', hf.lastError)
-
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    console.error('GEMINI_API_KEY is not set — avatar chat unavailable')
-    return res.status(503).json({ reply: null, reason: 'not_configured' })
-  }
-
-  const contents = [
-    ...priorTurns.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.text || '').slice(0, 2000) }],
-    })),
-    { role: 'user', parts: [{ text: message.slice(0, 2000) }] },
-  ]
-
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: systemPrompt }] },
-    contents,
-    generationConfig: {
-      maxOutputTokens: MAX_TOKENS,
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-    },
+  const { data, lastError } = await callOpenRouter({
+    systemPrompt, messages, model: MODEL, fallbackModel: FALLBACK_MODEL, maxTokens: MAX_TOKENS, jsonMode: true,
   })
 
-  const { data, lastError } = await callGemini({ apiKey, body })
-
   if (!data) {
-    console.error('avatar chat: Gemini call failed after 3 attempts —', lastError)
+    console.error('avatar chat: OpenRouter call failed —', lastError)
     return res.status(500).json({ reply: null, reason: 'api_error' })
   }
 
-  const text = (data?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')
-  return respondFromText(res, text)
+  return respondFromText(res, openRouterText(data))
 }
 
-/** Shared JSON-extract + validate + respond tail, used by all three tiers so
- * none of them has to duplicate the parsing rules. */
+/** Shared JSON-extract + validate + respond tail. */
 function respondFromText(res, text) {
   try {
     const parsed = extractJson(text)
@@ -162,61 +110,4 @@ function respondFromText(res, text) {
     console.error('avatar chat: could not read model response', err instanceof Error ? err.message : err)
     return res.status(500).json({ reply: null, reason: 'api_error' })
   }
-}
-
-// Preferred model twice, then the fallback. A 503 from Gemini is usually a
-// momentary demand spike, so a second attempt at the same model often
-// succeeds; the third only exists for when it does not.
-//
-// 🚨 2026-09-16: this used to `break` on a non-retryable status (400/403/404),
-// which means a dead/retired PRIMARY model killed the whole call and
-// FALLBACK_MODEL was NEVER reached — the exact bug that took down
-// api/_lib/claude.js's NVIDIA path for real (410 on the primary, no
-// fallback attempt). This file was flagged by this repo's own review-checker
-// as carrying the same defect (see claude/review-checker-sep-2026.md, "0e")
-// even though it's also the file the CORRECT `wait`-based retry pattern was
-// copied FROM — ironic, but both true. Now uses the same deadModels/continue
-// approach as callNvidia: a non-retryable failure retires that one model for
-// the rest of this call and moves on, instead of aborting everything.
-//
-// `fetchImpl` is injectable so the retry behaviour can be tested without
-// hitting Google — see the note in claude/avatar-chat-gemini-model.md.
-export async function callGemini({ apiKey, body, fetchImpl = fetch, now = Date.now, sleep }) {
-  const attempts = [MODEL, MODEL, FALLBACK_MODEL]
-  const wait = sleep || (ms => new Promise(r => setTimeout(r, ms)))
-  const startedAt = now()
-  let lastError = 'no attempt made'
-  const deadModels = new Set()
-
-  for (let i = 0; i < attempts.length; i++) {
-    const model = attempts[i]
-    if (deadModels.has(model)) continue // already failed non-retryably this call — don't burn another attempt on it
-    if (i > 0) {
-      if (now() - startedAt > TOTAL_BUDGET_MS) break
-      await wait(400 * i)
-    }
-    try {
-      const resp = await fetchImpl(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
-          body,
-        }
-      )
-      if (resp.ok) {
-        if (i > 0) console.warn('avatar chat: recovered on attempt', i + 1, 'with', model)
-        return { data: await resp.json(), lastError: null, model, attempt: i + 1 }
-      }
-      const errBody = await resp.text().catch(() => '')
-      lastError = `${resp.status} ${errBody.slice(0, 300)}`
-      // 400/403/404 mean THIS model is dead for the call — but says nothing
-      // about FALLBACK_MODEL, so retire only this one and keep going.
-      if (!RETRYABLE_STATUS.has(resp.status)) deadModels.add(model)
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err)   // timeout / network
-    }
-  }
-  return { data: null, lastError }
 }

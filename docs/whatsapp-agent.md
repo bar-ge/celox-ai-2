@@ -12,7 +12,7 @@ conversation to the next unanswered script question.
 - [x] Phase 1: Schema + shared lib modules
 - [x] Phase 2: WhatsApp Cloud API webhook + send/read helpers
 - [x] Phase 3: AI agent, system prompt, conversation state
-- [x] Phase 4: Calendly availability + confirmed booking
+- [x] Phase 4: real availability + confirmed booking (Calendly, then Google Calendar since 2026-09-22)
 - [x] Phase 5: Dashboard UI
 - [x] Phase 6: Realtime, follow-up cron, self-tests
 - [ ] Live end-to-end test against the real WhatsApp number (needs credentials in Vercel)
@@ -41,7 +41,9 @@ api/
     onprem-llm.js             shared self-hosted-model client, used by claude.js AND
                               api/avatar/chat.js — see docs/onprem-llm-setup.md
     hf-llm.js                 shared Hugging Face free-tier client, same two callers
-    calendly.js              real availability + single-use booking links
+    google-calendar.js       real availability + booking, via a service-account JWT
+                              (replaced calendly.js 2026-09-22 — file kept for reference,
+                              no longer imported anywhere)
     crm.js                   lead upsert, field merge, message log, history
     followups.js             follow-up timing + wording
     auth.js                  master-only gate for the dashboard routes
@@ -50,9 +52,9 @@ api/
     leads.js                 GET all leads with rollup; PATCH ?phone= for manual controls
     messages.js              GET ?phone= — one thread
     send-booking.js          POST — dashboard quick booking
+    nudge.js                 POST — dashboard "Ask for real dates" recovery action
+    reply.js                 POST — dashboard "take control" manual reply, pauses the bot
     start.js                 POST — dashboard "New conversation" (template opening)
-    leads/[phone].js         dead — see the routing note below
-    messages/[phone].js      dead — see the routing note below
   cron/
     wa-followups.js          hourly follow-up sweep
 
@@ -83,19 +85,39 @@ src/wab/                     dashboard (lazy-loaded from App.jsx)
 
 ### Booking
 
-The agent **books the meeting itself** — `POST https://api.calendly.com/invitees`
-(Calendly's Scheduling API). The lead gets a calendar invite with the Meet link;
-they are never asked to go and finish anything on a Calendly page.
+The agent **books the meeting itself** on Google Calendar, via
+`api/_lib/google-calendar.js` — a service-account JWT flow (no
+googleapis/google-auth-library dependency) against the Calendar v3 REST API,
+writing directly onto `office@celoxai.com` (env `GOOGLE_CALENDAR_ID`). Each
+event gets a real Google Meet link via `conferenceData`, and the lead gets a
+native attendee invite — both require the service account to act as a real
+Workspace user, which is why it has **domain-wide delegation** (Workspace
+Admin Console → Security → API controls → Domain-wide delegation, granted
+2026-09-23, scoped to `https://www.googleapis.com/auth/calendar` only) and
+impersonates `GOOGLE_CALENDAR_IMPERSONATE` (defaults to `GOOGLE_CALENDAR_ID`)
+via the JWT's `sub` claim. A bare service account with only calendar-level
+sharing (the original 2026-09-22 setup) gets `400 Invalid conference type
+value` on Meet creation and is refused on attendee invites — delegation is
+what actually fixes both. `bookSlot()` still detects the specific
+"cannot invite attendees" error and retries without attendees as a last-resort
+fallback, in case delegation is ever revoked; the WhatsApp reply carries the
+meeting details and Meet link either way, and never asks the lead to click a
+confirmation link when the direct booking succeeds.
 
-Availability is only fetched once the lead is qualified or the conversation has
-reached the meeting stages. The model is given the real slots with a machine id
-and must echo one back in `selected_slot` when the lead confirms. That id is
-re-validated against live availability before anything is written — if the slot
-has gone, the agent says so and offers fresh times instead of faking it. If
-Calendly is unreachable it says so and hands off to a human.
+Availability is computed ourselves (Google Calendar has no "list open slots"
+endpoint): `google-calendar.js` reads `/freeBusy` for the window, generates
+candidate slots at `GOOGLE_CALENDAR_MEETING_MINUTES`-minute steps across
+`CELOX_INFO.hours` (Sun–Thu 09:00–18:00 Israel time), and drops any that
+overlap a busy block. It is only fetched once the lead is qualified or the
+conversation has reached the meeting stages. The model is given the real
+slots with a machine id and must echo one back in `selected_slot` when the
+lead confirms. That id is re-validated against live availability before
+anything is written — if the slot has gone, the agent says so and offers
+fresh times instead of faking it. If the calendar is unreachable it says so
+and hands off to a human.
 
-**The email.** Calendly cannot create an invitee without an address, so if the
-lead has agreed a time but we have no email, the slot is parked in
+**The email.** The booking API needs an address to invite, so if the lead has
+agreed a time but we have no email, the slot is parked in
 `wab_leads.pending_meeting_at` and the agent asks for the address. The next turn
 re-checks that the slot is still free and finishes the booking. Parking it
 matters: without it the lead would have to agree the same time twice, and a
@@ -104,10 +126,14 @@ model that forgot to re-emit `selected_slot` would lose the booking entirely.
 Clearing `pending_meeting_at` is a direct write rather than part of `mergeLead`,
 because `mergeLead` deliberately never overwrites a value with null.
 
-**Fallback.** If the booking API refuses — plan limits, the slot going in the
-last second, a network blip — the agent falls back to sending the single-use
-scheduling link, which is how this worked before and still gets the lead booked.
-Nothing regresses; the reply just asks for one more tap.
+**Fallback.** If the booking API refuses — the slot going in the last second, a
+network blip, calendar misconfiguration — the agent falls back to sending the
+public Appointment Schedule link (`GOOGLE_CALENDAR_BOOKING_URL`), which still
+gets the lead booked. Nothing regresses; the reply just asks for one more tap.
+
+**Dashboard "Send booking link".** `api/wa/send-booking.js` also uses this
+same link (`schedulingLink()`) for its manual one-off WhatsApp message — it
+does not go through the agent's own booking flow.
 
 ### Follow-ups
 
@@ -287,18 +313,25 @@ Server-side only — none of these may ever get a `VITE_` prefix.
 | `WHATSAPP_ACCESS_TOKEN` | Cloud API token |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | GET handshake |
 | `WHATSAPP_APP_SECRET` | **required in production** since 2026-09-16 — verifies `X-Hub-Signature-256`; the route now fails closed (401) without it in production instead of silently skipping verification (was a live open-proxy hole, see the comment on `signatureValid` in `api/wa/webhook.js`) |
-| `CALENDLY_API_KEY` | personal access token |
-| `CALENDLY_EVENT_URL` | scheduling URL of the event type to book |
-| `ONPREM_LLM_URL` | optional; self-hosted model, tried FIRST when set — see docs/onprem-llm-setup.md |
-| `ONPREM_LLM_API_KEY` | bearer token for the on-prem box's reverse proxy |
-| `ONPREM_LLM_MODEL` | which model tag the on-prem box should use |
-| `HF_API_TOKEN` | optional; Hugging Face free-tier token, tried SECOND when set (and `HF_MODEL` is also set) |
-| `HF_MODEL` | `provider/model:backend` string, no default on purpose — see `api/_lib/hf-llm.js` |
-| `ANTHROPIC_API_KEY` | powers the agent since 2026-09-17 (was NVIDIA, was Mistral); key at console.anthropic.com |
-| `WA_ANTHROPIC_MODEL` | optional; defaults to `claude-haiku-4-5-20251001` (corrected 2026-09-22 — the original default, `claude-3-5-haiku-20241022`, was a retired model id) |
-| `WA_ANTHROPIC_FALLBACK_MODEL` | optional; defaults to `claude-sonnet-4-5-20250929` (corrected 2026-09-22, same reason), used if the primary model is unavailable |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | service account's `client_email`, from its downloaded JSON key |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | service account's `private_key`, same JSON key |
+| `GOOGLE_CALENDAR_ID` | calendar the service account writes to; defaults to `office@celoxai.com` |
+| `GOOGLE_CALENDAR_IMPERSONATE` | Workspace user the service account impersonates via domain-wide delegation (JWT `sub` claim); optional, defaults to `GOOGLE_CALENDAR_ID` |
+| `GOOGLE_CALENDAR_BOOKING_URL` | public Appointment Schedule link (Google Calendar → Booking pages → Copy link) — dashboard "send booking link" + the agent's own fallback |
+| `GOOGLE_CALENDAR_MEETING_MINUTES` | optional; defaults to 45 |
+| `CALENDLY_API_KEY` | retired 2026-09-22, replaced by the above |
+| `CALENDLY_EVENT_URL` | retired 2026-09-22, replaced by the above |
+| `OPEN_ROUTER_KEY` | powers the agent since 2026-09-28 (was Anthropic, was NVIDIA, was Mistral) — one key for both the WhatsApp agent and the avatar chatbot; key at openrouter.ai/keys. Name kept exactly as Bar specified even though "OpenRouter" is one word everywhere else in this repo's comments/docs |
+| `WA_OPEN_ROUTER_MODEL` | optional; defaults to `meta-llama/llama-3.1-8b-instruct` (Bar's pick, 2026-09-28) — model id in OpenRouter's `org/model` shape |
+| `WA_OPEN_ROUTER_FALLBACK_MODEL` | optional; defaults to `WA_OPEN_ROUTER_MODEL` (no distinct fallback specified yet), used if the primary model is unavailable |
+| `ONPREM_LLM_URL` | no longer used by the WhatsApp agent (replaced by OpenRouter 2026-09-28); optional self-hosted model — see docs/onprem-llm-setup.md |
+| `ONPREM_LLM_API_KEY` | no longer used by the WhatsApp agent; bearer token for the on-prem box's reverse proxy |
+| `ONPREM_LLM_MODEL` | no longer used by the WhatsApp agent; which model tag the on-prem box should use |
+| `HF_API_TOKEN` | no longer used by the WhatsApp agent (replaced by OpenRouter 2026-09-28); Hugging Face free-tier token |
+| `HF_MODEL` | no longer used by the WhatsApp agent; `provider/model:backend` string — see `api/_lib/hf-llm.js` |
+| `ANTHROPIC_API_KEY` | no longer used by the WhatsApp agent (replaced by OpenRouter 2026-09-28); harmless to leave unset |
 | `MISTRAL_API_KEY` | no longer used by the WhatsApp agent; harmless to leave unset |
-| `NVIDIA_API_KEY` | no longer used by the WhatsApp agent (replaced by Anthropic 2026-09-17); harmless to leave unset |
+| `NVIDIA_API_KEY` | no longer used by the WhatsApp agent; harmless to leave unset |
 | `SUPABASE_URL` | falls back to `VITE_SUPABASE_URL` |
 | `SUPABASE_SERVICE_ROLE_KEY` | server writes, bypasses RLS |
 | `MASTER_EMAIL` | gates the dashboard API; must match `VITE_MASTER_EMAIL` |
@@ -359,9 +392,12 @@ only caught by probing the deployed routes and noticing the content type.
 Everything therefore takes the phone number as a query parameter:
 `/api/wa/messages?phone=…` and `PATCH /api/wa/leads?phone=…`.
 
-`api/wa/leads/[phone].js` and `api/wa/messages/[phone].js` are dead code kept
-only because this repo's rule 1 forbids deleting without asking. They are not
-routed and not imported; delete them whenever you want.
+`api/wa/leads/[phone].js` and `api/wa/messages/[phone].js` were dead code kept
+around under this repo's rule 1 (never delete without asking) until they
+blocked a real deploy: Vercel's Hobby plan caps a deployment at 12 serverless
+functions, and a 13th file (`api/wa/reply.js`, 2026-09-28) pushed the project
+over that cap and failed the build. Bar approved deleting both dead files
+that day — see git history if you need the old content back.
 
 ## Known deviations from the original spec
 

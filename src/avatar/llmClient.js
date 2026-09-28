@@ -1,12 +1,13 @@
 // TCEL-054 — LLM API connection.
 //
-// Vendor: Google Gemini (api/avatar/chat.js), switched 2026-08-24 from
-// Anthropic at Bar's request to run this widget on Gemini's free tier instead
-// of spending Anthropic tokens. The WhatsApp lead agent (api/_lib/claude.js)
-// is a separate integration and still uses Claude.
+// Vendor: OpenRouter (api/avatar/chat.js), switched 2026-09-28 at Bar's
+// request — same move made for the WhatsApp lead agent (api/_lib/claude.js)
+// at the same time, both now on a single OpenRouter key/API instead of each
+// surface carrying its own vendor integration. See
+// api/_lib/openrouter-llm.js for the shared client and full rationale.
 //
-// The API key lives server-side only (GEMINI_API_KEY). This client never
-// talks to Gemini directly from the browser — it always goes through the
+// The API key lives server-side only (OPEN_ROUTER_KEY). This client never
+// talks to OpenRouter directly from the browser — it always goes through the
 // app's own backend, same as every other API call in this codebase.
 
 /**
