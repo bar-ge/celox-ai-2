@@ -265,6 +265,22 @@ test('carries the Hebrew script verbatim', () => {
   assert.ok(p.includes('## 24. הנחיית מערכת מרכזית לסוכן'))
 })
 
+test('anchors "today" with a real, correctly-computed weekday — regression for Itay Asulin\'s off-by-one-day bug', () => {
+  // 2026-09-28 confirmed live: the model was never told the current date,
+  // had to guess it, and told a lead "tomorrow" was a Wednesday when Monday
+  // Sept 28's real tomorrow is Tuesday the 29th. This pins that the prompt
+  // now states an explicit, server-computed date+weekday pair that matches
+  // JS's own Date object — nothing for a model to guess anymore.
+  const p = buildSystemPrompt({ lead: { stage: 'OPENING' } })
+  const heWeekday = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  const [y, m, d] = todayStr.split('-').map(Number)
+  const expectedWeekday = heWeekday[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  assert.ok(p.includes('# תאריך היום'), 'must state an explicit today-date block')
+  assert.ok(p.includes(todayStr), `must include today's real date ${todayStr}`)
+  assert.ok(p.includes(expectedWeekday), `must include today's real weekday ${expectedWeekday}`)
+})
+
 test('books as soon as a slot and an email are both known, no extra confirm round-trip', () => {
   // Bar: once the meeting details are sent, no need to wait on the lead to
   // separately confirm — a chosen slot + an email is itself the go-ahead.
