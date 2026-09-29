@@ -10,6 +10,7 @@ import { toAgentResponse } from '../api/_lib/claude.js'
 import { nextUnansweredStage, deriveStatus, isQualified, isStage, isStatus } from '../api/_lib/conversation-state.js'
 import { normaliseTurns } from '../api/_lib/crm.js'
 import { followupDue, followupMessage, withinBusinessHours, localParts } from '../api/_lib/followups.js'
+import { reminderMessage, reminderDue } from '../api/_lib/reminders.js'
 import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
 import {
   slotKey, spreadAcrossDays, daySlots, nthBusinessDay, busyCountByDay, MAX_MEETINGS_PER_DAY,
@@ -242,6 +243,73 @@ test('waits out the delay, then fires inside business hours', () => {
 
   const night = jerusalem(2026, 8, 16, 22)
   assert.equal(followupDue(due, night).reason, 'outside_business_hours')
+})
+
+test('reminderMessage matches Bar\'s exact wording', () => {
+  const lead = { meeting_at: '2026-09-29T09:45:00+03:00', meeting_url: 'https://meet.google.com/abc-defg-hij' }
+  const msg = reminderMessage(lead)
+  assert.equal(
+    msg,
+    'מזכיר — נתראה ב-29.09.2026 בשעה 09:45 ✅\n' +
+    '📞 אופן השיחה: Google Meet https://meet.google.com/abc-defg-hij\n' +
+    'אם משהו משתנה, פשוט תכתוב לי כאן ואשנה.',
+  )
+})
+
+test('reminderMessage tolerates a missing meeting_url', () => {
+  const lead = { meeting_at: '2026-09-29T09:45:00+03:00' }
+  assert.ok(reminderMessage(lead).includes('Google Meet\n'), 'no trailing space when the link is missing')
+})
+
+test('reminderDue never fires for a paused, opted-out, linkless or already-sent lead', () => {
+  const now = new Date('2026-09-29T00:00:00.000Z')
+  const base = { meeting_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(), meeting_url: 'https://meet.google.com/x' }
+  assert.equal(reminderDue({ ...base, bot_paused: true }, now).due, false)
+  assert.equal(reminderDue({ ...base, opted_out: true }, now).due, false)
+  assert.equal(reminderDue({ meeting_at: base.meeting_at }, now).due, false, 'no meeting_url yet — nothing to remind them of')
+  assert.equal(reminderDue({ ...base, reminder_24h_sent_at: now.toISOString() }, now).due, false)
+  assert.equal(reminderDue({}, now).due, false, 'no meeting at all')
+})
+
+test('reminderDue fires the 24h reminder exactly inside its window, not before or after', () => {
+  const meetingAt = new Date('2026-09-30T00:00:00.000Z')
+  const base = { meeting_at: meetingAt.toISOString(), meeting_url: 'https://meet.google.com/x' }
+
+  // 25 hours out — not due yet.
+  assert.equal(reminderDue(base, new Date(meetingAt.getTime() - 25 * 60 * 60 * 1000)).due, false)
+  // Just crossed the 24h mark — due.
+  const at24h = reminderDue(base, new Date(meetingAt.getTime() - 24 * 60 * 60 * 1000))
+  assert.equal(at24h.due, true)
+  assert.equal(at24h.kind, '24h')
+  // 23 hours out but already sent — not due again.
+  assert.equal(
+    reminderDue({ ...base, reminder_24h_sent_at: '2026-09-29T00:05:00.000Z' }, new Date(meetingAt.getTime() - 23.9 * 60 * 60 * 1000)).due,
+    false,
+  )
+  // Past the 20-minute window with nothing sent — the run was missed, but this test only
+  // asserts the window has a boundary, not that it's unrecoverable (ops would need to backfill).
+  assert.equal(
+    reminderDue(base, new Date(meetingAt.getTime() - 24 * 60 * 60 * 1000 - 25 * 60 * 1000)).due,
+    false,
+  )
+})
+
+test('reminderDue fires the 1h reminder even when the 24h one was already sent', () => {
+  const meetingAt = new Date('2026-09-30T00:00:00.000Z')
+  const lead = {
+    meeting_at: meetingAt.toISOString(),
+    meeting_url: 'https://meet.google.com/x',
+    reminder_24h_sent_at: new Date(meetingAt.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+  }
+  const at1h = reminderDue(lead, new Date(meetingAt.getTime() - 60 * 60 * 1000))
+  assert.equal(at1h.due, true)
+  assert.equal(at1h.kind, '1h')
+})
+
+test('reminderDue never fires for a meeting already in the past', () => {
+  const meetingAt = new Date('2026-09-29T00:00:00.000Z')
+  const lead = { meeting_at: meetingAt.toISOString(), meeting_url: 'https://meet.google.com/x' }
+  assert.equal(reminderDue(lead, new Date(meetingAt.getTime() + 1000)).due, false)
 })
 
 test('a follow-up resumes the unanswered question, never the opening', () => {

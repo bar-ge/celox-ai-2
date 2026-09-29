@@ -440,6 +440,22 @@ async function respond(phone, text) {
     await serviceClient().from(LEADS).update({ meeting_url: meetingUrl }).eq('phone', phone)
   }
 
+  // A fresh meeting_at means a new or rebooked meeting (mergeLead only ever
+  // writes meetingAt when book() actually produced one — never on a turn
+  // where nothing was booked), so any reminder_*_sent_at left over from a
+  // previous booking must not silently carry over onto this one. Without
+  // this, a rebooked lead could inherit an already-set reminder_1h_sent_at
+  // from their old meeting and never get reminded about the new time — see
+  // the docstring at the top of api/cron/wa-meeting-reminders.js, which
+  // already assumes this happens here.
+  if (meetingAt && meetingAt !== lead.meeting_at) {
+    const { error } = await serviceClient()
+      .from(LEADS)
+      .update({ reminder_24h_sent_at: null, reminder_1h_sent_at: null })
+      .eq('phone', phone)
+    if (error) console.error('reminder flag reset failed', error.message)
+  }
+
   // Intent belongs to the inbound message (data model); outbound rows leave it null.
   await deliver({ phone, body: reply, stage: updated.stage, intent: null })
 

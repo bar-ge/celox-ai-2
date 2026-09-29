@@ -1,7 +1,5 @@
 {
   "redirects": [
-    { "source": "/ca", "destination": "/us", "permanent": true },
-    { "source": "/ca/:path*", "destination": "/us", "permanent": true },
     {
       "source": "/",
       "has": [{ "type": "host", "value": "wab.celoxai.com" }],
@@ -35,6 +33,7 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron/wa-followups", "schedule": "0 7 * * *" }
+    { "path": "/api/cron/wa-followups", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/wa-meeting-reminders", "schedule": "*/15 * * * *" }
   ]
 }
