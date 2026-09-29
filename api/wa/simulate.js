@@ -26,9 +26,16 @@
 //      fixed WA_TEST_PHONE — so a leaked secret can, at worst, mess with a
 //      lead that was never real to begin with, never an actual lead's
 //      conversation.
+//
+// action: "check_reminders" (added 2026-09-29) runs the wa-meeting-reminders
+// cron's own per-lead check against just the test lead — see
+// checkTestReminder() below.
 
 import { handleInbound } from './webhook.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
+import { sendText } from '../_lib/whatsapp.js'
+import { logMessage } from '../_lib/crm.js'
+import { reminderMessage, reminderDue } from '../_lib/reminders.js'
 
 export const config = { maxDuration: 60 }
 
@@ -54,6 +61,11 @@ export default async function handler(req, res) {
   if (action === 'reset') {
     const cleared = await resetTestLead()
     return res.status(200).json({ ok: true, cleared })
+  }
+
+  if (action === 'check_reminders') {
+    const result = await checkTestReminder()
+    return res.status(200).json({ ok: true, result })
   }
 
   if (typeof text !== 'string' || !text.trim()) {
@@ -113,4 +125,45 @@ async function resetTestLead() {
   await db.from(MESSAGES).delete().eq('phone', TEST_PHONE)
   await db.from(LEADS).delete().eq('phone', TEST_PHONE)
   return Boolean(existed)
+}
+
+/**
+ * Runs the exact same per-lead check the wa-meeting-reminders cron does
+ * (reminderDue → reminderMessage → sendText → logMessage → stamp the flag),
+ * scoped to the fixed test lead only, on demand.
+ *
+ * Added 2026-09-29 so "did the reminder actually go out" doesn't have to
+ * wait for a real meeting to drift into the 24h/1h window and the cron to
+ * happen to run — bump the test lead's meeting_at into that window with a
+ * direct DB edit, then call this. Same secret gate and same fixed-phone
+ * guarantee as the rest of this file, so it carries no more risk than the
+ * booking flow above already does.
+ */
+async function checkTestReminder() {
+  const db = serviceClient()
+  const { data: lead } = await db
+    .from(LEADS)
+    .select('phone, meeting_at, meeting_url, reminder_24h_sent_at, reminder_1h_sent_at, bot_paused, opted_out')
+    .eq('phone', TEST_PHONE)
+    .maybeSingle()
+
+  if (!lead) return { checked: false, reason: 'no_test_lead' }
+
+  const check = reminderDue(lead, new Date())
+  if (!check.due) return { checked: true, due: false, lead }
+
+  const body = reminderMessage(lead)
+  const sent = await sendText(lead.phone, body)
+
+  await logMessage({
+    phone: lead.phone, direction: 'outbound', body,
+    waMessageId: sent.id, stage: 'MEETING_BOOKED', intent: null,
+  })
+
+  const patch = check.kind === '24h'
+    ? { reminder_24h_sent_at: new Date().toISOString() }
+    : { reminder_1h_sent_at: new Date().toISOString() }
+  await db.from(LEADS).update(patch).eq('phone', TEST_PHONE)
+
+  return { checked: true, due: true, kind: check.kind, delivered: sent.ok, body }
 }
