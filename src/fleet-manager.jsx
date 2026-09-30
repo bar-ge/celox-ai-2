@@ -5706,7 +5706,7 @@ function AlertsPanel({ rtl, companyId }) {
 
   useEffect(() => {
     if (!companyId) return
-    supabase.rpc('get_expiry_alerts').then(({ data, error }) => {
+    supabase.rpc('get_expiry_alerts', { p_company: companyId }).then(({ data, error }) => {
       if (error) console.error('get_expiry_alerts failed:', error.message)
       setAlerts(data || [])
       setLoaded(true)
@@ -5759,6 +5759,109 @@ function AlertsPanel({ rtl, companyId }) {
   )
 }
 
+// ── New / edit custom alert ─────────────────────────────────────────────────
+// A reminder the user writes themselves (renew a fuel card, call the insurer…).
+// Everything else on the Alerts tab is calculated from dates entered elsewhere.
+function NewAlertModal({ companyId, rtl, onClose, onSaved }) {
+  const isMobile = useIsMobile()
+  const [title, setTitle]     = useState('')
+  const [date, setDate]       = useState('')
+  const [note, setNote]       = useState('')
+  const [linkType, setLinkType] = useState('')      // '' | 'car' | 'driver'
+  const [linkId, setLinkId]   = useState('')
+  const [cars, setCars]       = useState([])
+  const [drivers, setDrivers] = useState([])
+  const [saving, setSaving]   = useState(false)
+  const [err, setErr]         = useState('')
+
+  useEffect(() => {
+    let live = true
+    Promise.all([
+      supabase.from('cars').select('id, plate, make, model').eq('company_id', companyId).order('plate'),
+      supabase.from('drivers').select('id, name').eq('company_id', companyId).order('name'),
+    ]).then(([c, d]) => { if (live) { setCars(c.data || []); setDrivers(d.data || []) } })
+    return () => { live = false }
+  }, [companyId])
+
+  async function save() {
+    const t = title.trim()
+    if (!t) { setErr(rtl ? 'יש להזין כותרת' : 'Please enter a title'); return }
+    if (!date) { setErr(rtl ? 'יש לבחור תאריך' : 'Please pick a date'); return }
+    if (linkType && !linkId) { setErr(rtl ? 'בחרו רכב או נהג, או בטלו את הקישור' : 'Pick a vehicle or driver, or remove the link'); return }
+    setSaving(true); setErr('')
+    const { error } = await supabase.from('custom_alerts').insert({
+      company_id: companyId, title: t.slice(0, 200), alert_date: date,
+      note: note.trim() ? note.trim().slice(0, 1000) : null,
+      entity_type: linkType || null, entity_id: linkType ? String(linkId) : null,
+    })
+    setSaving(false)
+    if (error) { console.error('[custom_alerts]', error.message); setErr(friendlyDbError(error, rtl)); return }
+    onSaved()
+  }
+
+  const lbl = { fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', display: 'block', marginBottom: 6 }
+  const field = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: C.textPrimary, background: C.surface, boxSizing: 'border-box' }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} dir={rtl ? 'rtl' : 'ltr'} style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 480, maxHeight: isMobile ? '92vh' : '88vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.25)', padding: isMobile ? '18px 16px' : '22px 24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="bell" size={16} color={C.primary} />{rtl ? 'התראה חדשה' : 'New alert'}
+          </h3>
+          <button onClick={onClose} style={closeBtn} aria-label={rtl ? 'סגור' : 'Close'}>×</button>
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 12.5, color: C.textSecondary }}>
+          {rtl ? 'תזכורת משלכם. היא תופיע בלשונית ההתראות 30 יום לפני התאריך, ותישלח גם במייל היומי.'
+               : 'Your own reminder. It shows in the Alerts tab from 30 days before the date and is included in the daily email.'}
+        </p>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>{rtl ? 'כותרת' : 'Title'}</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} maxLength={200} autoFocus style={field}
+            placeholder={rtl ? 'לדוגמה: חידוש כרטיס דלק' : 'e.g. Renew fuel card'} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>{rtl ? 'תאריך' : 'Date'}</label>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} style={field} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>{rtl ? 'קשור ל (לא חובה)' : 'Linked to (optional)'}</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select value={linkType} onChange={e => { setLinkType(e.target.value); setLinkId('') }} style={{ ...field, flex: '0 0 38%' }}>
+              <option value="">{rtl ? 'ללא' : 'Nothing'}</option>
+              <option value="car">{rtl ? 'רכב' : 'Vehicle'}</option>
+              <option value="driver">{rtl ? 'נהג' : 'Driver'}</option>
+            </select>
+            {linkType && (
+              <select value={linkId} onChange={e => setLinkId(e.target.value)} style={{ ...field, flex: 1 }}>
+                <option value="">{rtl ? 'בחרו…' : 'Choose…'}</option>
+                {linkType === 'car'
+                  ? cars.map(c => <option key={c.id} value={String(c.id)}>{formatPlate(c.plate)}{c.make ? ` · ${c.make} ${c.model || ''}` : ''}</option>)
+                  : drivers.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={lbl}>{rtl ? 'הערה (לא חובה)' : 'Note (optional)'}</label>
+          <textarea value={note} onChange={e => setNote(e.target.value)} maxLength={1000} rows={3} style={{ ...field, resize: 'vertical' }} />
+        </div>
+
+        {err && <div style={{ marginBottom: 12, fontSize: 13, color: C.danger, fontWeight: 600 }}>{err}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: C.textSecondary }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+          <button onClick={save} disabled={saving} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? (rtl ? 'שומר…' : 'Saving…') : (rtl ? 'שמור התראה' : 'Save alert')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Unified Alerts Tab — one filterable/sortable view across every expiry type ──
 function AlertsTab({ companyId, rtl }) {
   const [alerts, setAlerts]   = useState([])
@@ -5768,20 +5871,48 @@ function AlertsTab({ companyId, rtl }) {
   const [search, setSearch]         = useState('')
   const [sortKey, setSortKey]       = useState('date')
   const [sortDir, setSortDir]       = useState('asc')
+  const [showNew, setShowNew]       = useState(false)
+  const [notes, setNotes]           = useState({})     // custom alert id -> note
+  const [confirmDel, setConfirmDel] = useState(null)   // custom alert id awaiting confirmation
+  const [busyId, setBusyId]         = useState(null)
+  const [actionErr, setActionErr]   = useState('')
 
   useEffect(() => { load() }, [companyId])
 
   async function load() {
     if (!companyId) return
     setLoading(true)
-    const { data, error } = await supabase.rpc('get_expiry_alerts')
+    const { data, error } = await supabase.rpc('get_expiry_alerts', { p_company: companyId })
     if (error) console.error('get_expiry_alerts failed:', error.message)
-    setAlerts(data || [])
+    const list = data || []
+    setAlerts(list)
     setLoading(false)
+    // Notes are not part of the alert feed; fetch them just for the reminders shown.
+    const ids = list.filter(a => a.type === 'custom').map(a => a.source_id)
+    if (ids.length) {
+      const { data: rows } = await supabase.from('custom_alerts').select('id, note').in('id', ids)
+      setNotes(Object.fromEntries((rows || []).map(r => [r.id, r.note])))
+    } else setNotes({})
   }
 
-  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph', insurance: rtl ? 'ביטוח' : 'Insurance', test: rtl ? 'טסט' : 'Test', leasing: rtl ? 'ליסינג' : 'Leasing', registration: rtl ? 'רישיון רכב' : 'Registration' }
-  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓', tachograph: '⏱️', insurance: '🛡️', test: '🔍', leasing: '📄', registration: '🚗' }
+  async function markDone(id) {
+    setBusyId(id); setActionErr('')
+    const { error } = await supabase.from('custom_alerts').update({ done: true }).eq('id', id).eq('company_id', companyId)
+    setBusyId(null)
+    if (error) { console.error('[custom_alerts]', error.message); setActionErr(rtl ? 'העדכון נכשל. נסו שוב.' : 'Update failed. Please try again.'); return }
+    load()
+  }
+
+  async function removeAlert(id) {
+    setBusyId(id); setActionErr('')
+    const { error } = await supabase.from('custom_alerts').delete().eq('id', id).eq('company_id', companyId)
+    setBusyId(null); setConfirmDel(null)
+    if (error) { console.error('[custom_alerts]', error.message); setActionErr(rtl ? 'המחיקה נכשלה. נסו שוב.' : 'Delete failed. Please try again.'); return }
+    load()
+  }
+
+  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', custom: rtl ? 'תזכורת' : 'Reminder', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph', insurance: rtl ? 'ביטוח' : 'Insurance', test: rtl ? 'טסט' : 'Test', leasing: rtl ? 'ליסינג' : 'Leasing', registration: rtl ? 'רישיון רכב' : 'Registration' }
+  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', custom: '⏰', certification: '🎓', tachograph: '⏱️', insurance: '🛡️', test: '🔍', leasing: '📄', registration: '🚗' }
 
   const filtered = alerts
     .filter(a => !filterType || a.type === filterType)
@@ -5829,11 +5960,16 @@ function AlertsTab({ companyId, rtl }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="bell" size={20} color={C.warning} />{rtl ? 'כל ההתראות' : 'All Alerts'}</h2>
-          <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'תצוגה מאוחדת: תחזוקה, מסמכים, רישיונות והכשרות' : 'Unified view: maintenance, documents, licenses, certifications'}</p>
+          <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'תאריכי תפוגה וטיפולים מחושבים אוטומטית, בתוספת תזכורות שלכם' : 'Expiry dates and maintenance are calculated automatically, plus your own reminders'}</p>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={() => setShowNew(true)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 16, lineHeight: 1 }}>+</span>{rtl ? 'התראה חדשה' : 'New alert'}</span>
+        </button>
         <button onClick={exportAlerts} disabled={!filtered.length} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: filtered.length ? 'pointer' : 'not-allowed', color: C.textSecondary, opacity: filtered.length ? 1 : 0.5 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={14} />{rtl ? 'ייצוא Excel' : 'Export Excel'}</span>
         </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12, marginBottom: 20 }}>
@@ -5861,6 +5997,7 @@ function AlertsTab({ companyId, rtl }) {
           <option value="test">{typeLabel.test}</option>
           <option value="leasing">{typeLabel.leasing}</option>
           <option value="registration">{typeLabel.registration}</option>
+          <option value="custom">{typeLabel.custom}</option>
           {RG.code === 'il' && <option value="tachograph">{typeLabel.tachograph}</option>}
         </select>
         <select value={filterSev} onChange={e => setFilterSev(e.target.value)} style={inp}>
@@ -5870,12 +6007,17 @@ function AlertsTab({ companyId, rtl }) {
         </select>
       </div>
 
+      {actionErr && <div style={{ marginBottom: 12, fontSize: 13, color: C.danger, fontWeight: 600 }}>{actionErr}</div>}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>{rtl ? 'טוען...' : 'Loading...'}</div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>
           <div style={{ marginBottom: 8 }}><Icon name="check" size={34} color={C.success} /></div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{rtl ? 'אין התראות פעילות' : 'No active alerts'}</div>
+          <div style={{ fontSize: 12.5, marginTop: 8, maxWidth: 420, marginInline: 'auto', lineHeight: 1.6 }}>
+            {rtl ? 'התראות מופיעות כשתאריך תפוגה (רישיון נהג, ביטוח, טסט, רישוי, ליסינג…) או טיפול מתקרבים ל-30 יום. אפשר גם להוסיף תזכורת משלכם.'
+                 : 'Alerts appear when an expiry date (driver licence, insurance, test, registration, leasing…) or a service is within 30 days. You can also add your own reminder.'}
+          </div>
         </div>
       ) : (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
@@ -5889,17 +6031,35 @@ function AlertsTab({ companyId, rtl }) {
                     </th>
                   ))}
                   <th style={{ padding: '10px 14px', textAlign: rtl ? 'right' : 'left', fontWeight: 700, color: C.textSecondary, borderBottom: `1px solid ${C.border}` }}>{rtl ? 'סטטוס' : 'Status'}</th>
+                  <th style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }} />
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((a, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                  <tr key={a.type + ':' + (a.source_id ?? i)} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
                     <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}><EIcon e={typeIcon[a.type] || '⚠'} size={15} style={{ marginInlineEnd: 6 }} />{typeLabel[a.type] || a.type}</td>
-                    <td style={{ padding: '9px 14px' }}>{a.label}</td>
+                    <td style={{ padding: '9px 14px' }}>
+                      {a.label}
+                      {a.type === 'custom' && notes[a.source_id] && <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2, whiteSpace: 'pre-wrap' }}>{notes[a.source_id]}</div>}
+                    </td>
                     <td style={{ padding: '9px 14px' }}>{a.entity_name || '—'}</td>
                     <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(a.date)}</td>
                     <td style={{ padding: '9px 14px' }}>
                       <Badge label={a.severity === 'overdue' ? (rtl ? 'באיחור' : 'Overdue') : (rtl ? 'מתקרב' : 'Upcoming')} color={a.severity === 'overdue' ? C.danger : C.warning} />
+                    </td>
+                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', textAlign: rtl ? 'left' : 'right' }}>
+                      {a.type === 'custom' && (confirmDel === a.source_id ? (
+                        <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+                          {rtl ? 'למחוק?' : 'Delete?'}
+                          <button disabled={busyId === a.source_id} onClick={() => removeAlert(a.source_id)} style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'מחק' : 'Delete'}</button>
+                          <button onClick={() => setConfirmDel(null)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', color: C.textSecondary }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', gap: 6 }}>
+                          <button disabled={busyId === a.source_id} onClick={() => markDone(a.source_id)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: C.success }}>{rtl ? 'בוצע' : 'Done'}</button>
+                          <button onClick={() => setConfirmDel(a.source_id)} aria-label={rtl ? 'מחק' : 'Delete'} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, cursor: 'pointer', color: C.textMuted }}>×</button>
+                        </span>
+                      ))}
                     </td>
                   </tr>
                 ))}
@@ -5908,6 +6068,7 @@ function AlertsTab({ companyId, rtl }) {
           </div>
         </div>
       )}
+      {showNew && <NewAlertModal companyId={companyId} rtl={rtl} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load() }} />}
     </div>
   )
 }
@@ -7955,6 +8116,16 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
   const [saved,       setSaved]       = useState(false)
   const [sending,     setSending]     = useState(false)
   const [sendResult,  setSendResult]  = useState(null) // { ok, alerts_sent, reason }
+  const [hasAdmin,    setHasAdmin]    = useState(true)   // is there anyone the fallback can email?
+
+  useEffect(() => {
+    let live = true
+    supabase.from('profiles').select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId).eq('role', 'admin').not('email', 'is', null)
+      .then(({ count, error }) => { if (live && !error) setHasAdmin((count || 0) > 0) })
+    return () => { live = false }
+  }, [companyId])
+  const noRecipient = !hasAdmin && !recipients.split(/[,\n]/).some(s => s.trim())
   const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
 
   async function save() {
@@ -7966,7 +8137,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
   async function sendNow() {
     setSending(true); setSendResult(null)
     try {
-      const { data, error } = await supabase.functions.invoke('trigger-alerts', { body: {} })
+      const { data, error } = await supabase.functions.invoke('trigger-alerts', { body: { companyId } })
       if (error) { setSendResult({ ok: false, reason: 'error' }); return }
       setSendResult(data)
     } finally {
@@ -7995,7 +8166,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
       <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{rtl ? 'שלח התראות יומיות' : 'Send daily alerts'}</div>
-          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'תחזוקה, מסמכים ורישיונות שפג תוקפם' : 'Maintenance, documents and expiring licenses'}</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'כל ההתראות מלשונית ההתראות: תפוגות, טיפולים והתזכורות שלכם' : 'Everything on the Alerts tab: expiries, maintenance and your own reminders'}</div>
         </div>
         <div
           onClick={() => setAlertsOn(p => !p)}
@@ -8032,6 +8203,12 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
           {rtl ? 'מספר כתובות מופרדות בפסיק. ריק = מנהל החברה הראשון.' : 'Comma-separated addresses. Empty = first company admin.'}
         </div>
+        {noRecipient && (
+          <div style={{ marginTop: 8, padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 12.5, color: '#92400e', fontWeight: 600 }}>
+            {rtl ? 'אין נמען: לחברה אין מנהל עם אימייל ולא הוגדרה כתובת. אף אימייל התראות לא יישלח עד שתוסיפו כתובת.'
+                 : 'No recipient: this company has no admin with an email and no address set, so no alert emails will be sent until you add one.'}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -8044,7 +8221,9 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
       </div>
       {sendResult?.ok === false && (
         <div style={{ marginTop: 8, fontSize: 12, color: C.danger }}>
-          {rtl ? 'שגיאה בשליחה, נסה שוב' : 'Failed to send, please try again'}
+          {sendResult.reason === 'no_recipient'
+            ? (rtl ? 'אין כתובת אימייל לשליחה' : 'There is no email address to send to')
+            : (rtl ? 'שגיאה בשליחה, נסה שוב' : 'Failed to send, please try again')}
         </div>
       )}
     </div>
