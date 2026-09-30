@@ -10,7 +10,8 @@
     "build:dev": "vite build --mode dev",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:wa": "node scripts/wa-agent-selftest.mjs"
+    "test:wa": "node scripts/wa-agent-selftest.mjs",
+    "test:ocr": "node scripts/ocr-selftest.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.1",

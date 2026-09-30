@@ -3,6 +3,10 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } fr
 import { createPortal } from 'react-dom'
 
 import { isEmpty, isIsraeliPlate, isIsraeliPhone, isMinLen, isYear, isPositive, isValidIsraeliId, friendlyDbError } from './validators'
+import { useDocumentOcr } from './ocr/useDocumentOcr'
+import OcrReviewCard from './ocr/OcrReviewCard'
+import DocTypeSelect from './ocr/DocTypeSelect'
+import { KIND_FOR_ENTITY } from './ocr/ocrMapping'
 import { FORM_TEMPLATES } from './formTemplates'
 import { getRegion, REGIONS, REGION_CODES, defaultLang } from './regions'
 import AvatarWidget from './avatar/AvatarWidget'
@@ -1158,13 +1162,17 @@ function FormSubmissionsSection({ entityId, entityType, companyId, rtl }) {
 }
 
 // ── Inline Documents Pane (used inside detail modals) ───────────────────────
-function DocsPane({ entityId, entityType, companyId, t, rtl }) {
+function DocsPane({ entityId, entityType, companyId, t, rtl, entity, onEntityUpdate }) {
   const [docs, setDocs]               = useState([])
   const [loading, setLoading]         = useState(true)
   const [uploading, setUploading]     = useState(false)
   const [error, setError]             = useState('')
   const [pendingFile, setPendingFile] = useState(null)
   const [expiryDate, setExpiryDate]   = useState('')
+  // '' = an ordinary file; a kind = read it and offer to fill the record. Only
+  // offered when the parent handed us the record to fill (`entity`).
+  const [docKind, setDocKind]         = useState('')
+  const ocr = useDocumentOcr({ entity, onEntityUpdate, rtl })
   const [editingExpiry, setEditingExpiry] = useState(null)
   const [editExpiryVal, setEditExpiryVal] = useState('')
 
@@ -1181,7 +1189,7 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
   function pickFile(e) {
     const file = e.target.files[0]
     if (!file) return
-    setPendingFile(file); setExpiryDate(''); setError(''); e.target.value = ''
+    setPendingFile(file); setExpiryDate(''); setDocKind(''); setError(''); e.target.value = ''
   }
 
   const ALLOWED = ['image/jpeg','image/png','image/webp','image/gif','application/pdf',
@@ -1208,13 +1216,19 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
     const path = `${companyId}/${entityType}/${entityId}/${Date.now()}_${safeName}`
     const { error: uploadErr } = await supabase.storage.from('fleet-documents').upload(path, pendingFile)
     if (uploadErr) { setError(friendlyDbError(uploadErr, rtl)); setUploading(false); return }
-    const { error: dbErr } = await supabase.from('documents').insert({
+    const { data: inserted, error: dbErr } = await supabase.from('documents').insert({
       company_id: companyId, entity_type: entityType, entity_id: entityId,
       name: pendingFile.name, storage_path: path, size: pendingFile.size,
-      expires_at: expiryDate || null,
-    })
+      expires_at: expiryDate || null, doc_type: docKind || null,
+    }).select('id').single()
     if (dbErr) setError(friendlyDbError(dbErr, rtl))
-    else { await loadDocs(); setPendingFile(null); setExpiryDate('') }
+    else {
+      await loadDocs()
+      // The file is safely stored before any reading starts, so a reader outage
+      // can never lose an upload.
+      if (docKind && entity) ocr.start({ kind: docKind, path, docId: inserted?.id, docHasExpiry: !!expiryDate })
+      setPendingFile(null); setExpiryDate(''); setDocKind('')
+    }
     setUploading(false)
   }
 
@@ -1256,6 +1270,7 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
 
   return (
     <div style={{ direction: rtl ? 'rtl' : 'ltr' }}>
+      <OcrReviewCard ocr={ocr} onToggle={ocr.toggle} onApply={ocr.apply} onRetry={ocr.retry} onDismiss={ocr.dismiss} rtl={rtl} />
       {loading ? (
         <p style={{ color: C.textMuted, textAlign: 'center', padding: '24px 0', fontSize: 14 }}>{t.loadingShort}</p>
       ) : docs.length === 0 ? (
@@ -1307,6 +1322,9 @@ function DocsPane({ entityId, entityType, companyId, t, rtl }) {
               <DateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none' }} />
             </div>
+            {entity && KIND_FOR_ENTITY[entityType] && (
+              <DocTypeSelect entityType={entityType} value={docKind} onChange={setDocKind} disabled={uploading} rtl={rtl} colors={C} />
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={confirmUpload} disabled={uploading}
                 style={{ flex: 1, background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '10px', fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
@@ -3094,7 +3112,7 @@ function CarDetailModal({ car, getBranchName, drivers, companyId, t, rtl, onClos
                 <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', marginBottom: 10, marginTop: 20 }}>
                   {rtl ? 'מסמכים' : 'Documents'}
                 </div>
-                <DocsPane key={docsKey} entityId={car.id} entityType="car" companyId={companyId} t={t} rtl={rtl} />
+                <DocsPane key={docsKey} entityId={car.id} entityType="car" companyId={companyId} t={t} rtl={rtl} entity={car} onEntityUpdate={onCarUpdate} />
                 <FormSubmissionsSection entityId={car.id} entityType="car" companyId={companyId} rtl={rtl} />
               </div>
             )}
@@ -3398,7 +3416,7 @@ function DriverDetailModal({ driver, getBranchName, cars, companyId, t, rtl, onC
           {tab === 'documents' && (
             <div style={{ padding: '0 24px 20px' }}>
               <div style={sTitle}>{rtl ? 'מסמכים' : 'Documents'}</div>
-              <DocsPane entityId={driver.id} entityType="driver" companyId={companyId} t={t} rtl={rtl} />
+              <DocsPane entityId={driver.id} entityType="driver" companyId={companyId} t={t} rtl={rtl} entity={driver} onEntityUpdate={onDriverUpdate} />
               <FormSubmissionsSection entityId={driver.id} entityType="driver" companyId={companyId} rtl={rtl} />
             </div>
           )}
