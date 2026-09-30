@@ -52,11 +52,12 @@ export const TOOL_DEFS = [
     type: 'function',
     function: {
       name: 'get_cost_summary',
-      description: 'Total spend and spend by category (fuel, tolls, repairs, etc.) over a recent window. Use for "how much have we spent", "what are our costs" questions.',
+      description: 'Total spend and spend by category (fuel, tolls, repairs, etc.). Use for "how much have we spent", "what are our costs", "how much on fuel" questions. Defaults to the last 30 days — pass a larger `days` value, or `all_time: true`, for a longer or unbounded period. Never refuse a "since the beginning" / "all time" question; call this with all_time instead.',
       parameters: {
         type: 'object',
         properties: {
-          days: { type: 'integer', description: 'Look-back window in days. Defaults to 30.' },
+          days: { type: 'integer', description: 'Look-back window in days. Defaults to 30. Ignored when all_time is true.' },
+          all_time: { type: 'boolean', description: 'Total spend across the company\'s entire history, no date cutoff. Use for "total period" / "all time" / "since we started" questions.' },
         },
         additionalProperties: false,
       },
@@ -141,11 +142,16 @@ async function getExpiringDocuments(companyId, { within_days }) {
   }
 }
 
-async function getCostSummary(companyId, { days }) {
+async function getCostSummary(companyId, { days, all_time }) {
+  // 2026-09-30: Bar asked for total fuel spend "for the whole period" and
+  // the avatar said it could only see the last 30 days — the tool really
+  // did cap out at 365, so there was no way for it to answer honestly.
+  // all_time bypasses the date filter entirely instead of raising the cap
+  // further, since "the whole period" has no fixed length to guess at.
   const windowDays = Number.isFinite(days) && days > 0 ? Math.min(days, 365) : 30
-  const from = daysFromNow(-windowDays)
-  const { data } = await serviceClient()
-    .from('costs').select('category, amount').eq('company_id', companyId).gte('date', from)
+  let query = serviceClient().from('costs').select('category, amount').eq('company_id', companyId)
+  if (!all_time) query = query.gte('date', daysFromNow(-windowDays))
+  const { data } = await query
 
   const rows = data || []
   const total = rows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
@@ -154,7 +160,9 @@ async function getCostSummary(companyId, { days }) {
     acc[k] = (acc[k] || 0) + (parseFloat(r.amount) || 0)
     return acc
   }, {})
-  return { days: windowDays, total, by_category: byCategory }
+  return all_time
+    ? { all_time: true, total, by_category: byCategory }
+    : { days: windowDays, total, by_category: byCategory }
 }
 
 async function getViolationsSummary(companyId) {
