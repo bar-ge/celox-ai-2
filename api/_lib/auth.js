@@ -99,8 +99,9 @@ export function isCronRequest(req) {
 
 /**
  * Any signed-in user, plus the company they belong to. requireMaster() is too
- * narrow for routes that ordinary client staff use (document OCR), and the
- * avatar routes skipped auth altogether — this is the guard those needed.
+ * narrow for routes that ordinary client staff use (document OCR). Unlike
+ * requireUser() above it also reports isMaster and allows a master with no
+ * company, which the OCR route needs for its own tenancy check.
  *
  * The service-role client bypasses RLS, so the CALLER must do the tenancy
  * check: compare the returned companyId against whatever resource is being
@@ -110,7 +111,7 @@ export function isCronRequest(req) {
  * @returns {Promise<{ ok: true, userId: string, email: string, isMaster: boolean, companyId: string|null }
  *   | { ok: false, status: number, reason: string }>}
  */
-export async function requireUser(req) {
+export async function requireDocumentUser(req) {
   const header = req.headers?.authorization
   const token = typeof header === 'string' && header.startsWith('Bearer ')
     ? header.slice(7).trim()
