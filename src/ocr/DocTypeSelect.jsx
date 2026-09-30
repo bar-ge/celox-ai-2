@@ -28,8 +28,8 @@ export default function DocTypeSelect({ entityType, value, onChange, disabled, r
       </div>
       {value && (
         <div style={{ fontSize: 11, color: C.textMuted, marginTop: 5 }}>
-          {T('הקובץ יישלח לשירות קריאה חיצוני (Google Gemini). תראו את מה שנקרא ותאשרו לפני שמשהו נשמר.',
-             'The file will be sent to an external reading service (Google Gemini). You will see what was read and confirm before anything is saved.')}
+          {T('הקובץ יישלח לשירות קריאה חיצוני. תראו את מה שנקרא ותאשרו לפני שמשהו נשמר.',
+             'The file will be sent to an external reading service. You will see what was read and confirm before anything is saved.')}
         </div>
       )}
     </div>
