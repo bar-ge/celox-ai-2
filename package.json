@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test:wa": "node scripts/wa-agent-selftest.mjs",
     "test:ocr": "node scripts/ocr-selftest.mjs",
-    "test:alerts": "node --experimental-strip-types scripts/alerts-selftest.mjs"
+    "test:alerts": "node --experimental-strip-types scripts/alerts-selftest.mjs",
+    "test:reports": "node scripts/reports-selftest.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.1",
