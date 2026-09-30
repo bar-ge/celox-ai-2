@@ -69,7 +69,7 @@ export default function OcrReviewCard({ ocr, onToggle, onApply, onRetry, onDismi
       <div role="status" aria-live="polite" style={box}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>⏳ {T(`קורא את ${kindName}…`, `Reading ${kindName}…`)}</div>
         <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>
-          {T('הקובץ נשלח לשירות קריאה חיצוני (Google Gemini) לצורך חילוץ הנתונים.', 'The file is sent to an external reading service (Google Gemini) to extract the data.')}
+          {T('הקובץ נשלח לשירות קריאה חיצוני לצורך חילוץ הנתונים.', 'The file is sent to an external reading service to extract the data.')}
         </div>
       </div>
     )
