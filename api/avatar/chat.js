@@ -155,11 +155,66 @@ export default async function handler(req, res) {
     // No tool call (or we're out of rounds) — this is the final answer.
     const finalText = openRouterText(data)
     console.log('avatar chat final raw text:', finalText.slice(0, 400))
-    return respondFromText(res, finalText)
+
+    // 2026-09-30: traced via production logs (screenshot from Bar — four
+    // questions in a row all came back with the generic "couldn't answer"
+    // fallback). The model's actual answers were fine ("יש לך 103 נהגים" is
+    // a correct, live-data answer) — they just weren't wrapped in the
+    // required JSON envelope. That happens whenever the model answers on a
+    // round where tools were offered (round < MAX_TOOL_ROUNDS): jsonMode is
+    // only forced on the literal last round (see the comment above), but a
+    // round with tools offered can still be the FINAL answer whenever the
+    // model simply chooses not to call a tool — and without response_format
+    // forcing it, a cheaper/faster model doesn't reliably follow the system
+    // prompt's "return JSON only" instruction on its own. Previously that
+    // discarded a perfectly good answer and showed the generic fallback
+    // instead. Now: try to parse first, and only pay for a repair call (one
+    // extra round-trip, jsonMode forced, tools off — safe to combine per the
+    // Groq constraint above) when the model's own answer didn't come back
+    // as JSON, instead of throwing a good answer away.
+    if (extractJson(finalText)?.reply != null) {
+      return respondFromText(res, finalText)
+    }
+
+    console.warn('avatar chat: final reply was not JSON, repairing —', finalText.slice(0, 200))
+    const repairedText = await repairAsJson({ messages, finalText })
+    return respondFromText(res, repairedText)
   }
 
   console.error('avatar chat: OpenRouter call failed —', lastError)
   return res.status(500).json({ reply: null, reason: 'api_error' })
+}
+
+/**
+ * One extra OpenRouter call, tools off, jsonMode forced, asking the model to
+ * re-wrap its own last answer as the required JSON — instead of re-asking
+ * the question (which could get a different answer, or call a tool again).
+ * Falls back to the original text if the repair call itself fails; that
+ * still hits extractJson() in respondFromText() and, if it also can't be
+ * parsed, ends in the same generic "couldn't answer" message as before —
+ * this only ever improves on that, never makes it worse.
+ */
+async function repairAsJson({ messages, finalText }) {
+  const repairMessages = [
+    ...messages,
+    { role: 'assistant', content: finalText },
+    {
+      role: 'user',
+      content: 'החזר את התשובה הקודמת שלך כ-JSON תקין בלבד, באותו תוכן בדיוק, בפורמט: ' +
+        '{"reply": string, "intent": "qa"|"navigate"|"escalate"|"unclear", "actionId": string|null, "confidence": number 0-1}',
+    },
+  ]
+  const { data } = await callOpenRouterRaw({
+    messages: repairMessages,
+    model: MODEL,
+    fallbackModel: FALLBACK_MODEL,
+    maxTokens: MAX_TOKENS,
+    jsonMode: true,
+  })
+  if (!data) return finalText
+  const repaired = openRouterText(data)
+  console.log('avatar chat repaired text:', repaired.slice(0, 400))
+  return repaired
 }
 
 /** Shared JSON-extract + validate + respond tail. */
