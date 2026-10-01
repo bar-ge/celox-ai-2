@@ -1,5 +1,6 @@
 // Run: node scripts/reports-selftest.mjs
-import { REPORT_CATALOG, buildReport, datePreset, daysBetween, fmtValue, csvOf, reportToHtml, reportToText, totalsRow } from '../src/reports/engine.js'
+import fs from 'node:fs'
+import { REPORT_CATALOG, buildReport, datePreset, daysBetween, fmtValue, csvOf, reportToHtml, reportToText, totalsRow, israelNow, isDue, scheduleFilters } from '../src/reports/engine.js'
 
 let pass = 0, fail = 0
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('FAIL:', m) } }
@@ -113,6 +114,27 @@ ok(!reportToHtml(evil).includes('<script>'), 'html escapes plate')
 ok(csvOf(evil).includes('"A""B C,D"'), 'csv quoting'); ok(csvOf(evil).startsWith('﻿'), 'csv BOM')
 ok(reportToHtml(evil).includes('dir="rtl"') && evil.title === 'סטטוס הצי', 'hebrew report is rtl')
 ok(reportToHtml(buildReport('cost_summary', D, { from: '2030-01-01', to: '2030-02-01' }, o())).includes('No data'), 'empty state text')
+
+// ── scheduling ──
+// Israel time: 2026-09-30 21:30 UTC is already 2026-10-01 in Tel Aviv (IDT, UTC+3)
+eq(israelNow(new Date('2026-09-30T21:30:00Z')).date, '2026-10-01', 'israel date rolls over')
+eq(israelNow(new Date('2026-01-15T22:30:00Z')).date, '2026-01-16', 'israel winter time (UTC+2)')
+const n = israelNow(new Date('2026-09-30T05:00:00Z')); eq([n.date, n.dow, n.dom, n.daysInMonth], ['2026-09-30', 3, 30, 30], 'israelNow fields (Wednesday)')
+const S = (o) => ({ is_active: true, frequency: 'daily', last_sent_at: null, ...o })
+ok(isDue(S({}), n), 'daily is due'); ok(!isDue(S({ is_active: false }), n), 'inactive not due')
+ok(!isDue(S({ last_sent_at: '2026-09-30T02:00:00Z' }), n), 'already sent today')
+ok(isDue(S({ last_sent_at: '2026-09-29T05:00:00Z' }), n), 'sent yesterday -> due')
+ok(isDue(S({ frequency: 'weekly', day_of_week: 3 }), n) && !isDue(S({ frequency: 'weekly', day_of_week: 0 }), n), 'weekly matches weekday')
+ok(isDue(S({ frequency: 'monthly', day_of_month: 30 }), n) && !isDue(S({ frequency: 'monthly', day_of_month: 1 }), n), 'monthly matches day')
+ok(isDue(S({ frequency: 'monthly', day_of_month: 31 }), n), 'monthly day 31 clamps to last day of a 30-day month')
+ok(isDue(S({ frequency: 'monthly', day_of_month: 31 }), israelNow(new Date('2026-02-28T05:00:00Z'))), 'monthly day 31 clamps in February')
+ok(!isDue(S({ frequency: 'yearly' }), n) && !isDue(null, n), 'unknown frequency / null not due')
+eq(scheduleFilters({ report_type: 'cost_summary', period: 'lastMonth', filters: { branch: 'b1' } }, '2026-09-30'), { from: '2026-08-01', to: '2026-08-31', branch: 'b1', car: '', driver: '', category: '', horizon: '90' }, 'schedule filters resolve period')
+eq(scheduleFilters({ report_type: 'drivers', period: 'lastMonth', filters: { from: '2020-01-01' } }, '2026-09-30').from, '', 'non-dated report ignores dates')
+eq(scheduleFilters({ report_type: 'cost_summary', period: 'bogus' }, '2026-09-30').from, '2026-09-01', 'bad period falls back to last30')
+eq(scheduleFilters({ report_type: 'cost_summary', period: 'all' }, '2026-09-30').from, '', 'all time has no start')
+// the edge function must run exactly the same engine as the app
+ok(fs.readFileSync(new URL('../src/reports/engine.js', import.meta.url), 'utf8') === fs.readFileSync(new URL('../supabase/functions/scheduled-reports/engine.js', import.meta.url), 'utf8'), 'scheduled-reports/engine.js is identical to src/reports/engine.js')
 
 console.log(`${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

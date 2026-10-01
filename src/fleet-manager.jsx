@@ -8,7 +8,7 @@ import OcrReviewCard from './ocr/OcrReviewCard'
 import DocTypeSelect from './ocr/DocTypeSelect'
 import { KIND_FOR_ENTITY } from './ocr/ocrMapping'
 import { FORM_TEMPLATES } from './formTemplates'
-import { REPORT_CATALOG, REPORT_GROUPS, buildReport, datePreset, fmtValue, daysTone, totalsRow, csvOf, reportToHtml, reportToText, categoryLabel, esc } from './reports/engine'
+import { REPORT_CATALOG, REPORT_GROUPS, buildReport, datePreset, fmtValue, daysTone, totalsRow, csvOf, reportToHtml, reportToText, categoryLabel, esc, SCHEDULE_PERIODS } from './reports/engine'
 import { getRegion, REGIONS, REGION_CODES, defaultLang } from './regions'
 import AvatarWidget from './avatar/AvatarWidget'
 
@@ -8411,12 +8411,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [editingAccess, setEditingAccess] = useState(null) // company id being edited
   const [accessUntil, setAccessUntil]     = useState('')
 
-  // Report schedules
-  const [schedules,     setSchedules]     = useState([])
-  const [schedLoading,  setSchedLoading]  = useState(false)
-  const [showAddSched,  setShowAddSched]  = useState(false)
-  const [schedForm,     setSchedForm]     = useState({ report_type: 'costs', frequency: 'weekly', recipients: '', day_of_week: '0' })
-  const [schedErr,      setSchedErr]      = useState('')
 
   useEffect(() => {
     if (isMaster) {
@@ -8432,44 +8426,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     navigator.clipboard.writeText(company?.invite_code || '')
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }
-
-  useEffect(() => { loadSchedules() }, [companyId])
-
-  async function loadSchedules() {
-    if (!companyId) return
-    setSchedLoading(true)
-    const { data } = await supabase.from('report_schedules').select('*').eq('company_id', companyId).order('created_at')
-    setSchedules(data || [])
-    setSchedLoading(false)
-  }
-
-  async function addSchedule(e) {
-    e.preventDefault()
-    setSchedErr('')
-    if (!schedForm.recipients.trim()) { setSchedErr(rtl ? 'נא להזין כתובת אימייל' : 'Email required'); return }
-    const { data, error } = await supabase.from('report_schedules').insert([{
-      company_id:   companyId,
-      report_type:  schedForm.report_type,
-      frequency:    schedForm.frequency,
-      recipients:   schedForm.recipients.split(',').map(s => s.trim()).filter(Boolean),
-      day_of_week:  parseInt(schedForm.day_of_week, 10),
-      is_active:    true,
-    }]).select()
-    if (error) { setSchedErr(error.message); return }
-    setSchedules(p => [...p, data[0]])
-    setShowAddSched(false)
-    setSchedForm({ report_type: 'costs', frequency: 'weekly', recipients: '', day_of_week: '0' })
-  }
-
-  async function deleteSchedule(id) {
-    await supabase.from('report_schedules').delete().eq('id', id)
-    setSchedules(p => p.filter(s => s.id !== id))
-  }
-
-  async function toggleSchedule(id, isActive) {
-    const { data } = await supabase.from('report_schedules').update({ is_active: !isActive }).eq('id', id).select()
-    if (data?.[0]) setSchedules(p => p.map(s => s.id === id ? data[0] : s))
   }
 
   async function removeMember(memberId) {
@@ -8932,81 +8888,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* Activity log — admin only */}
           {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} />}
-
-          {/* ── Report Schedules ── */}
-          {companyId && (
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 800, color: C.textPrimary }}><Icon name="calendar" size={15} color={C.textSecondary} />{rtl ? 'תזמון דוחות' : 'Report Schedules'}</div>
-                  <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{rtl ? 'שלח דוחות אוטומטיים לאימייל' : 'Send automated reports by email'}</div>
-                </div>
-                <button onClick={() => setShowAddSched(p => !p)} style={{ background: C.primary + '15', color: C.primary, border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                  {showAddSched ? <Icon name="x" size={13} /> : `+ ${rtl ? 'הוסף' : 'Add'}`}
-                </button>
-              </div>
-
-              {showAddSched && (
-                <form onSubmit={addSchedule} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-                  <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג דוח' : 'Report Type'}</label>
-                      <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.report_type} onChange={e => setSchedForm(p => ({ ...p, report_type: e.target.value }))}>
-                        <option value="costs">{rtl ? 'הוצאות' : 'Costs'}</option>
-                        <option value="maintenance">{rtl ? 'תחזוקה' : 'Maintenance'}</option>
-                        <option value="violations">{rtl ? 'קנסות' : 'Violations'}</option>
-                        <option value="fleet_summary">{rtl ? 'סיכום צי' : 'Fleet Summary'}</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תדירות' : 'Frequency'}</label>
-                      <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.frequency} onChange={e => setSchedForm(p => ({ ...p, frequency: e.target.value }))}>
-                        <option value="daily">{rtl ? 'יומי' : 'Daily'}</option>
-                        <option value="weekly">{rtl ? 'שבועי' : 'Weekly'}</option>
-                        <option value="monthly">{rtl ? 'חודשי' : 'Monthly'}</option>
-                      </select>
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'נמענים (אימייל, מופרד בפסיקים)' : 'Recipients (comma-separated emails)'}</label>
-                      <input style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: C.surface }} value={schedForm.recipients} onChange={e => setSchedForm(p => ({ ...p, recipients: e.target.value }))} placeholder="a@co.com, b@co.com" required />
-                    </div>
-                  </div>
-                  {schedErr && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{schedErr}</div>}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'שמור' : 'Save'}</button>
-                    <button type="button" onClick={() => setShowAddSched(false)} style={{ background: 'none', color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 12px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'ביטול' : 'Cancel'}</button>
-                  </div>
-                </form>
-              )}
-
-              {schedLoading ? (
-                <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>…</div>
-              ) : schedules.length === 0 ? (
-                <div style={{ fontSize: 13, color: C.textMuted, textAlign: 'center', padding: '16px 0' }}>{rtl ? 'אין תזמונים מוגדרים עדיין' : 'No schedules configured yet'}</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {schedules.map(s => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: C.bg, borderRadius: 8, border: `1px solid ${C.border}` }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>
-                          {s.report_type === 'costs' ? (rtl?'הוצאות':'Costs') : s.report_type === 'maintenance' ? (rtl?'תחזוקה':'Maintenance') : s.report_type === 'violations' ? (rtl?'קנסות':'Violations') : (rtl?'סיכום צי':'Fleet Summary')}
-                          {' · '}
-                          {s.frequency === 'daily' ? (rtl?'יומי':'Daily') : s.frequency === 'weekly' ? (rtl?'שבועי':'Weekly') : (rtl?'חודשי':'Monthly')}
-                        </div>
-                        <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{Array.isArray(s.recipients) ? s.recipients.join(', ') : s.recipients}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button onClick={() => toggleSchedule(s.id, s.is_active)} style={{ background: s.is_active ? C.success + '18' : C.textMuted + '18', color: s.is_active ? C.success : C.textMuted, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                          {s.is_active ? (rtl?'פעיל':'Active') : (rtl?'כבוי':'Off')}
-                        </button>
-                        <button onClick={() => deleteSchedule(s.id)} style={{ background: 'none', color: C.textMuted, border: 'none', borderRadius: 4, padding: '4px 8px', fontSize: 14, cursor: 'pointer' }}><Icon name="trash" size={14} /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Legal card */}
           <div style={{ ...card, background: 'linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%)' }}>
@@ -10058,6 +9939,70 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
   const meta = REPORT_CATALOG.find(r => r.id === reportId)
   const uses = meta?.uses || []
 
+  // Scheduled reports (sent by the scheduled-reports edge function every morning, Israel time)
+  const [schedules, setSchedules] = useState([])
+  const [schedOpen, setSchedOpen] = useState(false)
+  const [schedErr, setSchedErr]   = useState('')
+  const [schedBusy, setSchedBusy] = useState('')
+  const [schedForm, setSchedForm] = useState({ name: '', frequency: 'weekly', day_of_week: '0', day_of_month: '1', period: 'last30', recipients: '', language: rtl ? 'he' : 'en', skip_if_empty: false })
+  const loadSchedules = useCallback(async () => {
+    if (!companyId) return
+    const { data: rows } = await supabase.from('report_schedules').select('*').eq('company_id', companyId).order('created_at')
+    setSchedules(rows || [])
+  }, [companyId])
+  useEffect(() => { loadSchedules() }, [loadSchedules])
+  const setSF = (k, v) => setSchedForm(p => ({ ...p, [k]: v }))
+
+  async function saveSchedule() {
+    setSchedErr('')
+    const to = schedForm.recipients.split(/[,;\n]/).map(e => e.trim()).filter(Boolean)
+    if (!to.length) { setSchedErr(L('הזן כתובת אימייל אחת לפחות', 'Enter at least one email')); return }
+    if (to.some(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) { setSchedErr(L('אחת הכתובות אינה תקינה', 'One of the addresses is not valid')); return }
+    if (to.length > 10) { setSchedErr(L('עד 10 נמענים', 'At most 10 recipients')); return }
+    setSchedBusy('save')
+    const { data: { session } } = await supabase.auth.getSession()
+    const filters = {}
+    ;['branch', 'car', 'driver', 'category'].forEach(k => { if (uses.includes(k) && F[k]) filters[k] = F[k] })
+    if (uses.includes('horizon')) filters.horizon = F.horizon
+    const { error } = await supabase.from('report_schedules').insert([{
+      company_id: companyId, created_by: session?.user?.id || null, report_type: reportId,
+      name: schedForm.name.trim() || null, frequency: schedForm.frequency, recipients: to,
+      day_of_week: schedForm.frequency === 'weekly' ? parseInt(schedForm.day_of_week, 10) : null,
+      day_of_month: schedForm.frequency === 'monthly' ? parseInt(schedForm.day_of_month, 10) : null,
+      period: uses.includes('date') ? schedForm.period : 'last30', filters, language: schedForm.language,
+      skip_if_empty: !!schedForm.skip_if_empty, is_active: true,
+    }])
+    setSchedBusy('')
+    if (error) { console.error('[report_schedules]', error.message); setSchedErr(friendlyDbError(error, rtl)); return }
+    setSchedForm(p => ({ ...p, name: '' }))
+    await loadSchedules()
+  }
+  async function toggleSchedule(s) {
+    await supabase.from('report_schedules').update({ is_active: !s.is_active }).eq('id', s.id)
+    loadSchedules()
+  }
+  async function deleteSchedule(s) {
+    if (!window.confirm(L('למחוק את התזמון?', 'Delete this schedule?'))) return
+    await supabase.from('report_schedules').delete().eq('id', s.id)
+    loadSchedules()
+  }
+  async function sendScheduleNow(s) {
+    setSchedBusy(s.id); setSchedErr('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/scheduled-reports', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ scheduleId: s.id }),
+      })
+      if (!r.ok) setSchedErr(L('השליחה נכשלה', 'Sending failed'))
+    } catch { setSchedErr(L('שגיאת רשת', 'Network error')) }
+    setSchedBusy('')
+    loadSchedules()
+  }
+  const DAYS = [L('ראשון', 'Sunday'), L('שני', 'Monday'), L('שלישי', 'Tuesday'), L('רביעי', 'Wednesday'), L('חמישי', 'Thursday'), L('שישי', 'Friday'), L('שבת', 'Saturday')]
+  const describeSchedule = s => s.frequency === 'daily' ? L('כל יום', 'Every day') : s.frequency === 'weekly' ? L(`כל יום ${DAYS[s.day_of_week ?? 0]}`, `Every ${DAYS[s.day_of_week ?? 0]}`) : L(`ב-${s.day_of_month ?? 1} לחודש`, `Day ${s.day_of_month ?? 1} of each month`)
+  const schedStatus = s => !s.last_status ? L('טרם נשלח', 'Not sent yet') : s.last_status === 'sent' ? L('נשלח ', 'Sent ') + (s.last_sent_at ? fmtDate(s.last_sent_at.slice(0, 10)) : '') : s.last_status.startsWith('skipped') ? L('דולג (ריק)', 'Skipped (empty)') : L('נכשל: ', 'Failed: ') + s.last_status.replace(/^error: /, '')
+
+
   const { rep, err } = useMemo(() => {
     if (!data) return { rep: null, err: '' }
     try { return { rep: buildReport(reportId, { cars, drivers, ...data }, F, { he: rtl, today: todayIso, currency: RG.currency, plate: formatPlate }), err: '' } }
@@ -10248,6 +10193,7 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
                 <button data-testid="rep-xlsx" style={btn} onClick={exportExcel} disabled={busy === 'xlsx'}><Icon name="spreadsheet" size={14} />Excel</button>
                 <button data-testid="rep-csv" style={btn} onClick={exportCsv}><Icon name="download" size={14} />CSV</button>
                 <button data-testid="rep-print" style={btn} onClick={printReport}><Icon name="printer" size={14} />{L('הדפס / PDF', 'Print / PDF')}</button>
+                <button data-testid="rep-sched" style={{ ...btn, ...(schedOpen ? { borderColor: C.primary, color: C.primary } : {}) }} onClick={() => setSchedOpen(o => !o)}><Icon name="clock" size={14} />{L('תזמון', 'Schedule')}{schedules.length ? ` (${schedules.length})` : ''}</button>
                 <button data-testid="rep-email" style={{ ...btn, ...(emailOpen ? { borderColor: C.primary, color: C.primary } : {}) }} onClick={() => setEmailOpen(o => !o)}><Icon name="mail" size={14} />{L('אימייל', 'Email')}</button>
                 <button data-testid="rep-wa" style={{ ...btn, background: '#25d366', color: '#fff', border: 'none' }} onClick={openWhatsApp}><Icon name="message" size={14} />WhatsApp</button>
               </div>
@@ -10264,6 +10210,51 @@ function ReportsTab({ cars, drivers, companyId, t, rtl }) {
                 </button>
               </div>
             )}
+            {schedOpen && (
+              <div data-testid="rep-sched-panel" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.textPrimary, marginBottom: 2 }}>{L('תזמון דוחות', 'Scheduled reports')}</div>
+                <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 12 }}>{L('נשלחים באימייל בכל בוקר שבו התזמון חל, עם קובץ CSV מצורף.', 'Emailed in the morning on the scheduled day, with the full CSV attached.')}</div>
+                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{L('תזמן את הדוח הנוכחי: ', 'Schedule this report: ')}{rep.title}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                    <div><label style={lbl}>{L('שם (לא חובה)', 'Name (optional)')}</label><input data-testid="sched-name" style={inp} value={schedForm.name} onChange={e => setSF('name', e.target.value)} /></div>
+                    <div><label style={lbl}>{L('תדירות', 'Frequency')}</label>
+                      <select data-testid="sched-freq" style={inp} value={schedForm.frequency} onChange={e => setSF('frequency', e.target.value)}><option value="daily">{L('יומי', 'Daily')}</option><option value="weekly">{L('שבועי', 'Weekly')}</option><option value="monthly">{L('חודשי', 'Monthly')}</option></select></div>
+                    {schedForm.frequency === 'weekly' && <div><label style={lbl}>{L('יום', 'Day')}</label>
+                      <select data-testid="sched-dow" style={inp} value={schedForm.day_of_week} onChange={e => setSF('day_of_week', e.target.value)}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div>}
+                    {schedForm.frequency === 'monthly' && <div><label style={lbl}>{L('יום בחודש', 'Day of month')}</label>
+                      <select data-testid="sched-dom" style={inp} value={schedForm.day_of_month} onChange={e => setSF('day_of_month', e.target.value)}>{Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></div>}
+                    {uses.includes('date') && <div><label style={lbl}>{L('תקופת הדוח', 'Report period')}</label>
+                      <select data-testid="sched-period" style={inp} value={schedForm.period} onChange={e => setSF('period', e.target.value)}>{presets.filter(([v]) => SCHEDULE_PERIODS.includes(v)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>}
+                    <div><label style={lbl}>{L('שפה', 'Language')}</label>
+                      <select data-testid="sched-lang" style={inp} value={schedForm.language} onChange={e => setSF('language', e.target.value)}><option value="he">עברית</option><option value="en">English</option></select></div>
+                  </div>
+                  <textarea data-testid="sched-recipients" style={{ ...inp, width: '100%', minHeight: 48, resize: 'vertical', marginBottom: 8 }} value={schedForm.recipients} onChange={e => setSF('recipients', e.target.value)} placeholder={L('נמענים (עד 10, מופרדים בפסיק)', 'Recipients (up to 10, comma separated)')} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: 10 }}><input type="checkbox" checked={schedForm.skip_if_empty} onChange={e => setSF('skip_if_empty', e.target.checked)} />{L('אל תשלח כשאין נתונים בדוח', 'Do not send when the report is empty')}</label>
+                  {(anyFilter || uses.includes('horizon')) && <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8 }}>{L('הסינון הנוכחי (סניף, רכב, נהג, קטגוריה) נשמר עם התזמון.', 'Your current filters (branch, vehicle, driver, category) are saved with the schedule.')}</div>}
+                  {schedErr && <div style={{ color: C.danger, fontSize: 13, marginBottom: 8 }}>{schedErr}</div>}
+                  <button data-testid="sched-save" onClick={saveSchedule} disabled={schedBusy === 'save'} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{L('שמור תזמון', 'Save schedule')}</button>
+                </div>
+                {schedules.length === 0 ? <div style={{ fontSize: 13, color: C.textSecondary, textAlign: 'center', padding: 8 }}>{L('אין תזמונים עדיין', 'No schedules yet')}</div> : schedules.map(s => {
+                  const m = REPORT_CATALOG.find(r => r.id === s.report_type)
+                  return (
+                    <div key={s.id} data-testid="sched-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 8, opacity: s.is_active ? 1 : 0.6 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{s.name || (m ? (rtl ? m.he : m.en) : s.report_type)} · {describeSchedule(s)}</div>
+                        <div style={{ fontSize: 12, color: C.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis' }}>{(s.recipients || []).join(', ')}</div>
+                        <div style={{ fontSize: 12, color: s.last_status && s.last_status.startsWith('error') ? C.danger : C.textSecondary }}>{schedStatus(s)}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button data-testid="sched-now" style={btn} disabled={schedBusy === s.id} onClick={() => sendScheduleNow(s)}>{schedBusy === s.id ? '…' : L('שלח עכשיו', 'Send now')}</button>
+                        <button data-testid="sched-toggle" style={btn} onClick={() => toggleSchedule(s)}>{s.is_active ? L('השהה', 'Pause') : L('הפעל', 'Resume')}</button>
+                        <button data-testid="sched-delete" style={{ ...btn, color: C.danger }} onClick={() => deleteSchedule(s)}><Icon name="trash" size={14} /></button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             {!emailOpen && sendError && <div style={{ color: C.danger, fontSize: 13, marginBottom: 8 }}>{sendError}</div>}
 
             {/* KPIs */}
