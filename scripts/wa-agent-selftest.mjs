@@ -432,6 +432,26 @@ test('tells the agent how to answer a lead-requested time', () => {
   assert.ok(p.includes('אל תאשר שעה לפני שראית אותה כאן'))
 })
 
+test('confirming the day of an already-offered slot is the slot itself, not a bare-day request — regression for +972505750081', () => {
+  const slots = [
+    { key: '2026-10-05 09:00', label: 'יום שני, 5 באוקטובר, 09:00' },
+    { key: '2026-10-06 09:00', label: 'יום שלישי, 6 באוקטובר, 09:00' },
+    { key: '2026-10-07 09:00', label: 'יום רביעי, 7 באוקטובר, 09:00' },
+  ]
+  const p = buildSystemPrompt({
+    lead: { stage: 'CALENDAR_OPTIONS' },
+    slots,
+    suggested: slots,
+  })
+  // The lead answered "5 באוקטובר" (no time) after being offered exactly
+  // one time for that day — the agent re-asked "באיזו שעה?" and dumped the
+  // full list of open hours instead of booking the 09:00 it had just
+  // offered. The prompt must tell it this is a confirmation of the offered
+  // slot, not a new bare-day request.
+  assert.ok(p.includes('בלי לציין שעה — זה אישור'), 'must name the exact failure mode')
+  assert.ok(p.includes('אל תשאל שוב "באיזו שעה"'))
+})
+
 test('forbids re-asking for a name that is already known', () => {
   const p = buildSystemPrompt({ lead: { first_name: 'שי' } })
   assert.ok(p.includes('שי'), 'the known first name must reach the prompt')
