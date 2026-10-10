@@ -1,4 +1,4 @@
-import { requireUser } from '../_lib/auth.js'
+import { requireDocumentUser } from '../_lib/auth.js'
 import { serviceClient } from '../_lib/supabase.js'
 import { extractFromImage, sniffMime, KINDS } from '../_lib/ocr.js'
 
@@ -42,7 +42,7 @@ function rateLimited(userId, now = Date.now()) {
 export const _resetRateLimit = () => hits.clear()
 
 const realDeps = () => ({
-  requireUser,
+  requireUser: requireDocumentUser,
   db: serviceClient(),
   extract: extractFromImage,
   apiKey: process.env.GEMINI_API_KEY,

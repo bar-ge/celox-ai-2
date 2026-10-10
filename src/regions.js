@@ -1,6 +1,8 @@
 // ── Region configuration — one entry per country market ──────────────────────
-// Drives the localized marketing site (celoxai.com/il, /us, /ca) and, later,
-// the in-app defaults once a company is tagged with its country.
+// Drives the localized marketing site (celoxai.com/il and /us) and the in-app
+// defaults once a company is tagged with its country. "ca" is kept ONLY as an
+// in-app market (CAD / km) so companies already tagged Canada keep their
+// currency — it has no marketing page and is not in MARKETING_REGION_CODES.
 export const REGIONS = {
   il: { code: 'il', name: 'Israel',        nameHe: 'ישראל',      flag: '🇮🇱', lang: 'he', dir: 'rtl', currency: '₪',  currencyCode: 'ILS', units: 'km',    phoneCc: '+972' },
   us: { code: 'us', name: 'United States', nameHe: 'ארצות הברית', flag: '🇺🇸', lang: 'en', dir: 'ltr', currency: '$',  currencyCode: 'USD', units: 'miles', phoneCc: '+1' },
@@ -8,44 +10,21 @@ export const REGIONS = {
 }
 export const REGION_CODES = Object.keys(REGIONS)
 export const DEFAULT_REGION = 'il'
+// Regions that have a public marketing page (and a switcher button).
+export const MARKETING_REGION_CODES = ['il', 'us']
 
-// Extract a region code from the URL path, e.g. "/us" or "/us/pricing" -> "us"
+// Extract a marketing region code from the URL path, e.g. "/us" or "/us/pricing" -> "us"
 export function regionFromPath(pathname = '') {
-  const m = pathname.match(/^\/(il|us|ca)(?=\/|$)/i)
+  const m = pathname.match(/^\/(il|us)(?=\/|$)/i)
   return m ? m[1].toLowerCase() : null
 }
 
-// Auto-detect the visitor's market so they never have to pick one.
-// Strongest signal first: the browser locale's region subtag (en-CA vs en-US),
-// then timezone, then default. (For IP-accurate geo, add a Vercel edge redirect.)
-export function detectRegion() {
-  try {
-    for (const raw of (navigator.languages || [navigator.language || ''])) {
-      const l = raw.toLowerCase()
-      if (l.startsWith('he') || l.startsWith('iw')) return 'il'
-      const sub = l.split('-')[1]                    // "en-ca" -> "ca"
-      if (sub === 'ca') return 'ca'
-      if (sub === 'us') return 'us'
-      if (sub === 'il') return 'il'
-    }
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
-    if (tz === 'Asia/Jerusalem') return 'il'
-    const CA_TZ = ['Toronto', 'Vancouver', 'Edmonton', 'Winnipeg', 'Halifax', 'Regina', 'St_Johns', 'Moncton', 'Montreal']
-    if (CA_TZ.some(c => tz.includes(c))) return 'ca'
-    if (tz.startsWith('America/')) return 'us'
-  } catch { /* navigator/Intl unavailable */ }
-  return DEFAULT_REGION
-}
-
-// Language default. Hebrew is the product's primary language, so it is what a
-// visitor gets unless the URL explicitly asks for a North American market:
-// only "/us" and "/ca" opt into English. Region detection still drives
-// currency, units, phone codes and marketing copy — it no longer decides
-// language, which is why celoxai.com opens in Hebrew for an American visitor.
+// Language default. Hebrew is the product's primary language: a bare "/" always
+// opens the Hebrew site (/il), whatever the visitor's browser locale or country.
+// Only an explicit "/us" URL (the switcher, or a shared link) opts into English.
 // An in-app language pick still wins over this (see fleet_lang_manual).
 export function defaultLang(pathname = '') {
-  const r = regionFromPath(pathname)
-  return (r === 'us' || r === 'ca') ? REGIONS[r].lang : REGIONS.il.lang
+  return regionFromPath(pathname) === 'us' ? REGIONS.us.lang : REGIONS.il.lang
 }
 
 export function getRegion(code) {

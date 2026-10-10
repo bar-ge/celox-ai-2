@@ -8,6 +8,7 @@ import OcrReviewCard from './ocr/OcrReviewCard'
 import DocTypeSelect from './ocr/DocTypeSelect'
 import { KIND_FOR_ENTITY } from './ocr/ocrMapping'
 import { FORM_TEMPLATES } from './formTemplates'
+import { REPORT_CATALOG, REPORT_GROUPS, buildReport, datePreset, fmtValue, daysTone, totalsRow, csvOf, reportToHtml, reportToText, categoryLabel, esc, SCHEDULE_PERIODS } from './reports/engine'
 import { getRegion, REGIONS, REGION_CODES, defaultLang } from './regions'
 import AvatarWidget from './avatar/AvatarWidget'
 
@@ -5706,7 +5707,7 @@ function AlertsPanel({ rtl, companyId }) {
 
   useEffect(() => {
     if (!companyId) return
-    supabase.rpc('get_expiry_alerts').then(({ data, error }) => {
+    supabase.rpc('get_expiry_alerts', { p_company: companyId }).then(({ data, error }) => {
       if (error) console.error('get_expiry_alerts failed:', error.message)
       setAlerts(data || [])
       setLoaded(true)
@@ -5759,6 +5760,109 @@ function AlertsPanel({ rtl, companyId }) {
   )
 }
 
+// ── New / edit custom alert ─────────────────────────────────────────────────
+// A reminder the user writes themselves (renew a fuel card, call the insurer…).
+// Everything else on the Alerts tab is calculated from dates entered elsewhere.
+function NewAlertModal({ companyId, rtl, onClose, onSaved }) {
+  const isMobile = useIsMobile()
+  const [title, setTitle]     = useState('')
+  const [date, setDate]       = useState('')
+  const [note, setNote]       = useState('')
+  const [linkType, setLinkType] = useState('')      // '' | 'car' | 'driver'
+  const [linkId, setLinkId]   = useState('')
+  const [cars, setCars]       = useState([])
+  const [drivers, setDrivers] = useState([])
+  const [saving, setSaving]   = useState(false)
+  const [err, setErr]         = useState('')
+
+  useEffect(() => {
+    let live = true
+    Promise.all([
+      supabase.from('cars').select('id, plate, make, model').eq('company_id', companyId).order('plate'),
+      supabase.from('drivers').select('id, name').eq('company_id', companyId).order('name'),
+    ]).then(([c, d]) => { if (live) { setCars(c.data || []); setDrivers(d.data || []) } })
+    return () => { live = false }
+  }, [companyId])
+
+  async function save() {
+    const t = title.trim()
+    if (!t) { setErr(rtl ? 'יש להזין כותרת' : 'Please enter a title'); return }
+    if (!date) { setErr(rtl ? 'יש לבחור תאריך' : 'Please pick a date'); return }
+    if (linkType && !linkId) { setErr(rtl ? 'בחרו רכב או נהג, או בטלו את הקישור' : 'Pick a vehicle or driver, or remove the link'); return }
+    setSaving(true); setErr('')
+    const { error } = await supabase.from('custom_alerts').insert({
+      company_id: companyId, title: t.slice(0, 200), alert_date: date,
+      note: note.trim() ? note.trim().slice(0, 1000) : null,
+      entity_type: linkType || null, entity_id: linkType ? String(linkId) : null,
+    })
+    setSaving(false)
+    if (error) { console.error('[custom_alerts]', error.message); setErr(friendlyDbError(error, rtl)); return }
+    onSaved()
+  }
+
+  const lbl = { fontSize: 11, fontWeight: 800, color: C.textMuted, letterSpacing: 0.7, textTransform: 'uppercase', display: 'block', marginBottom: 6 }
+  const field = { width: '100%', padding: '9px 12px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: C.textPrimary, background: C.surface, boxSizing: 'border-box' }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} dir={rtl ? 'rtl' : 'ltr'} style={{ background: C.surface, borderRadius: 16, width: '100%', maxWidth: 480, maxHeight: isMobile ? '92vh' : '88vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.25)', padding: isMobile ? '18px 16px' : '22px 24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="bell" size={16} color={C.primary} />{rtl ? 'התראה חדשה' : 'New alert'}
+          </h3>
+          <button onClick={onClose} style={closeBtn} aria-label={rtl ? 'סגור' : 'Close'}>×</button>
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 12.5, color: C.textSecondary }}>
+          {rtl ? 'תזכורת משלכם. היא תופיע בלשונית ההתראות 30 יום לפני התאריך, ותישלח גם במייל היומי.'
+               : 'Your own reminder. It shows in the Alerts tab from 30 days before the date and is included in the daily email.'}
+        </p>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>{rtl ? 'כותרת' : 'Title'}</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} maxLength={200} autoFocus style={field}
+            placeholder={rtl ? 'לדוגמה: חידוש כרטיס דלק' : 'e.g. Renew fuel card'} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>{rtl ? 'תאריך' : 'Date'}</label>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} style={field} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>{rtl ? 'קשור ל (לא חובה)' : 'Linked to (optional)'}</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select value={linkType} onChange={e => { setLinkType(e.target.value); setLinkId('') }} style={{ ...field, flex: '0 0 38%' }}>
+              <option value="">{rtl ? 'ללא' : 'Nothing'}</option>
+              <option value="car">{rtl ? 'רכב' : 'Vehicle'}</option>
+              <option value="driver">{rtl ? 'נהג' : 'Driver'}</option>
+            </select>
+            {linkType && (
+              <select value={linkId} onChange={e => setLinkId(e.target.value)} style={{ ...field, flex: 1 }}>
+                <option value="">{rtl ? 'בחרו…' : 'Choose…'}</option>
+                {linkType === 'car'
+                  ? cars.map(c => <option key={c.id} value={String(c.id)}>{formatPlate(c.plate)}{c.make ? ` · ${c.make} ${c.model || ''}` : ''}</option>)
+                  : drivers.map(d => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={lbl}>{rtl ? 'הערה (לא חובה)' : 'Note (optional)'}</label>
+          <textarea value={note} onChange={e => setNote(e.target.value)} maxLength={1000} rows={3} style={{ ...field, resize: 'vertical' }} />
+        </div>
+
+        {err && <div style={{ marginBottom: 12, fontSize: 13, color: C.danger, fontWeight: 600 }}>{err}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: C.textSecondary }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+          <button onClick={save} disabled={saving} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? (rtl ? 'שומר…' : 'Saving…') : (rtl ? 'שמור התראה' : 'Save alert')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Unified Alerts Tab — one filterable/sortable view across every expiry type ──
 function AlertsTab({ companyId, rtl }) {
   const [alerts, setAlerts]   = useState([])
@@ -5768,20 +5872,48 @@ function AlertsTab({ companyId, rtl }) {
   const [search, setSearch]         = useState('')
   const [sortKey, setSortKey]       = useState('date')
   const [sortDir, setSortDir]       = useState('asc')
+  const [showNew, setShowNew]       = useState(false)
+  const [notes, setNotes]           = useState({})     // custom alert id -> note
+  const [confirmDel, setConfirmDel] = useState(null)   // custom alert id awaiting confirmation
+  const [busyId, setBusyId]         = useState(null)
+  const [actionErr, setActionErr]   = useState('')
 
   useEffect(() => { load() }, [companyId])
 
   async function load() {
     if (!companyId) return
     setLoading(true)
-    const { data, error } = await supabase.rpc('get_expiry_alerts')
+    const { data, error } = await supabase.rpc('get_expiry_alerts', { p_company: companyId })
     if (error) console.error('get_expiry_alerts failed:', error.message)
-    setAlerts(data || [])
+    const list = data || []
+    setAlerts(list)
     setLoading(false)
+    // Notes are not part of the alert feed; fetch them just for the reminders shown.
+    const ids = list.filter(a => a.type === 'custom').map(a => a.source_id)
+    if (ids.length) {
+      const { data: rows } = await supabase.from('custom_alerts').select('id, note').in('id', ids)
+      setNotes(Object.fromEntries((rows || []).map(r => [r.id, r.note])))
+    } else setNotes({})
   }
 
-  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph', insurance: rtl ? 'ביטוח' : 'Insurance', test: rtl ? 'טסט' : 'Test', leasing: rtl ? 'ליסינג' : 'Leasing', registration: rtl ? 'רישיון רכב' : 'Registration' }
-  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', certification: '🎓', tachograph: '⏱️', insurance: '🛡️', test: '🔍', leasing: '📄', registration: '🚗' }
+  async function markDone(id) {
+    setBusyId(id); setActionErr('')
+    const { error } = await supabase.from('custom_alerts').update({ done: true }).eq('id', id).eq('company_id', companyId)
+    setBusyId(null)
+    if (error) { console.error('[custom_alerts]', error.message); setActionErr(rtl ? 'העדכון נכשל. נסו שוב.' : 'Update failed. Please try again.'); return }
+    load()
+  }
+
+  async function removeAlert(id) {
+    setBusyId(id); setActionErr('')
+    const { error } = await supabase.from('custom_alerts').delete().eq('id', id).eq('company_id', companyId)
+    setBusyId(null); setConfirmDel(null)
+    if (error) { console.error('[custom_alerts]', error.message); setActionErr(rtl ? 'המחיקה נכשלה. נסו שוב.' : 'Delete failed. Please try again.'); return }
+    load()
+  }
+
+  const typeLabel = { maintenance: rtl ? 'טיפול' : 'Maintenance', document: rtl ? 'מסמך' : 'Document', license: rtl ? 'רישיון נהיגה' : 'License', custom: rtl ? 'תזכורת' : 'Reminder', certification: rtl ? 'הכשרה' : 'Certification', tachograph: rtl ? 'כיול טכוגרף' : 'Tachograph', insurance: rtl ? 'ביטוח' : 'Insurance', test: rtl ? 'טסט' : 'Test', leasing: rtl ? 'ליסינג' : 'Leasing', registration: rtl ? 'רישיון רכב' : 'Registration' }
+  const typeIcon  = { maintenance: '🔧', document: '📎', license: '🪪', custom: '⏰', certification: '🎓', tachograph: '⏱️', insurance: '🛡️', test: '🔍', leasing: '📄', registration: '🚗' }
 
   const filtered = alerts
     .filter(a => !filterType || a.type === filterType)
@@ -5829,11 +5961,16 @@ function AlertsTab({ companyId, rtl }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="bell" size={20} color={C.warning} />{rtl ? 'כל ההתראות' : 'All Alerts'}</h2>
-          <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'תצוגה מאוחדת: תחזוקה, מסמכים, רישיונות והכשרות' : 'Unified view: maintenance, documents, licenses, certifications'}</p>
+          <p style={{ margin: 0, fontSize: 13, color: C.textSecondary }}>{rtl ? 'תאריכי תפוגה וטיפולים מחושבים אוטומטית, בתוספת תזכורות שלכם' : 'Expiry dates and maintenance are calculated automatically, plus your own reminders'}</p>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={() => setShowNew(true)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 16, lineHeight: 1 }}>+</span>{rtl ? 'התראה חדשה' : 'New alert'}</span>
+        </button>
         <button onClick={exportAlerts} disabled={!filtered.length} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: filtered.length ? 'pointer' : 'not-allowed', color: C.textSecondary, opacity: filtered.length ? 1 : 0.5 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={14} />{rtl ? 'ייצוא Excel' : 'Export Excel'}</span>
         </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12, marginBottom: 20 }}>
@@ -5861,6 +5998,7 @@ function AlertsTab({ companyId, rtl }) {
           <option value="test">{typeLabel.test}</option>
           <option value="leasing">{typeLabel.leasing}</option>
           <option value="registration">{typeLabel.registration}</option>
+          <option value="custom">{typeLabel.custom}</option>
           {RG.code === 'il' && <option value="tachograph">{typeLabel.tachograph}</option>}
         </select>
         <select value={filterSev} onChange={e => setFilterSev(e.target.value)} style={inp}>
@@ -5870,12 +6008,17 @@ function AlertsTab({ companyId, rtl }) {
         </select>
       </div>
 
+      {actionErr && <div style={{ marginBottom: 12, fontSize: 13, color: C.danger, fontWeight: 600 }}>{actionErr}</div>}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>{rtl ? 'טוען...' : 'Loading...'}</div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40, color: C.textMuted }}>
           <div style={{ marginBottom: 8 }}><Icon name="check" size={34} color={C.success} /></div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{rtl ? 'אין התראות פעילות' : 'No active alerts'}</div>
+          <div style={{ fontSize: 12.5, marginTop: 8, maxWidth: 420, marginInline: 'auto', lineHeight: 1.6 }}>
+            {rtl ? 'התראות מופיעות כשתאריך תפוגה (רישיון נהג, ביטוח, טסט, רישוי, ליסינג…) או טיפול מתקרבים ל-30 יום. אפשר גם להוסיף תזכורת משלכם.'
+                 : 'Alerts appear when an expiry date (driver licence, insurance, test, registration, leasing…) or a service is within 30 days. You can also add your own reminder.'}
+          </div>
         </div>
       ) : (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
@@ -5889,17 +6032,35 @@ function AlertsTab({ companyId, rtl }) {
                     </th>
                   ))}
                   <th style={{ padding: '10px 14px', textAlign: rtl ? 'right' : 'left', fontWeight: 700, color: C.textSecondary, borderBottom: `1px solid ${C.border}` }}>{rtl ? 'סטטוס' : 'Status'}</th>
+                  <th style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }} />
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((a, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                  <tr key={a.type + ':' + (a.source_id ?? i)} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
                     <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}><EIcon e={typeIcon[a.type] || '⚠'} size={15} style={{ marginInlineEnd: 6 }} />{typeLabel[a.type] || a.type}</td>
-                    <td style={{ padding: '9px 14px' }}>{a.label}</td>
+                    <td style={{ padding: '9px 14px' }}>
+                      {a.label}
+                      {a.type === 'custom' && notes[a.source_id] && <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2, whiteSpace: 'pre-wrap' }}>{notes[a.source_id]}</div>}
+                    </td>
                     <td style={{ padding: '9px 14px' }}>{a.entity_name || '—'}</td>
                     <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtDate(a.date)}</td>
                     <td style={{ padding: '9px 14px' }}>
                       <Badge label={a.severity === 'overdue' ? (rtl ? 'באיחור' : 'Overdue') : (rtl ? 'מתקרב' : 'Upcoming')} color={a.severity === 'overdue' ? C.danger : C.warning} />
+                    </td>
+                    <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', textAlign: rtl ? 'left' : 'right' }}>
+                      {a.type === 'custom' && (confirmDel === a.source_id ? (
+                        <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+                          {rtl ? 'למחוק?' : 'Delete?'}
+                          <button disabled={busyId === a.source_id} onClick={() => removeAlert(a.source_id)} style={{ background: C.danger, color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'מחק' : 'Delete'}</button>
+                          <button onClick={() => setConfirmDel(null)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', color: C.textSecondary }}>{rtl ? 'ביטול' : 'Cancel'}</button>
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', gap: 6 }}>
+                          <button disabled={busyId === a.source_id} onClick={() => markDone(a.source_id)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: C.success }}>{rtl ? 'בוצע' : 'Done'}</button>
+                          <button onClick={() => setConfirmDel(a.source_id)} aria-label={rtl ? 'מחק' : 'Delete'} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, cursor: 'pointer', color: C.textMuted }}>×</button>
+                        </span>
+                      ))}
                     </td>
                   </tr>
                 ))}
@@ -5908,6 +6069,7 @@ function AlertsTab({ companyId, rtl }) {
           </div>
         </div>
       )}
+      {showNew && <NewAlertModal companyId={companyId} rtl={rtl} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load() }} />}
     </div>
   )
 }
@@ -7955,6 +8117,16 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
   const [saved,       setSaved]       = useState(false)
   const [sending,     setSending]     = useState(false)
   const [sendResult,  setSendResult]  = useState(null) // { ok, alerts_sent, reason }
+  const [hasAdmin,    setHasAdmin]    = useState(true)   // is there anyone the fallback can email?
+
+  useEffect(() => {
+    let live = true
+    supabase.from('profiles').select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId).eq('role', 'admin').not('email', 'is', null)
+      .then(({ count, error }) => { if (live && !error) setHasAdmin((count || 0) > 0) })
+    return () => { live = false }
+  }, [companyId])
+  const noRecipient = !hasAdmin && !recipients.split(/[,\n]/).some(s => s.trim())
   const card = { background: '#fff', borderRadius: 12, border: `1px solid ${C.border}`, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }
 
   async function save() {
@@ -7966,7 +8138,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
   async function sendNow() {
     setSending(true); setSendResult(null)
     try {
-      const { data, error } = await supabase.functions.invoke('trigger-alerts', { body: {} })
+      const { data, error } = await supabase.functions.invoke('trigger-alerts', { body: { companyId } })
       if (error) { setSendResult({ ok: false, reason: 'error' }); return }
       setSendResult(data)
     } finally {
@@ -7995,7 +8167,7 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
       <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary }}>{rtl ? 'שלח התראות יומיות' : 'Send daily alerts'}</div>
-          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'תחזוקה, מסמכים ורישיונות שפג תוקפם' : 'Maintenance, documents and expiring licenses'}</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{rtl ? 'כל ההתראות מלשונית ההתראות: תפוגות, טיפולים והתזכורות שלכם' : 'Everything on the Alerts tab: expiries, maintenance and your own reminders'}</div>
         </div>
         <div
           onClick={() => setAlertsOn(p => !p)}
@@ -8032,6 +8204,12 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
           {rtl ? 'מספר כתובות מופרדות בפסיק. ריק = מנהל החברה הראשון.' : 'Comma-separated addresses. Empty = first company admin.'}
         </div>
+        {noRecipient && (
+          <div style={{ marginTop: 8, padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 12.5, color: '#92400e', fontWeight: 600 }}>
+            {rtl ? 'אין נמען: לחברה אין מנהל עם אימייל ולא הוגדרה כתובת. אף אימייל התראות לא יישלח עד שתוסיפו כתובת.'
+                 : 'No recipient: this company has no admin with an email and no address set, so no alert emails will be sent until you add one.'}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -8044,7 +8222,9 @@ function EmailNotifSettings({ companyId, company, t, rtl }) {
       </div>
       {sendResult?.ok === false && (
         <div style={{ marginTop: 8, fontSize: 12, color: C.danger }}>
-          {rtl ? 'שגיאה בשליחה, נסה שוב' : 'Failed to send, please try again'}
+          {sendResult.reason === 'no_recipient'
+            ? (rtl ? 'אין כתובת אימייל לשליחה' : 'There is no email address to send to')
+            : (rtl ? 'שגיאה בשליחה, נסה שוב' : 'Failed to send, please try again')}
         </div>
       )}
     </div>
@@ -8231,12 +8411,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
   const [editingAccess, setEditingAccess] = useState(null) // company id being edited
   const [accessUntil, setAccessUntil]     = useState('')
 
-  // Report schedules
-  const [schedules,     setSchedules]     = useState([])
-  const [schedLoading,  setSchedLoading]  = useState(false)
-  const [showAddSched,  setShowAddSched]  = useState(false)
-  const [schedForm,     setSchedForm]     = useState({ report_type: 'costs', frequency: 'weekly', recipients: '', day_of_week: '0' })
-  const [schedErr,      setSchedErr]      = useState('')
 
   useEffect(() => {
     if (isMaster) {
@@ -8252,44 +8426,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
     navigator.clipboard.writeText(company?.invite_code || '')
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }
-
-  useEffect(() => { loadSchedules() }, [companyId])
-
-  async function loadSchedules() {
-    if (!companyId) return
-    setSchedLoading(true)
-    const { data } = await supabase.from('report_schedules').select('*').eq('company_id', companyId).order('created_at')
-    setSchedules(data || [])
-    setSchedLoading(false)
-  }
-
-  async function addSchedule(e) {
-    e.preventDefault()
-    setSchedErr('')
-    if (!schedForm.recipients.trim()) { setSchedErr(rtl ? 'נא להזין כתובת אימייל' : 'Email required'); return }
-    const { data, error } = await supabase.from('report_schedules').insert([{
-      company_id:   companyId,
-      report_type:  schedForm.report_type,
-      frequency:    schedForm.frequency,
-      recipients:   schedForm.recipients.split(',').map(s => s.trim()).filter(Boolean),
-      day_of_week:  parseInt(schedForm.day_of_week, 10),
-      is_active:    true,
-    }]).select()
-    if (error) { setSchedErr(error.message); return }
-    setSchedules(p => [...p, data[0]])
-    setShowAddSched(false)
-    setSchedForm({ report_type: 'costs', frequency: 'weekly', recipients: '', day_of_week: '0' })
-  }
-
-  async function deleteSchedule(id) {
-    await supabase.from('report_schedules').delete().eq('id', id)
-    setSchedules(p => p.filter(s => s.id !== id))
-  }
-
-  async function toggleSchedule(id, isActive) {
-    const { data } = await supabase.from('report_schedules').update({ is_active: !isActive }).eq('id', id).select()
-    if (data?.[0]) setSchedules(p => p.map(s => s.id === id ? data[0] : s))
   }
 
   async function removeMember(memberId) {
@@ -8752,81 +8888,6 @@ function SettingsTab({ profile, companyId, session, isMaster, onSelectCompany, t
 
           {/* Activity log — admin only */}
           {isAdmin && companyId && <ActivityLogSection companyId={companyId} t={t} />}
-
-          {/* ── Report Schedules ── */}
-          {companyId && (
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 800, color: C.textPrimary }}><Icon name="calendar" size={15} color={C.textSecondary} />{rtl ? 'תזמון דוחות' : 'Report Schedules'}</div>
-                  <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{rtl ? 'שלח דוחות אוטומטיים לאימייל' : 'Send automated reports by email'}</div>
-                </div>
-                <button onClick={() => setShowAddSched(p => !p)} style={{ background: C.primary + '15', color: C.primary, border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                  {showAddSched ? <Icon name="x" size={13} /> : `+ ${rtl ? 'הוסף' : 'Add'}`}
-                </button>
-              </div>
-
-              {showAddSched && (
-                <form onSubmit={addSchedule} style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${C.border}` }}>
-                  <div style={grid2(isMobile, { gap: 10, marginBottom: 10 })}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'סוג דוח' : 'Report Type'}</label>
-                      <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.report_type} onChange={e => setSchedForm(p => ({ ...p, report_type: e.target.value }))}>
-                        <option value="costs">{rtl ? 'הוצאות' : 'Costs'}</option>
-                        <option value="maintenance">{rtl ? 'תחזוקה' : 'Maintenance'}</option>
-                        <option value="violations">{rtl ? 'קנסות' : 'Violations'}</option>
-                        <option value="fleet_summary">{rtl ? 'סיכום צי' : 'Fleet Summary'}</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'תדירות' : 'Frequency'}</label>
-                      <select style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', background: C.surface }} value={schedForm.frequency} onChange={e => setSchedForm(p => ({ ...p, frequency: e.target.value }))}>
-                        <option value="daily">{rtl ? 'יומי' : 'Daily'}</option>
-                        <option value="weekly">{rtl ? 'שבועי' : 'Weekly'}</option>
-                        <option value="monthly">{rtl ? 'חודשי' : 'Monthly'}</option>
-                      </select>
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'נמענים (אימייל, מופרד בפסיקים)' : 'Recipients (comma-separated emails)'}</label>
-                      <input style={{ width: '100%', padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: C.surface }} value={schedForm.recipients} onChange={e => setSchedForm(p => ({ ...p, recipients: e.target.value }))} placeholder="a@co.com, b@co.com" required />
-                    </div>
-                  </div>
-                  {schedErr && <div style={{ color: C.danger, fontSize: 12, marginBottom: 8 }}>{schedErr}</div>}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="submit" style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{rtl ? 'שמור' : 'Save'}</button>
-                    <button type="button" onClick={() => setShowAddSched(false)} style={{ background: 'none', color: C.textSecondary, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 12px', fontSize: 13, cursor: 'pointer' }}>{rtl ? 'ביטול' : 'Cancel'}</button>
-                  </div>
-                </form>
-              )}
-
-              {schedLoading ? (
-                <div style={{ fontSize: 13, color: C.textMuted, padding: '8px 0' }}>…</div>
-              ) : schedules.length === 0 ? (
-                <div style={{ fontSize: 13, color: C.textMuted, textAlign: 'center', padding: '16px 0' }}>{rtl ? 'אין תזמונים מוגדרים עדיין' : 'No schedules configured yet'}</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {schedules.map(s => (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: C.bg, borderRadius: 8, border: `1px solid ${C.border}` }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary }}>
-                          {s.report_type === 'costs' ? (rtl?'הוצאות':'Costs') : s.report_type === 'maintenance' ? (rtl?'תחזוקה':'Maintenance') : s.report_type === 'violations' ? (rtl?'קנסות':'Violations') : (rtl?'סיכום צי':'Fleet Summary')}
-                          {' · '}
-                          {s.frequency === 'daily' ? (rtl?'יומי':'Daily') : s.frequency === 'weekly' ? (rtl?'שבועי':'Weekly') : (rtl?'חודשי':'Monthly')}
-                        </div>
-                        <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 2 }}>{Array.isArray(s.recipients) ? s.recipients.join(', ') : s.recipients}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button onClick={() => toggleSchedule(s.id, s.is_active)} style={{ background: s.is_active ? C.success + '18' : C.textMuted + '18', color: s.is_active ? C.success : C.textMuted, border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                          {s.is_active ? (rtl?'פעיל':'Active') : (rtl?'כבוי':'Off')}
-                        </button>
-                        <button onClick={() => deleteSchedule(s.id)} style={{ background: 'none', color: C.textMuted, border: 'none', borderRadius: 4, padding: '4px 8px', fontSize: 14, cursor: 'pointer' }}><Icon name="trash" size={14} /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Legal card */}
           <div style={{ ...card, background: 'linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%)' }}>
@@ -9827,187 +9888,432 @@ function ProcurementTab({ cars, companyId, rtl }) {
 
 // ── Reports Tab ───────────────────────────────────────────────────────────────
 function ReportsTab({ cars, drivers, companyId, t, rtl }) {
-  const [reportType, setReportType] = useState('fleet_status')
-  const [recipients, setRecipients] = useState('')
-  const [sending, setSending]       = useState(false)
-  const [sent, setSent]             = useState('')
-  const [sendError, setSendError]   = useState('')
-  const [dateFrom, setDateFrom]     = useState(new Date(Date.now() - 30*24*3600*1000).toISOString().slice(0,10))
-  const [dateTo, setDateTo]         = useState(new Date().toISOString().slice(0,10))
-  const [costs, setCosts]           = useState([])
-  const [waTemplates, setWaTemplates] = useState(null)
+  const isMobile = useIsMobile()
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const L = (he, en) => rtl ? he : en
+
+  const [reportId, setReportId] = useState('cost_summary')
+  const [preset, setPreset]     = useState('thisYear')
+  const [F, setF]               = useState(() => ({ ...datePreset('thisYear', todayIso), branch: '', car: '', driver: '', category: '', horizon: '90' }))
+  const [data, setData]         = useState(null)
+  const [failed, setFailed]     = useState([])
   const [companyName, setCompanyName] = useState('')
-  const [waModal, setWaModal]       = useState(null)
+  const [waTemplates, setWaTemplates] = useState(null)
+  const [waModal, setWaModal]   = useState(null)
+  const [sortKey, setSortKey]   = useState('')
+  const [sortDir, setSortDir]   = useState('desc')
+  const [showAll, setShowAll]   = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [recipients, setRecipients] = useState('')
+  const [sending, setSending]   = useState(false)
+  const [sent, setSent]         = useState('')
+  const [sendError, setSendError] = useState('')
+  const [busy, setBusy]         = useState('')
 
-  useEffect(() => {
+  // Load every data set once (paged, because Supabase returns at most 1000 rows per request)
+  const reload = useCallback(async () => {
     if (!companyId) return
-    supabase.from('costs').select('*').eq('company_id', companyId).then(({ data }) => setCosts(data || []))
-    supabase.from('companies').select('name, whatsapp_templates').eq('id', companyId).single()
-      .then(({ data }) => { setWaTemplates(data?.whatsapp_templates || null); setCompanyName(data?.name || '') })
+    const fail = []
+    const all = async (table) => {
+      const out = []
+      for (let from = 0; from < 50000; from += 1000) {
+        const { data: d, error } = await supabase.from(table).select('*').eq('company_id', companyId).range(from, from + 999)
+        if (error) { fail.push(table); return [] }
+        out.push(...(d || []))
+        if (!d || d.length < 1000) break
+      }
+      return out
+    }
+    const [costs, fuel, maint, accidents, violations, leasing, insurance, branches, alertsRes, co] = await Promise.all([
+      all('costs'), all('fuel_records'), all('maintenance'), all('accident_reports'), all('traffic_violations'), all('vehicle_leasing'), all('vehicle_insurance'), all('branches'),
+      supabase.rpc('get_expiry_alerts', { p_company: companyId }),
+      supabase.from('companies').select('name, whatsapp_templates').eq('id', companyId).single(),
+    ])
+    if (alertsRes.error) fail.push('alerts')
+    setFailed(fail)
+    setData({ costs, fuel, maint, accidents, violations, leasing, insurance, branches, alerts: alertsRes.data || [] })
+    setWaTemplates(co.data?.whatsapp_templates || null); setCompanyName(co.data?.name || '')
   }, [companyId])
+  useEffect(() => { setData(null); reload() }, [reload])
 
-  const REPORT_TYPES = [
-    { id: 'fleet_status',   label: rtl ? 'סטטוס הצי'     : 'Fleet Status',  icon: 'car'   },
-    { id: 'cost_summary',   label: rtl ? 'סיכום עלויות'  : 'Cost Summary',  icon: 'coin'  },
-    { id: 'expiry_alerts',  label: rtl ? 'התראות תפוגה' : 'Expiry Alerts', icon: 'alert' },
-  ]
+  const meta = REPORT_CATALOG.find(r => r.id === reportId)
+  const uses = meta?.uses || []
 
-  function buildFleetHtml() {
-    const active    = cars.filter(c => c.status === 'In Use' || c.status === 'Available').length
-    const inMaint   = cars.filter(c => c.status === 'Maintenance').length
-    const rows = cars.map(c => `<tr><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${formatPlate(c.plate)}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${c.make||''} ${c.model||''}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${c.status||''}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${c.mileage?.toLocaleString()||'—'}</td></tr>`).join('')
-    return `<div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:32px">
-      <h1 style="color:#2B2630;margin:0 0 4px">דוח סטטוס צי</h1>
-      <p style="color:#5A5460;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
-        <div style="background:#eff6ff;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#2563eb">${cars.length}</div><div style="font-size:13px;color:#5A5460">סה"כ רכבים</div></div>
-        <div style="background:#f0fdf4;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#16a34a">${active}</div><div style="font-size:13px;color:#5A5460">פעילים</div></div>
-        <div style="background:#fef9c3;border-radius:8px;padding:16px"><div style="font-size:28px;font-weight:800;color:#ca8a04">${inMaint}</div><div style="font-size:13px;color:#5A5460">בתחזוקה</div></div>
-      </div>
-      <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #E5E1D8;border-radius:8px;overflow:hidden">
-        <thead><tr style="background:#F8F7F4"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">לוחית</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">רכב</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">סטטוס</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">ק"מ</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`
+  // Scheduled reports (sent by the scheduled-reports edge function every morning, Israel time)
+  const [schedules, setSchedules] = useState([])
+  const [schedOpen, setSchedOpen] = useState(false)
+  const [schedErr, setSchedErr]   = useState('')
+  const [schedBusy, setSchedBusy] = useState('')
+  const [schedForm, setSchedForm] = useState({ name: '', frequency: 'weekly', day_of_week: '0', day_of_month: '1', period: 'last30', recipients: '', language: rtl ? 'he' : 'en', skip_if_empty: false })
+  const loadSchedules = useCallback(async () => {
+    if (!companyId) return
+    const { data: rows } = await supabase.from('report_schedules').select('*').eq('company_id', companyId).order('created_at')
+    setSchedules(rows || [])
+  }, [companyId])
+  useEffect(() => { loadSchedules() }, [loadSchedules])
+  const setSF = (k, v) => setSchedForm(p => ({ ...p, [k]: v }))
+
+  async function saveSchedule() {
+    setSchedErr('')
+    const to = schedForm.recipients.split(/[,;\n]/).map(e => e.trim()).filter(Boolean)
+    if (!to.length) { setSchedErr(L('הזן כתובת אימייל אחת לפחות', 'Enter at least one email')); return }
+    if (to.some(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) { setSchedErr(L('אחת הכתובות אינה תקינה', 'One of the addresses is not valid')); return }
+    if (to.length > 10) { setSchedErr(L('עד 10 נמענים', 'At most 10 recipients')); return }
+    setSchedBusy('save')
+    const { data: { session } } = await supabase.auth.getSession()
+    const filters = {}
+    ;['branch', 'car', 'driver', 'category'].forEach(k => { if (uses.includes(k) && F[k]) filters[k] = F[k] })
+    if (uses.includes('horizon')) filters.horizon = F.horizon
+    const { error } = await supabase.from('report_schedules').insert([{
+      company_id: companyId, created_by: session?.user?.id || null, report_type: reportId,
+      name: schedForm.name.trim() || null, frequency: schedForm.frequency, recipients: to,
+      day_of_week: schedForm.frequency === 'weekly' ? parseInt(schedForm.day_of_week, 10) : null,
+      day_of_month: schedForm.frequency === 'monthly' ? parseInt(schedForm.day_of_month, 10) : null,
+      period: uses.includes('date') ? schedForm.period : 'last30', filters, language: schedForm.language,
+      skip_if_empty: !!schedForm.skip_if_empty, is_active: true,
+    }])
+    setSchedBusy('')
+    if (error) { console.error('[report_schedules]', error.message); setSchedErr(friendlyDbError(error, rtl)); return }
+    setSchedForm(p => ({ ...p, name: '' }))
+    await loadSchedules()
+  }
+  async function toggleSchedule(s) {
+    await supabase.from('report_schedules').update({ is_active: !s.is_active }).eq('id', s.id)
+    loadSchedules()
+  }
+  async function deleteSchedule(s) {
+    if (!window.confirm(L('למחוק את התזמון?', 'Delete this schedule?'))) return
+    await supabase.from('report_schedules').delete().eq('id', s.id)
+    loadSchedules()
+  }
+  async function sendScheduleNow(s) {
+    setSchedBusy(s.id); setSchedErr('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/scheduled-reports', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify({ scheduleId: s.id }),
+      })
+      if (!r.ok) setSchedErr(L('השליחה נכשלה', 'Sending failed'))
+    } catch { setSchedErr(L('שגיאת רשת', 'Network error')) }
+    setSchedBusy('')
+    loadSchedules()
+  }
+  const DAYS = [L('ראשון', 'Sunday'), L('שני', 'Monday'), L('שלישי', 'Tuesday'), L('רביעי', 'Wednesday'), L('חמישי', 'Thursday'), L('שישי', 'Friday'), L('שבת', 'Saturday')]
+  const describeSchedule = s => s.frequency === 'daily' ? L('כל יום', 'Every day') : s.frequency === 'weekly' ? L(`כל יום ${DAYS[s.day_of_week ?? 0]}`, `Every ${DAYS[s.day_of_week ?? 0]}`) : L(`ב-${s.day_of_month ?? 1} לחודש`, `Day ${s.day_of_month ?? 1} of each month`)
+  const schedStatus = s => !s.last_status ? L('טרם נשלח', 'Not sent yet') : s.last_status === 'sent' ? L('נשלח ', 'Sent ') + (s.last_sent_at ? fmtDate(s.last_sent_at.slice(0, 10)) : '') : s.last_status.startsWith('skipped') ? L('דולג (ריק)', 'Skipped (empty)') : L('נכשל: ', 'Failed: ') + s.last_status.replace(/^error: /, '')
+
+
+  const { rep, err } = useMemo(() => {
+    if (!data) return { rep: null, err: '' }
+    try { return { rep: buildReport(reportId, { cars, drivers, ...data }, F, { he: rtl, today: todayIso, currency: RG.currency, plate: formatPlate }), err: '' } }
+    catch (e) { console.error('[reports]', e); return { rep: null, err: e.message } }
+  }, [data, cars, drivers, reportId, F, rtl, todayIso])
+
+  useEffect(() => { setSortKey(''); setShowAll(false); setSent(''); setSendError('') }, [reportId])
+
+  function pickPreset(id) {
+    setPreset(id)
+    if (id === 'all') setF(p => ({ ...p, from: '', to: '' }))
+    else if (id !== 'custom') setF(p => ({ ...p, ...datePreset(id, todayIso) }))
+  }
+  const setFilter = (k, v) => setF(p => ({ ...p, [k]: v }))
+  const anyFilter = F.branch || F.car || F.driver || F.category
+
+  const rows = useMemo(() => {
+    if (!rep) return []
+    if (!sortKey) return rep.rows
+    const col = rep.columns.find(c => c.key === sortKey)
+    const numeric = col && ['num', 'money', 'money2', 'dec', 'pct', 'days'].includes(col.type)
+    const dir = sortDir === 'asc' ? 1 : -1
+    return [...rep.rows].sort((a, b) => {
+      const x = a[sortKey], y = b[sortKey]
+      if (x == null || x === '') return 1
+      if (y == null || y === '') return -1
+      return (numeric ? x - y : String(x).localeCompare(String(y))) * dir
+    })
+  }, [rep, sortKey, sortDir])
+  const LIMIT = 200
+  const shown = showAll ? rows : rows.slice(0, LIMIT)
+  const totals = rep ? totalsRow(rep) : null
+
+  function toggleSort(key) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('desc') }
   }
 
-  function buildCostHtml() {
-    const filtered = costs.filter(c => c.date >= dateFrom && c.date <= dateTo)
-    const total    = filtered.reduce((s,c) => s + parseFloat(c.amount||0), 0)
-    const byCat    = filtered.reduce((acc,c) => { acc[c.category]=(acc[c.category]||0)+parseFloat(c.amount||0); return acc }, {})
-    const catRows  = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${cat}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF;font-weight:700">${RG.currency}${amt.toLocaleString('en',{minimumFractionDigits:2})}</td></tr>`).join('')
-    return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px">
-      <h1 style="color:#2B2630;margin:0 0 4px">סיכום עלויות</h1>
-      <p style="color:#5A5460;margin:0 0 24px">${dateFrom} – ${dateTo}</p>
-      <div style="background:#eff6ff;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center">
-        <div style="font-size:36px;font-weight:800;color:#2563eb">${RG.currency}${total.toLocaleString('en',{minimumFractionDigits:2})}</div>
-        <div style="font-size:13px;color:#5A5460">סה"כ הוצאות</div>
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        <tbody>${catRows}</tbody>
-      </table>
-    </div>`
+  const fileBase = () => `${reportId}_${todayIso}`
+  function saveBlob(blob, name) {
+    const url = URL.createObjectURL(blob)
+    const a = Object.assign(document.createElement('a'), { href: url, download: name })
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
-  function buildExpiryHtml() {
-    const today   = new Date(); today.setHours(0,0,0,0)
-    const soon    = new Date(today); soon.setDate(soon.getDate() + 30)
-    const expRows = drivers.filter(d => d.license_expiry).map(d => {
-      const exp = new Date(d.license_expiry); const days = Math.round((exp-today)/86400000)
-      const color = days < 0 ? '#dc2626' : days < 30 ? '#d97706' : '#16a34a'
-      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${d.name}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF">${d.license_expiry}</td><td style="padding:8px 12px;border-bottom:1px solid #F4F3EF;color:${color};font-weight:700">${days < 0 ? 'פג תוקף' : days + ' ימים'}</td></tr>`
-    }).join('')
-    return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px">
-      <h1 style="color:#2B2630;margin:0 0 4px">התראות תפוגה</h1>
-      <p style="color:#5A5460;margin:0 0 24px">${new Date().toLocaleDateString('he-IL')}</p>
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#F8F7F4"><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">נהג</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">תפוגת רישיון</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#5A5460">סטטוס</th></tr></thead>
-        <tbody>${expRows || '<tr><td colspan="3" style="padding:20px;text-align:center;color:#5A5460">אין התראות פעילות</td></tr>'}</tbody>
-      </table>
-    </div>`
+  async function exportExcel() {
+    if (!rep) return
+    setBusy('xlsx')
+    try {
+      const ExcelJS = (await import('exceljs')).default
+      const wb = new ExcelJS.Workbook()
+      const ws = wb.addWorksheet(rep.title.slice(0, 30), { views: [{ rightToLeft: !!rtl, state: 'frozen', ySplit: 3 }] })
+      ws.addRow([rep.title]).font = { bold: true, size: 14 }
+      ws.addRow([`${companyName ? companyName + ' · ' : ''}${rep.subtitle}`])
+      const head = ws.addRow(rep.columns.map(c => c.label))
+      head.font = { bold: true }; head.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1EFE9' } }
+      const cell = (c, v) => {
+        if (v == null || v === '') return ''
+        if (['num', 'money', 'money2', 'dec', 'pct'].includes(c.type)) return Number(v)
+        if (c.type === 'days') return fmtValue(v, 'days', rep.cur, rep.he)
+        return fmtValue(v, c.type, rep.cur, rep.he)
+      }
+      rep.rows.forEach(r => ws.addRow(rep.columns.map(c => cell(c, r[c.key]))))
+      if (totals) { const tr = ws.addRow(rep.columns.map(c => cell(c, totals[c.key]))); tr.font = { bold: true } }
+      const fmts = { money: '#,##0', money2: '#,##0.00', num: '#,##0', dec: '0.0', pct: '0.0%' }
+      rep.columns.forEach((c, i) => {
+        const col = ws.getColumn(i + 1)
+        if (fmts[c.type]) col.numFmt = fmts[c.type]
+        const longest = Math.max(c.label.length, ...rep.rows.slice(0, 200).map(r => String(fmtValue(r[c.key], c.type, rep.cur, rep.he)).length))
+        col.width = Math.min(45, Math.max(10, longest + 2))
+      })
+      ws.getRow(1).numFmt = 'General'; ws.getRow(2).numFmt = 'General'
+      await xlsxDownload(wb, `${fileBase()}.xlsx`)
+    } catch (e) { console.error('[reports xlsx]', e); setSendError(L('ייצוא ל-Excel נכשל', 'Excel export failed')) }
+    setBusy('')
   }
 
-  function buildWhatsAppText() {
-    if (reportType === 'fleet_status') {
-      const active  = cars.filter(c => c.status === 'In Use' || c.status === 'Available').length
-      const inMaint = cars.filter(c => c.status === 'Maintenance').length
-      return `🚗 *דוח סטטוס צי – ${new Date().toLocaleDateString('he-IL')}*\n\nסה"כ רכבים: ${cars.length}\n✅ פעילים: ${active}\n🔧 בתחזוקה: ${inMaint}\nנהגים פעילים: ${drivers.filter(d=>d.status==='Active').length}`
-    }
-    if (reportType === 'cost_summary') {
-      const filtered = costs.filter(c => c.date >= dateFrom && c.date <= dateTo)
-      const total    = filtered.reduce((s,c) => s + parseFloat(c.amount||0), 0)
-      return `💰 *סיכום עלויות ${dateFrom} – ${dateTo}*\n\nסה"כ: ${RG.currency}${total.toLocaleString('en',{minimumFractionDigits:2})}\nמספר רשומות: ${filtered.length}`
-    }
-    const expired = drivers.filter(d => d.license_expiry && new Date(d.license_expiry) < new Date()).length
-    const expiring = drivers.filter(d => { if (!d.license_expiry) return false; const days=(new Date(d.license_expiry)-new Date())/86400000; return days>=0&&days<30 }).length
-    return `⚠️ *התראות תפוגה – ${new Date().toLocaleDateString('he-IL')}*\n\n🔴 פג תוקף: ${expired} נהגים\n🟡 פג תוקף בחודש הקרוב: ${expiring} נהגים`
+  function exportCsv() { if (rep) saveBlob(new Blob([csvOf(rep)], { type: 'text/csv;charset=utf-8' }), `${fileBase()}.csv`) }
+
+  function printReport() {
+    if (!rep) return
+    const html = `<!doctype html><html dir="${rtl ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${esc(rep.title)}</title><style>@page{size:A4 landscape;margin:12mm}body{margin:0;background:#fff}table{page-break-inside:auto}tr{page-break-inside:avoid}</style></head><body>${reportToHtml(rep, { company: companyName, maxRows: 5000 })}</body></html>`
+    const f = document.createElement('iframe')
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
+    document.body.appendChild(f)
+    f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close()
+    setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print() } finally { setTimeout(() => f.remove(), 2000) } }, 300)
   }
 
   async function sendEmail() {
-    const toList = recipients.split(/[,\n]/).map(e=>e.trim()).filter(Boolean)
-    if (!toList.length) { setSendError(rtl ? 'הזן כתובת אימייל אחת לפחות' : 'Enter at least one email'); return }
+    const toList = recipients.split(/[,;\n]/).map(e => e.trim()).filter(Boolean)
+    if (!toList.length) { setSendError(L('הזן כתובת אימייל אחת לפחות', 'Enter at least one email')); return }
+    if (!rep) return
     setSending(true); setSendError(''); setSent('')
-    const html = reportType === 'fleet_status' ? buildFleetHtml() : reportType === 'cost_summary' ? buildCostHtml() : buildExpiryHtml()
-    const subjectMap = { fleet_status: 'דוח סטטוס צי', cost_summary: 'סיכום עלויות', expiry_alerts: 'התראות תפוגה' }
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setSending(false); setSendError(rtl ? 'ההתחברות פגה. התחבר מחדש.' : 'Session expired. Please sign in again.'); return }
-    const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/send-report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ to: toList, subject: `${subjectMap[reportType]} – ${new Date().toLocaleDateString('he-IL')}`, html }),
-    })
+    if (!session) { setSending(false); setSendError(L('ההתחברות פגה. התחבר מחדש.', 'Session expired. Please sign in again.')); return }
+    try {
+      const r = await fetch('https://dvjjxwcvxjgqpdcnnmvv.supabase.co/functions/v1/send-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ to: toList, subject: `${rep.title} – ${rep.subtitle}`, html: reportToHtml(rep, { company: companyName, maxRows: 300 }) }),
+      })
+      if (r.ok) setSent(L(`הדוח נשלח ל-${toList.length} נמענים`, `Report sent to ${toList.length} recipient(s)`))
+      else setSendError(L('שגיאה בשליחה. נסה שוב.', 'Send failed. Please try again.'))
+    } catch { setSendError(L('שגיאת רשת. נסה שוב.', 'Network error. Please try again.')) }
     setSending(false)
-    if (r.ok) setSent(rtl ? `הדוח נשלח ל-${toList.length} נמענים` : `Report sent to ${toList.length} recipient(s)`)
-    else setSendError(rtl ? 'שגיאה בשליחה. נסה שוב.' : 'Send failed. Please try again.')
   }
 
   function openWhatsApp() {
-    const msg = buildWaMessage(waTemplates, 'report', rtl, {
-      content: buildWhatsAppText(),
-      date: new Date().toLocaleDateString('he-IL'),
-      company: companyName,
-    })
-    setWaModal({ text: msg })
+    if (!rep) return
+    setWaModal({ text: buildWaMessage(waTemplates, 'report', rtl, { content: reportToText(rep, ''), date: new Date().toLocaleDateString('he-IL'), company: companyName }) })
   }
 
-  const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 14, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.bg }
+  const inp = { padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: C.textPrimary, background: C.surface, minWidth: 0 }
+  const lbl = { fontSize: 11, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }
+  const btn = { display: 'inline-flex', alignItems: 'center', gap: 6, background: C.surface, color: C.textPrimary, border: `1px solid ${C.border}`, borderRadius: 7, padding: '7px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }
+  const tones = { bad: C.danger, warn: '#d97706', ok: C.success }
+  const presets = [['last30', L('30 ימים אחרונים', 'Last 30 days')], ['thisMonth', L('החודש', 'This month')], ['lastMonth', L('חודש שעבר', 'Last month')], ['thisQuarter', L('הרבעון', 'This quarter')], ['thisYear', L('השנה', 'This year')], ['lastYear', L('שנה שעברה', 'Last year')], ['last12', L('12 חודשים', 'Last 12 months')], ['all', L('הכל', 'All time')], ['custom', L('מותאם', 'Custom')]]
+  const carOpts = [...cars].sort((a, b) => String(a.plate).localeCompare(String(b.plate)))
+  const categories = useMemo(() => [...new Set((data?.costs || []).map(c => c.category).filter(Boolean))].sort(), [data])
+  const maxChart = rep?.chart ? Math.max(1, ...rep.chart.items.map(i => i.value)) : 1
+
+  const catalogBtn = r => (
+    <button key={r.id} data-testid={`rep-${r.id}`} onClick={() => setReportId(r.id)} style={{ display: 'block', width: '100%', textAlign: rtl ? 'right' : 'left', padding: '8px 12px', marginBottom: 2, border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: reportId === r.id ? 700 : 500, background: reportId === r.id ? C.primary + '14' : 'transparent', color: reportId === r.id ? C.primary : C.textPrimary }}>
+      {rtl ? r.he : r.en}
+    </button>
+  )
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', padding: 24, direction: rtl ? 'rtl' : 'ltr' }}>
-      <div style={{ maxWidth: 640 }}>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="chart" size={20} color={C.primary} />{rtl ? 'שליחת דוחות' : 'Send Reports'}</h2>
-        <p style={{ margin: '0 0 24px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'שלח דוחות ישירות לאימייל או לוואטסאפ' : 'Send reports directly by email or WhatsApp'}</p>
+    <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 12 : 24, direction: rtl ? 'rtl' : 'ltr' }}>
+      <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: C.textPrimary }}><Icon name="chart" size={20} color={C.primary} />{L('דוחות', 'Reports')}</h2>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: C.textSecondary }}>{L('בחר דוח, סנן, והורד או שלח אותו', 'Pick a report, filter it, then download or send it')}</p>
 
-        {/* Report type */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: C.textSecondary, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{rtl ? 'סוג דוח' : 'Report Type'}</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {REPORT_TYPES.map(rt => (
-              <label key={rt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, border: `2px solid ${reportType === rt.id ? C.primary : C.border}`, cursor: 'pointer', background: reportType === rt.id ? C.primary + '08' : 'transparent', transition: 'all 0.15s' }}>
-                <input type="radio" name="reportType" value={rt.id} checked={reportType === rt.id} onChange={() => setReportType(rt.id)} style={{ accentColor: C.primary }} />
-                <span style={{ fontSize: 14, fontWeight: 600 }}>{rt.label}</span>
-              </label>
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
+        {/* Catalog */}
+        {isMobile ? (
+          <select data-testid="rep-select" value={reportId} onChange={e => setReportId(e.target.value)} style={{ ...inp, width: '100%' }}>
+            {Object.entries(REPORT_GROUPS).map(([g, [he, en]]) => <optgroup key={g} label={rtl ? he : en}>{REPORT_CATALOG.filter(r => r.group === g).map(r => <option key={r.id} value={r.id}>{rtl ? r.he : r.en}</option>)}</optgroup>)}
+          </select>
+        ) : (
+          <div style={{ width: 210, flexShrink: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10 }}>
+            {Object.entries(REPORT_GROUPS).map(([g, [he, en]]) => (
+              <div key={g} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.textSecondary, padding: '6px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{rtl ? he : en}</div>
+                {REPORT_CATALOG.filter(r => r.group === g).map(catalogBtn)}
+              </div>
             ))}
           </div>
+        )}
 
-          {reportType === 'cost_summary' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'מתאריך' : 'From'}</label>
-                <input type="date" style={inp} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, display: 'block', marginBottom: 4 }}>{rtl ? 'עד תאריך' : 'To'}</label>
-                <input type="date" style={inp} value={dateTo} onChange={e => setDateTo(e.target.value)} />
-              </div>
+        <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+          {/* Filters */}
+          {uses.length > 0 && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+              {uses.includes('date') && <>
+                <div><label style={lbl}>{L('תקופה', 'Period')}</label>
+                  <select data-testid="rep-preset" style={inp} value={preset} onChange={e => pickPreset(e.target.value)}>{presets.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+                <div><label style={lbl}>{L('מתאריך', 'From')}</label><input data-testid="rep-from" type="date" style={inp} value={F.from} onChange={e => { setPreset('custom'); setFilter('from', e.target.value) }} /></div>
+                <div><label style={lbl}>{L('עד תאריך', 'To')}</label><input data-testid="rep-to" type="date" style={inp} value={F.to} onChange={e => { setPreset('custom'); setFilter('to', e.target.value) }} /></div>
+              </>}
+              {uses.includes('branch') && (data?.branches?.length > 0) && <div><label style={lbl}>{L('סניף', 'Branch')}</label>
+                <select data-testid="rep-branch" style={inp} value={F.branch} onChange={e => setFilter('branch', e.target.value)}><option value="">{L('כל הסניפים', 'All branches')}</option>{data.branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>}
+              {uses.includes('car') && <div><label style={lbl}>{L('רכב', 'Vehicle')}</label>
+                <select data-testid="rep-car" style={{ ...inp, maxWidth: 200 }} value={F.car} onChange={e => setFilter('car', e.target.value)}><option value="">{L('כל הרכבים', 'All vehicles')}</option>{carOpts.map(c => <option key={c.id} value={c.id}>{formatPlate(c.plate)} {c.make || ''}</option>)}</select></div>}
+              {uses.includes('driver') && <div><label style={lbl}>{L('נהג', 'Driver')}</label>
+                <select data-testid="rep-driver" style={{ ...inp, maxWidth: 200 }} value={F.driver} onChange={e => setFilter('driver', e.target.value)}><option value="">{L('כל הנהגים', 'All drivers')}</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>}
+              {uses.includes('category') && categories.length > 0 && <div><label style={lbl}>{L('קטגוריה', 'Category')}</label>
+                <select data-testid="rep-category" style={inp} value={F.category} onChange={e => setFilter('category', e.target.value)}><option value="">{L('כל הקטגוריות', 'All categories')}</option>{categories.map(c => <option key={c} value={c}>{categoryLabel(rtl, c)}</option>)}</select></div>}
+              {uses.includes('horizon') && <div><label style={lbl}>{L('טווח', 'Horizon')}</label>
+                <select data-testid="rep-horizon" style={inp} value={F.horizon} onChange={e => setFilter('horizon', e.target.value)}>{[['30', L('30 יום', '30 days')], ['60', L('60 יום', '60 days')], ['90', L('90 יום', '90 days')], ['180', L('180 יום', '180 days')], ['0', L('הכל', 'Everything')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>}
+              {anyFilter && <button style={{ ...btn, color: C.textSecondary }} onClick={() => setF(p => ({ ...p, branch: '', car: '', driver: '', category: '' }))}>{L('נקה סינון', 'Clear filters')}</button>}
             </div>
           )}
-        </div>
 
-        {/* Email */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: C.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}><Icon name="mail" size={13} />{rtl ? 'שליחה באימייל' : 'Send by Email'}</label>
-          <textarea
-            style={{ ...inp, minHeight: 70, resize: 'vertical', marginBottom: 10 }}
-            value={recipients}
-            onChange={e => setRecipients(e.target.value)}
-            placeholder={rtl ? 'כתובות אימייל (מופרדות בפסיק או שורה חדשה)\nדוגמה: manager@company.com, cfo@company.com' : 'Email addresses (comma or newline separated)\nExample: manager@company.com, cfo@company.com'}
-          />
-          {sendError && <div style={{ color: C.danger, fontSize: 13, marginBottom: 8 }}>{sendError}</div>}
-          {sent      && <div style={{ color: C.success, fontSize: 13, marginBottom: 8 }}>{sent}</div>}
-          <button onClick={sendEmail} disabled={sending} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
-            {sending ? '…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="send" size={14} />{rtl ? 'שלח דוח' : 'Send Report'}</span>}
-          </button>
-        </div>
+          {failed.length > 0 && <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, padding: '8px 12px', fontSize: 13, marginBottom: 12 }}>{L('חלק מהנתונים לא נטענו: ', 'Some data could not be loaded: ')}{failed.join(', ')}</div>}
+          {err && <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{L('שגיאה בהפקת הדוח', 'Could not build the report')}: {err}</div>}
+          {!data && <div style={{ padding: 40, textAlign: 'center', color: C.textSecondary }}>{L('טוען נתונים…', 'Loading data…')}</div>}
 
-        {/* WhatsApp */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: C.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}><Icon name="message" size={13} />{rtl ? 'שליחה בוואטסאפ' : 'Send via WhatsApp'}</label>
-          <p style={{ margin: '0 0 12px', fontSize: 13, color: C.textSecondary }}>{rtl ? 'ייפתח WhatsApp עם הדוח המוכן לשליחה. בחר איש קשר ולחץ שלח.' : 'Opens WhatsApp with a ready-to-send message. Select a contact and tap send.'}</p>
-          <button onClick={openWhatsApp} style={{ background: '#25d366', color: '#fff', border: 'none', borderRadius: 7, padding: '10px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.06L2 22l5.07-1.34C8.5 21.52 10.2 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.69 0-3.27-.48-4.62-1.31L4 20l1.33-3.3C4.5 15.3 4 13.7 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z"/></svg>
-            {rtl ? 'שלח בוואטסאפ' : 'Send via WhatsApp'}
-          </button>
+          {rep && <>
+            {/* Header + actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              <div>
+                <div data-testid="rep-title" style={{ fontSize: 18, fontWeight: 800, color: C.textPrimary }}>{rep.title}</div>
+                <div style={{ fontSize: 13, color: C.textSecondary }}>{rep.subtitle} · {rows.length} {L('שורות', 'rows')}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button data-testid="rep-xlsx" style={btn} onClick={exportExcel} disabled={busy === 'xlsx'}><Icon name="spreadsheet" size={14} />Excel</button>
+                <button data-testid="rep-csv" style={btn} onClick={exportCsv}><Icon name="download" size={14} />CSV</button>
+                <button data-testid="rep-print" style={btn} onClick={printReport}><Icon name="printer" size={14} />{L('הדפס / PDF', 'Print / PDF')}</button>
+                <button data-testid="rep-sched" style={{ ...btn, ...(schedOpen ? { borderColor: C.primary, color: C.primary } : {}) }} onClick={() => setSchedOpen(o => !o)}><Icon name="clock" size={14} />{L('תזמון', 'Schedule')}{schedules.length ? ` (${schedules.length})` : ''}</button>
+                <button data-testid="rep-email" style={{ ...btn, ...(emailOpen ? { borderColor: C.primary, color: C.primary } : {}) }} onClick={() => setEmailOpen(o => !o)}><Icon name="mail" size={14} />{L('אימייל', 'Email')}</button>
+                <button data-testid="rep-wa" style={{ ...btn, background: '#25d366', color: '#fff', border: 'none' }} onClick={openWhatsApp}><Icon name="message" size={14} />WhatsApp</button>
+              </div>
+            </div>
+
+            {emailOpen && (
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                <textarea data-testid="rep-recipients" style={{ ...inp, width: '100%', minHeight: 56, resize: 'vertical', marginBottom: 8 }} value={recipients} onChange={e => setRecipients(e.target.value)}
+                  placeholder={L('כתובות אימייל (מופרדות בפסיק או שורה חדשה)', 'Email addresses (comma or newline separated)')} />
+                {sendError && <div style={{ color: C.danger, fontSize: 13, marginBottom: 6 }}>{sendError}</div>}
+                {sent && <div style={{ color: C.success, fontSize: 13, marginBottom: 6 }}>{sent}</div>}
+                <button data-testid="rep-send" onClick={sendEmail} disabled={sending} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
+                  {sending ? '…' : L('שלח דוח', 'Send report')}
+                </button>
+              </div>
+            )}
+            {schedOpen && (
+              <div data-testid="rep-sched-panel" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.textPrimary, marginBottom: 2 }}>{L('תזמון דוחות', 'Scheduled reports')}</div>
+                <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 12 }}>{L('נשלחים באימייל בכל בוקר שבו התזמון חל, עם קובץ CSV מצורף.', 'Emailed in the morning on the scheduled day, with the full CSV attached.')}</div>
+                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{L('תזמן את הדוח הנוכחי: ', 'Schedule this report: ')}{rep.title}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                    <div><label style={lbl}>{L('שם (לא חובה)', 'Name (optional)')}</label><input data-testid="sched-name" style={inp} value={schedForm.name} onChange={e => setSF('name', e.target.value)} /></div>
+                    <div><label style={lbl}>{L('תדירות', 'Frequency')}</label>
+                      <select data-testid="sched-freq" style={inp} value={schedForm.frequency} onChange={e => setSF('frequency', e.target.value)}><option value="daily">{L('יומי', 'Daily')}</option><option value="weekly">{L('שבועי', 'Weekly')}</option><option value="monthly">{L('חודשי', 'Monthly')}</option></select></div>
+                    {schedForm.frequency === 'weekly' && <div><label style={lbl}>{L('יום', 'Day')}</label>
+                      <select data-testid="sched-dow" style={inp} value={schedForm.day_of_week} onChange={e => setSF('day_of_week', e.target.value)}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div>}
+                    {schedForm.frequency === 'monthly' && <div><label style={lbl}>{L('יום בחודש', 'Day of month')}</label>
+                      <select data-testid="sched-dom" style={inp} value={schedForm.day_of_month} onChange={e => setSF('day_of_month', e.target.value)}>{Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></div>}
+                    {uses.includes('date') && <div><label style={lbl}>{L('תקופת הדוח', 'Report period')}</label>
+                      <select data-testid="sched-period" style={inp} value={schedForm.period} onChange={e => setSF('period', e.target.value)}>{presets.filter(([v]) => SCHEDULE_PERIODS.includes(v)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>}
+                    <div><label style={lbl}>{L('שפה', 'Language')}</label>
+                      <select data-testid="sched-lang" style={inp} value={schedForm.language} onChange={e => setSF('language', e.target.value)}><option value="he">עברית</option><option value="en">English</option></select></div>
+                  </div>
+                  <textarea data-testid="sched-recipients" style={{ ...inp, width: '100%', minHeight: 48, resize: 'vertical', marginBottom: 8 }} value={schedForm.recipients} onChange={e => setSF('recipients', e.target.value)} placeholder={L('נמענים (עד 10, מופרדים בפסיק)', 'Recipients (up to 10, comma separated)')} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: 10 }}><input type="checkbox" checked={schedForm.skip_if_empty} onChange={e => setSF('skip_if_empty', e.target.checked)} />{L('אל תשלח כשאין נתונים בדוח', 'Do not send when the report is empty')}</label>
+                  {(anyFilter || uses.includes('horizon')) && <div style={{ fontSize: 12, color: C.textSecondary, marginBottom: 8 }}>{L('הסינון הנוכחי (סניף, רכב, נהג, קטגוריה) נשמר עם התזמון.', 'Your current filters (branch, vehicle, driver, category) are saved with the schedule.')}</div>}
+                  {schedErr && <div style={{ color: C.danger, fontSize: 13, marginBottom: 8 }}>{schedErr}</div>}
+                  <button data-testid="sched-save" onClick={saveSchedule} disabled={schedBusy === 'save'} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{L('שמור תזמון', 'Save schedule')}</button>
+                </div>
+                {schedules.length === 0 ? <div style={{ fontSize: 13, color: C.textSecondary, textAlign: 'center', padding: 8 }}>{L('אין תזמונים עדיין', 'No schedules yet')}</div> : schedules.map(s => {
+                  const m = REPORT_CATALOG.find(r => r.id === s.report_type)
+                  return (
+                    <div key={s.id} data-testid="sched-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 8, opacity: s.is_active ? 1 : 0.6 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{s.name || (m ? (rtl ? m.he : m.en) : s.report_type)} · {describeSchedule(s)}</div>
+                        <div style={{ fontSize: 12, color: C.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis' }}>{(s.recipients || []).join(', ')}</div>
+                        <div style={{ fontSize: 12, color: s.last_status && s.last_status.startsWith('error') ? C.danger : C.textSecondary }}>{schedStatus(s)}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button data-testid="sched-now" style={btn} disabled={schedBusy === s.id} onClick={() => sendScheduleNow(s)}>{schedBusy === s.id ? '…' : L('שלח עכשיו', 'Send now')}</button>
+                        <button data-testid="sched-toggle" style={btn} onClick={() => toggleSchedule(s)}>{s.is_active ? L('השהה', 'Pause') : L('הפעל', 'Resume')}</button>
+                        <button data-testid="sched-delete" style={{ ...btn, color: C.danger }} onClick={() => deleteSchedule(s)}><Icon name="trash" size={14} /></button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {!emailOpen && sendError && <div style={{ color: C.danger, fontSize: 13, marginBottom: 8 }}>{sendError}</div>}
+
+            {/* KPIs */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 14 }}>
+              {rep.kpis.map((k, i) => (
+                <div key={i} data-testid="rep-kpi" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: tones[k.tone] || C.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmtValue(k.value, k.type, rep.cur, rtl)}</div>
+                  <div style={{ fontSize: 12, color: C.textSecondary }}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Chart */}
+            {rep.chart?.items?.length > 0 && (
+              <div data-testid="rep-chart" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.textPrimary, marginBottom: 8 }}>{rep.chart.title}</div>
+                {rep.chart.items.map((i, n) => (
+                  <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0', fontSize: 12 }}>
+                    <div title={i.label} style={{ width: isMobile ? 90 : 170, color: C.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.label}</div>
+                    <div style={{ flex: 1, background: C.bg, borderRadius: 4 }}><div style={{ width: `${Math.max(1, Math.round(i.value / maxChart * 100))}%`, height: 14, background: C.primary, borderRadius: 4 }} /></div>
+                    <div style={{ width: isMobile ? 70 : 90, fontWeight: 700, color: C.textPrimary, textAlign: rtl ? 'left' : 'right' }}>{fmtValue(i.value, rep.chart.money ? 'money' : 'num', rep.cur)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Table */}
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'auto', maxHeight: '60vh' }}>
+              {rows.length === 0 ? (
+                <div data-testid="rep-empty" style={{ padding: 32, textAlign: 'center', color: C.textSecondary, fontSize: 14 }}>{L('אין נתונים בטווח ובסינון שנבחרו', 'No data for the selected period and filters')}</div>
+              ) : (
+                <table data-testid="rep-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead><tr>
+                    {rep.columns.map(c => (
+                      <th key={c.key} onClick={() => toggleSort(c.key)} style={{ position: 'sticky', top: 0, background: C.bg, padding: '9px 12px', textAlign: rtl ? 'right' : 'left', fontSize: 12, color: C.textSecondary, borderBottom: `1px solid ${C.border}`, cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
+                        {c.label}{sortKey === c.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                      </th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {shown.map((r, i) => (
+                      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
+                        {rep.columns.map(c => (
+                          <td key={c.key} style={{ padding: '8px 12px', whiteSpace: c.type ? 'nowrap' : 'normal', ...(c.type === 'days' ? { color: tones[daysTone(r[c.key])], fontWeight: 700 } : {}) }}>{fmtValue(r[c.key], c.type, rep.cur, rtl)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                    {totals && (
+                      <tr data-testid="rep-totals" style={{ background: C.bg }}>
+                        {rep.columns.map(c => <td key={c.key} style={{ padding: '9px 12px', fontWeight: 800, whiteSpace: 'nowrap' }}>{totals[c.key] === '' ? '' : fmtValue(totals[c.key], c.type, rep.cur, rtl)}</td>)}
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            {rows.length > LIMIT && !showAll && <button data-testid="rep-showall" style={{ ...btn, marginTop: 10 }} onClick={() => setShowAll(true)}>{L(`הצג את כל ${rows.length} השורות`, `Show all ${rows.length} rows`)}</button>}
+            {rep.note && <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 10 }}>{rep.note}</div>}
+          </>}
         </div>
       </div>
       {waModal && <WhatsAppSendModal initialText={waModal.text} rtl={rtl} onClose={() => setWaModal(null)} />}
@@ -11796,6 +12102,7 @@ function FleetManager({ session, profile, isMaster, companyId, onSignOut, initia
           setActiveTab={switchTab}
           profile={profile}
           userId={session?.user?.id}
+          companyId={activeCompanyId}
           isMobile={isMobile}
         />
       )}

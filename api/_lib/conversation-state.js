@@ -78,9 +78,19 @@ export const isTerminal = (stage) => TERMINAL_STAGES.includes(stage)
 export function nextUnansweredStage(lead) {
   if (!lead) return 'OPENING'
   if (lead.opted_out) return 'OPT_OUT'
-  if (lead.meeting_at) return 'MEETING_BOOKED'
+  // 2026-09-28: meeting_at is never cleared once a meeting is booked (mergeLead
+  // never overwrites a value with null — see its own comment in api/wa/webhook.js),
+  // so a meeting that has already happened was still being read as "this lead is
+  // booked" days later, telling the agent to resume at MEETING_BOOKED for a lead
+  // who was, in reality, starting a brand new conversation. Same class of bug as
+  // the rebooking guard fixed the same day (traced via +972546316133's Sept 28
+  // conversation) — only a meeting still ahead of us counts as "booked" here.
+  if (lead.meeting_at && new Date(lead.meeting_at).getTime() > Date.now()) return 'MEETING_BOOKED'
   if (lead.bot_paused) return 'HUMAN_HANDOFF'
 
+  // Role, fleet size and management already on file — from this conversation or
+  // an earlier one — are trusted as still current and never re-asked (Bar's
+  // call, 2026-09-28: a returning lead should not be re-qualified from scratch).
   if (!lead.role) return 'ROLE'
   if (lead.fleet_size == null && !lead.fleet_size_raw) return 'FLEET_SIZE'
   if (!lead.current_management) return 'CURRENT_MANAGEMENT'

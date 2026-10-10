@@ -10,9 +10,13 @@ import { toAgentResponse } from '../api/_lib/claude.js'
 import { nextUnansweredStage, deriveStatus, isQualified, isStage, isStatus } from '../api/_lib/conversation-state.js'
 import { normaliseTurns } from '../api/_lib/crm.js'
 import { followupDue, followupMessage, withinBusinessHours, localParts } from '../api/_lib/followups.js'
+import { reminderMessage, reminderDue } from '../api/_lib/reminders.js'
 import { buildSystemPrompt } from '../api/_lib/system-prompt.js'
-import { slotKey, spreadAcrossDays } from '../api/_lib/calendly.js'
+import {
+  slotKey, spreadAcrossDays, daySlots, nthBusinessDay, busyCountByDay, MAX_MEETINGS_PER_DAY,
+} from '../api/_lib/google-calendar.js'
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
+import { summaryAndSlotsMessage } from '../api/_lib/calendar-message.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
 import { groupForLead, columnValues, syncLead, meetingValue, COLUMNS } from '../api/_lib/monday.js'
 import { windowOpen } from '../api/wa/start.js'
@@ -131,7 +135,21 @@ test('compressed script: existing_system, main_pain and why_now never block prog
 test('terminal states win over the ladder', () => {
   assert.equal(nextUnansweredStage({ opted_out: true }), 'OPT_OUT')
   assert.equal(nextUnansweredStage({ bot_paused: true }), 'HUMAN_HANDOFF')
-  assert.equal(nextUnansweredStage({ meeting_at: '2026-08-20T10:00:00Z' }), 'MEETING_BOOKED')
+  const future = new Date(Date.now() + 3 * 86400000).toISOString()
+  assert.equal(nextUnansweredStage({ meeting_at: future }), 'MEETING_BOOKED')
+})
+
+test('a meeting that already happened does not force MEETING_BOOKED — regression for +972546316133', () => {
+  // Same staleness bug as the rebooking guard (api/wa/webhook.js): meeting_at is
+  // never cleared after the meeting happens, so a lead re-engaging days later
+  // was told to "resume" at MEETING_BOOKED for a meeting long over. Only an
+  // upcoming meeting_at should short-circuit here.
+  const past = new Date(Date.now() - 3 * 86400000).toISOString()
+  assert.equal(nextUnansweredStage({ meeting_at: past }), 'ROLE')
+  assert.equal(
+    nextUnansweredStage({ meeting_at: past, role: 'x', fleet_size: 40, current_management: 'excel' }),
+    'PROCESS_EXPLANATION',
+  )
 })
 
 test('qualification needs role + fleet + management', () => {
@@ -227,6 +245,73 @@ test('waits out the delay, then fires inside business hours', () => {
   assert.equal(followupDue(due, night).reason, 'outside_business_hours')
 })
 
+test('reminderMessage matches Bar\'s exact wording', () => {
+  const lead = { meeting_at: '2026-09-29T09:45:00+03:00', meeting_url: 'https://meet.google.com/abc-defg-hij' }
+  const msg = reminderMessage(lead)
+  assert.equal(
+    msg,
+    'מזכיר — נתראה ב-29.09.2026 בשעה 09:45 ✅\n' +
+    '📞 אופן השיחה: Google Meet https://meet.google.com/abc-defg-hij\n' +
+    'אם משהו משתנה, פשוט תכתוב לי כאן ואשנה.',
+  )
+})
+
+test('reminderMessage tolerates a missing meeting_url', () => {
+  const lead = { meeting_at: '2026-09-29T09:45:00+03:00' }
+  assert.ok(reminderMessage(lead).includes('Google Meet\n'), 'no trailing space when the link is missing')
+})
+
+test('reminderDue never fires for a paused, opted-out, linkless or already-sent lead', () => {
+  const now = new Date('2026-09-29T00:00:00.000Z')
+  const base = { meeting_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(), meeting_url: 'https://meet.google.com/x' }
+  assert.equal(reminderDue({ ...base, bot_paused: true }, now).due, false)
+  assert.equal(reminderDue({ ...base, opted_out: true }, now).due, false)
+  assert.equal(reminderDue({ meeting_at: base.meeting_at }, now).due, false, 'no meeting_url yet — nothing to remind them of')
+  assert.equal(reminderDue({ ...base, reminder_24h_sent_at: now.toISOString() }, now).due, false)
+  assert.equal(reminderDue({}, now).due, false, 'no meeting at all')
+})
+
+test('reminderDue fires the 24h reminder exactly inside its window, not before or after', () => {
+  const meetingAt = new Date('2026-09-30T00:00:00.000Z')
+  const base = { meeting_at: meetingAt.toISOString(), meeting_url: 'https://meet.google.com/x' }
+
+  // 25 hours out — not due yet.
+  assert.equal(reminderDue(base, new Date(meetingAt.getTime() - 25 * 60 * 60 * 1000)).due, false)
+  // Just crossed the 24h mark — due.
+  const at24h = reminderDue(base, new Date(meetingAt.getTime() - 24 * 60 * 60 * 1000))
+  assert.equal(at24h.due, true)
+  assert.equal(at24h.kind, '24h')
+  // 23 hours out but already sent — not due again.
+  assert.equal(
+    reminderDue({ ...base, reminder_24h_sent_at: '2026-09-29T00:05:00.000Z' }, new Date(meetingAt.getTime() - 23.9 * 60 * 60 * 1000)).due,
+    false,
+  )
+  // Past the 20-minute window with nothing sent — the run was missed, but this test only
+  // asserts the window has a boundary, not that it's unrecoverable (ops would need to backfill).
+  assert.equal(
+    reminderDue(base, new Date(meetingAt.getTime() - 24 * 60 * 60 * 1000 - 25 * 60 * 1000)).due,
+    false,
+  )
+})
+
+test('reminderDue fires the 1h reminder even when the 24h one was already sent', () => {
+  const meetingAt = new Date('2026-09-30T00:00:00.000Z')
+  const lead = {
+    meeting_at: meetingAt.toISOString(),
+    meeting_url: 'https://meet.google.com/x',
+    reminder_24h_sent_at: new Date(meetingAt.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+  }
+  const at1h = reminderDue(lead, new Date(meetingAt.getTime() - 60 * 60 * 1000))
+  assert.equal(at1h.due, true)
+  assert.equal(at1h.kind, '1h')
+})
+
+test('reminderDue never fires for a meeting already in the past', () => {
+  const meetingAt = new Date('2026-09-29T00:00:00.000Z')
+  const lead = { meeting_at: meetingAt.toISOString(), meeting_url: 'https://meet.google.com/x' }
+  assert.equal(reminderDue(lead, new Date(meetingAt.getTime() + 1000)).due, false)
+})
+
 test('a follow-up resumes the unanswered question, never the opening', () => {
   const lead = { first_name: 'בר', role: 'מנהל צי', followup_count: 0 }
   const one = followupMessage(lead, 1)
@@ -241,6 +326,19 @@ test('a follow-up resumes the unanswered question, never the opening', () => {
   assert.ok(three.includes('להשאיר את הפנייה פתוחה'))
 })
 
+test('a MEETING_CONFIRMATION follow-up chases the missing email, not a yes/no', () => {
+  // Booking no longer waits on a separate "confirm this time?" round-trip
+  // (spec section 12) — MEETING_CONFIRMATION now only means "slot picked,
+  // email still missing", so the follow-up must ask for the email.
+  const lead = {
+    first_name: 'בר', role: 'מנהל צי', fleet_size: 12, current_management: 'excel',
+    stage: 'MEETING_CONFIRMATION', followup_count: 0,
+  }
+  const one = followupMessage(lead, 1)
+  assert.ok(one.includes('כתובת המייל'), one)
+  assert.ok(!one.includes('לאשר את הפגישה'), 'must not ask for a stale yes/no confirmation')
+})
+
 console.log('\nsystem prompt')
 
 test('carries the Hebrew script verbatim', () => {
@@ -249,12 +347,48 @@ test('carries the Hebrew script verbatim', () => {
   assert.ok(p.includes('## 24. הנחיית מערכת מרכזית לסוכן'))
 })
 
+test('anchors "today" with a real, correctly-computed weekday — regression for Itay Asulin\'s off-by-one-day bug', () => {
+  // 2026-09-28 confirmed live: the model was never told the current date,
+  // had to guess it, and told a lead "tomorrow" was a Wednesday when Monday
+  // Sept 28's real tomorrow is Tuesday the 29th. This pins that the prompt
+  // now states an explicit, server-computed date+weekday pair that matches
+  // JS's own Date object — nothing for a model to guess anymore.
+  const p = buildSystemPrompt({ lead: { stage: 'OPENING' } })
+  const heWeekday = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  const [y, m, d] = todayStr.split('-').map(Number)
+  const expectedWeekday = heWeekday[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  assert.ok(p.includes('# תאריך היום'), 'must state an explicit today-date block')
+  assert.ok(p.includes(todayStr), `must include today's real date ${todayStr}`)
+  assert.ok(p.includes(expectedWeekday), `must include today's real weekday ${expectedWeekday}`)
+})
+
+test('books as soon as a slot and an email are both known, no extra confirm round-trip', () => {
+  // Bar: once the meeting details are sent, no need to wait on the lead to
+  // separately confirm — a chosen slot + an email is itself the go-ahead.
+  assert.ok(CONVERSATION_SCRIPT.includes('## 12. קביעת הפגישה'))
+  assert.ok(CONVERSATION_SCRIPT.includes('הסוכן קובע את\nהפגישה מיד'))
+  assert.ok(CONVERSATION_SCRIPT.includes('אין שולחים הודעת\nביניים נוספת'), 'no rule against a separate confirm round-trip')
+  assert.ok(CONVERSATION_SCRIPT.includes('אין צורך במעקב שמבקש ממנו לאשר שוב'))
+})
+
 test('lists what is already known and where to resume', () => {
   const p = buildSystemPrompt({ lead: { stage: 'FLEET_SIZE', role: 'סמנכ״ל כספים', fleet_size: 85, current_management: 'excel' } })
   assert.ok(p.includes('תפקיד: סמנכ״ל כספים'))
   assert.ok(p.includes('מספר כלי רכב: 85'))
   assert.ok(p.includes('אופן ניהול כיום: אקסלים ועבודה ידנית'))
   assert.ok(p.includes('השלב הפתוח שאליו יש לחזור: PROCESS_EXPLANATION'))
+})
+
+test('a returning lead with known qualification info is never re-qualified from scratch', () => {
+  // Bar's call, 2026-09-28 (regression for +972546316133): a lead who already
+  // gave role/fleet/management — even in an earlier conversation, even after a
+  // prior meeting came and went — must not be asked those questions again.
+  assert.ok(
+    CONVERSATION_SCRIPT.includes('"כבר נמסר" כולל גם מידע שנאסף בשיחה קודמת עם אותו ליד'),
+    'must extend "never re-ask" to info collected in an earlier conversation, not just this one',
+  )
+  assert.ok(CONVERSATION_SCRIPT.includes('אינך שואל את שאלות האפיון שוב, גם לא בניסוח שונה'))
 })
 
 test('forbids inventing slots when the calendar is unavailable', () => {
@@ -298,6 +432,26 @@ test('tells the agent how to answer a lead-requested time', () => {
   assert.ok(p.includes('אל תאשר שעה לפני שראית אותה כאן'))
 })
 
+test('confirming the day of an already-offered slot is the slot itself, not a bare-day request — regression for +972505750081', () => {
+  const slots = [
+    { key: '2026-10-05 09:00', label: 'יום שני, 5 באוקטובר, 09:00' },
+    { key: '2026-10-06 09:00', label: 'יום שלישי, 6 באוקטובר, 09:00' },
+    { key: '2026-10-07 09:00', label: 'יום רביעי, 7 באוקטובר, 09:00' },
+  ]
+  const p = buildSystemPrompt({
+    lead: { stage: 'CALENDAR_OPTIONS' },
+    slots,
+    suggested: slots,
+  })
+  // The lead answered "5 באוקטובר" (no time) after being offered exactly
+  // one time for that day — the agent re-asked "באיזו שעה?" and dumped the
+  // full list of open hours instead of booking the 09:00 it had just
+  // offered. The prompt must tell it this is a confirmation of the offered
+  // slot, not a new bare-day request.
+  assert.ok(p.includes('בלי לציין שעה — זה אישור'), 'must name the exact failure mode')
+  assert.ok(p.includes('אל תשאל שוב "באיזו שעה"'))
+})
+
 test('forbids re-asking for a name that is already known', () => {
   const p = buildSystemPrompt({ lead: { first_name: 'שי' } })
   assert.ok(p.includes('שי'), 'the known first name must reach the prompt')
@@ -312,7 +466,22 @@ test('offers real slots immediately instead of an open "when suits you" question
   const p = buildSystemPrompt({ lead: {} })
   assert.ok(!p.includes('מתי נוח לך שנראה לך את זה'), 'the old open-ended question must be gone')
   assert.ok(p.includes('אין כאן שאלה פתוחה של "מתי נוח לך?"'))
-  assert.ok(p.includes('איזה מהם הכי נוח לך?'))
+  assert.ok(p.includes('איזה מהם הכי נוח לך, ולאיזה כתובת מייל אשלח את ההזמנה לפגישה?'))
+})
+
+test('asks for the email in the same message that offers the slots, not after', () => {
+  const p = buildSystemPrompt({
+    lead: { stage: 'CALENDAR_OPTIONS' },
+    slots: [{ key: '2026-08-18 12:00', label: 'יום שלישי, 18 באוגוסט, 12:00' }],
+  })
+  assert.ok(
+    p.includes('כתובת המייל נשאלת באותה הודעה, יחד עם שאלת המועד'),
+    'the script must fold the email ask into the slot-offer message',
+  )
+  assert.ok(
+    p.includes('בקש אותה כבר בהודעה שמציעה את שלושת המועדים'),
+    'the calendar block instructions must tell the model to ask for email upfront',
+  )
 })
 
 console.log('\ncalendar helpers')
@@ -337,6 +506,57 @@ test('falls back to same-day slots when there are not enough days', () => {
   const mk = (key) => ({ key, label: key, start: key, schedulingUrl: 'x' })
   const picked = spreadAcrossDays(['2026-08-18 09:00', '2026-08-18 09:30'].map(mk), 3)
   assert.equal(picked.length, 2)
+})
+
+test('daySlots spaces 45-minute sessions with a 15-minute break', () => {
+  // Bar: 45-minute demos, at least 15 minutes before the next one starts.
+  const slots = daySlots('2026-08-18', 45)
+  const keys = slots.map((d) => slotKey(d.toISOString()))
+  assert.deepEqual(keys, [
+    '2026-08-18 09:00', '2026-08-18 10:00', '2026-08-18 11:00', '2026-08-18 12:00',
+    '2026-08-18 13:00', '2026-08-18 14:00', '2026-08-18 15:00', '2026-08-18 16:00', '2026-08-18 17:00',
+  ])
+  for (let i = 1; i < slots.length; i++) {
+    assert.equal(slots[i].getTime() - slots[i - 1].getTime(), 60 * 60000, 'slots must be 60 minutes apart')
+  }
+})
+
+test('nthBusinessDay counts only SUN–THU, skipping weekends', () => {
+  const friday = new Date('2026-08-14T00:00:00Z') // Friday — not itself a business day
+  assert.equal(nthBusinessDay(friday, 1), '2026-08-16', 'first business day is the following Sunday')
+  assert.equal(nthBusinessDay(friday, 5), '2026-08-20', '5th business day, right before the next weekend')
+  assert.equal(nthBusinessDay(friday, 6), '2026-08-23', '6th business day skips the weekend entirely')
+})
+
+test('busyCountByDay counts meetings per Jerusalem-local day, and the daily cap is 3', () => {
+  // Bar: never more than 3 demos booked on the same day.
+  assert.equal(MAX_MEETINGS_PER_DAY, 3)
+  const busy = [
+    { start: '2026-08-18T06:00:00Z', end: '2026-08-18T06:45:00Z' }, // 09:00 local
+    { start: '2026-08-18T09:00:00Z', end: '2026-08-18T09:45:00Z' }, // 12:00 local
+    { start: '2026-08-19T06:00:00Z', end: '2026-08-19T06:45:00Z' }, // a different day
+  ]
+  const counts = busyCountByDay(busy)
+  assert.equal(counts.get('2026-08-18'), 2)
+  assert.equal(counts.get('2026-08-19'), 1)
+})
+
+const CALENDAR_SRC = readFileSync(new URL('../api/_lib/google-calendar.js', import.meta.url), 'utf8')
+
+test('a day already at the meeting cap is skipped entirely when building availability', () => {
+  assert.ok(
+    /const dayFull = \(dayCounts\.get\(dateStr\) \|\| 0\) >= MAX_MEETINGS_PER_DAY/.test(CALENDAR_SRC),
+    'no daily-cap check in freeSlotsBetween'
+  )
+  assert.ok(/if \(isBusinessDay && !dayFull\) \{/.test(CALENDAR_SRC), 'cap not actually applied before generating slots')
+})
+
+test('availability() tries the next 7 working days before reaching further out', () => {
+  // Bar: offer 3 real options within the next 7 working days; only look past
+  // that — a second 7 working days, 14 total — if 7 wasn't enough.
+  assert.ok(/let end = endOfDayUtc\(nthBusinessDay\(start, 7\)\)/.test(CALENDAR_SRC))
+  assert.ok(/if \(raw\.length < suggest\) \{/.test(CALENDAR_SRC), 'no fallback when the first window is short')
+  assert.ok(/end = endOfDayUtc\(nthBusinessDay\(start, 14\)\)/.test(CALENDAR_SRC))
 })
 
 test('the contract names only valid stages and intents', () => {
@@ -431,10 +651,36 @@ test('the holder answers whatever arrived while it was thinking', () => {
   assert.ok(/newest\.created_at > startedAt/.test(WEBHOOK_SRC), 'does not re-check for later messages')
 })
 
+test('the calendar is fetched a stage early so qualifying mid-turn is never left with no dates to offer — regression for +972546316133', () => {
+  // The lead answered the last missing qualifying question (current
+  // management) and the agent moved straight to CALENDAR_OPTIONS in that
+  // same turn. wantsCalendar was computed from the lead's PRE-message state,
+  // which wasn't qualified yet, so availability() never ran and the model
+  // had to answer with an empty slots list — it produced a vague "we'll get
+  // back to you with dates soon" instead of real dates.
+  assert.ok(
+    /const wantsCalendar = !CALENDAR_NOT_NEEDED_STAGES\.includes\(lead\.stage\) \|\| isQualified\(lead\)/.test(WEBHOOK_SRC),
+    'wantsCalendar must be a deny-list (fetch by default) so any single last qualifying answer already has real dates ready',
+  )
+  assert.ok(/const CALENDAR_NOT_NEEDED_STAGES = \['OPENING', 'OPT_OUT', 'NOT_RELEVANT', 'HUMAN_HANDOFF'\]/.test(WEBHOOK_SRC))
+})
+
 test('a booked meeting is never moved without an explicit confirmation', () => {
-  assert.ok(/const rebooking = lead\.meeting_at && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))
+  assert.ok(/const meetingIsUpcoming = lead\.meeting_at && new Date\(lead\.meeting_at\)\.getTime\(\) > Date\.now\(\)/.test(WEBHOOK_SRC))
+  assert.ok(/const rebooking = meetingIsUpcoming && chosen && chosen\.start !== lead\.meeting_at/.test(WEBHOOK_SRC))
   assert.ok(/refused to rebook without confirmation/.test(WEBHOOK_SRC))
   assert.ok(/lead\.stage === 'MEETING_CONFIRMATION'/.test(WEBHOOK_SRC))
+})
+
+test('a meeting that already happened does not block a brand-new booking — regression for +972546316133', () => {
+  // Traced via Supabase: a lead's 24.09.2026 12:00 demo was in the past by
+  // the time they messaged again on 28.09 asking for a new slot. lead.meeting_at
+  // is never cleared after a meeting (mergeLead never overwrites with null), so
+  // the old `rebooking` check read that stale, elapsed date as an active booking
+  // and refused to touch it — replying with the old meeting instead of booking
+  // the new slot the lead had just picked. Only an upcoming meeting_at should
+  // gate a rebooking; a past one must not.
+  assert.ok(/meetingIsUpcoming && chosen/.test(WEBHOOK_SRC), 'rebooking guard must require the existing meeting to be upcoming, not just present')
 })
 
 test('a bare mention of a meeting is not treated as a booking', () => {
@@ -463,14 +709,15 @@ test('the agent is told not to invent a meeting or jump to booking', () => {
 })
 
 test('a meeting is booked outright, not handed off as homework', () => {
-  // Calendly's Scheduling API books server-side, so the lead gets a calendar
-  // invite instead of a link they have to go and finish.
-  const cal = readFileSync(new URL('../api/_lib/calendly.js', import.meta.url), 'utf8')
+  // The Calendar API books server-side, so the lead gets a calendar event
+  // (and Meet link) instead of a link they have to go and finish.
+  const cal = readFileSync(new URL('../api/_lib/google-calendar.js', import.meta.url), 'utf8')
   assert.ok(/export async function bookSlot/.test(cal))
-  assert.ok(/\$\{API\}\/invitees/.test(cal), 'wrong booking endpoint')
+  assert.ok(/\/calendars\/\$\{encodeURIComponent\(calId\)\}\/events/.test(cal), 'wrong booking endpoint')
   assert.ok(/if \(!email\) return \{ ok: false, reason: 'email_required' \}/.test(cal))
-  // The raw location kind, not the Hebrew label, is what the API accepts.
-  assert.ok(/locationKind: locKind/.test(cal))
+  // A service account without domain-wide delegation can be refused when
+  // inviting attendees — the booking must still go through without one.
+  assert.ok(/domain-wide delegation|cannot invite attendees/.test(cal), 'no fallback for blocked attendee invites')
 
   assert.ok(/const booked = await book\(/.test(WEBHOOK_SRC))
   assert.ok(/booking fell back to a scheduling link/.test(WEBHOOK_SRC), 'no fallback path')
@@ -484,6 +731,43 @@ test('no email means the slot is held, not booked and not lost', () => {
   assert.ok(/fresh\.slots\.find\(\(s\) => s\.start === lead\.pending_meeting_at\)/.test(WEBHOOK_SRC))
   // mergeLead never writes null, so clearing the held slot needs its own write.
   assert.ok(/pending_meeting_at: pendingMeetingAt/.test(WEBHOOK_SRC))
+})
+
+test('the CALENDAR_OPTIONS entry message is built from real slots, not the model', () => {
+  // Itay Asulin's conversation: the model's first CALENDAR_OPTIONS reply
+  // fabricated three dates in January in a wrong format, when the real
+  // calendar had openings next week. The fix overrides `reply` at the
+  // transition itself, using the same builder as the dashboard's manual
+  // "Ask for real dates" recovery action (nudge.js).
+  assert.ok(
+    /if \(stage === 'CALENDAR_OPTIONS' && !BOOKING_STAGES\.includes\(lead\.stage\) && calendar\.ok\) \{/.test(WEBHOOK_SRC),
+    'no deterministic override at CALENDAR_OPTIONS entry'
+  )
+  assert.ok(/reply = summaryAndSlotsMessage\(effectiveLead, calendar\.suggested\)/.test(WEBHOOK_SRC))
+  // Must run before the MEETING_BOOKED handling, and only on first entry —
+  // a lead already in BOOKING_STAGES (re-offered slots mid-conversation)
+  // keeps the model's own reply.
+  assert.ok(
+    WEBHOOK_SRC.indexOf("stage === 'CALENDAR_OPTIONS' && !BOOKING_STAGES") <
+      WEBHOOK_SRC.indexOf("if (stage === 'MEETING_BOOKED')"),
+    'override placed after the MEETING_BOOKED branch'
+  )
+})
+
+test('summaryAndSlotsMessage: real slots, folded-in email ask, no fabrication', () => {
+  const lead = { current_management: 'excel', fleet_size: 12, main_pain: 'תחזוקה' }
+  const suggested = [
+    { label: 'יום שני, 28 בספטמבר, 10:00' },
+    { label: 'יום שלישי, 29 בספטמבר, 14:00' },
+  ]
+  const msg = summaryAndSlotsMessage(lead, suggested)
+  assert.ok(msg.includes('יום שני, 28 בספטמבר, 10:00'))
+  assert.ok(msg.includes('יום שלישי, 29 בספטמבר, 14:00'))
+  assert.ok(msg.includes('12'))
+  assert.ok(msg.includes('איזה מהם הכי נוח לך, ולאיזה כתובת מייל אשלח את ההזמנה לפגישה?'))
+  // Nothing outside the given suggested labels can appear as a date/time —
+  // the whole point is that this is assembled from data, never generated.
+  assert.equal(msg.split('\n\n')[1], suggested.map((s) => s.label).join('\n'))
 })
 
 test('the agent is told a real invite needs an email first', () => {

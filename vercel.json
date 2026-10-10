@@ -1,5 +1,7 @@
 {
   "redirects": [
+    { "source": "/ca", "destination": "/us", "permanent": true },
+    { "source": "/ca/:path*", "destination": "/us", "permanent": true },
     {
       "source": "/",
       "has": [{ "type": "host", "value": "wab.celoxai.com" }],
@@ -9,6 +11,8 @@
   ],
   "rewrites": [
     { "source": "/.well-known/(.*)", "destination": "/.well-known/$1" },
+    { "source": "/us", "destination": "/us.html" },
+    { "source": "/privacy", "destination": "/privacy-app.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -33,6 +37,7 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron/wa-followups", "schedule": "0 7 * * *" }
+    { "path": "/api/cron/wa-followups", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/wa-meeting-reminders", "schedule": "*/15 * * * *" }
   ]
 }

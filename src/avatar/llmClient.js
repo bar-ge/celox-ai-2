@@ -1,13 +1,24 @@
 // TCEL-054 — LLM API connection.
 //
-// Vendor: Google Gemini (api/avatar/chat.js), switched 2026-08-24 from
-// Anthropic at Bar's request to run this widget on Gemini's free tier instead
-// of spending Anthropic tokens. The WhatsApp lead agent (api/_lib/claude.js)
-// is a separate integration and still uses Claude.
+// Vendor: OpenRouter (api/avatar/chat.js), switched 2026-09-28 at Bar's
+// request — same move made for the WhatsApp lead agent (api/_lib/claude.js)
+// at the same time, both now on a single OpenRouter key/API instead of each
+// surface carrying its own vendor integration. See
+// api/_lib/openrouter-llm.js for the shared client and full rationale.
 //
-// The API key lives server-side only (GEMINI_API_KEY). This client never
-// talks to Gemini directly from the browser — it always goes through the
+// The API key lives server-side only (OPEN_ROUTER_KEY). This client never
+// talks to OpenRouter directly from the browser — it always goes through the
 // app's own backend, same as every other API call in this codebase.
+//
+// 2026-09-28 — now also sends the caller's Supabase session token, the same
+// way src/fleet-manager.jsx already does for its own API calls (see its
+// supabase.auth.getSession() use). The backend verifies this itself and
+// resolves which company's data to scope any live-data tool call to — it
+// never trusts anything this client sends about who's asking. Without a
+// session (or if getSession() fails) the request still goes through; the
+// avatar just answers from static knowledge instead of live fleet data.
+
+import { supabase } from '../supabaseClient'
 
 /**
  * @typedef {object} AvatarReply
@@ -23,14 +34,25 @@ const CONFIDENCE_THRESHOLD = 0.55
  * @param {object} args
  * @param {string} args.message
  * @param {{role: 'user'|'assistant', text: string}[]} args.history
- * @param {{route: string, lang: string}} args.context
+ * @param {{route: string, lang: string, companyId?: string|null}} args.context  companyId is the dashboard's currently active company (see AvatarWidget.jsx); the backend only trusts it from a re-verified master session
  * @returns {Promise<AvatarReply>}
  */
 export async function askAvatar({ message, history, context }) {
   try {
+    let token = null
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      token = session?.access_token ?? null
+    } catch {
+      /* no session available — proceed without it, backend degrades gracefully */
+    }
+
     const res = await fetch('/api/avatar/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         message,
         history: history.slice(-10), // keep the request small

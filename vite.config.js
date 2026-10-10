@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import regionHeads from './scripts/vite-plugin-region-heads.mjs'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), regionHeads()],
   publicDir: 'public',
   build: {
     rollupOptions: {

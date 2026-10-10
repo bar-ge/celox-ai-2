@@ -107,6 +107,31 @@ ${openQs.length ? `שאלות פתוחות שכבר תועדו: ${openQs.join(' 
 
 const HE_WEEKDAY = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת']
 
+// 🚨 2026-09-28: this file never told the model what "today" actually is —
+// confirmed live (Itay Asulin's conversation, 3 days into a booked meeting):
+// on Monday Sept 28 he wrote "מחר בשעה תשע?" ("tomorrow at nine?") and the
+// agent replied "tomorrow is Wednesday, September 30", a full day off
+// (tomorrow from a Monday is Tuesday the 29th). A model has no reliable
+// built-in sense of the current date — it was resolving "tomorrow" from
+// nothing but its own guess, model quality notwithstanding. Every OTHER
+// date-shaped answer in this prompt (the calendar block below) has always
+// been server-computed and handed to the model as fact for exactly this
+// reason; "today" itself was the one date-shaped fact still missing.
+const JERUSALEM_DATE_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' })
+
+/** @returns {string} today's date block, anchoring every relative-time reference in the reply */
+function todayBlock() {
+  const dateStr = JERUSALEM_DATE_FMT.format(new Date()) // "YYYY-MM-DD"
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const weekday = HE_WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  return `# תאריך היום
+
+היום הוא ${weekday}, ${dateStr} (שעון ישראל). זהו העוגן היחיד לכל חישוב תאריך יחסי
+בשיחה — "מחר", "מחרתיים", "השבוע", "יום שלישי הקרוב" וכל ביטוי דומה מחושבים
+מהתאריך הזה בדיוק, ולא מהערכה עצמית. אל תסתמך על תחושה פנימית לגבי התאריך
+הנוכחי — היא לא אמינה.`
+}
+
 /**
  * The calendar block: three slots to offer, plus every open slot so a
  * lead-requested time can be answered truthfully rather than deflected.
@@ -152,14 +177,25 @@ ${suggested.map((s, i) => `${i + 1}. ${s.label}   — מזהה: ${s.key}`).join(
 ${lines.join('\n')}
 
 איך להשתמש ברשימה הזו:
-- אם הליד מבקש יום ושעה מסוימים, בדוק אותם מול הרשימה. אם השעה מופיעה — אשר
-  אותה והמשך לשלב אישור הפגישה. אם היא אינה מופיעה — אמור זאת בפשטות והצע את
-  השעות הקרובות ביותר באותו יום, או את היום הפנוי הקרוב.
-- אם הליד מבקש יום בלי שעה, הצע שתיים-שלוש שעות מאותו יום.
+- אם הליד בוחר יום שמופיע באחד משלושת המועדים שהוצעו לו ביוזמתך למעלה
+  ("המועדים שיש להציע ביוזמתך"), ולא ציין שעה אחרת — זו בחירה של המועד
+  המדויק שכבר הוצע (כולל השעה שלו), לא בקשה פתוחה ליום בלי שעה. קבע ישירות
+  את המזהה (key) של אותו מועד שהוצע ועבור לשלב אישור הפגישה (או בקשת מייל,
+  אם הוא עדיין חסר) — אל תשאל שוב "באיזו שעה", ואל תציג לו רשימת שעות
+  נוספות של אותו יום. דוגמה: הוצעו "יום שני, 5 באוקטובר, 09:00" כאחת משלוש
+  האפשרויות, והליד ענה "5 באוקטובר" (או "יום שני") בלי לציין שעה — זה אישור
+  ל-09:00 באותו יום, לא שאלה פתוחה.
+- אם הליד מבקש יום ושעה מסוימים שלא הוצעו לו (יום חדש, לא אחד משלושת
+  המועדים), בדוק אותם מול הרשימה. אם השעה מופיעה — אשר אותה והמשך לשלב
+  אישור הפגישה. אם היא אינה מופיעה — אמור זאת בפשטות והצע את השעות הקרובות
+  ביותר באותו יום, או את היום הפנוי הקרוב.
+- אם הליד מבקש יום חדש (שלא הוצע) בלי שעה, הצע שתיים-שלוש שעות מאותו יום.
 - אל תמציא מועד שאינו ברשימה, ואל תאשר שעה לפני שראית אותה כאן.
 - הפגישה נקבעת על ידי המערכת בפועל, ונשלחת הזמנה ליומן. לשם כך דרושה כתובת
-  מייל. אם היא עדיין לא ידועה, בקש אותה יחד עם אישור המועד — ואל תבטיח שההזמנה
-  נשלחה לפני שיש לך אותה.
+  מייל. אם היא עדיין לא ידועה, בקש אותה כבר בהודעה שמציעה את שלושת המועדים
+  (סעיף 10 בתסריט) — יחד עם שאלת "איזה מהם הכי נוח לך", לא בהודעה נפרדת אחרי
+  שהליד בחר מועד. אם הליד בחר מועד בלי למסור מייל, בקש את המייל לבדו בתשובה
+  הבאה. אל תבטיח שההזמנה נשלחה לפני שיש לך גם מועד וגם מייל.
 - המזהה של כל מועד הוא בפורמט "YYYY-MM-DD HH:MM" — למשל "${slots[0].key}".`
 }
 
@@ -168,7 +204,7 @@ ${lines.join('\n')}
  *
  * @param {object} args
  * @param {Record<string, unknown>} args.lead        current leads row
- * @param {{ key: string, label: string }[]} [args.slots]      every open Calendly slot
+ * @param {{ key: string, label: string }[]} [args.slots]      every open calendar slot
  * @param {{ key: string, label: string }[]} [args.suggested]  the three to offer unprompted
  * @param {number} [args.meetingMinutes]             meeting length, if known
  * @param {string} [args.meetingKind]                'טלפון' | 'Zoom' | 'Google Meet'
@@ -178,6 +214,8 @@ export function buildSystemPrompt({ lead, slots = [], suggested, meetingMinutes,
   return [
     'אתה סוכן ה-AI של CELOX AI שמנהל שיחות WhatsApp ראשוניות עם לידים.',
     'התסריט למטה הוא ההנחיה המחייבת שלך. פעל לפיו במדויק.',
+    '',
+    todayBlock(),
     '',
     CELOX_INFO_PROMPT,
     PRODUCT_KNOWLEDGE,

@@ -7,11 +7,12 @@ import StageBadge from './StageBadge'
 const MANAGEMENT_LABEL = { excel: 'Excel', system: 'System', mixed: 'Mixed', none: 'None' }
 const DASH = '—'
 
-export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, onSendBooking, onRestart, onClose, showClose }) {
+export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, onSendBooking, onNudge, onRestart, onClose, showClose }) {
   const narrow = layout === 'narrow'
   const [copied, setCopied] = useState(false)
   // Keyed by phone so switching leads resets the button without an effect.
   const [booking, setBooking] = useState({ phone: null, state: 'idle' })
+  const [nudging, setNudging] = useState({ phone: null, state: 'idle' })
   const [restarting, setRestarting] = useState({ phone: null, state: null })
   const [, tick] = useState(0)
 
@@ -22,6 +23,7 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
   }, [])
 
   const bookingState = booking.phone === lead?.phone ? booking.state : 'idle'
+  const nudgeState = nudging.phone === lead?.phone ? nudging.state : 'idle'
   // Scoped to the lead, so switching threads never shows another one's result.
   const restartState = restarting.phone === lead?.phone ? restarting.state : null
 
@@ -63,6 +65,17 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
       setBooking({ phone, state: 'sent' })
     } catch {
       setBooking({ phone, state: 'failed' })
+    }
+  }
+
+  async function handleNudge() {
+    const phone = lead.phone
+    setNudging({ phone, state: 'sending' })
+    try {
+      await onNudge(phone)
+      setNudging({ phone, state: 'sent' })
+    } catch {
+      setNudging({ phone, state: 'failed' })
     }
   }
 
@@ -230,6 +243,30 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
         </Field>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+          {onNudge && lead.stage === 'CALENDAR_OPTIONS' && !lead.meeting_at && (
+            <button
+              onClick={handleNudge}
+              disabled={nudgeState === 'sending' || lead.opted_out}
+              title="Re-sends the summary and real open slots — for when the agent stalled instead of showing them"
+              style={{
+                fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600,
+                padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
+                borderRadius: T.radius, border: 'none',
+                background: T.accent, color: T.white,
+                cursor: nudgeState === 'sending' || lead.opted_out ? 'not-allowed' : 'pointer',
+                opacity: lead.opted_out ? 0.5 : 1,
+                transition: 'background-color 150ms ease',
+              }}
+              onMouseEnter={(e) => { if (!lead.opted_out) e.currentTarget.style.background = T.accentHover }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = T.accent }}
+            >
+              {nudgeState === 'sending' ? 'Sending...'
+                : nudgeState === 'sent' ? 'Real dates sent'
+                : nudgeState === 'failed' ? 'Failed — retry'
+                : 'Ask for real dates'}
+            </button>
+          )}
+
           <button
             onClick={handleBooking}
             disabled={bookingState === 'sending' || lead.opted_out}

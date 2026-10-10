@@ -1,68 +1,49 @@
 import { buildSystemPrompt } from '../_lib/avatar-knowledge.js'
-import { callOnPrem, onPremConfigured, onPremText } from '../_lib/onprem-llm.js'
-import { callHuggingFace, hfConfigured, hfText } from '../_lib/hf-llm.js'
+import { callOpenRouterRaw, openRouterMessage, openRouterText, openRouterConfigured, DEFAULT_OPEN_ROUTER_MODEL } from '../_lib/openrouter-llm.js'
+import { TOOL_DEFS, runTool } from '../_lib/avatar-tools.js'
+import { requireUser } from '../_lib/auth.js'
 
-// maxDuration explicit: this route now tries up to two extra tiers (on-prem,
-// then Hugging Face's free router) before Gemini, same reasoning as
-// api/wa/webhook.js's explicit maxDuration. Purely a ceiling raise; normal
-// replies return in a couple of seconds either way, and Gemini's own
-// TOTAL_BUDGET_MS is unchanged below.
+// maxDuration left at 60 from the Gemini-era three-tier setup (on-prem → HF →
+// Gemini). This route now does at most MAX_TOOL_ROUNDS+1 OpenRouter calls
+// (one for each tool round trip, plus the final answer), comfortably inside
+// that budget, but nobody asked to tune the ceiling down, so it's left as-is.
 export const config = { maxDuration: 60 }
 
 // TCEL-054 — LLM API connection for the in-app avatar.
 //
-// Vendor: Google Gemini, not Anthropic. Switched 2026-08-24 at Bar's request
-// to keep this widget off Anthropic token spend — the WhatsApp lead agent
-// (api/_lib/claude.js) still runs on Claude and is untouched by this change.
-// Gemini's free tier covers this widget's traffic; the work here is small
-// structured replies, not deep reasoning, so the quality gap vs Claude is an
-// acceptable tradeoff. Calls the REST API directly (no new npm dependency)
-// and uses responseSchema to force valid JSON back — more reliable than the
-// old extract-JSON-from-freeform-text approach this file used with Anthropic.
+// Vendor history: Anthropic → Gemini (2026-08-24) → OpenRouter (2026-09-28,
+// Bar's request). See api/_lib/openrouter-llm.js for the shared client and
+// full rationale, and api/_lib/claude.js for the WhatsApp agent's identical
+// switch made the same day.
 //
-// GEMINI_API_KEY must be set (free key: aistudio.google.com/apikey). If it
-// isn't, this returns 503 rather than crashing — the frontend
-// (src/avatar/llmClient.js) shows a "not configured" message instead of a
-// silent failure.
+// 2026-09-28, same day — live fleet data. The avatar used to be pure static
+// knowledge (app tabs, form templates, domain terms — see
+// api/_lib/avatar-knowledge.js) with no way to answer a question like "how
+// many cars do I have," so it correctly said "I don't know" rather than
+// guess. Bar asked for the model to be able to look up real answers, and
+// picked OpenRouter's standard tool-calling over a fixed pre-computed
+// snapshot (see api/_lib/avatar-tools.js for the tool definitions and their
+// rationale) so it can answer whatever shape of live-data question comes in.
 //
-// Note for Bar: Google's free tier logs prompts to improve their products
-// (the paid tier doesn't). Fine for fleet-ops Q&A; worth knowing before
-// anything more sensitive goes through this path.
+// This means the route now needs to know WHO is asking, to scope any tool
+// call to that person's own company and nobody else's — requireUser() in
+// auth.js verifies the browser's Supabase session token server-side and
+// resolves company_id from `profiles`, the same trust boundary every other
+// dashboard API route in this app uses. If the token is missing or invalid,
+// the assistant still answers from static knowledge — it just can't use the
+// live-data tools for that request, rather than hard-failing the whole chat.
+//
+// OPEN_ROUTER_KEY must be set (Bar creates it at openrouter.ai/keys and
+// pastes it into Vercel himself). If it isn't, this returns 503 rather than
+// crashing — the frontend (src/avatar/llmClient.js) shows a "not configured"
+// message instead of a silent failure.
 
-// 2026-08-27: gemini-2.5-flash started 404ing with "no longer available to
-// new users", so the default moved to Google's current Flash model.
-//
-// 2026-08-28: that fixed the 404 and immediately surfaced the next problem —
-// 3.7-flash is the newest model, so on the free tier it is the most contended.
-// Live errors were 503 "This model is currently experiencing high demand" and
-// outright request timeouts. A single attempt against a busy model is not
-// good enough for a chat widget, so the call now retries and, if the preferred
-// model is still refusing, drops to an older and far less contended one for
-// that request. Quality dips slightly; a reply beats an error.
-//
-// Both are overridable from the Vercel dashboard with no deploy.
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.7-flash'
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash'
+const MODEL = process.env.AVATAR_OPEN_ROUTER_MODEL || DEFAULT_OPEN_ROUTER_MODEL
+const FALLBACK_MODEL = process.env.AVATAR_OPEN_ROUTER_FALLBACK_MODEL || MODEL
 
-// Per-attempt, not total. Three attempts at 11s each plus backoff stays inside
-// the function's execution budget; TOTAL_BUDGET_MS stops the last attempt from
-// starting if the earlier ones already burned the time.
-const ATTEMPT_TIMEOUT_MS = 11000
-const TOTAL_BUDGET_MS = 24000
-const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
 const MAX_TOKENS = 2048
 const VALID_INTENTS = ['qa', 'navigate', 'escalate', 'unclear']
-
-const RESPONSE_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    reply: { type: 'STRING' },
-    intent: { type: 'STRING', enum: VALID_INTENTS },
-    actionId: { type: 'STRING', nullable: true },
-    confidence: { type: 'NUMBER' },
-  },
-  required: ['reply', 'intent', 'confidence'],
-}
+const MAX_TOOL_ROUNDS = 2 // bounds latency/cost; also blocks a runaway tool-call loop
 
 function extractJson(raw) {
   let s = String(raw || '').trim()
@@ -85,64 +66,158 @@ export default async function handler(req, res) {
   const systemPrompt = buildSystemPrompt(lang)
   const priorTurns = Array.isArray(history) ? history.slice(-10) : []
 
-  // Three tiers, in order: self-hosted VPS, Hugging Face's free router, then
-  // Gemini below, unchanged. Same pattern and reasoning as api/_lib/claude.js
-  // — see onprem-llm.js / hf-llm.js. Each tier is a silent no-op when
-  // unconfigured, so today this runs exactly the Gemini path, unchanged.
-  const onPremMessages = [
+  if (!openRouterConfigured()) {
+    console.error('OPEN_ROUTER_KEY is not set — avatar chat unavailable')
+    return res.status(503).json({ reply: null, reason: 'not_configured' })
+  }
+
+  // Never trust a client-supplied company/user id for tool scoping — resolve
+  // it ourselves from the verified session, or fall back to no-tools mode.
+  // The one exception: context.companyId (the dashboard's currently active
+  // company — see AvatarWidget.jsx) is passed through as requestedCompanyId,
+  // but requireUser() only honors it for a caller it independently
+  // re-verifies as the master account server-side; everyone else's request
+  // is silently ignored in favor of their own profiles.company_id. This
+  // exists because the master "view as company" switcher is client-side
+  // React state — it never changes whose company the session actually
+  // belongs to — see the requestedCompanyId comment in auth.js for the bug
+  // this fixed (the avatar answering from Bar's own small test company
+  // while he was viewing a different one).
+  const requestedCompanyId = typeof context?.companyId === 'string' ? context.companyId : null
+  const auth = await requireUser(req, { requestedCompanyId })
+  const companyId = auth.ok ? auth.companyId : null
+  const tools = companyId ? TOOL_DEFS : undefined
+  if (!auth.ok) console.warn('avatar chat: no verified session, answering without live-data tools —', auth.reason)
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
     ...priorTurns.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 2000) })),
     { role: 'user', content: message.slice(0, 2000) },
   ]
 
-  const onPrem = await callOnPrem({ systemPrompt, messages: onPremMessages, maxTokens: MAX_TOKENS, jsonMode: true })
-  if (onPrem.data) {
-    return respondFromText(res, onPremText(onPrem.data))
+  let lastError = null
+  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+    const isFinalRound = round === MAX_TOOL_ROUNDS
+    // 🚨 2026-09-28: first shipped with jsonMode always on, on the assumption
+    // response_format json_object and tools were independent — wrong, at
+    // least for Groq (one of the providers OpenRouter can route this model
+    // to): "Groq does not support response_format type json_object combined
+    // with tool calling" (400, confirmed in production logs within minutes
+    // of deploy). So: tools are only offered on a non-final round, and
+    // jsonMode only forced on the final round once tools are off the table —
+    // a round that offers tools leaves response_format unset and relies on
+    // the system prompt's own "return valid JSON only" instruction plus
+    // extractJson()'s markdown-fence/preamble stripping below for the case
+    // where the model answers in plain content without calling a tool.
+    const { data, lastError: err } = await callOpenRouterRaw({
+      messages,
+      model: MODEL,
+      fallbackModel: FALLBACK_MODEL,
+      maxTokens: MAX_TOKENS,
+      jsonMode: isFinalRound,
+      tools: !isFinalRound ? tools : undefined,
+    })
+
+    if (!data) {
+      lastError = err
+      break
+    }
+
+    const msg = openRouterMessage(data)
+    const toolCalls = msg?.tool_calls
+    // Temporary diagnostic (2026-09-28) — a live reply came back as
+    // nonsense ("אני ישרד") with no error logged anywhere, which only tells
+    // us the model itself produced bad content, not why. This logs which
+    // underlying model OpenRouter actually routed to (it can differ per
+    // call) and whether it chose to call a tool, so the next bad reply is
+    // traceable instead of a dead end. Safe to remove once the tool-calling
+    // path has proven reliable for a while.
+    console.log('avatar chat round', round, 'openrouter model=', data?.model, 'tool_calls=', toolCalls?.length || 0, toolCalls?.map(c => c.function?.name))
+    if (Array.isArray(toolCalls) && toolCalls.length && !isFinalRound) {
+      messages.push({ role: 'assistant', content: msg.content || '', tool_calls: toolCalls })
+      // Run every requested call (models sometimes batch a couple together);
+      // each is independently scoped to companyId, never to anything the
+      // model passed in its arguments.
+      for (const call of toolCalls) {
+        let args = {}
+        try { args = JSON.parse(call.function?.arguments || '{}') } catch { /* malformed args → empty */ }
+        const result = await runTool(call.function?.name, args, companyId)
+        messages.push({
+          role: 'tool',
+          tool_call_id: call.id,
+          name: call.function?.name,
+          content: JSON.stringify(result),
+        })
+      }
+      continue // let the model see the tool result(s) and respond
+    }
+
+    // No tool call (or we're out of rounds) — this is the final answer.
+    const finalText = openRouterText(data)
+    console.log('avatar chat final raw text:', finalText.slice(0, 400))
+
+    // 2026-09-30: traced via production logs (screenshot from Bar — four
+    // questions in a row all came back with the generic "couldn't answer"
+    // fallback). The model's actual answers were fine ("יש לך 103 נהגים" is
+    // a correct, live-data answer) — they just weren't wrapped in the
+    // required JSON envelope. That happens whenever the model answers on a
+    // round where tools were offered (round < MAX_TOOL_ROUNDS): jsonMode is
+    // only forced on the literal last round (see the comment above), but a
+    // round with tools offered can still be the FINAL answer whenever the
+    // model simply chooses not to call a tool — and without response_format
+    // forcing it, a cheaper/faster model doesn't reliably follow the system
+    // prompt's "return JSON only" instruction on its own. Previously that
+    // discarded a perfectly good answer and showed the generic fallback
+    // instead. Now: try to parse first, and only pay for a repair call (one
+    // extra round-trip, jsonMode forced, tools off — safe to combine per the
+    // Groq constraint above) when the model's own answer didn't come back
+    // as JSON, instead of throwing a good answer away.
+    if (extractJson(finalText)?.reply != null) {
+      return respondFromText(res, finalText)
+    }
+
+    console.warn('avatar chat: final reply was not JSON, repairing —', finalText.slice(0, 200))
+    const repairedText = await repairAsJson({ messages, finalText })
+    return respondFromText(res, repairedText)
   }
-  if (onPremConfigured()) console.warn('avatar chat: onprem LLM failed, trying Hugging Face —', onPrem.lastError)
 
-  const hf = await callHuggingFace({ systemPrompt, messages: onPremMessages, maxTokens: MAX_TOKENS, jsonMode: true })
-  if (hf.data) {
-    return respondFromText(res, hfText(hf.data))
-  }
-  if (hfConfigured()) console.warn('avatar chat: Hugging Face failed, falling back to Gemini —', hf.lastError)
-
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    console.error('GEMINI_API_KEY is not set — avatar chat unavailable')
-    return res.status(503).json({ reply: null, reason: 'not_configured' })
-  }
-
-  const contents = [
-    ...priorTurns.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.text || '').slice(0, 2000) }],
-    })),
-    { role: 'user', parts: [{ text: message.slice(0, 2000) }] },
-  ]
-
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: systemPrompt }] },
-    contents,
-    generationConfig: {
-      maxOutputTokens: MAX_TOKENS,
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-    },
-  })
-
-  const { data, lastError } = await callGemini({ apiKey, body })
-
-  if (!data) {
-    console.error('avatar chat: Gemini call failed after 3 attempts —', lastError)
-    return res.status(500).json({ reply: null, reason: 'api_error' })
-  }
-
-  const text = (data?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')
-  return respondFromText(res, text)
+  console.error('avatar chat: OpenRouter call failed —', lastError)
+  return res.status(500).json({ reply: null, reason: 'api_error' })
 }
 
-/** Shared JSON-extract + validate + respond tail, used by all three tiers so
- * none of them has to duplicate the parsing rules. */
+/**
+ * One extra OpenRouter call, tools off, jsonMode forced, asking the model to
+ * re-wrap its own last answer as the required JSON — instead of re-asking
+ * the question (which could get a different answer, or call a tool again).
+ * Falls back to the original text if the repair call itself fails; that
+ * still hits extractJson() in respondFromText() and, if it also can't be
+ * parsed, ends in the same generic "couldn't answer" message as before —
+ * this only ever improves on that, never makes it worse.
+ */
+async function repairAsJson({ messages, finalText }) {
+  const repairMessages = [
+    ...messages,
+    { role: 'assistant', content: finalText },
+    {
+      role: 'user',
+      content: 'החזר את התשובה הקודמת שלך כ-JSON תקין בלבד, באותו תוכן בדיוק, בפורמט: ' +
+        '{"reply": string, "intent": "qa"|"navigate"|"escalate"|"unclear", "actionId": string|null, "confidence": number 0-1}',
+    },
+  ]
+  const { data } = await callOpenRouterRaw({
+    messages: repairMessages,
+    model: MODEL,
+    fallbackModel: FALLBACK_MODEL,
+    maxTokens: MAX_TOKENS,
+    jsonMode: true,
+  })
+  if (!data) return finalText
+  const repaired = openRouterText(data)
+  console.log('avatar chat repaired text:', repaired.slice(0, 400))
+  return repaired
+}
+
+/** Shared JSON-extract + validate + respond tail. */
 function respondFromText(res, text) {
   try {
     const parsed = extractJson(text)
@@ -162,61 +237,4 @@ function respondFromText(res, text) {
     console.error('avatar chat: could not read model response', err instanceof Error ? err.message : err)
     return res.status(500).json({ reply: null, reason: 'api_error' })
   }
-}
-
-// Preferred model twice, then the fallback. A 503 from Gemini is usually a
-// momentary demand spike, so a second attempt at the same model often
-// succeeds; the third only exists for when it does not.
-//
-// 🚨 2026-09-16: this used to `break` on a non-retryable status (400/403/404),
-// which means a dead/retired PRIMARY model killed the whole call and
-// FALLBACK_MODEL was NEVER reached — the exact bug that took down
-// api/_lib/claude.js's NVIDIA path for real (410 on the primary, no
-// fallback attempt). This file was flagged by this repo's own review-checker
-// as carrying the same defect (see claude/review-checker-sep-2026.md, "0e")
-// even though it's also the file the CORRECT `wait`-based retry pattern was
-// copied FROM — ironic, but both true. Now uses the same deadModels/continue
-// approach as callNvidia: a non-retryable failure retires that one model for
-// the rest of this call and moves on, instead of aborting everything.
-//
-// `fetchImpl` is injectable so the retry behaviour can be tested without
-// hitting Google — see the note in claude/avatar-chat-gemini-model.md.
-export async function callGemini({ apiKey, body, fetchImpl = fetch, now = Date.now, sleep }) {
-  const attempts = [MODEL, MODEL, FALLBACK_MODEL]
-  const wait = sleep || (ms => new Promise(r => setTimeout(r, ms)))
-  const startedAt = now()
-  let lastError = 'no attempt made'
-  const deadModels = new Set()
-
-  for (let i = 0; i < attempts.length; i++) {
-    const model = attempts[i]
-    if (deadModels.has(model)) continue // already failed non-retryably this call — don't burn another attempt on it
-    if (i > 0) {
-      if (now() - startedAt > TOTAL_BUDGET_MS) break
-      await wait(400 * i)
-    }
-    try {
-      const resp = await fetchImpl(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
-          body,
-        }
-      )
-      if (resp.ok) {
-        if (i > 0) console.warn('avatar chat: recovered on attempt', i + 1, 'with', model)
-        return { data: await resp.json(), lastError: null, model, attempt: i + 1 }
-      }
-      const errBody = await resp.text().catch(() => '')
-      lastError = `${resp.status} ${errBody.slice(0, 300)}`
-      // 400/403/404 mean THIS model is dead for the call — but says nothing
-      // about FALLBACK_MODEL, so retire only this one and keep going.
-      if (!RETRYABLE_STATUS.has(resp.status)) deadModels.add(model)
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err)   // timeout / network
-    }
-  }
-  return { data: null, lastError }
 }

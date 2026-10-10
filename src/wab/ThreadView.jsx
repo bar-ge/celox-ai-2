@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { T, FONT_SANS, FONT_MONO, fullDateTime } from './theme'
 import MessageBubble from './MessageBubble'
 import StageBadge from './StageBadge'
 
-export default function ThreadView({ lead, messages, loading, layout = 'wide', onResumeBot, onBack, onOpenDetail }) {
+export default function ThreadView({
+  lead, messages, loading, layout = 'wide', onResumeBot, onSendReply, onBack, onOpenDetail,
+}) {
   const endRef = useRef(null)
   const count = messages.length
   const narrow = layout === 'narrow'
@@ -97,6 +99,77 @@ export default function ThreadView({ lead, messages, loading, layout = 'wide', o
         ))}
         <div ref={endRef} />
       </div>
+
+      {onSendReply && <ReplyBox lead={lead} narrow={narrow} pad={pad} onSendReply={onSendReply} />}
+    </div>
+  )
+}
+
+// "Take control" — a real WhatsApp message sent through the same Cloud API
+// number the bot uses, from a human. Sending always pauses the bot too (see
+// api/wa/reply.js), so it never lands on top of a bot reply.
+function ReplyBox({ lead, narrow, pad, onSendReply }) {
+  const [text, setText] = useState('')
+  const [state, setState] = useState(null) // null | 'sending' | 'failed'
+
+  const disabled = lead.opted_out || state === 'sending'
+
+  const send = async () => {
+    const body = text.trim()
+    if (!body || disabled) return
+    setState('sending')
+    try {
+      await onSendReply(lead.phone, body)
+      setText('')
+      setState(null)
+    } catch {
+      setState('failed')
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      send()
+    }
+  }
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-end', gap: 8, flexShrink: 0,
+      padding: pad, borderTop: `1px solid ${T.border}`, background: T.white,
+    }}>
+      <textarea
+        dir="auto"
+        rows={narrow ? 2 : 1}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        placeholder={lead.opted_out ? 'This lead opted out' : 'Reply as a human — this pauses the bot and sends now'}
+        style={{
+          flex: 1, minWidth: 0, resize: 'none',
+          fontFamily: FONT_SANS, fontSize: T.fs13, lineHeight: 1.4,
+          padding: '10px 12px', borderRadius: T.radius, border: `1px solid ${T.border}`,
+          background: disabled ? T.subtle : T.white, color: T.text,
+          outline: 'none',
+        }}
+      />
+      <button
+        onClick={send}
+        disabled={disabled || !text.trim()}
+        style={{
+          fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600, flexShrink: 0,
+          padding: narrow ? '12px 14px' : '10px 14px', minHeight: narrow ? 44 : 0,
+          borderRadius: T.radius, border: 'none',
+          background: T.accent, color: T.white,
+          cursor: disabled || !text.trim() ? 'not-allowed' : 'pointer',
+          opacity: disabled || !text.trim() ? 0.5 : 1,
+          transition: 'background-color 150ms ease',
+        }}
+      >
+        {state === 'sending' ? 'Sending...' : state === 'failed' ? 'Failed — retry' : 'Send'}
+      </button>
     </div>
   )
 }

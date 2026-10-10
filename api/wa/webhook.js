@@ -10,10 +10,11 @@ import {
 } from '../_lib/crm.js'
 import { runAgent } from '../_lib/claude.js'
 import { buildSystemPrompt } from '../_lib/system-prompt.js'
-import { availability, splitSlotHe, bookSlot } from '../_lib/calendly.js'
-import { sendNewLeadAlert } from '../_lib/alerts.js'
+import { availability, splitSlotHe, bookSlot } from '../_lib/google-calendar.js'
+import { sendNewLeadAlert, sendMeetingBookedAlert } from '../_lib/alerts.js'
 import { isQualified, nextUnansweredStage } from '../_lib/conversation-state.js'
 import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-script.js'
+import { summaryAndSlotsMessage } from '../_lib/calendar-message.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
 import { syncLead } from '../_lib/monday.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
@@ -30,8 +31,31 @@ export const config = { api: { bodyParser: false }, maxDuration: 60 }
 // and a half-finished turn never strands a conversation.
 const TURN_BUDGET_MS = 40000
 
-/** Stages where real calendar availability is worth fetching. */
-const CALENDAR_STAGES = ['PROCESS_EXPLANATION', 'CALENDAR_OPTIONS', 'MEETING_CONFIRMATION']
+/**
+ * Stages where the lead has not even started answering qualifying questions
+ * yet, or the conversation is somewhere calendar availability can never be
+ * useful — the only stages where it's safe to skip fetching it.
+ *
+ * 🚨 2026-09-28: calendar fetching used to be gated by isQualified(lead) as
+ * computed BEFORE this turn's message is processed (an allow-list of just
+ * PROCESS_EXPLANATION/CALENDAR_OPTIONS/MEETING_CONFIRMATION). Traced via
+ * Supabase (+972546316133): a lead can complete qualification (role + fleet
+ * size + current management) mid-turn — answering the last missing piece in
+ * the very message that also pushes next_stage straight to CALENDAR_OPTIONS.
+ * On that exact turn, isQualified(lead) was still false pre-message, so
+ * availability() was never called, and the model was asked to offer real
+ * dates with an empty slots list — it improvised a vague "we'll get back to
+ * you with dates soon" instead of actually offering anything.
+ *
+ * The fix is a deny-list instead of an allow-list: fetch the calendar for
+ * every stage except the ones below, so whichever single qualifying
+ * question happens to be the lead's last unanswered one — ROLE, FLEET_SIZE
+ * or CURRENT_MANAGEMENT, now that a returning lead can jump straight to
+ * whichever is actually still missing (see conversation-state.js,
+ * 2026-09-28) — the calendar is already in hand the moment that question
+ * gets answered, not one turn late.
+ */
+const CALENDAR_NOT_NEEDED_STAGES = ['OPENING', 'OPT_OUT', 'NOT_RELEVANT', 'HUMAN_HANDOFF']
 
 /** Stages that mean the lead has actually been shown times to choose from. */
 const BOOKING_STAGES = ['CALENDAR_OPTIONS', 'MEETING_CONFIRMATION', 'MEETING_BOOKED']
@@ -137,9 +161,13 @@ function verify(req, res) {
 }
 
 /**
+ * Exported so api/wa/simulate.js (the protected test-chat endpoint, 2026-09-28)
+ * can drive the exact same inbound-message pipeline a real WhatsApp message
+ * hits — claim/release, dedupe, drain loop, alerts, the lot — instead of a
+ * hand-rolled re-implementation that could quietly drift from the real thing.
  * @param {{ waMessageId: string, phone: string, profileName: string|null, text: string }} inbound
  */
-async function handleInbound(inbound) {
+export async function handleInbound(inbound) {
   const { waMessageId, phone, profileName, text } = inbound
 
   const seed = await getOrCreateLead(phone, { firstName: profileName })
@@ -223,9 +251,9 @@ async function respond(phone, text) {
   // The current message is already logged, so it is the last history entry.
   const messages = history.length ? history : [{ role: 'user', content: text }]
 
-  const wantsCalendar = CALENDAR_STAGES.includes(lead.stage) || isQualified(lead)
+  const wantsCalendar = !CALENDAR_NOT_NEEDED_STAGES.includes(lead.stage) || isQualified(lead)
   let calendar = { ok: false, reason: 'not_requested', slots: [], suggested: [] }
-  if (wantsCalendar) calendar = await availability({ days: 14, suggest: 3 })
+  if (wantsCalendar) calendar = await availability({ suggest: 3 })
 
   const systemPrompt = buildSystemPrompt({
     lead,
@@ -249,12 +277,25 @@ async function respond(phone, text) {
   let meetingUrl = null
   let pendingMeetingAt = null
 
-  // Calendly was needed but unreachable — say so honestly, hand to a human.
+  // The calendar was needed but unreachable — say so honestly, hand to a human.
   if (wantsCalendar && !calendar.ok && calendar.reason !== 'not_requested' &&
       ['CALENDAR_OPTIONS', 'MEETING_CONFIRMATION', 'MEETING_BOOKED'].includes(stage)) {
     reply = CALENDAR_ERROR_MESSAGE
     stage = 'HUMAN_HANDOFF'
     agent.requires_human = true
+  }
+
+  // The moment a lead first reaches CALENDAR_OPTIONS, build the "summary +
+  // real slots" message deterministically instead of trusting the model's
+  // own wording — it has fabricated or misformatted dates here before (e.g.
+  // offering slots in January while the real calendar had next-week
+  // openings). BOOKING_STAGES.includes(lead.stage) means this isn't the
+  // first entry (the lead was already offered slots earlier), so leave the
+  // model's reply alone on later turns — this override is only for the
+  // transition itself.
+  if (stage === 'CALENDAR_OPTIONS' && !BOOKING_STAGES.includes(lead.stage) && calendar.ok) {
+    const effectiveLead = { ...lead, ...agent.extracted }
+    reply = summaryAndSlotsMessage(effectiveLead, calendar.suggested)
   }
 
   // A meeting is only ever written after the lead confirmed a slot that is
@@ -267,7 +308,19 @@ async function respond(phone, text) {
       ? calendar.slots.find((s) => s.key === wanted || s.start === wanted)
       : null
 
-    const rebooking = lead.meeting_at && chosen && chosen.start !== lead.meeting_at
+    // 2026-09-28: lead.meeting_at is never cleared once a meeting is booked
+    // (mergeLead intentionally never overwrites a value with null — see its
+    // own comment), so it is still sitting in the lead row days later, long
+    // after that meeting has come and gone. Traced via Supabase
+    // (+972546316133): the lead's 24.09.2026 12:00 demo was in the past by
+    // the time they messaged again on 28.09 asking for a brand-new slot —
+    // this guard read the stale past date as "an active booking" and
+    // refused to touch it, replying with the old meeting instead of booking
+    // the new one the lead had just picked from the options the bot itself
+    // had offered seconds earlier. Only a meeting still in the future counts
+    // as something worth protecting from a silent overwrite.
+    const meetingIsUpcoming = lead.meeting_at && new Date(lead.meeting_at).getTime() > Date.now()
+    const rebooking = meetingIsUpcoming && chosen && chosen.start !== lead.meeting_at
     const confirmedThisTurn = lead.stage === 'MEETING_CONFIRMATION'
 
     // Did this lead ever actually get as far as picking a time? A lead who
@@ -297,7 +350,7 @@ async function respond(phone, text) {
       const { date, time } = splitSlotHe(chosen.start)
 
       if (!email) {
-        // Calendly has nowhere to send the invite without an address, and
+        // Google Calendar has nowhere to send the invite without an address, and
         // rejects the booking outright. Hold the agreed time so the next turn
         // can finish the job the moment they answer.
         pendingMeetingAt = chosen.start
@@ -315,7 +368,7 @@ async function respond(phone, text) {
       }
     } else {
       // The model claimed a booking we cannot verify — do not fake it.
-      const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
+      const fresh = calendar.ok ? calendar : await availability({ suggest: 3 })
       if (fresh.ok) {
         stage = 'CALENDAR_OPTIONS'
         reply =
@@ -335,7 +388,7 @@ async function respond(phone, text) {
   if (lead.pending_meeting_at && !meetingAt && stage !== 'OPT_OUT' && stage !== 'HUMAN_HANDOFF') {
     const email = agent.extracted?.email || lead.email
     if (email) {
-      const fresh = calendar.ok ? calendar : await availability({ days: 14, suggest: 3 })
+      const fresh = calendar.ok ? calendar : await availability({ suggest: 3 })
       const still = fresh.ok
         ? fresh.slots.find((s) => s.start === lead.pending_meeting_at)
         : null
@@ -387,6 +440,22 @@ async function respond(phone, text) {
     await serviceClient().from(LEADS).update({ meeting_url: meetingUrl }).eq('phone', phone)
   }
 
+  // A fresh meeting_at means a new or rebooked meeting (mergeLead only ever
+  // writes meetingAt when book() actually produced one — never on a turn
+  // where nothing was booked), so any reminder_*_sent_at left over from a
+  // previous booking must not silently carry over onto this one. Without
+  // this, a rebooked lead could inherit an already-set reminder_1h_sent_at
+  // from their old meeting and never get reminded about the new time — see
+  // the docstring at the top of api/cron/wa-meeting-reminders.js, which
+  // already assumes this happens here.
+  if (meetingAt && meetingAt !== lead.meeting_at) {
+    const { error } = await serviceClient()
+      .from(LEADS)
+      .update({ reminder_24h_sent_at: null, reminder_1h_sent_at: null })
+      .eq('phone', phone)
+    if (error) console.error('reminder flag reset failed', error.message)
+  }
+
   // Intent belongs to the inbound message (data model); outbound rows leave it null.
   await deliver({ phone, body: reply, stage: updated.stage, intent: null })
 
@@ -410,7 +479,7 @@ async function respond(phone, text) {
 /**
  * Put the meeting in the calendar for real.
  *
- * Calendly's booking API does the whole thing server-side, so the lead gets a
+ * The Calendar API does the whole thing server-side, so the lead gets a
  * calendar invite instead of homework. If it refuses — plan restrictions, the
  * slot going in the last few seconds, anything — we fall back to the single-use
  * scheduling link, which is how this worked before and still gets them booked.
@@ -425,10 +494,17 @@ async function book({ startIso, email, lead, calendar, phone }) {
   const res = await bookSlot({ startIso, email, name })
 
   if (res.ok) {
+    const meetingUrl = res.rescheduleUrl || res.cancelUrl
+    // Fire-and-forget — Bar wants an email the moment any meeting is booked,
+    // same pattern as the new-lead alert. Never blocks or fails the reply.
+    sendMeetingBookedAlert({
+      phone, firstName: lead.first_name, email, dateLabel: date, timeLabel: time, meetingUrl,
+    }).catch(() => {})
+
     return {
       stage: 'MEETING_BOOKED',
       meetingAt: startIso,
-      meetingUrl: res.rescheduleUrl || res.cancelUrl,
+      meetingUrl,
       pendingMeetingAt: null,
       reply:
         `קבעתי — נתראה ב-${date} בשעה ${time} ✅\n` +
