@@ -1,5 +1,15 @@
 {
   "redirects": [
+    {
+      "source": "/",
+      "missing": [
+        { "type": "query", "key": "code" },
+        { "type": "query", "key": "error" },
+        { "type": "query", "key": "error_description" }
+      ],
+      "destination": "/il",
+      "permanent": false
+    },
     { "source": "/ca", "destination": "/us", "permanent": true },
     { "source": "/ca/:path*", "destination": "/us", "permanent": true },
     {
