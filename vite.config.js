@@ -9,6 +9,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Vite's preload helper must not land in vendor-pdf, or every page
+          // (incl. the landing) preloads the 136 KB-gzip PDF library.
+          if (id.includes('vite/preload-helper'))         return 'vendor-react'
           if (id.includes('node_modules/exceljs'))        return 'vendor-excel'
           if (id.includes('node_modules/jspdf'))          return 'vendor-pdf'
           if (id.includes('node_modules/html2canvas'))    return 'vendor-html2canvas'
