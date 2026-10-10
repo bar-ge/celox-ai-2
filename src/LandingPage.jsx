@@ -296,6 +296,10 @@ const CSS = `
 `
 
 // ── CountUp stat item ─────────────────────────────────────────────────────────
+// SEO: with the count-up on, the server/crawler HTML and the first paint show "0".
+// Keep false so the real number is always shown. The animation code is kept below.
+const COUNT_UP = false
+
 function StatItem({ stat, index }) {
   const ref = useRef(null)
 
@@ -304,9 +308,10 @@ function StatItem({ stat, index }) {
     return m ? { num: parseInt(m[1]), suffix: m[2] } : null
   })()
 
-  const [display, setDisplay] = useState(parsed ? '0' : stat.n)
+  const [display, setDisplay] = useState(parsed && COUNT_UP ? '0' : stat.n)
 
   useEffect(() => {
+    if (!COUNT_UP) return
     const el = ref.current
     if (!el) return
     const obs = new IntersectionObserver(([e]) => {
