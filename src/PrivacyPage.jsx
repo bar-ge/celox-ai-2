@@ -194,8 +194,7 @@ const T = {
 }
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
-
+  /* Heebo is self-hosted: @font-face lives in index.html */
   html,body { margin:0; padding:0; overflow-x:hidden }
 
   .pp-nav-link { cursor:pointer; transition:opacity .18s }

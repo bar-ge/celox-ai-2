@@ -183,8 +183,7 @@ const T = {
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
-
+  /* Heebo is self-hosted: @font-face lives in index.html */
   @keyframes lp-up    { from { opacity:0; transform:translateY(32px) } to { opacity:1; transform:translateY(0) } }
   @keyframes lp-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
   @keyframes lp-pulse { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)} }
