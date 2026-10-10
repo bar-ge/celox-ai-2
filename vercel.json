@@ -11,6 +11,8 @@
   ],
   "rewrites": [
     { "source": "/.well-known/(.*)", "destination": "/.well-known/$1" },
+    { "source": "/", "destination": "/il.html" },
+    { "source": "/il", "destination": "/il.html" },
     { "source": "/us", "destination": "/us.html" },
     { "source": "/privacy", "destination": "/privacy-app.html" },
     { "source": "/(.*)", "destination": "/index.html" }

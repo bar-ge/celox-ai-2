@@ -888,3 +888,6 @@ export default function LandingPage({ region: regionCode }) {
     </div>
   )
 }
+
+// Exposed for the build-time prerender (scripts/vite-plugin-region-heads.mjs).
+export const LANDING_CSS = CSS

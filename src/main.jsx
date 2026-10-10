@@ -1,5 +1,5 @@
 import { StrictMode, lazy, Suspense } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import './index.css'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { regionFromPath, defaultLang, DEFAULT_REGION } from './regions.js'
@@ -44,11 +44,25 @@ if (!isAuthCallback && !localStorage.getItem('fleet_lang_manual')) {
 
 const Root = path === '/privacy' ? PrivacyPage : (isHome && !isAuthCallback) ? LandingPage : App
 
-createRoot(document.getElementById('root')).render(
+const rootEl = document.getElementById('root')
+const wrap = (node) => (
   <StrictMode>
+    {node}
+    <SpeedInsights />
+  </StrictMode>
+)
+// /il.html and /us.html ship the landing prerendered (scripts/vite-plugin-region-heads.mjs).
+// Hydrate it with the real component already loaded — a lazy() + Suspense boundary here
+// would not match the server markup. Anything else (app, auth callback) starts clean.
+if (rootEl.hasChildNodes() && Root === LandingPage) {
+  import('./LandingPage.jsx').then(({ default: Landing }) => {
+    hydrateRoot(rootEl, wrap(<Landing region={region} />))
+  })
+} else {
+  rootEl.replaceChildren()
+  createRoot(rootEl).render(wrap(
     <Suspense fallback={null}>
       <Root region={region} />
     </Suspense>
-    <SpeedInsights />
-  </StrictMode>,
-)
+  ))
+}

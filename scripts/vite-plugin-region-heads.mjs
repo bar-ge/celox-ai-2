@@ -5,6 +5,8 @@
 // "/" and "/il" keep using index.html (Hebrew). Pattern misses only warn.
 import fs from 'node:fs'
 import path from 'node:path'
+import react from '@vitejs/plugin-react'
+import { createServer } from 'vite'
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 const warn = (m) => console.warn('[region-heads] ' + m)
@@ -102,13 +104,47 @@ function variant(base, v, { lang, locale, ld, noscript }) {
   return h
 }
 
+// Render the landing to static HTML so the hero text is in the first response
+// (no waiting for JS) and crawlers see the real page. The CSS the page normally
+// injects from an effect is inlined too, otherwise the HTML would be unstyled
+// until JS runs. main.jsx hydrates this markup.
+async function renderLanding(root, region) {
+  const vite = await createServer({
+    root, configFile: false, plugins: [react()], logLevel: 'error',
+    server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom',
+    optimizeDeps: { noDiscovery: true },
+  })
+  try {
+    // Native imports: vite externalizes node_modules in SSR, so the page
+    // module resolves the very same React instance.
+    const { createElement } = await import('react')
+    const { renderToString } = await import('react-dom/server')
+    const mod = await vite.ssrLoadModule('/src/LandingPage.jsx')
+    const Landing = mod.default
+    const css = mod.LANDING_CSS.replace(/@import url\([^)]*\);?/g, '')
+    const out = {}
+    for (const r of region) out[r] = { html: renderToString(createElement(Landing, { region: r })), css }
+    return out
+  } finally { await vite.close() }
+}
+
+function injectPrerender(html, { html: body, css }) {
+  const hasRoot = /<div id="root"><\/div>/.test(html)
+  if (!hasRoot) { warn('empty #root not found; prerender skipped'); return html }
+  const style = `<style id="lp-css-static">body{margin:0;background:#fff;overflow-x:hidden}${css}</style>`
+  return html
+    .replace('</head>', () => style + '\n  </head>')
+    .replace('<div id="root"></div>', () => `<div id="root">${body}</div>`)
+}
+
 export default function regionHeads() {
   let outDir = 'dist'
+  let root = process.cwd()
   return {
     name: 'celox-region-heads',
     apply: 'build',
-    configResolved(cfg) { outDir = path.resolve(cfg.root, cfg.build.outDir) },
-    closeBundle() {
+    configResolved(cfg) { root = cfg.root; outDir = path.resolve(cfg.root, cfg.build.outDir) },
+    async closeBundle() {
       const src = path.join(outDir, 'index.html')
       if (!fs.existsSync(src)) { warn('dist/index.html missing'); return }
       const base = fs.readFileSync(src, 'utf8')
@@ -134,7 +170,14 @@ export default function regionHeads() {
           }
         },
       })
-      fs.writeFileSync(path.join(outDir, 'us.html'), us)
+      // Hebrew landing for "/" and "/il". index.html stays an empty shell,
+      // because it is also the fallback for every /app route.
+      const il = base // already the Hebrew /il head
+      let pre = null
+      try { pre = await renderLanding(root, ['il', 'us']) }
+      catch (e) { warn('prerender failed, shipping client-rendered pages: ' + e.message) }
+      fs.writeFileSync(path.join(outDir, 'us.html'), pre ? injectPrerender(us, pre.us) : us)
+      fs.writeFileSync(path.join(outDir, 'il.html'), pre ? injectPrerender(il, pre.il) : il)
 
       const pr = variant(base, PRIVACY, { lang: 'he', locale: 'he_IL' })
       fs.writeFileSync(path.join(outDir, 'privacy-app.html'), pr)
