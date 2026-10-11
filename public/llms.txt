@@ -1,0 +1,28 @@
+# Celox AI
+
+> Celox AI is fleet management software for businesses in Israel. It manages vehicles, drivers, costs and documents in one place, with alerts before inspections, insurance and licenses expire.
+
+The product is a web application (Hebrew and English). The marketing site is available in Hebrew (Israel) and English (United States).
+
+## Key pages
+
+- [Celox AI — Hebrew (Israel)](https://celoxai.com/il): overview of the platform in Hebrew
+- [Celox AI — English (United States)](https://celoxai.com/us): overview of the platform in English
+- [Privacy policy](https://celoxai.com/privacy): what data is collected and how it is used
+
+## What the platform includes
+
+- Vehicle management with live status tracking
+- Driver management and license tracking
+- Cost management with categories and a monthly budget
+- Cloud documents: insurance, licenses and files from any device
+- Scheduled maintenance and alerts before expiry
+- Reports and cost analysis per vehicle and per fleet
+
+## Who it is for
+
+Fleet managers and traffic-safety officers at companies that operate vehicle fleets.
+
+## Contact
+
+office@celoxai.com

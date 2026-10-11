@@ -30,7 +30,7 @@ const P = {
   border: 'oklch(91% 0.008 260)',
   text:   'oklch(18% 0.02 260)',
   sub:    'oklch(45% 0.025 260)',
-  muted:  'oklch(62% 0.015 260)',
+  muted:  'oklch(50% 0.015 260)',
   blue:   'oklch(52% 0.22 260)',
   blueL:  'oklch(60% 0.20 260)',
   cyan:   'oklch(56% 0.15 220)',
@@ -280,9 +280,9 @@ const CSS = `
     outline:none; transition:border-color .2s, box-shadow .2s;
     font-family:inherit;
   }
-  .lp-input::placeholder { color:oklch(62% 0.015 260) }
+  .lp-input::placeholder { color:oklch(50% 0.015 260) }
   .lp-input:focus { border-color:oklch(52% 0.22 260); box-shadow:0 0 0 3px oklch(52% 0.22 260 / 0.1) }
-  .lp-input:hover:not(:focus) { border-color:oklch(62% 0.015 260) }
+  .lp-input:hover:not(:focus) { border-color:oklch(50% 0.015 260) }
   textarea.lp-input { resize:vertical; min-height:120px; line-height:1.6 }
 
   html, body { margin:0; padding:0; overflow-x:hidden; width:100% }
@@ -382,7 +382,7 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
         zIndex: 1000, display: 'flex', alignItems: 'center', gap: 20,
         padding: '0 8px 0 20px',
         height: 50,
-        background: solid ? 'rgba(8,14,28,.88)' : 'rgba(8,14,28,.6)',
+        background: solid ? 'rgba(8,14,28,.88)' : 'rgba(8,14,28,.78)',
         backdropFilter: 'blur(28px)',
         border: '1px solid rgba(255,255,255,.1)',
         borderRadius: 100,
@@ -394,7 +394,7 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <CeloxIcon size={28} dark />
           <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: -.3 }}>
-            Celox <span style={{ color: '#60a5fa' }}>AI</span>
+            Celox <span style={{ color: '#93c5fd' }}>AI</span>
           </span>
         </div>
 
@@ -423,6 +423,7 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
             {t.nav.enter}
           </a>
           <button className="lp-hamburger" onClick={() => setMobileOpen(p => !p)}
+            aria-label={t.dir === 'rtl' ? 'תפריט' : 'Menu'} aria-expanded={mobileOpen}
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px', flexDirection: 'column', gap: 5, color: '#fff' }}>
             {[0,1,2].map(i => (
               <span key={i} style={{ display: 'block', width: 20, height: 1.5, background: 'currentColor', borderRadius: 2, transition: 'all .25s',
@@ -876,13 +877,15 @@ export default function LandingPage({ region: regionCode }) {
   return (
     <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
       <Nav t={t} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} region={region} />
-      <Hero t={t} />
-      <Phases t={t} />
-      <Stats t={t} />
-      <About t={t} scrollY={scrollY} />
-      <Features t={t} scrollY={scrollY} />
-      <CTASection t={t} scrollY={scrollY} />
-      <ContactSection t={t} />
+      <main>
+        <Hero t={t} />
+        <Phases t={t} />
+        <Stats t={t} />
+        <About t={t} scrollY={scrollY} />
+        <Features t={t} scrollY={scrollY} />
+        <CTASection t={t} scrollY={scrollY} />
+        <ContactSection t={t} />
+      </main>
       <Footer t={t} />
     </div>
   )

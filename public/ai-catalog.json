@@ -1,0 +1,9 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "Celox AI",
+    "identifier": "celoxai.com",
+    "documentationUrl": "https://celoxai.com/llms.txt"
+  },
+  "entries": []
+}
