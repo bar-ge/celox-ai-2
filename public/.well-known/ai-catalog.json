@@ -1,0 +1,15 @@
+{
+  "entries": [
+    {
+      "identifier": "urn:air:celoxai.com:docs:overview",
+      "displayName": "Celox AI — product overview",
+      "type": "text/markdown",
+      "url": "https://celoxai.com/llms.txt",
+      "description": "Plain-text overview of Celox AI, fleet management software for businesses in Israel: what the platform includes, who it is for, and how to contact the company.",
+      "representativeQueries": [
+        "What does Celox AI fleet management software do?",
+        "Which features does Celox AI include for vehicles, drivers and documents?"
+      ]
+    }
+  ]
+}
