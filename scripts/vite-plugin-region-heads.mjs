@@ -128,6 +128,17 @@ async function renderLanding(root, region) {
   } finally { await vite.close() }
 }
 
+// Inline the small entry stylesheet so the prerendered pages have no
+// render-blocking request (PageSpeed: "Render-blocking requests").
+function inlineEntryCss(html, outDir) {
+  return html.replace(/<link rel="stylesheet"[^>]*href="(\/assets\/[^"]+\.css)"[^>]*>/, (m, href) => {
+    try {
+      const css = fs.readFileSync(path.join(outDir, href), 'utf8')
+      return css.length < 20000 ? `<style id="entry-css">${css}</style>` : m
+    } catch { return m }
+  })
+}
+
 function injectPrerender(html, { html: body, css }) {
   const hasRoot = /<div id="root"><\/div>/.test(html)
   if (!hasRoot) { warn('empty #root not found; prerender skipped'); return html }
@@ -176,8 +187,8 @@ export default function regionHeads() {
       let pre = null
       try { pre = await renderLanding(root, ['il', 'us']) }
       catch (e) { warn('prerender failed, shipping client-rendered pages: ' + e.message) }
-      fs.writeFileSync(path.join(outDir, 'us.html'), pre ? injectPrerender(us, pre.us) : us)
-      fs.writeFileSync(path.join(outDir, 'il.html'), pre ? injectPrerender(il, pre.il) : il)
+      fs.writeFileSync(path.join(outDir, 'us.html'), pre ? inlineEntryCss(injectPrerender(us, pre.us), outDir) : us)
+      fs.writeFileSync(path.join(outDir, 'il.html'), pre ? inlineEntryCss(injectPrerender(il, pre.il), outDir) : il)
 
       const pr = variant(base, PRIVACY, { lang: 'he', locale: 'he_IL' })
       fs.writeFileSync(path.join(outDir, 'privacy-app.html'), pr)
