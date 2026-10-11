@@ -71,6 +71,32 @@ export const TOOL_DEFS = [
       parameters: { type: 'object', properties: {}, additionalProperties: false },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'get_expiry_alerts',
+      description:
+        'Counts and lists of upcoming/overdue expirations, from the SAME source as the Alerts tab and the Reports > Expiry report — always use this (never get_expiring_documents\'s raw guess) for anything about licenses, tests, insurance, tachograph, leasing, maintenance, certifications, or custom reminders coming due. ' +
+        'IMPORTANT Hebrew terminology trap: "registration" = the VEHICLE license/registration ("רישיון רכב"), "license" = the DRIVER\'s license ("רישיון נהיגה"). A question like "how many cars have licenses due" or "רישיון רכב" means type=registration, NOT type=license. If unsure which the user means, you may omit `type` to get every category and explain the breakdown.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['registration', 'license', 'test', 'insurance', 'tachograph', 'leasing', 'maintenance', 'certification', 'document', 'custom'],
+            description:
+              'registration = vehicle license/registration (רישיון רכב). license = driver license (רישיון נהיגה). test = annual vehicle test (טסט). Omit to include all types.',
+          },
+          period: {
+            type: 'string',
+            enum: ['overdue', 'this_month', 'next_7_days', 'next_30_days'],
+            description: 'Time window, computed from today\'s real date server-side. Defaults to next_30_days. "overdue" returns only already-expired items (any age).',
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const TOOL_NAMES = new Set(TOOL_DEFS.map((t) => t.function.name))
@@ -85,6 +111,7 @@ export async function runTool(name, args, companyId) {
       case 'get_expiring_documents': return await getExpiringDocuments(companyId, a)
       case 'get_cost_summary': return await getCostSummary(companyId, a)
       case 'get_violations_summary': return await getViolationsSummary(companyId)
+      case 'get_expiry_alerts': return await getExpiryAlerts(companyId, a)
       default: return { error: 'unknown_tool' }
     }
   } catch (err) {
@@ -179,5 +206,63 @@ async function getViolationsSummary(companyId) {
     unpaid_amount: sum(unpaid),
     paid_count: paid.length,
     paid_amount: sum(paid),
+  }
+}
+
+// 2026-10-03: Bar wants the avatar to answer report-style expiry questions
+// ("how many car licenses are due this month"). company_expiry_alerts() is
+// the single canonical source already used by the Alerts tab and the
+// Reports > Expiry report — this calls that SAME RPC rather than
+// re-deriving a second, possibly-inconsistent calculation from the raw
+// tables (which is exactly what get_expiring_documents above does, and
+// deliberately stays limited to tests/insurance for backward compat).
+//
+// Date filtering happens here, in real server code, rather than asking the
+// model to reason about "this month" itself — this app has a known history
+// of date-math bugs from trusting model arithmetic (see the WA agent's
+// todayBlock() comment in system-prompt.js).
+async function getExpiryAlerts(companyId, { type, period }) {
+  const { data, error } = await serviceClient().rpc('company_expiry_alerts', { p_company: companyId })
+  if (error) {
+    console.error('get_expiry_alerts rpc failed', error.message)
+    return { error: 'tool_failed' }
+  }
+
+  const rows = Array.isArray(data) ? data : []
+  const today = new Date()
+  const todayStr = TODAY()
+
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
+  const p = period || 'next_30_days'
+
+  const inWindow = (dateStr) => {
+    if (!dateStr) return false
+    if (p === 'overdue') return dateStr < todayStr
+    if (p === 'this_month') return dateStr >= startOfMonth && dateStr <= endOfMonth
+    if (p === 'next_7_days') return dateStr >= todayStr && dateStr <= daysFromNow(7)
+    return dateStr >= todayStr && dateStr <= daysFromNow(30) // next_30_days (also the RPC's own hard cap)
+  }
+
+  const filtered = rows.filter((r) => (!type || r.type === type) && inWindow(r.date))
+
+  const byType = filtered.reduce((acc, r) => {
+    acc[r.type] = (acc[r.type] || 0) + 1
+    return acc
+  }, {})
+
+  return {
+    period: p,
+    type: type || 'all',
+    count: filtered.length,
+    by_type: byType,
+    items: filtered.map((r) => ({
+      type: r.type,
+      severity: r.severity,
+      label: r.label,
+      date: r.date,
+      entity_type: r.entity_type,
+      entity_name: r.entity_name,
+    })),
   }
 }
