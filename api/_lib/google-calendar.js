@@ -28,7 +28,18 @@ const MAX_WINDOW_SLOTS = 240
 
 const serviceAccountEmail = () => process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
 const serviceAccountKey = () => (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n')
-const calendarId = () => process.env.GOOGLE_CALENDAR_ID || 'office@celoxai.com'
+// 2026-10-11, Bar's request: sales@celoxai.com is now the main scheduling
+// calendar — free/busy is checked against it and every booked event lives
+// on it — instead of office@celoxai.com. office@ moves from "the" calendar
+// to just one of the three invitees (see ATTENDEE_EMAILS below). If this
+// ever needs to move again, GOOGLE_CALENDAR_ID overrides the default
+// without a code change.
+const calendarId = () => process.env.GOOGLE_CALENDAR_ID || 'sales@celoxai.com'
+// Every booked meeting invites these two Celox mailboxes alongside the
+// client, so both office and sales see it land on their own calendars —
+// not just whichever one happens to be calendarId() above.
+const OFFICE_EMAIL = 'office@celoxai.com'
+const SALES_EMAIL = 'sales@celoxai.com'
 const meetingMinutes = () => Number(process.env.GOOGLE_CALENDAR_MEETING_MINUTES) || 45
 // Bar: 45-minute sessions, at least 15 minutes between them so the team
 // isn't walking straight from one demo into the next.
@@ -411,7 +422,14 @@ export async function bookSlot({ startIso, email, name, timezone = TZ }) {
       },
     }
 
-    let result = await insertEvent({ ...body, attendees: [{ email, displayName: name || undefined }] }, true)
+    // Bar's request (2026-10-11): every booked meeting invites office@ and
+    // sales@ alongside the client, regardless of which mailbox calendarId()
+    // currently points at — not just the client alone. De-duped by email in
+    // case the client happens to share an address with either Celox inbox.
+    const attendeeEmails = [...new Set([OFFICE_EMAIL, SALES_EMAIL, email])]
+    const attendees = attendeeEmails.map((e) => (e === email ? { email: e, displayName: name || undefined } : { email: e }))
+
+    let result = await insertEvent({ ...body, attendees }, true)
 
     if (!result.ok && /domain-wide delegation|cannot invite attendees/i.test(result.payload?.error?.message || '')) {
       console.error('google calendar: attendee invite blocked (no domain-wide delegation), booking without invite')
