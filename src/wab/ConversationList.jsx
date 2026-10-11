@@ -8,6 +8,7 @@ const FILTERS = [
   { key: 'booked',   label: 'Meeting booked' },
   { key: 'handoff',  label: 'Handed off' },
   { key: 'notrel',   label: 'Not relevant' },
+  { key: 'spam',     label: 'Spam' },
 ]
 
 function matchesFilter(lead, key) {
@@ -15,7 +16,10 @@ function matchesFilter(lead, key) {
     case 'booked':  return Boolean(lead.meeting_at) || lead.status === 'נקבעה פגישה'
     case 'handoff': return lead.status === 'הועבר לנציג' || lead.bot_paused
     case 'notrel':  return lead.status === 'לא מתאים' || lead.status === 'ביקש הסרה' || lead.opted_out
-    case 'active':  return !lead.opted_out && !lead.bot_paused && !lead.meeting_at
+    // Bar's request (2026-10-11): any lead with a link-spam strike shows up
+    // here, not just ones that hit the 3-strike auto-pause (status 'ספאם').
+    case 'spam':    return (lead.spam_strikes ?? 0) > 0 || lead.status === 'ספאם'
+    case 'active':  return !lead.opted_out && !lead.bot_paused && !lead.meeting_at && (lead.spam_strikes ?? 0) === 0
     default:        return true
   }
 }
