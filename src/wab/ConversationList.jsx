@@ -3,12 +3,12 @@ import { T, FONT_SANS, FONT_MONO, relativeShort } from './theme'
 import { IntentDot } from './IntentTag'
 
 const FILTERS = [
-  { key: 'all',      label: 'All' },
-  { key: 'active',   label: 'Active' },
-  { key: 'booked',   label: 'Meeting booked' },
-  { key: 'handoff',  label: 'Handed off' },
-  { key: 'notrel',   label: 'Not relevant' },
-  { key: 'spam',     label: 'Spam' },
+  { key: 'all',      label: 'הכל' },
+  { key: 'active',   label: 'פעיל' },
+  { key: 'booked',   label: 'נקבעה פגישה' },
+  { key: 'handoff',  label: 'הועבר לנציג' },
+  { key: 'notrel',   label: 'לא רלוונטי' },
+  { key: 'spam',     label: 'ספאם' },
 ]
 
 function matchesFilter(lead, key) {
@@ -43,17 +43,17 @@ export default function ConversationList({ leads, selected, onSelect, onNew, loa
       flexShrink: 0, height: '100%',
       display: 'flex', flexDirection: 'column',
       background: T.subtle,
-      borderRight: narrow ? 'none' : `1px solid ${T.border}`,
+      borderInlineEnd: narrow ? 'none' : `1px solid ${T.border}`,
     }}>
       <div style={{ padding: T.pad, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: T.padTight }}>
           <span style={{ fontFamily: FONT_SANS, fontSize: T.fs16, fontWeight: 700, color: T.text }}>
-            Conversations
+            שיחות
           </span>
-          <span style={{
+          <span dir="ltr" style={{
             fontFamily: FONT_MONO, fontSize: T.fs11, color: T.textMid,
-            border: `1px solid ${T.border}`, borderRadius: T.radius,
-            padding: '1px 6px', background: T.white,
+            border: `1px solid ${T.border}`, borderRadius: T.radiusPill,
+            padding: '1px 7px', background: T.white,
           }}>
             {leads.length}
           </span>
@@ -61,16 +61,16 @@ export default function ConversationList({ leads, selected, onSelect, onNew, loa
           {onNew && (
             <button
               onClick={onNew}
-              title="Start a new conversation"
-              aria-label="Start a new conversation"
+              title="שיחה חדשה"
+              aria-label="שיחה חדשה"
               style={{
-                marginLeft: 'auto',
-                fontFamily: FONT_SANS, fontSize: narrow ? T.fs14 : T.fs13, lineHeight: 1,
+                marginInlineStart: 'auto',
+                fontFamily: FONT_SANS, fontSize: narrow ? T.fs14 : T.fs13, fontWeight: 600, lineHeight: 1,
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 5,
-                padding: narrow ? '9px 12px' : '5px 9px',
+                padding: narrow ? '9px 12px' : '5px 10px',
                 minHeight: narrow ? 40 : 0,
-                borderRadius: T.radius,
+                borderRadius: T.radiusPill,
                 border: `1px solid ${T.accent}`,
                 background: T.white, color: T.accent,
                 whiteSpace: 'nowrap',
@@ -78,7 +78,7 @@ export default function ConversationList({ leads, selected, onSelect, onNew, loa
               }}
             >
               <span style={{ fontSize: narrow ? T.fs16 : T.fs14 }}>+</span>
-              {!medium && <span>New</span>}
+              {!medium && <span>חדש</span>}
             </button>
           )}
         </div>
@@ -86,15 +86,16 @@ export default function ConversationList({ leads, selected, onSelect, onNew, loa
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by phone, name or company..."
+          placeholder="חיפוש לפי טלפון, שם או חברה..."
+          dir="auto"
           style={{
             width: '100%', boxSizing: 'border-box',
             fontFamily: FONT_SANS,
             // 16px on touch layouts stops iOS Safari zooming the page on focus.
             fontSize: narrow ? T.fs16 : T.fs13,
             color: T.text,
-            padding: narrow ? '10px 11px' : '7px 9px', background: T.white,
-            border: `1px solid ${T.border}`, borderRadius: 2, outline: 'none',
+            padding: narrow ? '10px 12px' : '7px 10px', background: T.white,
+            border: `1px solid ${T.border}`, borderRadius: T.radius, outline: 'none',
           }}
         />
 
@@ -113,13 +114,13 @@ export default function ConversationList({ leads, selected, onSelect, onNew, loa
                 key={f.key}
                 onClick={() => setFilter(f.key)}
                 style={{
-                  fontFamily: FONT_SANS, fontSize: narrow ? T.fs12 : T.fs11, cursor: 'pointer',
-                  padding: narrow ? '7px 12px' : '3px 8px',
+                  fontFamily: FONT_SANS, fontSize: narrow ? T.fs12 : T.fs11, fontWeight: 600, cursor: 'pointer',
+                  padding: narrow ? '7px 13px' : '4px 10px',
                   minHeight: narrow ? 34 : 0,
                   whiteSpace: 'nowrap', flexShrink: 0,
-                  borderRadius: T.radius,
+                  borderRadius: T.radiusPill,
                   border: `1px solid ${on ? T.accent : T.border}`,
-                  background: on ? T.selected : T.white,
+                  background: on ? T.accentSoft : T.white,
                   color: on ? T.accent : T.textMid,
                   transition: 'background-color 150ms ease',
                 }}
@@ -139,7 +140,7 @@ export default function ConversationList({ leads, selected, onSelect, onNew, loa
             padding: '40px 16px', textAlign: 'center',
             fontFamily: FONT_SANS, fontSize: T.fs14, color: T.textMid,
           }}>
-            {leads.length === 0 ? 'No conversations yet' : 'No matches'}
+            {leads.length === 0 ? 'אין שיחות עדיין' : 'אין תוצאות'}
           </div>
         )}
 
@@ -174,8 +175,8 @@ function Row({ lead, selected, narrow, onSelect }) {
         padding: narrow ? `14px ${T.padTight}px` : `${T.padTight}px ${T.pad}px`,
         minHeight: narrow ? 44 : 0,
         borderBottom: `1px solid ${T.border}`,
-        borderLeft: `3px solid ${selected ? T.accent : 'transparent'}`,
-        background: selected ? T.selected : hover ? '#F3F4F6' : 'transparent',
+        borderInlineStart: `3px solid ${selected ? T.accent : 'transparent'}`,
+        background: selected ? T.selected : hover ? T.white : 'transparent',
         cursor: 'pointer',
         transition: 'background-color 150ms ease',
       }}
@@ -185,7 +186,7 @@ function Row({ lead, selected, narrow, onSelect }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontFamily: title ? FONT_SANS : FONT_MONO,
-          fontSize: T.fs14, color: T.text, fontWeight: title ? 500 : 400,
+          fontSize: T.fs14, color: T.text, fontWeight: title ? 600 : 400,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }} dir={title ? 'auto' : 'ltr'}>
           {title ?? lead.phone}
@@ -198,7 +199,7 @@ function Row({ lead, selected, narrow, onSelect }) {
         </div>
       </div>
 
-      <div style={{
+      <div dir="ltr" style={{
         fontFamily: FONT_MONO, fontSize: T.fs12, color: T.textDim,
         whiteSpace: 'nowrap', paddingTop: 2,
       }}>

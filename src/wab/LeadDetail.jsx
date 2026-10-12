@@ -4,7 +4,7 @@ import { T, FONT_SANS, FONT_MONO, fullDateTime, relativeLong } from './theme'
 import IntentTag from './IntentTag'
 import StageBadge from './StageBadge'
 
-const MANAGEMENT_LABEL = { excel: 'Excel', system: 'System', mixed: 'Mixed', none: 'None' }
+const MANAGEMENT_LABEL = { excel: 'אקסל', system: 'מערכת', mixed: 'משולב', none: 'אין' }
 const DASH = '—'
 
 export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, onSendBooking, onNudge, onRestart, onClose, showClose }) {
@@ -41,7 +41,7 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
           textAlign: 'center', padding: T.pad,
           fontFamily: FONT_SANS, fontSize: T.fs13, color: T.textMid,
         }}>
-          Select a lead to view details
+          בחר/י ליד לצפייה בפרטים
         </div>
       </aside>
     )
@@ -83,10 +83,9 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
     // Destructive in the way that matters to a lead: they get the opening
     // message again and everything collected so far stops counting.
     if (!window.confirm(
-      'Start this conversation over?\n\n'
-      + 'The lead gets the opening message again, and what the agent collected '
-      + '(role, fleet size, pain, meeting) is cleared. The old messages stay in '
-      + 'the thread for reference but the agent will not see them.',
+      'להתחיל את השיחה הזו מחדש?\n\n'
+      + 'הליד יקבל את הודעת הפתיחה שוב, וכל מה שהסוכן אסף (תפקיד, גודל צי, '
+      + 'כאב, פגישה) יימחק. ההודעות הישנות יישארו בשיחה לעיון, אבל הסוכן לא יראה אותן.',
     )) return
 
     setRestarting({ phone: lead.phone, state: 'sending' })
@@ -109,12 +108,12 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
       }}>
         <span style={{
           fontFamily: FONT_SANS, fontSize: T.fs14, fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: '0.08em', color: T.text,
+          letterSpacing: '0.01em', color: T.text,
         }}>
-          Lead Details
+          פרטי ליד
         </span>
         {showClose && onClose && (
-          <button onClick={onClose} aria-label="Close lead details" style={closeButtonStyle}>
+          <button onClick={onClose} aria-label="סגור פרטי ליד" style={closeButtonStyle}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.text} strokeWidth="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
@@ -127,13 +126,13 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
         padding: narrow ? T.padTight : T.pad,
         display: 'flex', flexDirection: 'column', gap: T.pad,
       }}>
-        <Field label="Phone">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Field label="טלפון">
+          <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontFamily: FONT_MONO, fontSize: T.fs16, color: T.text }}>{lead.phone}</span>
             <button
               onClick={copyPhone}
-              title="Copy"
-              aria-label="Copy phone number"
+              title="העתק"
+              aria-label="העתק מספר טלפון"
               style={{ ...iconButtonStyle, width: narrow ? 34 : 22, height: narrow ? 34 : 22 }}
             >
               {copied ? (
@@ -147,17 +146,17 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
           </div>
         </Field>
 
-        <Field label="Name / Company">
+        <Field label="שם / חברה">
           <Value size={T.fs14}>{[lead.first_name, lead.company].filter(Boolean).join(' · ') || DASH}</Value>
         </Field>
 
-        <Field label="Role"><Value size={T.fs14}>{lead.role || DASH}</Value></Field>
+        <Field label="תפקיד"><Value size={T.fs14}>{lead.role || DASH}</Value></Field>
 
-        <Field label="Fleet size">
-          <div style={{ fontFamily: FONT_MONO, fontSize: T.fs20, fontWeight: 700, color: T.text, lineHeight: 1.2 }}>
+        <Field label="גודל צי">
+          <div dir="ltr" style={{ fontFamily: FONT_MONO, fontSize: T.fs20, fontWeight: 700, color: T.text, lineHeight: 1.2 }}>
             {lead.fleet_size ?? DASH}
           </div>
-          <div style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid }}>vehicles</div>
+          <div style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid }}>רכבים</div>
           {rawDiffers && (
             <div dir="auto" style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid, marginTop: 4 }}>
               “{lead.fleet_size_raw}”
@@ -165,7 +164,7 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
           )}
         </Field>
 
-        <Field label="Current management">
+        <Field label="ניהול נוכחי">
           <Value size={T.fs14}>{MANAGEMENT_LABEL[lead.current_management] || DASH}</Value>
           {lead.existing_system && (
             <div dir="auto" style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid, marginTop: 2 }}>
@@ -174,12 +173,12 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
           )}
         </Field>
 
-        <Field label="Main pain"><Value size={T.fs13}>{lead.main_pain || DASH}</Value></Field>
-        <Field label="Why now"><Value size={T.fs13}>{lead.why_now || DASH}</Value></Field>
+        <Field label="כאב מרכזי"><Value size={T.fs13}>{lead.main_pain || DASH}</Value></Field>
+        <Field label="למה עכשיו"><Value size={T.fs13}>{lead.why_now || DASH}</Value></Field>
 
-        <Field label="Stage"><StageBadge stage={lead.stage} /></Field>
+        <Field label="שלב"><StageBadge stage={lead.stage} /></Field>
 
-        <Field label="Status">
+        <Field label="סטטוס">
           <select
             value={lead.status}
             onChange={(e) => onPatch(lead.phone, { status: e.target.value })}
@@ -199,32 +198,32 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
           </select>
         </Field>
 
-        <Field label="Meeting">
-          <span style={{ fontFamily: lead.meeting_at ? FONT_MONO : FONT_SANS, fontSize: T.fs13, color: lead.meeting_at ? T.text : T.textMid }}>
-            {lead.meeting_at ? fullDateTime(lead.meeting_at) : 'Not booked'}
+        <Field label="פגישה">
+          <span dir={lead.meeting_at ? 'ltr' : undefined} style={{ fontFamily: lead.meeting_at ? FONT_MONO : FONT_SANS, fontSize: T.fs13, color: lead.meeting_at ? T.text : T.textMid }}>
+            {lead.meeting_at ? fullDateTime(lead.meeting_at) : 'לא נקבעה'}
           </span>
         </Field>
 
-        <Field label="Total messages">
+        <Field label="סה״כ הודעות">
           <div style={{ fontFamily: FONT_MONO, fontSize: T.fs20, fontWeight: 700, color: T.text, lineHeight: 1.2 }}>
             {messages.length}
           </div>
-          <div style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid }}>messages</div>
+          <div style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid }}>הודעות</div>
         </Field>
 
-        <Field label="First contact">
-          <span style={{ fontFamily: FONT_MONO, fontSize: T.fs13, color: T.text }}>
+        <Field label="פנייה ראשונה">
+          <span dir="ltr" style={{ fontFamily: FONT_MONO, fontSize: T.fs13, color: T.text }}>
             {fullDateTime(messages[0]?.created_at ?? lead.first_contact_at ?? lead.created_at)}
           </span>
         </Field>
 
-        <Field label="Last active">
+        <Field label="פעילות אחרונה">
           <span style={{ fontFamily: FONT_SANS, fontSize: T.fs13, color: T.text }}>
             {relativeLong(messages[messages.length - 1]?.created_at ?? lead.last_message_at)}
           </span>
         </Field>
 
-        <Field label="Intents seen">
+        <Field label="כוונות שזוהו">
           {intentsSeen.length === 0
             ? <Value size={T.fs13}>{DASH}</Value>
             : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -232,7 +231,7 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
               </div>}
         </Field>
 
-        <Field label="Open questions">
+        <Field label="שאלות פתוחות">
           {openQuestions.length === 0
             ? <Value size={T.fs13}>{DASH}</Value>
             : <ul style={{ margin: 0, paddingInlineStart: 16 }}>
@@ -247,11 +246,11 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
             <button
               onClick={handleNudge}
               disabled={nudgeState === 'sending' || lead.opted_out}
-              title="Re-sends the summary and real open slots — for when the agent stalled instead of showing them"
+              title="שולח מחדש את הסיכום והמועדים הפנויים האמיתיים — למקרה שהסוכן נתקע במקום להציג אותם"
               style={{
                 fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600,
                 padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
-                borderRadius: T.radius, border: 'none',
+                borderRadius: T.radiusPill, border: 'none',
                 background: T.accent, color: T.white,
                 cursor: nudgeState === 'sending' || lead.opted_out ? 'not-allowed' : 'pointer',
                 opacity: lead.opted_out ? 0.5 : 1,
@@ -260,10 +259,10 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
               onMouseEnter={(e) => { if (!lead.opted_out) e.currentTarget.style.background = T.accentHover }}
               onMouseLeave={(e) => { e.currentTarget.style.background = T.accent }}
             >
-              {nudgeState === 'sending' ? 'Sending...'
-                : nudgeState === 'sent' ? 'Real dates sent'
-                : nudgeState === 'failed' ? 'Failed — retry'
-                : 'Ask for real dates'}
+              {nudgeState === 'sending' ? 'שולח...'
+                : nudgeState === 'sent' ? 'מועדים אמיתיים נשלחו'
+                : nudgeState === 'failed' ? 'נכשל — נסה שוב'
+                : 'בקש מועדים אמיתיים'}
             </button>
           )}
 
@@ -273,7 +272,7 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
             style={{
               fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600,
               padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
-              borderRadius: T.radius, border: 'none',
+              borderRadius: T.radiusPill, border: 'none',
               background: T.accent, color: T.white,
               cursor: bookingState === 'sending' || lead.opted_out ? 'not-allowed' : 'pointer',
               opacity: lead.opted_out ? 0.5 : 1,
@@ -282,38 +281,38 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
             onMouseEnter={(e) => { if (!lead.opted_out) e.currentTarget.style.background = T.accentHover }}
             onMouseLeave={(e) => { e.currentTarget.style.background = T.accent }}
           >
-            {bookingState === 'sending' ? 'Sending...'
-              : bookingState === 'sent' ? 'Booking link sent'
-              : bookingState === 'failed' ? 'Failed — retry'
-              : 'Send booking link'}
+            {bookingState === 'sending' ? 'שולח...'
+              : bookingState === 'sent' ? 'קישור לקביעת פגישה נשלח'
+              : bookingState === 'failed' ? 'נכשל — נסה שוב'
+              : 'שלח קישור לקביעת פגישה'}
           </button>
 
           <button
             onClick={() => onPatch(lead.phone, { bot_paused: !lead.bot_paused })}
             style={{
-              fontFamily: FONT_SANS, fontSize: T.fs13,
+              fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600,
               padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
-              borderRadius: T.radius,
+              borderRadius: T.radiusPill,
               border: `1px solid ${T.border}`, background: 'transparent', color: T.text,
               cursor: 'pointer', transition: 'background-color 150ms ease',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = T.subtle }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
           >
-            {lead.bot_paused ? 'Resume bot' : 'Pause bot'}
+            {lead.bot_paused ? 'הפעל בוט מחדש' : 'השבת בוט'}
           </button>
 
           {onRestart && (
             <button
               onClick={handleRestart}
               disabled={restartState === 'sending' || lead.opted_out}
-              title="Send the opening message again and clear what was collected"
+              title="שולח את הודעת הפתיחה שוב ומוחק את מה שנאסף"
               style={{
-                fontFamily: FONT_SANS, fontSize: T.fs13,
+                fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600,
                 padding: narrow ? '12px' : '8px 12px', minHeight: narrow ? 44 : 0,
-                borderRadius: T.radius,
+                borderRadius: T.radiusPill,
                 border: `1px solid ${T.border}`, background: 'transparent',
-                color: restartState && restartState !== 'sent' && restartState !== 'sending' ? '#B91C1C' : T.textMid,
+                color: restartState && restartState !== 'sent' && restartState !== 'sending' ? T.danger : T.textMid,
                 cursor: restartState === 'sending' || lead.opted_out ? 'not-allowed' : 'pointer',
                 opacity: lead.opted_out ? 0.5 : 1,
                 transition: 'background-color 150ms ease',
@@ -321,10 +320,10 @@ export default function LeadDetail({ lead, messages, layout = 'wide', onPatch, o
               onMouseEnter={(e) => { if (!lead.opted_out) e.currentTarget.style.background = T.subtle }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
             >
-              {restartState === 'sending' ? 'Restarting...'
-                : restartState === 'sent' ? 'Conversation restarted'
-                : restartState ? `Failed: ${restartState}`
-                : 'Restart conversation'}
+              {restartState === 'sending' ? 'מאתחל...'
+                : restartState === 'sent' ? 'השיחה אותחלה'
+                : restartState ? `נכשל: ${restartState}`
+                : 'התחל שיחה מחדש'}
             </button>
           )}
         </div>
@@ -337,20 +336,20 @@ const panelStyle = (narrow) => ({
   width: narrow ? '100%' : T.colWidth,
   maxWidth: '100vw', flexShrink: 0, height: '100%',
   display: 'flex', flexDirection: 'column',
-  background: T.white, borderLeft: narrow ? 'none' : `1px solid ${T.border}`,
+  background: T.subtle, borderInlineStart: narrow ? 'none' : `1px solid ${T.border}`,
 })
 
 const closeButtonStyle = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   width: 36, height: 36, flexShrink: 0, padding: 0, cursor: 'pointer',
-  border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.white,
+  border: `1px solid ${T.border}`, borderRadius: T.radiusPill, background: T.white,
   transition: 'background-color 150ms ease',
 }
 
 const iconButtonStyle = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   width: 22, height: 22, padding: 0, cursor: 'pointer',
-  border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.white,
+  border: `1px solid ${T.border}`, borderRadius: T.radiusPill, background: T.white,
   transition: 'background-color 150ms ease',
 }
 

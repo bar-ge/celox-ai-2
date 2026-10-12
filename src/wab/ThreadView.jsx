@@ -26,9 +26,9 @@ export default function ThreadView({
       <div style={{ padding: pad, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           {onBack && (
-            <button onClick={onBack} aria-label="Back to conversations" style={backButtonStyle}>
+            <button onClick={onBack} aria-label="חזרה לרשימת השיחות" style={backButtonStyle}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.text} strokeWidth="2">
-                <path d="M15 18l-6-6 6-6" />
+                <path d="M9 18l6-6-6-6" />
               </svg>
             </button>
           )}
@@ -40,18 +40,18 @@ export default function ThreadView({
                   {[lead.first_name, lead.company].filter(Boolean).join(' · ')}
                 </span>
               )}
-              <span style={{ fontFamily: FONT_MONO, fontSize: narrow ? T.fs14 : T.fs16, fontWeight: 700, color: T.text }}>
+              <span dir="ltr" style={{ fontFamily: FONT_MONO, fontSize: narrow ? T.fs14 : T.fs16, fontWeight: 700, color: T.text }}>
                 {lead.phone}
               </span>
               <StageBadge stage={lead.stage} />
             </div>
             <div style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid, marginTop: 4 }}>
-              First contact: <span style={{ fontFamily: FONT_MONO }}>{fullDateTime(lead.first_contact_at ?? lead.created_at)}</span>
+              פנייה ראשונה: <span dir="ltr" style={{ fontFamily: FONT_MONO }}>{fullDateTime(lead.first_contact_at ?? lead.created_at)}</span>
             </div>
           </div>
 
           {onOpenDetail && (
-            <button onClick={onOpenDetail} style={detailButtonStyle(narrow)}>Details</button>
+            <button onClick={onOpenDetail} style={detailButtonStyle(narrow)}>פרטים</button>
           )}
         </div>
       </div>
@@ -61,22 +61,22 @@ export default function ThreadView({
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: T.padTight, flexWrap: 'wrap',
           padding: `8px ${pad}px`, borderBottom: `1px solid ${T.border}`,
-          background: T.subtle, flexShrink: 0,
+          background: T.warnSoft, flexShrink: 0,
         }}>
-          <span style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.textMid }}>
-            Bot paused — handed off to a human
+          <span style={{ fontFamily: FONT_SANS, fontSize: T.fs12, color: T.warn, fontWeight: 600 }}>
+            הבוט מושבת — הועבר לנציג אנושי
           </span>
           <button
             onClick={onResumeBot}
             style={{
-              fontFamily: FONT_SANS, fontSize: T.fs12, cursor: 'pointer',
-              padding: narrow ? '8px 12px' : '3px 10px', minHeight: narrow ? 36 : 0,
-              borderRadius: T.radius,
+              fontFamily: FONT_SANS, fontSize: T.fs12, fontWeight: 600, cursor: 'pointer',
+              padding: narrow ? '8px 12px' : '4px 11px', minHeight: narrow ? 36 : 0,
+              borderRadius: T.radiusPill,
               border: `1px solid ${T.border}`, background: T.white, color: T.text,
               transition: 'background-color 150ms ease',
             }}
           >
-            Resume bot
+            הפעל בוט מחדש
           </button>
         </div>
       )}
@@ -85,7 +85,7 @@ export default function ThreadView({
         {loading && count === 0 && <ThreadSkeleton />}
         {!loading && count === 0 && (
           <div style={{ fontFamily: FONT_SANS, fontSize: T.fs13, color: T.textMid, textAlign: 'center', paddingTop: 40 }}>
-            No messages yet
+            אין הודעות עדיין
           </div>
         )}
 
@@ -146,11 +146,11 @@ function ReplyBox({ lead, narrow, pad, onSendReply }) {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        placeholder={lead.opted_out ? 'This lead opted out' : 'Reply as a human — this pauses the bot and sends now'}
+        placeholder={lead.opted_out ? 'הליד ביקש הסרה' : 'תשובה כאדם — זה משבית את הבוט ושולח עכשיו'}
         style={{
           flex: 1, minWidth: 0, resize: 'none',
           fontFamily: FONT_SANS, fontSize: T.fs13, lineHeight: 1.4,
-          padding: '10px 12px', borderRadius: T.radius, border: `1px solid ${T.border}`,
+          padding: '10px 13px', borderRadius: T.radius, border: `1px solid ${T.border}`,
           background: disabled ? T.subtle : T.white, color: T.text,
           outline: 'none',
         }}
@@ -160,15 +160,15 @@ function ReplyBox({ lead, narrow, pad, onSendReply }) {
         disabled={disabled || !text.trim()}
         style={{
           fontFamily: FONT_SANS, fontSize: T.fs13, fontWeight: 600, flexShrink: 0,
-          padding: narrow ? '12px 14px' : '10px 14px', minHeight: narrow ? 44 : 0,
-          borderRadius: T.radius, border: 'none',
+          padding: narrow ? '12px 16px' : '10px 16px', minHeight: narrow ? 44 : 0,
+          borderRadius: T.radiusPill, border: 'none',
           background: T.accent, color: T.white,
           cursor: disabled || !text.trim() ? 'not-allowed' : 'pointer',
           opacity: disabled || !text.trim() ? 0.5 : 1,
           transition: 'background-color 150ms ease',
         }}
       >
-        {state === 'sending' ? 'Sending...' : state === 'failed' ? 'Failed — retry' : 'Send'}
+        {state === 'sending' ? 'שולח...' : state === 'failed' ? 'נכשל — נסה שוב' : 'שליחה'}
       </button>
     </div>
   )
@@ -177,14 +177,14 @@ function ReplyBox({ lead, narrow, pad, onSendReply }) {
 const backButtonStyle = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   width: 36, height: 36, flexShrink: 0, padding: 0, marginTop: -2, cursor: 'pointer',
-  border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.white,
+  border: `1px solid ${T.border}`, borderRadius: T.radiusPill, background: T.white,
   transition: 'background-color 150ms ease',
 }
 
 const detailButtonStyle = (narrow) => ({
-  fontFamily: FONT_SANS, fontSize: T.fs12, cursor: 'pointer', flexShrink: 0,
-  padding: narrow ? '9px 12px' : '6px 12px', minHeight: narrow ? 36 : 0,
-  borderRadius: T.radius, border: `1px solid ${T.border}`,
+  fontFamily: FONT_SANS, fontSize: T.fs12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+  padding: narrow ? '9px 13px' : '6px 13px', minHeight: narrow ? 36 : 0,
+  borderRadius: T.radiusPill, border: `1px solid ${T.border}`,
   background: T.white, color: T.text, whiteSpace: 'nowrap',
   transition: 'background-color 150ms ease',
 })
@@ -199,7 +199,7 @@ function EmptyState({ narrow }) {
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" aria-hidden="true">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
       </svg>
-      <span style={{ fontFamily: FONT_SANS, fontSize: T.fs14, color: T.textMid }}>Select a conversation</span>
+      <span style={{ fontFamily: FONT_SANS, fontSize: T.fs14, color: T.textMid }}>בחר/י שיחה</span>
     </div>
   )
 }
@@ -207,9 +207,9 @@ function EmptyState({ narrow }) {
 function ThreadSkeleton() {
   return (
     <div>
-      {[['left', '55%'], ['right', '40%'], ['left', '65%'], ['right', '48%']].map(([side, w], i) => (
-        <div key={i} style={{ display: 'flex', justifyContent: side === 'right' ? 'flex-end' : 'flex-start', marginTop: i ? 16 : 0 }}>
-          <div className="wab-skeleton" style={{ height: 34, width: w, borderRadius: T.radius }} />
+      {[['start', '55%'], ['end', '40%'], ['start', '65%'], ['end', '48%']].map(([side, w], i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: side === 'end' ? 'flex-end' : 'flex-start', marginTop: i ? 16 : 0 }}>
+          <div className="wab-skeleton" style={{ height: 34, width: w, borderRadius: T.bubbleRadius }} />
         </div>
       ))}
     </div>

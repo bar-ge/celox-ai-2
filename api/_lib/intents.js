@@ -31,3 +31,6 @@ export const intentColor = (v) => (isIntent(v) ? INTENTS[v].color : INTENTS.gene
 
 /** @param {unknown} v @returns {string} */
 export const intentLabel = (v) => (isIntent(v) ? INTENTS[v].label : INTENTS.general.label)
+
+/** Hebrew label — used by the wab.celoxai.com dashboard UI (2026-10-12 redesign). */
+export const intentLabelHe = (v) => (isIntent(v) ? INTENTS[v].he : INTENTS.general.he)

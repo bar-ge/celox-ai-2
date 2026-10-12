@@ -1,35 +1,50 @@
 // Design tokens for the WhatsApp lead dashboard (wab.celoxai.com).
-// This screen has its own visual language, deliberately flatter and denser than
-// the fleet app: single blue accent, 4px radius ceiling, no shadows.
+//
+// 2026-10-12, Bar's request: redesigned in Hebrew/RTL to match the warm
+// editorial look from his "Celox AI" Claude design artifact — a cream/ink
+// palette with a single terracotta accent, Heebo type, generous radii and
+// soft warm-tinted shadows, instead of the old flat blue/gray screen.
 
 export const T = {
-  accent:      '#2563EB',
-  accentHover: '#1D4ED8',
+  accent:      '#A65F2E', // terracotta
+  accentHover: '#8B4D23',
+  accentSoft:  '#F4E5D8', // soft tint behind accent-coloured chips/badges
 
   white:    '#FFFFFF',
-  subtle:   '#F9FAFB',
-  bubbleIn: '#F3F4F6',
-  selected: '#EFF6FF',
+  bg:       '#FDFBF8', // page / main content background (warm near-white)
+  subtle:   '#F6F0E9', // sidebar & panel background (a shade deeper cream)
+  bubbleIn: '#F1EBE3', // inbound message bubble
+  selected: '#F4E5D8', // selected row background
 
-  border:   '#E5E7EB',
-  text:     '#111827',
-  textMid:  '#6B7280',
-  textDim:  '#9CA3AF',
+  border:   '#E3D7C7',
+  text:     '#2B2119',
+  textMid:  '#7A6B5E',
+  textDim:  '#B8ADA2',
+
+  success:     '#1F7A55',
+  successSoft: '#DDF1E8',
+  danger:      '#B03A3A',
+  dangerSoft:  '#F8DDDD',
+  warn:        '#8A5A00',
+  warnSoft:    '#FBEBCB',
 
   fs11: 11, fs12: 12, fs13: 13, fs14: 14, fs16: 16, fs20: 20,
   pad: 16, padTight: 12,
-  radius: 4,
+  radius: 10,
+  radiusPill: 999,
+  bubbleRadius: 14,
   colWidth: 320,
+  shadow: '0 6px 16px rgba(166, 95, 46, 0.12)',
+  shadowLg: '0 14px 34px rgba(166, 95, 46, 0.16)',
 }
 
-export const FONT_SANS = "'IBM Plex Sans', 'Assistant', system-ui, sans-serif"
+export const FONT_SANS = "'Heebo', 'IBM Plex Sans', system-ui, sans-serif"
 export const FONT_MONO = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 
 export const GOOGLE_FONTS_HREF =
   'https://fonts.googleapis.com/css2' +
-  '?family=IBM+Plex+Sans:wght@400;500;600;700' +
+  '?family=Heebo:wght@400;500;600;700;800' +
   '&family=IBM+Plex+Mono:wght@400;500;600' +
-  '&family=Assistant:wght@400;500;600;700' +
   '&display=swap'
 
 /** Load the dashboard's webfonts once, only on this screen. */
@@ -43,46 +58,46 @@ export function useDashboardFonts() {
   document.head.appendChild(link)
 }
 
-/** "2m ago" · "3h ago" · "Yesterday" · "12 Jan" */
+/** "לפני 2 דק׳" · "לפני 3 שע׳" · "אתמול" · "12 ינו׳" */
 export function relativeShort(iso) {
   if (!iso) return ''
   const then = new Date(iso)
   const diff = Date.now() - then.getTime()
   const min = Math.floor(diff / 60000)
-  if (min < 1) return 'now'
-  if (min < 60) return `${min}m ago`
+  if (min < 1) return 'עכשיו'
+  if (min < 60) return `לפני ${min} דק׳`
   const hrs = Math.floor(min / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return `לפני ${hrs} שע׳`
   const days = Math.floor(hrs / 24)
-  if (days === 1) return 'Yesterday'
-  return then.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  if (days === 1) return 'אתמול'
+  return then.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })
 }
 
-/** "2 minutes ago" · "3 hours ago" · "4 days ago" */
+/** "לפני 2 דקות" · "לפני 3 שעות" · "לפני 4 ימים" */
 export function relativeLong(iso) {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
   const min = Math.floor(diff / 60000)
-  if (min < 1) return 'just now'
-  if (min < 60) return `${min} minute${min === 1 ? '' : 's'} ago`
+  if (min < 1) return 'ממש עכשיו'
+  if (min < 60) return `לפני ${min} דקות`
   const hrs = Math.floor(min / 60)
-  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`
+  if (hrs < 24) return `לפני ${hrs} שעות`
   const days = Math.floor(hrs / 24)
-  return `${days} day${days === 1 ? '' : 's'} ago`
+  return `לפני ${days} ימים`
 }
 
-/** "14:32", or "12 Jan 14:32" when the message is not from today. */
+/** "14:32", or "12 ינו׳ 14:32" when the message is not from today. */
 export function bubbleTime(iso) {
   const d = new Date(iso)
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const time = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })
   const sameDay = d.toDateString() === new Date().toDateString()
-  return sameDay ? time : `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${time}`
+  return sameDay ? time : `${d.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })} ${time}`
 }
 
-/** "12 January 2025, 14:32" */
+/** "12 בינואר 2025, 14:32" */
 export function fullDateTime(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
-  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, ` +
-    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return `${d.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}, ` +
+    d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })
 }

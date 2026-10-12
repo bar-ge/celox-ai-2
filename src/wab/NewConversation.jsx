@@ -4,11 +4,11 @@ import { startConversation } from './api'
 
 /** Failure reasons the server can return, in words a human can act on. */
 const REASONS = {
-  bad_phone: 'That does not look like a phone number. Try 054-123-4567 or +972541234567.',
-  name_required: 'A first name is required — the opening message is personalised.',
-  already_exists: 'This number already has a conversation. Open it from the list instead.',
-  opted_out: 'This lead asked not to be contacted again.',
-  whatsapp_not_configured: 'WhatsApp credentials are missing on the server.',
+  bad_phone: 'זה לא נראה כמו מספר טלפון. נסה 054-123-4567 או +972541234567.',
+  name_required: 'שם פרטי הוא שדה חובה — הודעת הפתיחה מותאמת אישית.',
+  already_exists: 'למספר הזה יש כבר שיחה. פתח אותה מהרשימה במקום זאת.',
+  opted_out: 'הליד הזה ביקש לא להיות בקשר בעתיד.',
+  whatsapp_not_configured: 'פרטי ההתחברות לוואטסאפ חסרים בשרת.',
 }
 
 /**
@@ -20,7 +20,7 @@ const REASONS = {
 function explain(reason) {
   if (REASONS[reason]) return REASONS[reason]
   if (/template/i.test(reason)) {
-    return `WhatsApp rejected the opening template: ${reason}. It has to be approved in WhatsApp Manager before a new conversation can be started.`
+    return `וואטסאפ דחה את תבנית הפתיחה: ${reason}. היא צריכה להיות מאושרת ב-WhatsApp Manager לפני שאפשר להתחיל שיחה חדשה.`
   }
   return reason
 }
@@ -62,16 +62,17 @@ export default function NewConversation({ onClose, onStarted, narrow }) {
     // 16px on touch keeps iOS Safari from zooming the page on focus.
     fontSize: narrow ? T.fs16 : T.fs14,
     color: T.text, background: T.white,
-    padding: narrow ? '11px 12px' : '8px 10px',
-    border: `1px solid ${T.border}`, borderRadius: 2, outline: 'none',
+    padding: narrow ? '11px 13px' : '8px 11px',
+    border: `1px solid ${T.border}`, borderRadius: T.radius, outline: 'none',
   }
 
   return (
     <div
+      dir="rtl"
       onClick={() => !busy && onClose()}
       style={{
         position: 'fixed', inset: 0, zIndex: 10,
-        background: 'rgba(17,24,39,0.35)',
+        background: 'rgba(43,33,25,0.35)',
         display: 'flex', alignItems: narrow ? 'flex-end' : 'center', justifyContent: 'center',
         padding: narrow ? 0 : T.pad,
       }}
@@ -83,19 +84,20 @@ export default function NewConversation({ onClose, onStarted, narrow }) {
           width: narrow ? '100%' : 380, maxWidth: '100%',
           background: T.white,
           border: `1px solid ${T.border}`,
-          borderRadius: narrow ? '8px 8px 0 0' : T.radius,
+          borderRadius: narrow ? `${T.radius}px ${T.radius}px 0 0` : T.radius,
+          boxShadow: T.shadowLg,
           padding: T.pad,
           display: 'flex', flexDirection: 'column', gap: T.padTight,
         }}
       >
-        <div style={{ fontSize: T.fs16, fontWeight: 700, color: T.text }}>New conversation</div>
+        <div style={{ fontSize: T.fs16, fontWeight: 700, color: T.text }}>שיחה חדשה</div>
 
         <div style={{ fontSize: T.fs12, color: T.textMid, lineHeight: 1.5 }}>
-          Sends the Hebrew opening message and hands the thread to the agent.
+          שולח את הודעת הפתיחה בעברית ומעביר את השיחה לסוכן.
         </div>
 
         <label style={{ fontSize: T.fs12, color: T.textMid, marginTop: 4 }}>
-          Phone
+          טלפון
           <input
             ref={phoneRef}
             value={phone}
@@ -108,7 +110,7 @@ export default function NewConversation({ onClose, onStarted, narrow }) {
         </label>
 
         <label style={{ fontSize: T.fs12, color: T.textMid }}>
-          First name
+          שם פרטי
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -120,9 +122,9 @@ export default function NewConversation({ onClose, onStarted, narrow }) {
 
         {error && (
           <div dir="auto" style={{
-            fontSize: T.fs12, color: '#B91C1C', lineHeight: 1.5,
-            background: '#FEF2F2', border: '1px solid #FECACA',
-            borderRadius: 2, padding: '8px 10px',
+            fontSize: T.fs12, color: T.danger, lineHeight: 1.5,
+            background: T.dangerSoft, border: `1px solid ${T.danger}33`,
+            borderRadius: T.radius, padding: '8px 11px',
           }}>
             {error}
           </div>
@@ -134,22 +136,22 @@ export default function NewConversation({ onClose, onStarted, narrow }) {
             onClick={onClose}
             disabled={busy}
             style={{
-              fontFamily: FONT_SANS, fontSize: T.fs12, cursor: busy ? 'default' : 'pointer',
-              padding: narrow ? '11px 14px' : '7px 12px', minHeight: narrow ? 44 : 0,
-              borderRadius: T.radius, border: `1px solid ${T.border}`,
+              fontFamily: FONT_SANS, fontSize: T.fs12, fontWeight: 600, cursor: busy ? 'default' : 'pointer',
+              padding: narrow ? '11px 15px' : '7px 13px', minHeight: narrow ? 44 : 0,
+              borderRadius: T.radiusPill, border: `1px solid ${T.border}`,
               background: T.white, color: T.textMid,
             }}
           >
-            Cancel
+            ביטול
           </button>
           <button
             type="submit"
             disabled={disabled}
             style={{
-              fontFamily: FONT_SANS, fontSize: T.fs12,
+              fontFamily: FONT_SANS, fontSize: T.fs12, fontWeight: 600,
               cursor: disabled ? 'default' : 'pointer',
-              padding: narrow ? '11px 16px' : '7px 14px', minHeight: narrow ? 44 : 0,
-              borderRadius: T.radius,
+              padding: narrow ? '11px 17px' : '7px 15px', minHeight: narrow ? 44 : 0,
+              borderRadius: T.radiusPill,
               // White on grey is unreadable, so the disabled state drops to the
               // muted palette rather than just dimming the background.
               border: `1px solid ${disabled ? T.border : T.accent}`,
@@ -158,7 +160,7 @@ export default function NewConversation({ onClose, onStarted, narrow }) {
               transition: 'background-color 150ms ease',
             }}
           >
-            {busy ? 'Sending…' : 'Send opening'}
+            {busy ? 'שולח…' : 'שלח הודעת פתיחה'}
           </button>
         </div>
       </form>
