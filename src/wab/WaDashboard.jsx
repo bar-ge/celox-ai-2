@@ -159,6 +159,11 @@ export default function WaDashboard({ onBack }) {
 
   return (
     <div dir="rtl" style={{
+      // #root (App.css) is itself `display: flex`, so without flex:1 + minWidth:0
+      // this div sizes to its children's content width instead of stretching to
+      // fill the window — the bug Bar reported as a huge blank strip beside a
+      // narrow dashboard.
+      flex: '1 1 auto', minWidth: 0, width: '100%',
       height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column',
       background: T.bg, color: T.text, fontFamily: FONT_SANS,
     }}>
