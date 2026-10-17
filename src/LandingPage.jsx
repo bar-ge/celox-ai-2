@@ -465,9 +465,9 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
 // ── Hero ──────────────────────────────────────────────────────────────────────
 function Hero({ t }) {
   return (
-    <section style={{ position: 'relative', minHeight: '92vh', background: P.cream, display: 'flex', alignItems: 'center', overflow: 'hidden', direction: t.dir }}>
-      <Tree side="start" width={250} height={540} style={{ top: -10, opacity: .3 }} />
-      <Tree side="end" width={230} height={500} style={{ top: 260, opacity: .3 }} />
+    <section style={{ position: 'relative', minHeight: '92vh', background: P.cream, display: 'flex', alignItems: 'center', direction: t.dir }}>
+      <Tree side="start" width={300} height={650} style={{ bottom: -190, zIndex: 2 }} />
+      <Tree side="end" width={260} height={560} style={{ bottom: -150, zIndex: 2 }} />
       <div style={{ width: '100%', maxWidth: 1400, margin: '0 auto', padding: '130px 64px 90px', boxSizing: 'border-box', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'inline-block', border: '1px solid rgba(43,38,48,.18)', borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: P.inkSub, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 36, animation: 'lp-up .65s .05s both' }}>
           {t.hero.badge}

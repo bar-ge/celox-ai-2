@@ -76,6 +76,7 @@ export const PAINT_CSS = `
   .px-head { font-family:${HEAD_FONT}; font-weight:700; letter-spacing:-.04em }
   .px-deco { position:absolute; pointer-events:none; z-index:0 }
   .px-deco svg { display:block; max-width:44vw; height:auto }
+  @media (max-width:1100px) { .px-deco { opacity:.35 !important } }
   
   .px-bg { position:absolute; inset:0; width:100%; height:100%; z-index:0 }
   .px-card { transition:transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s }
@@ -98,8 +99,8 @@ export function PaintDefs() {
 // One painted tree in a corner. `side` is logical: 'start' | 'end'.
 export function Tree({ side = 'start', width = 360, height = 780, style }) {
   const pos = side === 'start'
-    ? { insetInlineStart: -60 }
-    : { insetInlineEnd: -50, transform: 'scaleX(-1)' }
+    ? { left: -60 }                         // physical on purpose: the art is mirror-symmetric decoration
+    : { right: -50, transform: 'scaleX(-1)' } // and its cut edge must always sit off-screen
   return (
     <div className="px-deco" aria-hidden="true" style={{ ...pos, ...style }}>
       <svg width={width} height={height} viewBox="0 0 360 780" fill="none"
