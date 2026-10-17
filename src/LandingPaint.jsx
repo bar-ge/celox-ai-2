@@ -120,6 +120,33 @@ export function WideSky() {
   )
 }
 
+// Second painted version: warm dusk (peach / lilac) with soft hills, so sections don't all share one sky.
+const DUSK_INNER = `
+<g filter="url(#cx-paint)">
+  <rect x="-120" y="-120" width="1440" height="1040" fill="#f1dccd"/>
+  <ellipse cx="200" cy="140" rx="380" ry="150" fill="#dccbe6"/>
+  <ellipse cx="960" cy="110" rx="400" ry="140" fill="#f7d3b4"/>
+  <ellipse cx="600" cy="330" rx="470" ry="150" fill="#e9bfb8"/>
+  <ellipse cx="1040" cy="430" rx="320" ry="150" fill="#fbe6c8"/>
+  <ellipse cx="150" cy="430" rx="300" ry="130" fill="#cdbbe0"/>
+  <rect x="80" y="250" width="520" height="62" rx="31" fill="#fbf0e0" opacity=".7" transform="rotate(-6 340 280)"/>
+  <rect x="700" y="330" width="440" height="56" rx="28" fill="#fdeed6" opacity=".7" transform="rotate(5 920 358)"/>
+</g>
+<circle cx="880" cy="470" r="210" fill="url(#cx-sun)"/>
+<g filter="url(#cx-paint)">
+  <path d="M-100 600 C150 520 330 570 520 530 C720 490 900 560 1080 520 C1200 495 1300 520 1320 530 L1320 900 L-100 900Z" fill="#c9b6d4"/>
+  <path d="M-100 680 C140 610 380 670 600 630 C820 590 1000 660 1320 610 L1320 900 L-100 900Z" fill="#a9b189"/>
+  <path d="M-100 760 C200 710 420 770 640 740 C860 710 1060 770 1320 730 L1320 900 L-100 900Z" fill="#7f9a62"/>
+</g>
+<rect width="1200" height="800" filter="url(#cx-grain)"/>`
+
+function SkyDusk() {
+  return (
+    <svg className="px-bg" aria-hidden="true" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMax slice"
+      dangerouslySetInnerHTML={{ __html: DUSK_INNER }} />
+  )
+}
+
 function Sky() {
   return (
     <svg className="px-bg" aria-hidden="true" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice"
@@ -198,12 +225,12 @@ export function PaintBand({ t, lang }) {
   const c = getPaintCopy(lang).band
   return (
     <section aria-label={`${c.h1} ${c.h2}`} style={{ maxWidth: 1240, margin: '0 auto', padding: '100px 16px 0', boxSizing: 'border-box', direction: t.dir }}>
-      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 32, padding: 'clamp(36px,7vw,90px) clamp(18px,4vw,60px)', background: 'linear-gradient(165deg,#d3e2f6 0%,#e7eef7 50%,#f1e9d9 100%)', textAlign: 'center' }}>
-        <Sky />
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 32, padding: 'clamp(36px,7vw,90px) clamp(18px,4vw,60px)', background: 'linear-gradient(165deg,#f3dccf 0%,#ead5e0 50%,#f6e6cf 100%)', textAlign: 'center' }}>
+        <SkyDusk />
         <Tree side="start" width={230} height={500} style={{ bottom: -120, opacity: .95 }} />
         <Tree side="end" width={230} height={500} style={{ bottom: -120, opacity: .95 }} />
         <h2 className="px-head" style={{ position: 'relative', zIndex: 1, fontSize: 'clamp(36px,5.5vw,64px)', lineHeight: 1.02, letterSpacing: '-.035em', margin: 0, color: INK }}>
-          {c.h1}<br /><span style={{ color: '#6B7388' }}>{c.h2}</span>
+          {c.h1}<br /><span style={{ color: '#8a6a86' }}>{c.h2}</span>
         </h2>
         <p style={{ position: 'relative', zIndex: 1, fontSize: 18, lineHeight: 1.7, color: SUB, maxWidth: 520, margin: '22px auto 48px' }}>{c.sub}</p>
         <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 18, maxWidth: 1000, margin: '0 auto', textAlign: 'start' }}>
