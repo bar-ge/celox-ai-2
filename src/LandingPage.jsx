@@ -3,7 +3,7 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import { CeloxIcon } from './LogoIcon'
 import { validateField, isEmail, isIsraeliPhone, isEmpty } from './validators'
 import { REGIONS, MARKETING_REGION_CODES, getRegion } from './regions'
-import { PaintDefs, Tree, ProductFrame, PaintBand, Scene, PAINT_CSS, getPaintCopy } from './LandingPaint'
+import { PaintDefs, Tree, WideSky, ProductFrame, PaintBand, Scene, PAINT_CSS, getPaintCopy } from './LandingPaint'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
@@ -465,9 +465,7 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
 // ── Hero ──────────────────────────────────────────────────────────────────────
 function Hero({ t }) {
   return (
-    <section style={{ position: 'relative', minHeight: '92vh', background: P.cream, display: 'flex', alignItems: 'center', direction: t.dir }}>
-      <Tree side="start" width={300} height={650} style={{ bottom: -190, zIndex: 2 }} />
-      <Tree side="end" width={260} height={560} style={{ bottom: -150, zIndex: 2 }} />
+    <section style={{ position: 'relative', minHeight: '92vh', background: 'transparent', display: 'flex', alignItems: 'center', direction: t.dir }}>
       <div style={{ width: '100%', maxWidth: 1400, margin: '0 auto', padding: '130px 64px 90px', boxSizing: 'border-box', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'inline-block', border: '1px solid rgba(43,38,48,.18)', borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: P.inkSub, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 36, animation: 'lp-up .65s .05s both' }}>
           {t.hero.badge}
@@ -887,8 +885,13 @@ export default function LandingPage({ region: regionCode }) {
       <PaintDefs />
       <Nav t={t} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} region={region} />
       <main>
-        <Hero t={t} />
-        <ProductFrame t={t} lang={lang} />
+        <div style={{ position: 'relative', overflow: 'hidden', background: P.cream }}>
+          <WideSky />
+          <Tree side="start" width={320} height={690} style={{ top: 700, zIndex: 2 }} />
+          <Tree side="end" width={270} height={580} style={{ top: 760, zIndex: 2 }} />
+          <Hero t={t} />
+          <ProductFrame t={t} lang={lang} />
+        </div>
         <Phases t={t} />
         <Stats t={t} />
         <About t={t} scrollY={scrollY} />

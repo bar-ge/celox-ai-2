@@ -75,8 +75,10 @@ export const getPaintCopy = lang => COPY[lang] || COPY.he
 export const PAINT_CSS = `
   .px-head { font-family:${HEAD_FONT}; font-weight:700; letter-spacing:-.04em }
   .px-deco { position:absolute; pointer-events:none; z-index:0 }
+  .px-deco svg, .px-deco use, #cx-tree { overflow:visible }
   .px-deco svg { display:block; max-width:44vw; height:auto }
   @media (max-width:1100px) { .px-deco { opacity:.35 !important } }
+  @media (max-width:700px) { .px-deco { z-index:0 !important } }
   
   .px-bg { position:absolute; inset:0; width:100%; height:100%; z-index:0 }
   .px-card { transition:transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s }
@@ -109,6 +111,15 @@ export function Tree({ side = 'start', width = 360, height = 780, style }) {
   )
 }
 
+// One continuous painted sky behind hero + app preview (reads as a single picture).
+export function WideSky() {
+  const inner = `<g transform="scale(1.25 2.2)">${SKY_INNER}</g>`
+  return (
+    <svg className="px-bg" aria-hidden="true" viewBox="0 0 1500 1760" preserveAspectRatio="xMidYMin slice"
+      dangerouslySetInnerHTML={{ __html: inner }} />
+  )
+}
+
 function Sky() {
   return (
     <svg className="px-bg" aria-hidden="true" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice"
@@ -127,9 +138,8 @@ export function ProductFrame({ t, lang }) {
   const c = getPaintCopy(lang).frame
   const line = '1px solid rgba(43,38,48,.08)'
   return (
-    <section id="product" aria-label={c.title} style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 16px 0', boxSizing: 'border-box', direction: t.dir }}>
-      <div style={{ borderRadius: 32, padding: 'clamp(20px,5vw,64px)', background: 'linear-gradient(160deg,#cfe0f7 0%,#e4ecf6 45%,#f0e8d8 100%)', position: 'relative', overflow: 'hidden' }}>
-        <Sky />
+    <section id="product" aria-label={c.title} style={{ position: 'relative', margin: '0 auto', padding: '0 16px', boxSizing: 'border-box', direction: t.dir }}>
+      <div style={{ padding: 'clamp(0px,2vw,24px) clamp(0px,3vw,48px) clamp(48px,7vw,110px)', position: 'relative' }}>
         <div style={{ position: 'relative', background: PAPER, borderRadius: 18, boxShadow: '0 30px 80px rgba(43,38,48,.18)', overflow: 'hidden', maxWidth: 980, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '12px 16px', borderBottom: line }}>
             {[0, 1, 2].map(i => <span key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: '#e3dfd8' }} />)}
