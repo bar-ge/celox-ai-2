@@ -3,6 +3,7 @@ import { Turnstile } from '@marsidev/react-turnstile'
 import { CeloxIcon } from './LogoIcon'
 import { validateField, isEmail, isIsraeliPhone, isEmpty } from './validators'
 import { REGIONS, MARKETING_REGION_CODES, getRegion } from './regions'
+import { PaintDefs, Tree, ProductFrame, PaintBand, Scene, PAINT_CSS, getPaintCopy } from './LandingPaint'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'
 
@@ -292,6 +293,7 @@ const CSS = `
   ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px }
   ::-webkit-scrollbar-thumb:hover { background:oklch(52% 0.22 260) }
   * { scrollbar-width:thin; scrollbar-color:#cbd5e1 transparent }
+  ${PAINT_CSS}
 `
 
 // ── CountUp stat item ─────────────────────────────────────────────────────────
@@ -349,7 +351,7 @@ function SectionHead({ chip, h, sub, light, dir, align = 'center' }) {
   return (
     <div style={{ textAlign: isStart ? 'start' : 'center', marginBottom: 64 }}>
       {chip && <div className="lp-rs lp-d0"><Chip light={light}>{chip}</Chip></div>}
-      <h2 className="lp-r lp-d1" style={{ fontSize: 52, fontWeight: 900, color: light ? '#fff' : P.text, lineHeight: 1.1, margin: chip ? '0 0 16px' : '0 0 16px', letterSpacing: -1.5 }}>
+      <h2 className="lp-r lp-d1" style={{ fontSize: 52, fontWeight: 700, color: light ? '#fff' : P.text, lineHeight: 1.1, margin: chip ? '0 0 16px' : '0 0 16px', letterSpacing: '-0.04em' }}>
         {h}
       </h2>
       {sub && <p className="lp-r lp-d2" style={{ fontSize: 17, color: light ? 'rgba(255,255,255,.5)' : P.sub, maxWidth: 560, margin: isStart ? '16px 0 0' : '16px auto 0', lineHeight: 1.75 }}>{sub}</p>}
@@ -464,12 +466,14 @@ function Nav({ t, solid, mobileOpen, setMobileOpen, scrollTo, region }) {
 function Hero({ t }) {
   return (
     <section style={{ position: 'relative', minHeight: '92vh', background: P.cream, display: 'flex', alignItems: 'center', overflow: 'hidden', direction: t.dir }}>
-      <div style={{ width: '100%', maxWidth: 1400, margin: '0 auto', padding: '130px 64px 90px', boxSizing: 'border-box' }}>
+      <Tree side="start" width={250} height={540} style={{ top: -10, opacity: .3 }} />
+      <Tree side="end" width={230} height={500} style={{ top: 260, opacity: .3 }} />
+      <div style={{ width: '100%', maxWidth: 1400, margin: '0 auto', padding: '130px 64px 90px', boxSizing: 'border-box', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'inline-block', border: '1px solid rgba(43,38,48,.18)', borderRadius: 30, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: P.inkSub, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 36, animation: 'lp-up .65s .05s both' }}>
           {t.hero.badge}
         </div>
 
-        <h1 className="lp-hero-h1" style={{ fontSize: 'clamp(56px,9vw,124px)', fontWeight: 900, lineHeight: .98, letterSpacing: '-0.03em', margin: 0, color: P.ink }}>
+        <h1 className="lp-hero-h1" style={{ fontSize: 'clamp(56px,9vw,124px)', fontWeight: 700, lineHeight: .98, letterSpacing: '-0.04em', margin: 0, color: P.ink }}>
           <span style={{ display: 'block', animation: 'lp-up .75s .2s both' }}>{t.hero.h1}</span>
           <span style={{ display: 'block', animation: 'lp-up .75s .32s both' }}>{t.hero.h2}.</span>
         </h1>
@@ -492,9 +496,9 @@ function Hero({ t }) {
           </div>
         </div>
 
-        <div style={{ position: 'absolute', bottom: 30, insetInlineStart: 64, fontSize: 12, color: P.inkSub, letterSpacing: .4, animation: 'lp-up .75s .7s both' }}>
-          ↓ {t.hero.scrollCue}
-        </div>
+      </div>
+      <div style={{ position: 'absolute', bottom: 30, insetInlineStart: 64, zIndex: 1, fontSize: 12, color: P.inkSub, letterSpacing: .4, animation: 'lp-up .75s .7s both' }}>
+        ↓ {t.hero.scrollCue}
       </div>
     </section>
   )
@@ -548,7 +552,7 @@ function About({ t, scrollY }) {
       <div className="lp-about-grid" style={{ maxWidth: 1400, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         {/* Column 1 — heading block */}
         <div className="lp-rl lp-d0">
-          <h2 style={{ fontSize: 52, fontWeight: 900, color: P.text, lineHeight: 1.1, margin: '0 0 20px', letterSpacing: -1.5 }}>
+          <h2 style={{ fontSize: 52, fontWeight: 700, color: P.text, lineHeight: 1.1, margin: '0 0 20px', letterSpacing: '-0.04em' }}>
             {t.about.h}
           </h2>
           <p style={{ fontSize: 17, color: P.sub, lineHeight: 1.8, margin: 0, maxWidth: 480 }}>
@@ -618,12 +622,12 @@ function Features({ t, scrollY }) {
 }
 
 // ── CTA ───────────────────────────────────────────────────────────────────────
-function CTASection({ t }) {
+function CTASection({ t, scene }) {
   return (
-    <section style={{ background: P.cream, padding: '130px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+    <section aria-label={t.cta.h} style={{ background: scene ? 'transparent' : P.cream, padding: scene ? '110px 64px 40px' : '130px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
       <div style={{ position: 'relative', zIndex: 2, maxWidth: 820, margin: '0 auto', textAlign: 'center' }}>
         <div className="lp-rs lp-d0"><Chip>{t.cta.badge}</Chip></div>
-        <h2 className="lp-r lp-d1" style={{ fontSize: 'clamp(42px,5.5vw,72px)', fontWeight: 900, color: P.ink, lineHeight: 1.03, marginBottom: 20, marginTop: 6, letterSpacing: '-0.025em' }}>{t.cta.h}</h2>
+        <h2 className="lp-r lp-d1" style={{ fontSize: 'clamp(42px,5.5vw,72px)', fontWeight: 700, color: P.ink, lineHeight: 1.03, marginBottom: 20, marginTop: 6, letterSpacing: '-0.04em' }}>{t.cta.h}</h2>
         <p className="lp-r lp-d2" style={{ fontSize: 17, color: P.inkSub, lineHeight: 1.75, marginBottom: 44 }}>{t.cta.sub}</p>
         <div className="lp-r lp-d3">
           <a href="/app" className="lp-btn-primary"
@@ -792,22 +796,26 @@ function ContactSection({ t }) {
 }
 
 // ── Footer ────────────────────────────────────────────────────────────────────
-function Footer({ t }) {
+function Footer({ t, scene, lang }) {
   const scrollTo = id => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  const sc = getPaintCopy(lang).scene
+  const fg  = scene ? P.cream : P.text
+  const sub = scene ? '#E3E6D6' : P.muted
   return (
-    <footer style={{ background: P.white, borderTop: `1px solid ${P.border}`, padding: '32px 64px', direction: t.dir }}>
-      <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+    <footer style={{ position: 'relative', zIndex: 2, background: scene ? 'transparent' : P.white, borderTop: scene ? 'none' : `1px solid ${P.border}`, padding: scene ? '0 64px 28px' : '32px 64px', direction: t.dir, color: fg }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, ...(scene ? { paddingTop: 28, borderTop: '1px solid rgba(244,243,239,.22)' } : {}) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <CeloxIcon size={28} />
-          <span style={{ fontSize: 15, fontWeight: 800, color: P.text }}>Celox <span style={{ color: P.blue }}>AI</span></span>
+          <CeloxIcon size={28} dark={!!scene} />
+          <span style={{ fontSize: 15, fontWeight: 800, color: fg }}>Celox <span style={{ color: scene ? '#93c5fd' : P.blue }}>AI</span></span>
+          {scene && <span style={{ fontSize: 14, fontWeight: 300, color: sub, marginInlineStart: 8 }}>{sc.tagline}</span>}
         </div>
-        <div style={{ fontSize: 13, color: P.muted }}>{t.footer}</div>
+        <div style={{ fontSize: 13, color: sub }}>{t.footer}</div>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
           {[['what','about'],['features','features'],['contact','contact']].map(([k,id]) => (
             <span key={id} onClick={() => scrollTo(id)} className="lp-nav-link"
-              style={{ fontSize: 13, color: P.muted, cursor: 'pointer' }}>{t.nav[k]}</span>
+              style={{ fontSize: 13, color: sub, cursor: 'pointer' }}>{t.nav[k]}</span>
           ))}
-          <a href="/privacy" style={{ fontSize: 13, color: P.muted, textDecoration: 'none' }} className="lp-nav-link">
+          <a href="/privacy" style={{ fontSize: 13, color: sub, textDecoration: 'none' }} className="lp-nav-link">
             {t.dir === 'rtl' ? 'מדיניות פרטיות' : 'Privacy Policy'}
           </a>
         </div>
@@ -876,17 +884,22 @@ export default function LandingPage({ region: regionCode }) {
 
   return (
     <div style={{ fontFamily: "'Heebo', Arial, sans-serif", direction: t.dir, background: P.white, color: P.text, overflowX: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+      <PaintDefs />
       <Nav t={t} solid={navSolid} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} scrollTo={scrollTo} region={region} />
       <main>
         <Hero t={t} />
+        <ProductFrame t={t} lang={lang} />
         <Phases t={t} />
         <Stats t={t} />
         <About t={t} scrollY={scrollY} />
+        <PaintBand t={t} lang={lang} />
         <Features t={t} scrollY={scrollY} />
-        <CTASection t={t} scrollY={scrollY} />
         <ContactSection t={t} />
       </main>
-      <Footer t={t} />
+      <Scene>
+        <CTASection t={t} scene />
+        <Footer t={t} scene lang={lang} />
+      </Scene>
     </div>
   )
 }
