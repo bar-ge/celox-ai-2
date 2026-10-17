@@ -89,8 +89,8 @@ export const PAINT_CSS = `
   .px-app-stat-n { font-size:26px }
   .px-app-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; flex-wrap:wrap }
   @media (max-width:700px) {
-    .px-app-side { flex:0 0 100%; flex-direction:row; gap:6px; padding:10px 12px; border-inline-end:none; border-bottom:1px solid rgba(43,38,48,.08); overflow-x:auto; font-size:13px }
-    .px-app-nav { padding:7px 12px; white-space:nowrap; flex:0 0 auto }
+    .px-app-side { flex:0 0 100%; display:grid; grid-template-columns:repeat(3,1fr); text-align:center; gap:4px; padding:10px 8px; border-inline-end:none; border-bottom:1px solid rgba(43,38,48,.08); font-size:14px }
+    .px-app-nav { padding:8px 6px; white-space:nowrap }
     .px-app-main { flex:1 1 100%; padding:14px 12px }
     .px-app-stats { gap:8px }
     .px-app-stat { padding:10px 10px }

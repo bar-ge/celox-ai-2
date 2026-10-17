@@ -608,8 +608,8 @@ function Features({ t, scrollY }) {
                   padding: '28px 0',
                   borderBottom: `1px solid ${P.border}`,
                 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: P.text, marginBottom: 8, letterSpacing: -0.2 }}>{f.t}</div>
-                  <div style={{ fontSize: 14, color: P.sub, lineHeight: 1.75 }}>{f.d}</div>
+                  <div style={{ fontSize: 'clamp(20px,2vw,24px)', fontWeight: 700, color: P.ink, marginBottom: 8, letterSpacing: '-0.02em' }}>{f.t}</div>
+                  <div style={{ fontSize: 'clamp(16px,1.5vw,18px)', fontWeight: 300, color: P.inkSub, lineHeight: 1.7 }}>{f.d}</div>
                 </div>
               ))}
             </div>
