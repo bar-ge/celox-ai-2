@@ -623,18 +623,18 @@ function Features({ t, scrollY }) {
 // ── CTA ───────────────────────────────────────────────────────────────────────
 function CTASection({ t, scene }) {
   return (
-    <section aria-label={t.cta.h} style={{ background: scene ? 'transparent' : P.cream, padding: scene ? '110px 64px 40px' : '130px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
+    <section aria-label={t.cta.h} style={{ background: scene ? 'transparent' : P.cream, padding: scene ? '90px clamp(16px,5vw,64px) 8px' : '130px 64px', position: 'relative', overflow: 'hidden', direction: t.dir }}>
       <div style={{ position: 'relative', zIndex: 2, maxWidth: 820, margin: '0 auto', textAlign: 'center' }}>
         <div className="lp-rs lp-d0"><Chip>{t.cta.badge}</Chip></div>
-        <h2 className="lp-r lp-d1" style={{ fontSize: 'clamp(42px,5.5vw,72px)', fontWeight: 700, color: P.ink, lineHeight: 1.03, marginBottom: 20, marginTop: 6, letterSpacing: '-0.04em' }}>{t.cta.h}</h2>
-        <p className="lp-r lp-d2" style={{ fontSize: 17, color: P.inkSub, lineHeight: 1.75, marginBottom: 44 }}>{t.cta.sub}</p>
+        <h2 className="lp-r lp-d1" style={{ fontSize: scene ? 'clamp(34px,4.6vw,58px)' : 'clamp(42px,5.5vw,72px)', fontWeight: 700, color: P.ink, lineHeight: 1.03, marginBottom: scene ? 14 : 20, marginTop: 6, letterSpacing: '-0.04em' }}>{t.cta.h}</h2>
+        <p className="lp-r lp-d2" style={{ fontSize: 17, color: P.inkSub, lineHeight: 1.75, marginBottom: scene ? 26 : 44 }}>{t.cta.sub}</p>
         <div className="lp-r lp-d3">
           <a href="/app" className="lp-btn-primary"
             style={{ display: 'inline-block', background: '#2563eb', color: '#fff', textDecoration: 'none', padding: '17px 54px', borderRadius: 99, fontSize: 17, fontWeight: 800, boxShadow: '0 10px 36px rgba(37,99,235,.32)', letterSpacing: -.2 }}>
             {t.cta.btn} →
           </a>
         </div>
-        <div className="lp-r lp-d4" style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 48, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="lp-r lp-d4" style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: scene ? 22 : 48, flexWrap: 'wrap', alignItems: 'center' }}>
           {t.cta.trust.map((x,i) => (
             <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 12, fontSize: 13, color: P.inkSub, fontWeight: 500 }}>
               {i > 0 && <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(43,38,48,.3)', display: 'inline-block' }} />}
@@ -648,7 +648,7 @@ function CTASection({ t, scene }) {
 }
 
 // ── Contact ───────────────────────────────────────────────────────────────────
-function ContactSection({ t }) {
+function ContactSection({ t, scene }) {
   const c    = t.contact
   const lang = t.dir === 'rtl' ? 'he' : 'en'
   const [form, setForm]           = useState({ name: '', company: '', phone: '', email: '', message: '' })
@@ -719,9 +719,9 @@ function ContactSection({ t }) {
   const hasErrors = Object.keys(errors).some(k => errors[k])
 
   return (
-    <section id="contact" style={{ background: P.light, padding: '120px 64px 100px', direction: t.dir }}>
+    <section id="contact" style={{ background: scene ? 'transparent' : P.light, padding: scene ? '36px clamp(16px,5vw,64px) 48px' : '120px 64px 100px', direction: t.dir, position: 'relative', zIndex: 2 }}>
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-        <SectionHead h={c.h} sub={c.sub} dir={t.dir} />
+        <div style={scene ? { marginBottom: -24 } : undefined}><SectionHead h={c.h} sub={c.sub} dir={t.dir} /></div>
 
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
           {done ? (
@@ -730,7 +730,7 @@ function ContactSection({ t }) {
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
-              <div className="lp-contact-card" style={{ background: P.white, border: `1px solid ${P.border}`, borderRadius: 24, padding: '40px 44px', boxShadow: '0 4px 32px rgba(0,0,0,.05)' }}>
+              <div className="lp-contact-card" style={{ background: 'rgba(251,250,247,.94)', border: `1px solid ${P.border}`, borderRadius: 24, padding: '40px 44px', boxShadow: '0 18px 60px rgba(27,45,29,.25)' }}>
 
                 <div className="lp-form-grid">
                   <div>
@@ -898,10 +898,10 @@ export default function LandingPage({ region: regionCode }) {
         <About t={t} scrollY={scrollY} />
         <PaintBand t={t} lang={lang} />
         <Features t={t} scrollY={scrollY} />
-        <ContactSection t={t} />
       </main>
       <Scene>
         <CTASection t={t} scene />
+        <ContactSection t={t} scene />
         <Footer t={t} scene lang={lang} />
       </Scene>
     </div>

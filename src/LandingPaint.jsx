@@ -222,7 +222,7 @@ export function PaintBand({ t, lang }) {
 // Painted landscape that wraps the closing CTA and the footer.
 export function Scene({ children }) {
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', minHeight: 'clamp(820px,92vw,1080px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+    <div style={{ position: 'relative', overflow: 'hidden', minHeight: 'clamp(900px,92vw,1080px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
       <svg className="px-bg" aria-hidden="true" viewBox="0 0 1440 1080" preserveAspectRatio="xMidYMax slice"
         dangerouslySetInnerHTML={{ __html: SCENE_INNER }} />
       {children}
