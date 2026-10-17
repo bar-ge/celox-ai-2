@@ -80,6 +80,24 @@ export const PAINT_CSS = `
   @media (max-width:1100px) { .px-deco { opacity:.35 !important } }
   @media (max-width:700px) { .px-deco { z-index:0 !important } }
   
+  .px-app-side { flex:0 0 190px; padding:18px 14px; border-inline-end:1px solid rgba(43,38,48,.08); display:flex; flex-direction:column; gap:4px; font-size:14px; box-sizing:border-box }
+  .px-app-nav { padding:9px 12px }
+  .px-app-main { flex:1 1 440px; padding:22px; box-sizing:border-box; min-width:0 }
+  .px-app-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px }
+  .px-app-stat { padding:12px 14px }
+  .px-app-stat-l { font-size:12px }
+  .px-app-stat-n { font-size:26px }
+  .px-app-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; flex-wrap:wrap }
+  @media (max-width:700px) {
+    .px-app-side { flex:0 0 100%; flex-direction:row; gap:6px; padding:10px 12px; border-inline-end:none; border-bottom:1px solid rgba(43,38,48,.08); overflow-x:auto; font-size:13px }
+    .px-app-nav { padding:7px 12px; white-space:nowrap; flex:0 0 auto }
+    .px-app-main { flex:1 1 100%; padding:14px 12px }
+    .px-app-stats { gap:8px }
+    .px-app-stat { padding:10px 10px }
+    .px-app-stat-l { font-size:11px; line-height:1.3 }
+    .px-app-stat-n { font-size:22px }
+    .px-app-row { padding:10px 12px; font-size:13px; gap:6px 10px }
+  }
   .px-bg { position:absolute; inset:0; width:100%; height:100%; z-index:0 }
   .px-card { transition:transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s }
   .px-card:hover { transform:translateY(-4px); box-shadow:0 18px 44px rgba(43,38,48,.12) }
@@ -173,29 +191,29 @@ export function ProductFrame({ t, lang }) {
             <span style={{ marginInlineStart: 14, fontSize: 12, color: SUB }} dir="ltr">celoxai.com/app</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            <div style={{ flex: '0 0 190px', padding: '18px 14px', borderInlineEnd: line, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, boxSizing: 'border-box' }}>
+            <div className="px-app-side">
               {c.nav.map((n, i) => (
-                <div key={n} style={i === 0
-                  ? { padding: '9px 12px', borderRadius: 9, background: 'rgba(37,99,235,.1)', color: BLUE, fontWeight: 700 }
-                  : { padding: '9px 12px', color: SUB }}>{n}</div>
+                <div key={n} className="px-app-nav" style={i === 0
+                  ? { borderRadius: 9, background: 'rgba(37,99,235,.1)', color: BLUE, fontWeight: 700 }
+                  : { color: SUB }}>{n}</div>
               ))}
             </div>
-            <div style={{ flex: '1 1 440px', padding: 22, boxSizing: 'border-box', minWidth: 0 }}>
+            <div className="px-app-main">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
                 <div style={{ fontWeight: 800, fontSize: 18, color: INK }}>{c.title}</div>
                 <div style={{ fontSize: 12, color: SUB }}>{c.sample}</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10, marginBottom: 18 }}>
+              <div className="px-app-stats">
                 {c.stats.map(([l, n, warn]) => (
-                  <div key={l} style={{ background: '#fff', border: line, borderRadius: 12, padding: '12px 14px' }}>
-                    <div style={{ fontSize: 12, color: SUB }}>{l}</div>
-                    <div style={{ fontSize: 26, fontWeight: 800, color: warn ? '#b45309' : INK }}>{n}</div>
+                  <div key={l} className="px-app-stat" style={{ background: '#fff', border: line, borderRadius: 12 }}>
+                    <div className="px-app-stat-l" style={{ color: SUB }}>{l}</div>
+                    <div className="px-app-stat-n" style={{ fontWeight: 800, color: warn ? '#b45309' : INK }}>{n}</div>
                   </div>
                 ))}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
                 {c.rows.map(([plate, car, status, kind]) => (
-                  <div key={plate} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#fff', border: line, borderRadius: 12, padding: '12px 14px', flexWrap: 'wrap' }}>
+                  <div key={plate} className="px-app-row" style={{ background: '#fff', border: line, borderRadius: 12 }}>
                     <span style={{ fontWeight: 700, color: INK }} dir="ltr">{plate}</span>
                     <span style={{ color: SUB }}>{car}</span>
                     <span style={{ ...BADGE[kind], borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 600 }}>{status}</span>
@@ -232,12 +250,12 @@ export function PaintBand({ t, lang }) {
         <h2 className="px-head" style={{ position: 'relative', zIndex: 1, fontSize: 'clamp(36px,5.5vw,64px)', lineHeight: 1.02, letterSpacing: '-.035em', margin: 0, color: INK }}>
           {c.h1}<br /><span style={{ color: '#8a6a86' }}>{c.h2}</span>
         </h2>
-        <p style={{ position: 'relative', zIndex: 1, fontSize: 18, lineHeight: 1.7, color: SUB, maxWidth: 520, margin: '22px auto 48px' }}>{c.sub}</p>
+        <p style={{ position: 'relative', zIndex: 1, fontSize: 'clamp(18px,4.8vw,20px)', lineHeight: 1.7, color: SUB, maxWidth: 520, margin: '22px auto 48px' }}>{c.sub}</p>
         <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 18, maxWidth: 1000, margin: '0 auto', textAlign: 'start' }}>
           {c.cards.map(([h, d]) => (
-            <div key={h} className="px-card" style={{ background: PAPER, borderRadius: 20, padding: '26px 24px', minHeight: 200 }}>
-              <h3 style={{ fontSize: 19, fontWeight: 600, margin: '0 0 8px', letterSpacing: '-.01em', color: INK }}>{h}</h3>
-              <p style={{ fontSize: 15, fontWeight: 300, lineHeight: 1.7, color: SUB, margin: 0 }}>{d}</p>
+            <div key={h} className="px-card" style={{ background: PAPER, borderRadius: 20, padding: '28px 26px', minHeight: 'clamp(0px,20vw,200px)' }}>
+              <h3 style={{ fontSize: 'clamp(22px,5.6vw,25px)', fontWeight: 700, margin: '0 0 10px', letterSpacing: '-.02em', color: INK }}>{h}</h3>
+              <p style={{ fontSize: 'clamp(17px,4.4vw,18px)', fontWeight: 400, lineHeight: 1.65, color: SUB, margin: 0 }}>{d}</p>
             </div>
           ))}
         </div>
