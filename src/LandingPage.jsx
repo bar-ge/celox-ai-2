@@ -336,11 +336,11 @@ function StatItem({ stat, index }) {
 
   return (
     <div ref={ref} className={`lp-stat-item lp-r lp-d${index + 1}`}
-      style={{ padding: '48px 16px', textAlign: 'center' }}>
-      <div style={{ fontSize: 44, fontWeight: 900, color: P.blue, lineHeight: 1, marginBottom: 8, letterSpacing: -1.5, fontVariantNumeric: 'tabular-nums' }}>
+      style={{ padding: '44px 16px', textAlign: 'center' }}>
+      <div dir="ltr" style={{ fontSize: 'clamp(40px,5vw,60px)', fontWeight: 700, color: P.ink, lineHeight: 1, marginBottom: 10, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}>
         {display}
       </div>
-      <div style={{ fontSize: 13, color: P.sub, fontWeight: 500, letterSpacing: .2 }}>{stat.l}</div>
+      <div style={{ fontSize: 15, color: P.inkSub, fontWeight: 400, letterSpacing: 0 }}>{stat.l}</div>
     </div>
   )
 }
@@ -527,8 +527,8 @@ function Phases({ t }) {
 // ── Stats ─────────────────────────────────────────────────────────────────────
 function Stats({ t }) {
   return (
-    <div style={{ background: P.white, borderTop: `1px solid ${P.border}`, borderBottom: `1px solid ${P.border}`, padding: '0 64px', direction: t.dir }}>
-      <div className="lp-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ background: P.cream, padding: '28px 24px 40px', direction: t.dir }}>
+      <div className="lp-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', maxWidth: 1100, margin: '0 auto', background: '#FBFAF7', border: '1px solid #E5E1D8', borderRadius: 28, boxShadow: '0 18px 50px rgba(43,38,48,.06)' }}>
         {t.stats.map((s, i) => <StatItem key={i} stat={s} index={i} />)}
       </div>
     </div>
@@ -543,37 +543,38 @@ function About({ t, scrollY }) {
   const rel = scrollY - sectionTopRef.current
 
   return (
-    <section ref={sectionRef} id="about" style={{ background: P.white, padding: '120px 64px', direction: t.dir, position: 'relative', overflow: 'hidden' }}>
+    <section ref={sectionRef} id="about" style={{ background: P.cream, padding: '70px 64px 120px', direction: t.dir, position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '15%', insetInlineEnd: '-140px', width: 560, height: 560, borderRadius: '50%', background: 'radial-gradient(circle,rgba(37,99,235,.07) 0%,transparent 65%)', filter: 'blur(80px)', pointerEvents: 'none', transform: `translateY(${rel * .22}px)`, willChange: 'transform' }} />
       <div style={{ position: 'absolute', bottom: '10%', insetInlineStart: '-100px', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle,rgba(8,145,178,.06) 0%,transparent 65%)', filter: 'blur(70px)', pointerEvents: 'none', transform: `translateY(${rel * -.14}px)`, willChange: 'transform' }} />
 
       <div className="lp-about-grid" style={{ maxWidth: 1400, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         {/* Column 1 — heading block */}
         <div className="lp-rl lp-d0">
-          <h2 style={{ fontSize: 52, fontWeight: 700, color: P.text, lineHeight: 1.1, margin: '0 0 20px', letterSpacing: '-0.04em' }}>
+          <h2 style={{ fontSize: 'clamp(36px,4.6vw,60px)', fontWeight: 700, color: P.ink, lineHeight: 1.05, margin: '0 0 22px', letterSpacing: '-0.04em' }}>
             {t.about.h}
           </h2>
-          <p style={{ fontSize: 17, color: P.sub, lineHeight: 1.8, margin: 0, maxWidth: 480 }}>
+          <p style={{ fontSize: 18, fontWeight: 300, color: P.inkSub, lineHeight: 1.8, margin: 0, maxWidth: 480 }}>
             {t.about.sub}
           </p>
           <span className="lp-line-reveal lp-d1" style={{ width: 52, marginTop: 28, marginInlineStart: 0, marginInlineEnd: 'auto' }} />
         </div>
 
-        {/* Column 2 — numbered list */}
-        <div>
+        {/* Column 2 — numbered cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {t.about.cards.map((c, i) => (
-            <div key={i} className={`lp-r lp-d${i + 1}`} style={{
-              paddingTop: i === 0 ? 0 : 28,
-              paddingBottom: 28,
-              borderBottom: `1px solid ${P.border}`,
+            <div key={i} className={`lp-r lp-d${i + 1} px-card`} style={{
+              background: '#FBFAF7', border: '1px solid #E5E1D8', borderRadius: 22,
+              padding: '26px 28px', display: 'flex', gap: 20, alignItems: 'flex-start',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: P.blue, letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 10 }}>
+              <div style={{ flex: '0 0 auto', width: 44, height: 44, borderRadius: 14, background: 'rgba(37,99,235,.1)', color: P.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, letterSpacing: '.04em' }}>
                 {String(i + 1).padStart(2, '0')}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: P.text, marginBottom: 8, letterSpacing: -0.3 }}>
-                {c.t}
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: P.ink, marginBottom: 6, letterSpacing: '-0.02em' }}>
+                  {c.t}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 300, color: P.inkSub, lineHeight: 1.75 }}>{c.d}</div>
               </div>
-              <div style={{ fontSize: 15, color: P.sub, lineHeight: 1.75 }}>{c.d}</div>
             </div>
           ))}
         </div>
