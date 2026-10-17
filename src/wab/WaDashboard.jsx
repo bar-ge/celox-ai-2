@@ -158,9 +158,14 @@ export default function WaDashboard({ onBack }) {
   )
 
   return (
-    <div dir="ltr" style={{
+    <div dir="rtl" style={{
+      // #root (App.css) is itself `display: flex`, so without flex:1 + minWidth:0
+      // this div sizes to its children's content width instead of stretching to
+      // fill the window — the bug Bar reported as a huge blank strip beside a
+      // narrow dashboard.
+      flex: '1 1 auto', minWidth: 0, width: '100%',
       height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-      background: T.white, color: T.text, fontFamily: FONT_SANS,
+      background: T.bg, color: T.text, fontFamily: FONT_SANS,
     }}>
       <style>{`
         .wab-skeleton { background: ${T.border}; animation: wabPulse 1.4s ease-in-out infinite; }
@@ -175,16 +180,16 @@ export default function WaDashboard({ onBack }) {
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         gap: T.padTight, padding: narrow ? `10px ${T.padTight}px` : `10px ${T.pad}px`,
-        borderBottom: `1px solid ${T.border}`, flexShrink: 0,
+        borderBottom: `1px solid ${T.border}`, background: T.bg, flexShrink: 0,
       }}>
-        <span style={{ fontSize: narrow ? T.fs16 : T.fs20, fontWeight: 700, whiteSpace: 'nowrap' }}>
-          {narrow ? 'WhatsApp Leads' : 'CELOX AI — WhatsApp Leads'}
+        <span style={{ fontSize: narrow ? T.fs16 : T.fs20, fontWeight: 800, color: T.text, whiteSpace: 'nowrap' }}>
+          {narrow ? 'לידים בוואטסאפ' : 'CELOX AI — לידים בוואטסאפ'}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: T.padTight, minWidth: 0 }}>
           {error && !narrow && (
-            <span style={{ fontSize: T.fs12, color: T.textMid }}>Sync issue: {error}</span>
+            <span style={{ fontSize: T.fs12, color: T.danger }}>תקלת סנכרון: {error}</span>
           )}
-          {onBack && <HeaderButton onClick={onBack} narrow={narrow}>Back to app</HeaderButton>}
+          {onBack && <HeaderButton onClick={onBack} narrow={narrow}>חזרה לאפליקציה</HeaderButton>}
         </div>
       </header>
 
@@ -223,9 +228,9 @@ export default function WaDashboard({ onBack }) {
           <>
             <div
               onClick={() => setDetailOpen(false)}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(17,24,39,0.25)', zIndex: 1 }}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(43,33,25,0.3)', zIndex: 1 }}
             />
-            <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, zIndex: 2, display: 'flex' }}>
+            <div style={{ position: 'absolute', top: 0, insetInlineEnd: 0, bottom: 0, zIndex: 2, display: 'flex' }}>
               {detail}
             </div>
           </>
@@ -248,9 +253,9 @@ function HeaderButton({ onClick, narrow, children }) {
     <button
       onClick={onClick}
       style={{
-        fontFamily: FONT_SANS, fontSize: T.fs12, cursor: 'pointer',
-        padding: narrow ? '9px 12px' : '5px 10px', minHeight: narrow ? 40 : 0,
-        borderRadius: T.radius, border: `1px solid ${T.border}`,
+        fontFamily: FONT_SANS, fontSize: T.fs12, fontWeight: 600, cursor: 'pointer',
+        padding: narrow ? '9px 13px' : '5px 12px', minHeight: narrow ? 40 : 0,
+        borderRadius: T.radiusPill, border: `1px solid ${T.border}`,
         background: T.white, color: T.text, whiteSpace: 'nowrap',
         transition: 'background-color 150ms ease',
       }}

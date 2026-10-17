@@ -1,7 +1,7 @@
 // Intent taxonomy for the WhatsApp lead agent.
 // Shared by the serverless functions and the dashboard — single source of truth.
 
-/** @typedef {'booking_request'|'pricing_query'|'product_question'|'integration_question'|'qualification_answer'|'implementation_question'|'human_handoff'|'not_relevant'|'opt_out'|'complaint'|'general'} Intent */
+/** @typedef {'booking_request'|'pricing_query'|'product_question'|'integration_question'|'qualification_answer'|'implementation_question'|'human_handoff'|'not_relevant'|'opt_out'|'complaint'|'general'|'spam'} Intent */
 
 export const INTENTS = {
   booking_request:        { color: '#2563EB', label: 'Booking request',        he: 'בקשת פגישה' },
@@ -15,6 +15,10 @@ export const INTENTS = {
   opt_out:                { color: '#DC2626', label: 'Opt out',                he: 'בקשת הסרה' },
   complaint:              { color: '#DC2626', label: 'Complaint',              he: 'תלונה' },
   general:                { color: '#9CA3AF', label: 'General',                he: 'כללי' },
+  // Bar's request (2026-10-11): any inbound link, regardless of domain — see
+  // api/_lib/spam-guard.js. Tagged on the message itself; 3 of these in a row
+  // also auto-pauses the whole lead (lead.bot_paused / status 'ספאם').
+  spam:                   { color: '#991B1B', label: 'Spam',                   he: 'ספאם' },
 }
 
 export const INTENT_VALUES = /** @type {Intent[]} */ (Object.keys(INTENTS))
@@ -27,3 +31,6 @@ export const intentColor = (v) => (isIntent(v) ? INTENTS[v].color : INTENTS.gene
 
 /** @param {unknown} v @returns {string} */
 export const intentLabel = (v) => (isIntent(v) ? INTENTS[v].label : INTENTS.general.label)
+
+/** Hebrew label — used by the wab.celoxai.com dashboard UI (2026-10-12 redesign). */
+export const intentLabelHe = (v) => (isIntent(v) ? INTENTS[v].he : INTENTS.general.he)

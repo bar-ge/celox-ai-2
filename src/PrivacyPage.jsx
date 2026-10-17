@@ -10,7 +10,7 @@ const T = {
     hero: {
       badge: 'מסמך משפטי',
       title: 'מדיניות פרטיות',
-      updated: 'עדכון אחרון: 1 במאי 2026',
+      updated: 'עדכון אחרון: 18 באוקטובר 2026',
     },
     sections: [
       {
@@ -20,7 +20,7 @@ const T = {
       {
         n: '2', h: 'מידע שאנו אוספים',
         items: [
-          { t: 'מנהלי צי', d: 'שם, כתובת אימייל, שם חברה. הסיסמה מאוחסנת מוצפנת (bcrypt) ואינה נגישה לנו.' },
+          { t: 'מנהלי צי', d: 'שם, כתובת אימייל, שם חברה. הכניסה באמצעות אימייל וסיסמה או חשבון Google. הסיסמה נשמרת אצל Google Identity Platform בצורה מגובבת ואינה נגישה לנו.' },
           { t: 'נהגים (דרך טפסים ציבוריים)', d: 'שם, מספר רישיון, חתימה דיגיטלית (תמונת PNG), אישורי הדרכה.' },
           { t: 'רכבים', d: 'לוחיות רישוי, דגם, שנת ייצור, קילומטראז\' ורשומות תחזוקה.' },
           { t: 'לוגים ופעילות', d: 'פעולות משתמש עם חותמות זמן, לצרכי אבטחה וביקורת.' },
@@ -40,17 +40,21 @@ const T = {
       },
       {
         n: '4', h: 'אחסון ואבטחה',
-        body: 'המידע מאוחסן ב-Supabase בשרתים הממוקמים בטוקיו, יפן (אזור ap-northeast-1). הנתונים מוצפנים בתעבורה (TLS 1.2+) ובאחסון (AES-256). אנו מיישמים אבטחת שורה ברמת מסד הנתונים (Row Level Security) המגבילה גישה לנתונים לפי חברה.',
+        body: 'המידע מאוחסן בתשתית Google Cloud באזור תל אביב (me-west1, ישראל). הנתונים מוצפנים בתעבורה (TLS) ובאחסון (הצפנה מנוהלת של Google). לכל לקוח מסד נתונים נפרד, והגישה לנתוני חברה מוגבלת למשתמשיה המורשים. סודות אינטגרציה נשמרים ב-Google Secret Manager.',
       },
       {
         n: '5', h: 'העברת מידע לחוץ לארץ',
-        body: 'המידע מועבר ומאוחסן ביפן. יפן קיבלה החלטת נאותות מהאיחוד האירופי (GDPR) בשנת 2019 בגין חוק APPI המתוקן שלה. ההעברה מישראל ליפן מבוססת על הסכם עיבוד נתונים (DPA) עם Supabase הכולל הגנות חוזיות המקבילות לסעיפים חוזיים תקניים. במקרה של שינוי מהותי במדיניות הגנת הפרטיות של יפן, נעדכן הסדרי ההעברה בהתאם.',
+        body: 'המידע הראשי מאוחסן בישראל. חלק מספקי השירות המפורטים בסעיף הבא מפעילים תשתיות מחוץ לישראל (לדוגמה Meta, Resend, Anthropic ו-Google). העברת מידע אליהם נעשית לצורך מתן השירות בלבד ובכפוף להסכמי עיבוד נתונים ולתנאים התואמים את חוק הגנת הפרטיות. אם תשתנה מדיניות האחסון או הספקים, נעדכן עמוד זה.',
       },
       {
         n: '6', h: 'שיתוף מידע עם צדדים שלישיים',
         items: [
-          { t: 'Supabase Inc.', d: 'ספק תשתית מסד נתונים ואחסון — DPA חתום. לא מורשה להשתמש בנתונייך לכל מטרה אחרת.' },
-          { t: 'Vercel Inc.', d: 'פלטפורמת אירוח האתר — אינה מעבדת נתונים אישיים מעבר ל-IP לצרכי CDN.' },
+          { t: 'Google Cloud', d: 'אחסון, מסדי נתונים, אימות משתמשים והפעלת המערכת (ישראל). לא מורשה להשתמש בנתונים לכל מטרה אחרת.' },
+          { t: 'Google Vertex AI (Gemini)', d: 'העוזר החכם וקריאת מסמכים (רישיונות) שהמשתמש בחר לסרוק, לפי בקשתו.' },
+          { t: 'Resend', d: 'שליחת הודעות דוא"ל — אימות חשבון, איפוס סיסמה והתראות.' },
+          { t: 'Meta (WhatsApp Business) ו-Anthropic', d: 'ערוץ הוואטסאפ של החברה והעוזר החכם שמשיב בו לפונים.' },
+          { t: 'Cloudflare Turnstile', d: 'הגנה מפני ספאם בטופס יצירת הקשר.' },
+          { t: 'Vercel Inc.', d: 'אירוח אתר השיווק וניתוח ביצועי טעינה.' },
           { t: 'רשויות', d: 'אם נדרש על פי חוק, צו שיפוטי, או להגנה על זכויות החברה.' },
           { t: 'אחרים', d: 'איננו מוכרים, מעבירים או משתפים נתונים אישיים עם גורמים שלישיים לכל מטרה מסחרית.' },
         ],
@@ -104,7 +108,7 @@ const T = {
     hero: {
       badge: 'Legal Document',
       title: 'Privacy Policy',
-      updated: 'Last updated: May 1, 2026',
+      updated: 'Last updated: October 18, 2026',
     },
     sections: [
       {
@@ -114,7 +118,7 @@ const T = {
       {
         n: '2', h: 'Data We Collect',
         items: [
-          { t: 'Fleet Managers', d: 'Name, email address, company name. Passwords are stored encrypted (bcrypt) and are not accessible to us.' },
+          { t: 'Fleet Managers', d: 'Name, email address, company name. Sign-in is by email and password or a Google account. Passwords are stored hashed by Google Identity Platform and are not accessible to us.' },
           { t: 'Drivers (via public forms)', d: 'Name, license number, digital signature (PNG image), training confirmations.' },
           { t: 'Vehicles', d: 'License plates, model, year, mileage and maintenance records.' },
           { t: 'Logs & Activity', d: 'User actions with timestamps, for security and audit purposes.' },
@@ -134,17 +138,21 @@ const T = {
       },
       {
         n: '4', h: 'Storage & Security',
-        body: 'Data is stored on Supabase servers located in Tokyo, Japan (ap-northeast-1 region). Data is encrypted in transit (TLS 1.2+) and at rest (AES-256). We implement Row Level Security at the database level, restricting data access per company.',
+        body: 'Data is stored on Google Cloud infrastructure in the Tel Aviv region (me-west1, Israel). Data is encrypted in transit (TLS) and at rest (Google-managed encryption). Each customer has a separate database, and access to company data is limited to its authorised users. Integration secrets are kept in Google Secret Manager.',
       },
       {
         n: '5', h: 'Cross-Border Data Transfer',
-        body: 'Data is transferred to and stored in Japan. Japan received an EU adequacy decision (GDPR) in 2019 for its amended APPI law. The transfer from Israel to Japan is based on a Data Processing Agreement (DPA) with Supabase, which includes contractual protections equivalent to Standard Contractual Clauses. Should Japan\'s privacy framework change materially, we will update transfer arrangements accordingly.',
+        body: 'Primary data is stored in Israel. Some of the service providers listed in the next section operate infrastructure outside Israel (for example Meta, Resend, Anthropic and Google). Data is transferred to them only to provide the service and subject to data-processing agreements and terms consistent with the Israeli Privacy Protection Law. If hosting or providers change, we will update this page.',
       },
       {
         n: '6', h: 'Third-Party Data Sharing',
         items: [
-          { t: 'Supabase Inc.', d: 'Database and storage infrastructure provider — DPA signed. Not authorised to use your data for any other purpose.' },
-          { t: 'Vercel Inc.', d: 'Website hosting platform — does not process personal data beyond IP for CDN purposes.' },
+          { t: 'Google Cloud', d: 'Hosting, databases, authentication and running the platform (Israel). Not authorised to use the data for any other purpose.' },
+          { t: 'Google Vertex AI (Gemini)', d: 'The in-app assistant and reading of documents (licences) that a user chooses to scan, at their request.' },
+          { t: 'Resend', d: 'Sending email — account verification, password reset and alerts.' },
+          { t: 'Meta (WhatsApp Business) and Anthropic', d: "The company's WhatsApp channel and the AI assistant that replies to enquiries there." },
+          { t: 'Cloudflare Turnstile', d: 'Spam protection on the contact form.' },
+          { t: 'Vercel Inc.', d: 'Marketing-site hosting and page-performance analytics.' },
           { t: 'Authorities', d: 'If required by law, court order, or to protect the Company\'s rights.' },
           { t: 'Others', d: 'We do not sell, transfer or share personal data with third parties for any commercial purpose.' },
         ],

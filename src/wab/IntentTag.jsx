@@ -1,7 +1,7 @@
-import { INTENTS, intentColor, intentLabel } from '../../api/_lib/intents.js'
+import { INTENTS, intentColor, intentLabelHe } from '../../api/_lib/intents.js'
 import { T, FONT_SANS } from './theme'
 
-/** Small outlined tag — coloured border and text, never filled. */
+/** Small soft-filled pill — coloured text on a light tint of the same colour. */
 export default function IntentTag({ intent }) {
   const color = intentColor(intent)
   return (
@@ -9,15 +9,15 @@ export default function IntentTag({ intent }) {
       display: 'inline-block',
       fontFamily: FONT_SANS,
       fontSize: T.fs11,
+      fontWeight: 600,
       lineHeight: 1.4,
-      padding: '2px 8px',
-      border: `1px solid ${color}`,
-      borderRadius: T.radius,
+      padding: '3px 10px',
+      borderRadius: T.radiusPill,
       color,
-      background: 'transparent',
+      background: `${color}1A`, // ~10% alpha tint of the intent colour
       whiteSpace: 'nowrap',
     }}>
-      {intentLabel(intent)}
+      {intentLabelHe(intent)}
     </span>
   )
 }
@@ -26,7 +26,7 @@ export default function IntentTag({ intent }) {
 export function IntentDot({ intent }) {
   return (
     <span
-      title={intent ? intentLabel(intent) : 'No intent yet'}
+      title={intent ? intentLabelHe(intent) : 'עדיין לא זוהתה כוונה'}
       style={{
         // An inline span ignores width/height — this has to be a block.
         display: 'block',

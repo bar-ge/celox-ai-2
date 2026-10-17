@@ -56,6 +56,7 @@ export const STATUSES = [
   'לא מתאים',
   'לא הגיב',
   'ביקש הסרה',
+  'ספאם',
 ]
 
 /** @param {unknown} v @returns {v is Stage} */

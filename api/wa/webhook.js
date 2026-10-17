@@ -17,6 +17,7 @@ import { FALLBACK_MESSAGE, CALENDAR_ERROR_MESSAGE } from '../_lib/conversation-s
 import { summaryAndSlotsMessage } from '../_lib/calendar-message.js'
 import { serviceClient, LEADS, MESSAGES } from '../_lib/supabase.js'
 import { syncLead } from '../_lib/monday.js'
+import { containsLink, recordSpamStrike, SPAM_STRIKE_LIMIT } from '../_lib/spam-guard.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 // Raw body is needed to verify Meta's X-Hub-Signature-256, so parse it ourselves.
@@ -172,22 +173,40 @@ export async function handleInbound(inbound) {
 
   const seed = await getOrCreateLead(phone, { firstName: profileName })
 
+  // Bar's call (2026-10-11): any inbound link is spam, full stop — see
+  // spam-guard.js for why this is generic link-detection rather than a
+  // domain blocklist. A spam message never gets a "new lead" alert (it's
+  // not a real lead starting a conversation) and never reaches the model.
+  const linkSpam = containsLink(text)
+
   // A brand-new lead, first message ever — Bar wants to know the moment
   // someone starts talking to the bot. Fired once, right here, since this is
   // the only place a lead's row gets created from their own inbound message.
   // Never allowed to block or fail the actual conversation.
-  if (seed.isNewLead) {
+  if (seed.isNewLead && !linkSpam) {
     await sendNewLeadAlert({ phone, firstName: profileName }).catch(() => {})
   }
 
   // Dedupe + log in one step: the unique index on wa_message_id rejects replays.
   const isNew = await logMessage({
     phone, direction: 'inbound', body: text,
-    waMessageId, stage: seed.stage, intent: null,
+    waMessageId, stage: seed.stage, intent: linkSpam ? 'spam' : null,
   })
   if (!isNew) return
 
   await markRead(waMessageId)
+
+  if (linkSpam) {
+    // Short-circuit before the claim/respond/LLM pipeline entirely — a link
+    // never gets a reply, so there's nothing for the model to do and no
+    // reason to pay for a call. Strike 3 pauses the whole conversation via
+    // the same bot_paused flag respond() already checks for a human handoff.
+    const strikes = await recordSpamStrike(phone)
+    if (strikes >= SPAM_STRIKE_LIMIT) {
+      console.error('wa: lead auto-paused after repeated link spam', phone, strikes)
+    }
+    return
+  }
 
   // Only one run may hold a lead at a time. A loser exits here: its message is
   // already logged, and the holder re-checks for new messages before finishing,

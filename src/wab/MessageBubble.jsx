@@ -19,8 +19,8 @@ export default function MessageBubble({ message, gapTop, narrow }) {
         maxWidth: narrow ? '88%' : '70%',
         background: outbound ? T.accent : T.bubbleIn,
         color: outbound ? T.white : T.text,
-        borderRadius: T.radius,
-        padding: '8px 12px',
+        borderRadius: T.bubbleRadius,
+        padding: '9px 13px',
         fontFamily: FONT_SANS,
         fontSize: T.fs14,
         lineHeight: 1.55,
@@ -30,7 +30,7 @@ export default function MessageBubble({ message, gapTop, narrow }) {
         <span dir="auto" style={{ display: 'block' }}>{message.body}</span>
       </div>
 
-      <div style={{
+      <div dir="ltr" style={{
         fontFamily: FONT_MONO,
         fontSize: T.fs11,
         color: T.textDim,

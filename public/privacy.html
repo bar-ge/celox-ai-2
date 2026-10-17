@@ -234,7 +234,7 @@
     <div class="card">
       <h2><span class="section-num">1</span>מבוא</h2>
       <p>Celox AI Ltd. ("Celox AI", "אנחנו") מפעילה פלטפורמת SaaS לניהול צי רכבים בכתובת <strong>celoxai.com</strong>. מדיניות פרטיות זו מסבירה כיצד אנו אוספים, משתמשים ומגנים על המידע האישי שלך בהתאם לחוק הגנת הפרטיות (תשמ"א-1981) ותקנות אבטחת מידע 2017.</p>
-      <div class="highlight">📅 עדכון אחרון: יוני 2026</div>
+      <div class="highlight">📅 עדכון אחרון: אוקטובר 2026</div>
     </div>
 
     <div class="card">
@@ -242,7 +242,7 @@
       <p><strong>מידע שאתה מספק:</strong></p>
       <ul>
         <li>שם, כתובת אימייל וסיסמה (לצורך יצירת חשבון)</li>
-        <li>כניסה דרך Google או Microsoft (שם, אימייל ותמונת פרופיל בלבד)</li>
+        <li>כניסה דרך Google (שם, אימייל ותמונת פרופיל בלבד)</li>
         <li>פרטי רכבים, נהגים, תחזוקה, דו"חות תנועה ועלויות</li>
         <li>נתוני מיקום GPS של רכבים (אם מחובר)</li>
       </ul>
@@ -272,11 +272,26 @@
     <div class="card">
       <h2><span class="section-num">5</span>אחסון ואבטחה</h2>
       <ul>
-        <li>הנתונים מאוחסנים ב-<strong>Supabase</strong> (שרתים ביפן / AWS)</li>
-        <li>הצפנה מלאה בתעבורה (TLS) ובאחסון (AES-256)</li>
-        <li>הרשאות גישה מבוססות-חברה (Row Level Security)</li>
-        <li>אישורי גישה לאינטגרציות מוצפנים עם pgcrypto</li>
+        <li>הנתונים מאוחסנים בתשתית <strong>Google Cloud</strong> באזור תל אביב (me-west1, ישראל)</li>
+        <li>הצפנה בתעבורה (TLS) ובאחסון (הצפנה מנוהלת של Google)</li>
+        <li>לכל לקוח מסד נתונים נפרד; הגישה לנתוני חברה מוגבלת למשתמשיה המורשים</li>
+        <li>אישורי גישה לאינטגרציות נשמרים ב-Google Secret Manager</li>
+        <li>הכניסה למערכת מתבצעת באמצעות Google Identity Platform; סיסמאות נשמרות אצל Google בצורה מגובבת ואינן נגישות לנו</li>
       </ul>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">5.1</span>ספקי שירות (מעבדי משנה)</h2>
+      <p>אנו נעזרים בספקים הבאים לצורך הפעלת השירות. הם מורשים לעבד מידע רק לצורך מתן השירות:</p>
+      <ul>
+        <li><strong>Google Cloud</strong> – אחסון, מסדי נתונים, אימות משתמשים והפעלת המערכת (ישראל)</li>
+        <li><strong>Google (Vertex AI / Gemini)</strong> – עוזר חכם וקריאת מסמכים (רישיונות) שהמשתמש בחר לסרוק, לפי בקשתו</li>
+        <li><strong>Resend</strong> – שליחת הודעות דוא"ל (אימות חשבון, איפוס סיסמה והתראות)</li>
+        <li><strong>Meta (WhatsApp Business)</strong> ו-<strong>Anthropic</strong> – ערוץ וואטסאפ של החברה והעוזר החכם שמשיב בו לפונים</li>
+        <li><strong>Cloudflare Turnstile</strong> – הגנה מפני ספאם בטופס יצירת הקשר</li>
+        <li><strong>Vercel</strong> – אירוח אתר השיווק וניתוח ביצועי טעינה</li>
+      </ul>
+      <p>חלק מהספקים מפעילים תשתיות מחוץ לישראל; ההעברה נעשית בכפוף להסכמי עיבוד נתונים ולתנאים התואמים את חוק הגנת הפרטיות.</p>
     </div>
 
     <div class="card">
@@ -315,7 +330,7 @@
     <div class="card">
       <h2><span class="section-num">1</span>Introduction</h2>
       <p>Celox AI Ltd. ("Celox AI", "we", "us") operates a SaaS fleet management platform at <strong>celoxai.com</strong>. This Privacy Policy explains how we collect, use, and protect your personal information in accordance with the Israeli Privacy Protection Law (1981) and the Security Regulations (2017).</p>
-      <div class="highlight">📅 Last updated: June 2026</div>
+      <div class="highlight">📅 Last updated: October 2026</div>
     </div>
 
     <div class="card">
@@ -323,7 +338,7 @@
       <p><strong>Information you provide:</strong></p>
       <ul>
         <li>Name, email address, and password (for account creation)</li>
-        <li>Google or Microsoft sign-in (name, email, and profile picture only)</li>
+        <li>Google sign-in (name, email, and profile picture only)</li>
         <li>Vehicle, driver, maintenance, violation, and cost data you enter</li>
         <li>GPS location data for vehicles (if connected)</li>
       </ul>
@@ -353,11 +368,26 @@
     <div class="card">
       <h2><span class="section-num">5</span>Storage &amp; Security</h2>
       <ul>
-        <li>Data stored on <strong>Supabase</strong> (Japan / AWS infrastructure)</li>
-        <li>Encryption in transit (TLS) and at rest (AES-256)</li>
-        <li>Company-based access control (Row Level Security)</li>
-        <li>Integration credentials encrypted with pgcrypto</li>
+        <li>Data is stored on <strong>Google Cloud</strong> in the Tel Aviv region (me-west1, Israel)</li>
+        <li>Encryption in transit (TLS) and at rest (Google-managed encryption)</li>
+        <li>Each customer has a separate database; access to company data is limited to its authorised users</li>
+        <li>Integration credentials are kept in Google Secret Manager</li>
+        <li>Sign-in uses Google Identity Platform; passwords are stored hashed by Google and are not accessible to us</li>
       </ul>
+    </div>
+
+    <div class="card">
+      <h2><span class="section-num">5.1</span>Service Providers (Sub-processors)</h2>
+      <p>We use the following providers to operate the Service. They may process data only to provide the Service:</p>
+      <ul>
+        <li><strong>Google Cloud</strong> – hosting, databases, authentication and running the platform (Israel)</li>
+        <li><strong>Google (Vertex AI / Gemini)</strong> – the in-app assistant and reading of documents (licences) that a user chooses to scan</li>
+        <li><strong>Resend</strong> – sending email (account verification, password reset and alerts)</li>
+        <li><strong>Meta (WhatsApp Business)</strong> and <strong>Anthropic</strong> – the company's WhatsApp channel and the AI assistant that replies to enquiries there</li>
+        <li><strong>Cloudflare Turnstile</strong> – spam protection on the contact form</li>
+        <li><strong>Vercel</strong> – marketing-site hosting and page-performance analytics</li>
+      </ul>
+      <p>Some providers operate infrastructure outside Israel; transfers are subject to data-processing agreements and terms consistent with the Israeli Privacy Protection Law.</p>
     </div>
 
     <div class="card">

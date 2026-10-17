@@ -18,6 +18,7 @@ import {
 import { CONVERSATION_SCRIPT } from '../api/_lib/conversation-script.js'
 import { summaryAndSlotsMessage } from '../api/_lib/calendar-message.js'
 import { INTENT_VALUES } from '../api/_lib/intents.js'
+import { containsLink } from '../api/_lib/spam-guard.js'
 import { groupForLead, columnValues, syncLead, meetingValue, COLUMNS } from '../api/_lib/monday.js'
 import { windowOpen } from '../api/wa/start.js'
 
@@ -859,6 +860,28 @@ test('a lead who never wrote to us is never chased', () => {
 
   const replied = { ...started, last_inbound_at: '2020-01-01T00:00:00.000Z' }
   assert.notEqual(followupDue(replied, new Date('2020-01-02T09:00:00.000Z')).reason, 'no_customer_window')
+})
+
+test('a plain https link is spam', () => {
+  assert.equal(containsLink('check this out https://tiktok.com/@someone/video/123'), true)
+})
+
+test('a bare www. domain is spam', () => {
+  assert.equal(containsLink('www.aliexpress.com/item/123.html'), true)
+})
+
+test('a bare domain with no scheme or www is still spam', () => {
+  assert.equal(containsLink('aliexpress.com great deals'), true)
+})
+
+test('an ordinary message with no link is not spam', () => {
+  assert.equal(containsLink('היי, יש לי 12 רכבים ואני מחפש מערכת ניהול'), false)
+  assert.equal(containsLink(''), false)
+  assert.equal(containsLink(null), false)
+})
+
+test('intents.js has a spam entry for the dashboard/webhook to use', () => {
+  assert.ok(INTENT_VALUES.includes('spam'))
 })
 
 console.log(`\n${passed} checks passed${process.exitCode ? ' — with failures above' : ''}\n`)
